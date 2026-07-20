@@ -1,0 +1,19 @@
+# Minimal Supabase CLI config. `supabase start` boots a local stack;
+# `supabase db reset` applies migrations/*.sql then seed.sql.
+project_id = "dalnex-hrms"
+
+[db]
+port = 54322
+major_version = 15
+
+[api]
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public"]
+
+[studio]
+port = 54323
+
+[auth]
+site_url = "http://localhost:3000"
+enable_signup = true
