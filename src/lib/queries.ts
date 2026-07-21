@@ -21,10 +21,15 @@ import {
 } from '@/lib/demo-data';
 import { minutesToHHMM, trimTime } from '@/lib/format';
 import { isSupabaseConfigured } from '@/lib/supabase/env';
+import {
+  DEFAULT_WEEK_OFF_POLICY,
+  policyFromSettings,
+  type WeekOffPolicy,
+} from '@/lib/week-off';
 import type {
   RegisterEmployee, PayslipRow, DayCell, TodayKpis, Celebration, PunchLogRow,
 } from '@/types/domain';
-import type { AttendanceStatus, Policy, LeaveType } from '@/types/database';
+import type { AttendanceStatus, Policy, LeaveType, RequestType } from '@/types/database';
 
 // Re-exported: ~8 action files already import isSupabaseConfigured from here.
 // The implementation now lives in @/lib/supabase/env (single source of truth).
@@ -51,6 +56,34 @@ function fail(context: string, error: QueryError): never {
   const detail = [error.message, error.details, error.hint].filter(Boolean).join(' — ');
   const code = error.code ? ` (${error.code})` : '';
   throw new Error(`${context}: ${detail}${code}`);
+}
+
+/**
+ * True when the error is "this relation does not exist" — i.e. a migration has
+ * not been applied to this database yet.
+ *
+ *   PGRST205  PostgREST: table not found in the schema cache
+ *   42P01     Postgres:  undefined_table
+ *
+ * This is deliberately NARROW and is the one exception to the house rule that a
+ * real Supabase error must never be swallowed. It distinguishes "the query
+ * failed" (a real fault worth surfacing) from "this feature is not deployed in
+ * this environment", which is a deployment state, not a fault. Only the tables
+ * added by later migrations use it, so a half-migrated database degrades the
+ * affected card instead of taking down the whole dashboard. Every other error —
+ * permissions, RLS, network — still throws.
+ */
+function isMissingTable(error: QueryError): boolean {
+  return error.code === 'PGRST205' || error.code === '42P01';
+}
+
+/** Log once, loudly, so an un-migrated deployment is obvious in the server logs. */
+function warnNotMigrated(context: string, migration: string): void {
+  console.warn(
+    `[dalnex-hrms] ${context}: table missing — apply ${migration} ` +
+      '(npx supabase db push, or paste it in the Supabase SQL Editor). ' +
+      'Returning no rows so the rest of the page still renders.',
+  );
 }
 
 /** '2026-06-01' -> { start: '2026-06-01', end: '2026-06-30' } */
@@ -703,6 +736,270 @@ export async function getEmployees(): Promise<EmployeeListRow[]> {
   }));
 }
 
+// -------------------------------------------------------- notifications ---
+export interface NotificationRow {
+  id: string;
+  kind: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
+/**
+ * The signed-in user's notifications, newest first. RLS (0012) restricts this to
+ * `recipient_id = auth.uid()`, so no caller-supplied id is needed or accepted.
+ */
+export async function getMyNotifications(limit = 20): Promise<NotificationRow[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('id, kind, title, body, link, read_at, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) {
+    if (isMissingTable(error)) {
+      warnNotMigrated('getMyNotifications', 'migration 0012_notifications.sql');
+      return [];
+    }
+    fail('getMyNotifications: could not load notifications', error);
+  }
+  return (data ?? []).map((n: any) => ({
+    id: n.id,
+    kind: n.kind,
+    title: n.title,
+    body: n.body,
+    link: n.link,
+    readAt: n.read_at,
+    createdAt: n.created_at,
+  }));
+}
+
+/** Unread count for the topbar badge. */
+export async function getUnreadNotificationCount(): Promise<number> {
+  if (!isSupabaseConfigured()) return 0;
+
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .is('read_at', null);
+  if (error) {
+    if (isMissingTable(error)) return 0;
+    return 0; // the badge must never break the shell
+  }
+  return count ?? 0;
+}
+
+// ------------------------------------------------------- week-off policy ---
+/**
+ * The scheduled week-off rule (settings-driven, migration 0010). Falls back to
+ * the documented default — Sundays off, Saturdays off except the 2nd and 4th —
+ * whenever the settings are absent or unreadable, so the register never loses
+ * its week-off columns over a missing row.
+ */
+export async function getWeekOffPolicy(): Promise<WeekOffPolicy> {
+  if (!isSupabaseConfigured()) return DEFAULT_WEEK_OFF_POLICY;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('settings')
+    .select('key, value')
+    .in('key', ['week_off_weekdays', 'working_saturdays']);
+  if (error || !data) return DEFAULT_WEEK_OFF_POLICY;
+
+  const byKey = new Map(data.map((r: any) => [r.key, r.value]));
+  return policyFromSettings(byKey.get('week_off_weekdays'), byKey.get('working_saturdays'));
+}
+
+// -------------------------------------------------- employee pick options ---
+export interface EmployeeOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+/** Active employees as {id, code, name} — for "link this login to an employee". */
+export async function getEmployeeOptions(): Promise<EmployeeOption[]> {
+  if (!isSupabaseConfigured()) {
+    return DATA.employees.map((e) => ({ id: e.code, code: e.code, name: e.name }));
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('employees')
+    .select('id, code, full_name')
+    .eq('status', 'active')
+    .order('code');
+  if (error) fail('getEmployeeOptions: could not load employees', error);
+  return (data ?? []).map((e: any) => ({ id: e.id, code: e.code, name: e.full_name }));
+}
+
+// --------------------------------------------------------- reimbursements ---
+export interface ReimbursementView {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  employeeCode: string;
+  claimDate: string;
+  description: string;
+  purpose: 'travel' | 'material_purchase' | 'other';
+  sourceMedium: string | null;
+  kms: number | null;
+  modeOfPayment: string | null;
+  amount: number;
+  remarks: string | null;
+  status: 'pending' | 'approved' | 'rejected' | 'paid';
+  createdAt: string;
+}
+
+const REIMBURSEMENT_FIELDS = `id, employee_id, claim_date, description, purpose, source_medium,
+  kms, mode_of_payment, amount, remarks, status, created_at,
+  employees(code, full_name)`;
+
+function mapReimbursement(r: any): ReimbursementView {
+  return {
+    id: r.id,
+    employeeId: r.employee_id,
+    employeeName: r.employees?.full_name ?? '',
+    employeeCode: r.employees?.code ?? '',
+    claimDate: String(r.claim_date).slice(0, 10),
+    description: r.description,
+    purpose: r.purpose,
+    sourceMedium: r.source_medium,
+    kms: r.kms === null || r.kms === undefined ? null : Number(r.kms),
+    modeOfPayment: r.mode_of_payment,
+    amount: Number(r.amount),
+    remarks: r.remarks,
+    status: r.status,
+    createdAt: r.created_at,
+  };
+}
+
+/** Every claim, newest first — the staff review queue. */
+export async function getReimbursements(): Promise<ReimbursementView[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('reimbursement_claims')
+    .select(REIMBURSEMENT_FIELDS)
+    .order('created_at', { ascending: false });
+  if (error) {
+    if (isMissingTable(error)) {
+      warnNotMigrated('getReimbursements', 'migration 0009_reimbursements_compoff_sweep.sql');
+      return [];
+    }
+    fail('getReimbursements: could not load claims', error);
+  }
+  return (data ?? []).map(mapReimbursement);
+}
+
+/** One employee's own claims, newest first. */
+export async function getMyReimbursements(employeeId: string): Promise<ReimbursementView[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('reimbursement_claims')
+    .select(REIMBURSEMENT_FIELDS)
+    .eq('employee_id', employeeId)
+    .order('created_at', { ascending: false });
+  if (error) {
+    if (isMissingTable(error)) {
+      warnNotMigrated('getMyReimbursements', 'migration 0009_reimbursements_compoff_sweep.sql');
+      return [];
+    }
+    fail('getMyReimbursements: could not load claims', error);
+  }
+  return (data ?? []).map(mapReimbursement);
+}
+
+/** The ₹/km rate used to auto-calculate travel claims (settings-driven). */
+export async function getReimbursementRate(): Promise<number> {
+  const FALLBACK = 3.5;
+  if (!isSupabaseConfigured()) return FALLBACK;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', 'reimbursement_rate_per_km')
+    .maybeSingle<{ value: unknown }>();
+  if (error || !data) return FALLBACK;
+  const n = Number(data.value);
+  return Number.isFinite(n) && n > 0 ? n : FALLBACK;
+}
+
+// ------------------------------------------------------------- comp offs ---
+export interface CompOffRow {
+  id: string;
+  employeeId: string;
+  earnedDate: string;
+  status: 'available' | 'applied' | 'used' | 'expired';
+  usedDate: string | null;
+}
+
+/**
+ * Comp-off credits already granted for a month, so the register can tell an
+ * un-granted eligible day from one that has already been credited.
+ * Keyed by `${employeeId}|${earnedDate}` at the callsite.
+ */
+export async function getCompOffsForMonth(
+  periodMonth: string = DEFAULT_PERIOD_MONTH,
+): Promise<CompOffRow[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  const { start, end } = monthRange(periodMonth);
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('comp_offs')
+    .select('id, employee_id, earned_date, status, used_date')
+    .gte('earned_date', start)
+    .lte('earned_date', end);
+  if (error) {
+    if (isMissingTable(error)) {
+      warnNotMigrated('getCompOffsForMonth', 'migration 0009_reimbursements_compoff_sweep.sql');
+      return [];
+    }
+    fail('getCompOffsForMonth: could not load comp offs', error);
+  }
+  return (data ?? []).map((c: any) => ({
+    id: c.id,
+    employeeId: c.employee_id,
+    earnedDate: String(c.earned_date).slice(0, 10),
+    status: c.status,
+    usedDate: c.used_date ? String(c.used_date).slice(0, 10) : null,
+  }));
+}
+
+/** One employee's comp-off credits, newest earned first. */
+export async function getMyCompOffs(employeeId: string): Promise<CompOffRow[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('comp_offs')
+    .select('id, employee_id, earned_date, status, used_date')
+    .eq('employee_id', employeeId)
+    .order('earned_date', { ascending: false });
+  if (error) {
+    if (isMissingTable(error)) {
+      warnNotMigrated('getMyCompOffs', 'migration 0009_reimbursements_compoff_sweep.sql');
+      return [];
+    }
+    fail('getMyCompOffs: could not load comp offs', error);
+  }
+  return (data ?? []).map((c: any) => ({
+    id: c.id,
+    employeeId: c.employee_id,
+    earnedDate: String(c.earned_date).slice(0, 10),
+    status: c.status,
+    usedDate: c.used_date ? String(c.used_date).slice(0, 10) : null,
+  }));
+}
+
 /** Full editable fields for one employee, keyed by code. Null when not found. */
 export interface EmployeeEditRow {
   code: string;
@@ -1037,7 +1334,7 @@ export interface RequestView {
   employeeName: string;
   employeeCode: string;
   branch: string;
-  type: 'leave' | 'site_visit' | 'outdoor_duty' | 'wfh';
+  type: RequestType;
   leaveKind: string | null;
   startDate: string;
   endDate: string;

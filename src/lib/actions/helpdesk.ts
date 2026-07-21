@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/_guard';
+import { notifyApprovers, notifyEmployee } from '@/lib/notify';
 
 type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 
@@ -32,6 +33,17 @@ export async function createTicket(formData: FormData) {
   if (wroteNothing(data)) {
     return { ok: false, error: 'The ticket was not raised — your account may not have permission.' };
   }
+
+  await notifyApprovers(
+    {
+      kind: 'ticket',
+      title: `New helpdesk ticket: ${subject}`,
+      body: profile?.full_name ? `Raised by ${profile.full_name}` : null,
+      link: '/helpdesk',
+    },
+    profile?.id,
+  );
+
   revalidatePath('/helpdesk');
   return { ok: true };
 }
@@ -47,7 +59,7 @@ export async function setTicketStatus(id: string, status: TicketStatus) {
     .from('helpdesk_tickets')
     .update({ status, resolved_at })
     .eq('id', id)
-    .select('id');
+    .select('id, subject, employee_id');
 
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
@@ -56,6 +68,15 @@ export async function setTicketStatus(id: string, status: TicketStatus) {
       error: 'The ticket status was not changed — it may no longer exist, or your role lacks permission.',
     };
   }
+
+  const row = data![0] as { subject: string; employee_id: string | null };
+  await notifyEmployee(row.employee_id, {
+    kind: 'ticket',
+    title: `Your ticket is now ${status.replace('_', ' ')}`,
+    body: row.subject,
+    link: '/me',
+  });
+
   revalidatePath('/helpdesk');
   return { ok: true };
 }

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/_guard';
+import { notifyEveryone } from '@/lib/notify';
 
 /** Postgres unique_violation. */
 const UNIQUE_VIOLATION = '23505';
@@ -55,6 +56,20 @@ export async function createPolicy(formData: FormData) {
   if (wroteNothing(data)) {
     return { ok: false, error: 'The policy was not created — your account may not have permission.' };
   }
+
+  // A published policy must be read and acknowledged, so it notifies everyone.
+  if (formData.get('published') === 'on') {
+    await notifyEveryone(
+      {
+        kind: 'policy',
+        title: `New policy to read: ${title}`,
+        body: 'Please open it on your dashboard and mark it as read.',
+        link: '/me',
+      },
+      gate.profileId,
+    );
+  }
+
   revalidatePath('/policies');
   revalidatePath('/me');
   return { ok: true };
@@ -78,6 +93,26 @@ export async function setPolicyPublished(policyId: string, published: boolean) {
       error: 'The policy was not updated — it may no longer exist, or your role lacks permission.',
     };
   }
+
+  // Publishing an existing draft is the moment it becomes readable, so it
+  // notifies then too — un-publishing deliberately does not.
+  if (published) {
+    const { data: policy } = await supabase
+      .from('policies')
+      .select('title')
+      .eq('id', policyId)
+      .maybeSingle<{ title: string }>();
+    await notifyEveryone(
+      {
+        kind: 'policy',
+        title: `New policy to read: ${policy?.title ?? 'Company policy'}`,
+        body: 'Please open it on your dashboard and mark it as read.',
+        link: '/me',
+      },
+      gate.profileId,
+    );
+  }
+
   revalidatePath('/policies');
   revalidatePath('/me');
   return { ok: true };

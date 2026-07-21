@@ -12,6 +12,7 @@ const TYPE_STAMP: Record<RequestView['type'], string> = {
   site_visit: 'S',
   outdoor_duty: 'T',
   wfh: 'T',
+  comp_off: 'CO',
 };
 
 // Human labels for the leave-kind codes stored on a request.
@@ -171,6 +172,16 @@ function requestSentence(r: RequestView) {
         <b>Outdoor duty · {range}</b>
         {reason && <> — {reason}</>} Approving lets punches outside the office geofence for these
         dates.
+      </>
+    );
+  }
+
+  if (r.type === 'comp_off') {
+    return (
+      <>
+        <b>Comp off · {range}</b>
+        {reason && <> — {reason}</>} Approving spends an earned comp-off credit and stamps this day
+        as <b>CO</b> on the register.
       </>
     );
   }

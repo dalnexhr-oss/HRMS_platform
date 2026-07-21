@@ -5,8 +5,8 @@
 // server-only) and return the bytes as base64 for the client to download. Both
 // exports carry payroll/attendance data, so they are staff-gated.
 // ============================================================================
-import { getPayslips, getRegister } from '@/lib/queries';
-import { payrollWorkbook, registerWorkbook } from '@/lib/excel/buildWorkbook';
+import { getPayslips, getRegister, getReimbursements, getReimbursementRate } from '@/lib/queries';
+import { payrollWorkbook, registerWorkbook, reimbursementsWorkbook } from '@/lib/excel/buildWorkbook';
 import {
   getStatutoryRows,
   buildPfEcr,
@@ -37,9 +37,15 @@ export async function exportPayrollXlsx(periodMonth: string): Promise<ExportResu
   const gate = await requireStaff('Exporting payroll');
   if (!gate.ok) return gate;
   try {
-    const payslips = await getPayslips(periodMonth);
+    // The register is fetched alongside the payslips so the workbook carries each
+    // day's punch in/out on a second sheet — payroll can be verified against the
+    // attendance it was computed from without opening a second file.
+    const [payslips, register] = await Promise.all([
+      getPayslips(periodMonth),
+      getRegister(periodMonth),
+    ]);
     if (payslips.length === 0) return { ok: false, error: 'No payslips to export for this month.' };
-    const bytes = await payrollWorkbook(payslips, periodMonth);
+    const bytes = await payrollWorkbook(payslips, periodMonth, register);
     return { ok: true, filename: `payroll-${periodMonth.slice(0, 7)}.xlsx`, base64: b64(bytes) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Export failed.' };
@@ -54,6 +60,19 @@ export async function exportRegisterXlsx(periodMonth: string): Promise<ExportRes
     if (employees.length === 0) return { ok: false, error: 'No attendance to export for this month.' };
     const bytes = await registerWorkbook(employees, daysOf(periodMonth), periodMonth);
     return { ok: true, filename: `register-${periodMonth.slice(0, 7)}.xlsx`, base64: b64(bytes) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Export failed.' };
+  }
+}
+
+export async function exportReimbursementsXlsx(): Promise<ExportResult> {
+  const gate = await requireStaff('Exporting reimbursement claims');
+  if (!gate.ok) return gate;
+  try {
+    const [claims, rate] = await Promise.all([getReimbursements(), getReimbursementRate()]);
+    if (claims.length === 0) return { ok: false, error: 'There are no claims to export.' };
+    const bytes = await reimbursementsWorkbook(claims, rate);
+    return { ok: true, filename: 'reimbursement-claims.xlsx', base64: b64(bytes) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Export failed.' };
   }

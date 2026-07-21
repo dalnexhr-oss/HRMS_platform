@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireStaff, wroteNothing } from '@/lib/actions/_guard';
+import { notifyEveryone } from '@/lib/notify';
 
 /** Resolve a branch name to its id, or null for "all branches". */
 async function resolveBranchId(
@@ -49,6 +50,19 @@ export async function createNotice(formData: FormData) {
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
     return { ok: false, error: 'The notice was not saved — your account may not have permission.' };
+  }
+
+  // Only a PUBLISHED notice notifies anyone — a draft is not news yet.
+  if (publish) {
+    await notifyEveryone(
+      {
+        kind: 'notice',
+        title: `New notice: ${title}`,
+        body: body || null,
+        link: '/me',
+      },
+      gate.profileId,
+    );
   }
 
   revalidatePath('/notices');

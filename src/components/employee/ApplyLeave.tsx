@@ -11,8 +11,11 @@ const TYPE_LABEL: Record<RequestType, string> = {
   site_visit: 'Site visit',
   outdoor_duty: 'Outdoor duty',
   wfh: 'Work from home',
+  comp_off: 'Comp off',
 };
 
+// 'comp_off' is deliberately NOT offered here: a comp off must be applied for
+// against a specific earned credit, which the CompOffs card handles.
 const TYPE_OPTIONS: RequestType[] = ['leave', 'site_visit', 'outdoor_duty', 'wfh'];
 
 const LEAVE_KIND_LABEL: Record<LeaveBalanceRow['type'], string> = {

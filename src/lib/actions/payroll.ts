@@ -17,6 +17,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/supabase/env';
 import { getSession } from '@/lib/auth';
+import { notifyEmployee } from '@/lib/notify';
 import type { AppRole, PayrollStatus } from '@/types/database';
 
 /**
@@ -153,7 +154,45 @@ export async function computeRun(runId: string): Promise<{ ok: boolean; error?: 
 
 /** Freeze the run and mark its payslips generated. Irreversible. */
 export async function lockRun(runId: string): Promise<{ ok: boolean; error?: string }> {
-  return callRunRpc('fn_lock_run', runId, 'Lock run');
+  const res = await callRunRpc('fn_lock_run', runId, 'Lock run');
+  // Locking is the moment payslips become final, so tell each employee theirs
+  // is ready. Best-effort: a notification failure never un-locks the run.
+  if (res.ok) await notifyPayslipsReady(runId);
+  return res;
+}
+
+/** Notify every employee who has a payslip in this run. */
+async function notifyPayslipsReady(runId: string): Promise<void> {
+  try {
+    const supabase = await createClient();
+    const { data: run } = await supabase
+      .from('payroll_runs')
+      .select('period_month')
+      .eq('id', runId)
+      .maybeSingle<{ period_month: string }>();
+    const { data: slips } = await supabase
+      .from('payslips')
+      .select('employee_id')
+      .eq('payroll_run_id', runId);
+
+    const month = run?.period_month
+      ? new Date(`${String(run.period_month).slice(0, 7)}-01T00:00:00Z`).toLocaleDateString(
+          'en-GB',
+          { month: 'long', year: 'numeric', timeZone: 'UTC' },
+        )
+      : 'this month';
+
+    for (const s of (slips ?? []) as { employee_id: string }[]) {
+      await notifyEmployee(s.employee_id, {
+        kind: 'payroll',
+        title: `Your ${month} payslip is ready`,
+        body: 'Open your dashboard to view or download it.',
+        link: '/me',
+      });
+    }
+  } catch {
+    // Best-effort only — the run is already locked.
+  }
 }
 
 /** Mark a locked run (and its payslips) paid. */

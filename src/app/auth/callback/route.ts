@@ -42,11 +42,27 @@ export async function GET(request: NextRequest) {
   if (!userId) return loginWithError(request, 'Sign-in completed but no user was returned.');
 
   // A `next` param (used by the password-recovery link) redirects to a specific
-  // in-app page after the session is established. Only same-origin relative paths
-  // are honoured, so this can't be turned into an open redirect.
+  // in-app page after the session is established.
+  //
+  // The check below is stricter than "starts with / and not //": WHATWG URL
+  // parsing treats a BACKSLASH as a slash in a special-scheme URL, so the old
+  // guard let `/\evil.com` through — new URL('/\evil.com', origin) resolves to
+  // https://evil.com/, handing an attacker an open redirect on the page that
+  // has just established a session. Resolve first, then require the ORIGIN to
+  // match, which is decided by the parser rather than by string shape.
   const next = searchParams.get('next');
-  if (next && next.startsWith('/') && !next.startsWith('//')) {
-    return NextResponse.redirect(new URL(next, request.url));
+  if (next) {
+    const base = new URL(request.url);
+    let target: URL | null = null;
+    try {
+      target = new URL(next, base);
+    } catch {
+      target = null;
+    }
+    if (target && target.origin === base.origin) {
+      return NextResponse.redirect(target);
+    }
+    // A next that does not resolve same-origin is dropped, not followed.
   }
 
   // profiles.role drives routing. A new self-service sign-in gets a profile from

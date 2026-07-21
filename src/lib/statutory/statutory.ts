@@ -86,6 +86,23 @@ export async function getStatutoryRows(periodMonth: string): Promise<StatutoryRo
  * EPS contribution, EPF-EPS diff (employer), NCP days, Refund of advances.
  * A DRAFT — reconcile against the EPFO portal before uploading.
  */
+/**
+ * Make a value safe to place in a #~#-delimited, newline-separated ECR record.
+ *
+ * employees.full_name is free text that any staff role can set. A name
+ * containing '#~#' would shift every later field of that member's row (moving
+ * wages into the contribution columns), and an embedded newline would inject an
+ * entire extra member row into a statutory filing uploaded to EPFO. Strip the
+ * delimiter and all line breaks rather than trusting the input.
+ */
+function ecrField(v: unknown): string {
+  return String(v ?? '')
+    .replace(/#~#/g, ' ')
+    .replace(/[#~]/g, ' ')
+    .replace(/[\r\n\t]+/g, ' ')
+    .trim();
+}
+
 export function buildPfEcr(rows: StatutoryRow[], periodMonth: string): string {
   const nDays = daysInMonth(periodMonth);
   const lines: string[] = [];
@@ -99,8 +116,8 @@ export function buildPfEcr(rows: StatutoryRow[], periodMonth: string): string {
     const ncp = Math.max(0, nDays - Math.round(r.payableDays));
     lines.push(
       [
-        r.uan ?? '',
-        r.name,
+        ecrField(r.uan ?? ''),
+        ecrField(r.name),
         epfWages, // gross wages (proxy: EPF wages)
         epfWages,
         epsWages,
@@ -118,6 +135,16 @@ export function buildPfEcr(rows: StatutoryRow[], periodMonth: string): string {
 
 async function bytes(wb: ExcelJS.Workbook): Promise<Uint8Array> {
   return new Uint8Array((await wb.xlsx.writeBuffer()) as ArrayBuffer);
+}
+
+/**
+ * Neutralise spreadsheet formula injection — Excel executes a cell beginning
+ * with = + - @ (or a leading tab/CR). Statutory files are opened by finance and
+ * uploaded to government portals, so a crafted employee name must stay inert text.
+ */
+function safeText(v: unknown): string {
+  const s = v === null || v === undefined ? '' : String(v);
+  return /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
 }
 
 function header(row: ExcelJS.Row): void {
@@ -143,8 +170,8 @@ export async function buildEsicXlsx(rows: StatutoryRow[], periodMonth: string): 
   for (const r of rows) {
     if (r.esicEmployee <= 0) continue;
     ws.addRow({
-      ip: r.esicNumber ?? '',
-      name: r.name,
+      ip: safeText(r.esicNumber ?? ''),
+      name: safeText(r.name),
       days: r.payableDays,
       wages: Math.round(r.earnedGross),
       ipc: Math.round(r.esicEmployee),
@@ -179,7 +206,12 @@ export async function buildPtXlsx(rows: StatutoryRow[], periodMonth: string): Pr
   for (const [state, list] of [...byState.entries()].sort()) {
     let total = 0;
     for (const r of list) {
-      ws.addRow({ state, code: r.code, name: r.name, pt: Math.round(r.professionalTax) });
+      ws.addRow({
+        state: safeText(state),
+        code: safeText(r.code),
+        name: safeText(r.name),
+        pt: Math.round(r.professionalTax),
+      });
       total += Math.round(r.professionalTax);
     }
     const t = ws.addRow({ state, name: `${state} total`, pt: total });

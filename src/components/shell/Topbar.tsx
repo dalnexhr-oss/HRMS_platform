@@ -3,8 +3,18 @@
 import { usePathname } from 'next/navigation';
 import { TITLES } from '@/lib/constants';
 import { SignOutButton } from '@/components/auth/SignOutButton';
+import { NotificationBell } from '@/components/shell/NotificationBell';
+import type { NotificationRow } from '@/lib/queries';
 
-export function Topbar({ name = 'Meera Kulkarni' }: { name?: string }) {
+export function Topbar({
+  name = 'Meera Kulkarni',
+  notifications = [],
+  unread = 0,
+}: {
+  name?: string;
+  notifications?: NotificationRow[];
+  unread?: number;
+}) {
   const pathname = usePathname();
   const slug = pathname.split('/')[1] || 'today';
   const [title, sub] = TITLES[slug] ?? ['', ''];
@@ -22,6 +32,7 @@ export function Topbar({ name = 'Meera Kulkarni' }: { name?: string }) {
         <span className="dot" style={{ background: 'var(--ok)' }} />
         Night sweep armed · 11:00 PM
       </span>
+      <NotificationBell notifications={notifications} unread={unread} />
       <div className="who">
         <span className="av">{initials(name)}</span>
       </div>

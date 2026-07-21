@@ -100,6 +100,18 @@ Row Level Security (migration `0004`) tightens employee access: an employee read
 only their own attendance, payslips, requests and leave — plus any **published**
 policy. Staff read everything; batch jobs use the service-role key.
 
+### Managing users
+
+Admin/HR add login accounts at **`/users`** (create with a temporary password, set
+roles, link an employee, set/reset passwords). Only an **admin** can create or grant
+the `admin` role. Signed-in users change their own password at **`/users` → My
+account** (`/account`), employees on `/me`; anyone can use **Forgot your password?**
+on `/login`.
+
+> `/users` calls Supabase's admin API, so the server needs `SUPABASE_SECRET_KEY`
+> (`sb_secret_…`) — or the legacy `SUPABASE_SERVICE_ROLE_KEY` — in `.env.local`.
+> Without it the screen explains what's missing instead of showing an empty list.
+
 ## Company policies
 
 Admins create/publish policies at `/policies`. Published policies appear on every

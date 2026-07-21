@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Stamp } from '@/components/ui/Stamp';
 import { ExportButton } from '@/components/today/ExportButton';
+import { NightSweepButton } from '@/components/today/NightSweepButton';
 import type { ActivityRow, PayrollRunView } from '@/lib/queries';
 import type { Celebration, MarkWatch, PunchLogRow, TodayKpis } from '@/types/domain';
 
@@ -211,6 +212,7 @@ export function TodayBoard({
             <h3>Punch log — today</h3>
             <span className="folio">Live · from mobile app</span>
             <span style={{ flex: 1 }} />
+            <NightSweepButton date={today} />
             <ExportButton
               rows={punchLog.ok ? punchLog.data : []}
               date={today}

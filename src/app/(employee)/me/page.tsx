@@ -8,10 +8,15 @@ import {
   getMyPayslips,
   getMyRequests,
   getMyTickets,
+  getMyCompOffs,
+  getMyReimbursements,
+  getReimbursementRate,
   getPayrollRun,
   isSupabaseConfigured,
+  type CompOffRow,
   type LeaveBalanceRow,
   type PayrollRunView,
+  type ReimbursementView,
   type RequestView,
   type TicketView,
 } from '@/lib/queries';
@@ -20,19 +25,33 @@ import { MyAttendance } from '@/components/employee/MyAttendance';
 import { MyPayslips } from '@/components/employee/MyPayslips';
 import { ApplyLeave } from '@/components/employee/ApplyLeave';
 import { MyTickets } from '@/components/employee/MyTickets';
+import { MyCompOffs } from '@/components/employee/MyCompOffs';
+import { MyReimbursements } from '@/components/employee/MyReimbursements';
+import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm';
 import { inr } from '@/lib/format';
 import type { DayCell, PayslipRow } from '@/types/domain';
 
 // Employee dashboard: personal snapshot, own attendance strip, payslips,
 // leave/duty requests, helpdesk tickets and the policies they must read.
 export default async function MePage() {
-  const { profile } = await getSession();
+  const { profile, email, demo } = await getSession();
   const employeeId = profile?.employee_id ?? null;
 
   // Only the per-employee queries need a linked employee record; the overview
   // and policy list already handle a null id themselves.
-  const [overview, policies, balances, attendance, payslips, requests, tickets, run] =
-    await Promise.all([
+  const [
+    overview,
+    policies,
+    balances,
+    attendance,
+    payslips,
+    requests,
+    tickets,
+    run,
+    compOffs,
+    reimbursements,
+    ratePerKm,
+  ] = await Promise.all([
       getEmployeeOverview(employeeId, profile?.full_name, DEFAULT_PERIOD_MONTH),
       getEmployeePolicies(employeeId),
       employeeId ? getLeaveBalances(employeeId) : Promise.resolve<LeaveBalanceRow[]>([]),
@@ -45,6 +64,9 @@ export default async function MePage() {
       // The run's real status — the net-pay KPI used to hard-code "draft", which
       // would misreport a locked or already-paid month as unfinished.
       getPayrollRun(DEFAULT_PERIOD_MONTH),
+      employeeId ? getMyCompOffs(employeeId) : Promise.resolve<CompOffRow[]>([]),
+      employeeId ? getMyReimbursements(employeeId) : Promise.resolve<ReimbursementView[]>([]),
+      getReimbursementRate(),
     ]);
 
   const unread = policies.filter((p) => !p.acknowledged).length;
@@ -144,8 +166,23 @@ export default async function MePage() {
       {/* leave / duty requests + balances */}
       <ApplyLeave requests={requests} balances={balances} canApply={!!employeeId} />
 
+      {/* comp offs earned by working an off day */}
+      <MyCompOffs
+        compOffs={compOffs}
+        canApply={canRaiseTicket}
+        blockedReason={ticketBlockedReason}
+      />
+
       {/* payslips */}
       <MyPayslips payslips={payslips} />
+
+      {/* expense claims */}
+      <MyReimbursements
+        claims={reimbursements}
+        ratePerKm={ratePerKm}
+        canClaim={canRaiseTicket}
+        blockedReason={ticketBlockedReason}
+      />
 
       {/* helpdesk */}
       <MyTickets tickets={tickets} canRaise={canRaiseTicket} blockedReason={ticketBlockedReason} />
@@ -158,6 +195,23 @@ export default async function MePage() {
         </div>
         <div className="bd">
           <PolicyList policies={policies} />
+        </div>
+      </div>
+
+      {/* account security */}
+      <div className="card">
+        <div className="hd">
+          <h3>Change password</h3>
+          <span className="folio">{email ?? 'your account'}</span>
+        </div>
+        <div className="bd">
+          {demo ? (
+            <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+              Demo mode — there is no real account to change a password for.
+            </p>
+          ) : (
+            <ChangePasswordForm email={email} />
+          )}
         </div>
       </div>
     </div>

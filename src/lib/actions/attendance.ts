@@ -42,13 +42,13 @@ const WRITE_ROLES: AppRole[] = ['admin', 'hr', 'manager'];
 /**
  * Statuses an admin may set from the register.
  *
- * NOTE: migration 0006 adds 'CO' (comp off) to the attendance_status enum, but
- * neither the AttendanceStatus TS union nor STATUS_META know about it yet, so a
- * 'CO' cell would silently render as a "P" stamp (statusMeta falls back to P).
- * Offering it here would write a value the grid then misreports, so it is left
- * out until the type + stamp metadata catch up.
+ * 'CO' (comp off) was withheld here while the AttendanceStatus union and
+ * STATUS_META lacked it — a written 'CO' would have rendered as a "P" stamp.
+ * Both now carry it (and 0009 makes comp off a real lifecycle), so it is
+ * offered. Note the normal path for a comp off is the employee applying against
+ * an earned credit; setting it here is the manual override.
  */
-const ALLOWED_STATUSES: AttendanceStatus[] = ['P', 'LM', 'HD', 'L', 'WO', 'OH', 'AB', 'S', 'T'];
+const ALLOWED_STATUSES: AttendanceStatus[] = ['P', 'LM', 'HD', 'L', 'WO', 'OH', 'AB', 'S', 'T', 'CO'];
 
 function isAllowedStatus(v: string): v is AttendanceStatus {
   return (ALLOWED_STATUSES as string[]).includes(v);

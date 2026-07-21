@@ -6,11 +6,14 @@
 // truth for the typed Supabase client until you wire up generation.
 // ============================================================================
 
-export type AttendanceStatus = 'P' | 'LM' | 'HD' | 'L' | 'WO' | 'OH' | 'AB' | 'S' | 'T';
+// 'CO' (comp off) was added to the DB enum in migration 0006 but never mirrored
+// here, so a comp-off day had no type-level existence (and statusMeta fell back
+// to rendering it as 'P'). Migration 0009 makes it a first-class feature.
+export type AttendanceStatus = 'P' | 'LM' | 'HD' | 'L' | 'WO' | 'OH' | 'AB' | 'S' | 'T' | 'CO';
 export type Gender = 'Male' | 'Female' | 'Other';
 export type EmployeeStatus = 'active' | 'on_notice' | 'inactive';
 export type IndianState = 'Maharashtra' | 'Gujarat';
-export type RequestType = 'leave' | 'site_visit' | 'outdoor_duty' | 'wfh';
+export type RequestType = 'leave' | 'site_visit' | 'outdoor_duty' | 'wfh' | 'comp_off';
 export type RequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
 export type LeaveType = 'PL' | 'CL' | 'SL' | 'LWP';
 export type PayrollStatus = 'draft' | 'in_review' | 'locked' | 'paid';
@@ -18,6 +21,9 @@ export type PayslipStatus = 'draft' | 'queued' | 'generated' | 'paid';
 export type NoticeChannel = 'app' | 'whatsapp' | 'both';
 export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 export type AppRole = 'admin' | 'hr' | 'manager' | 'viewer' | 'employee';
+export type ReimbursementPurpose = 'travel' | 'material_purchase' | 'other';
+export type ReimbursementStatus = 'pending' | 'approved' | 'rejected' | 'paid';
+export type CompOffStatus = 'available' | 'applied' | 'used' | 'expired';
 
 export interface Branch {
   id: string;
@@ -201,6 +207,34 @@ export interface HelpdeskTicket {
   status: TicketStatus;
   created_at: string;
   resolved_at: string | null;
+}
+
+export interface ReimbursementClaim {
+  id: string;
+  employee_id: string;
+  claim_date: string;
+  description: string;
+  purpose: ReimbursementPurpose;
+  source_medium: string | null;
+  kms: number | null;
+  mode_of_payment: string | null;
+  amount: number;
+  remarks: string | null;
+  status: ReimbursementStatus;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+export interface CompOff {
+  id: string;
+  employee_id: string;
+  earned_date: string;
+  status: CompOffStatus;
+  used_date: string | null;
+  request_id: string | null;
+  granted_by: string | null;
+  created_at: string;
 }
 
 export interface AppSetting {

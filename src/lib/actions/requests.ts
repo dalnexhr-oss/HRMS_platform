@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/queries';
 import { getSession } from '@/lib/auth';
 import { requireStaff } from '@/lib/actions/_guard';
+import { releaseCompOff, settleApprovedCompOff } from '@/lib/compoff-settle';
+import { notifyApprovers, notifyEmployee } from '@/lib/notify';
 import type { LeaveType, RequestType } from '@/types/database';
 
 export interface ActionResult {
@@ -63,7 +65,7 @@ export async function reviewRequest(
     .update({ status: decision, reviewed_at: new Date().toISOString() })
     .eq('id', id)
     .eq('status', 'pending')
-    .select('id');
+    .select('id, type');
   if (error) return { ok: false, error: error.message };
 
   if (!data || data.length === 0) {
@@ -74,8 +76,38 @@ export async function reviewRequest(
     };
   }
 
+  // Comp-off requests carry side-effects: approving spends the credit and stamps
+  // the taken day 'CO'; rejecting releases it back to the employee's balance.
+  // The decision itself is already committed, so a side-effect failure is
+  // reported as a warning rather than reverting a saved approval.
+  let warning: string | null = null;
+  if ((data[0] as { type?: string }).type === 'comp_off') {
+    if (decision === 'approved') warning = await settleApprovedCompOff(id);
+    else await releaseCompOff(id);
+  }
+
+  // Tell the employee the outcome. Look the owner up rather than trusting the
+  // caller — the reviewer is not the recipient.
+  const { data: owner } = await supabase
+    .from('requests')
+    .select('employee_id, type, start_date, end_date')
+    .eq('id', id)
+    .maybeSingle<{ employee_id: string; type: string; start_date: string; end_date: string }>();
+  if (owner) {
+    const span =
+      owner.start_date === owner.end_date
+        ? owner.start_date
+        : `${owner.start_date} – ${owner.end_date}`;
+    await notifyEmployee(owner.employee_id, {
+      kind: 'approval',
+      title: `Your ${owner.type.replace('_', ' ')} request was ${decision}`,
+      body: span,
+      link: '/me',
+    });
+  }
+
   revalidateRequestViews();
-  return { ok: true };
+  return warning ? { ok: false, error: warning } : { ok: true };
 }
 
 /**
@@ -151,6 +183,18 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
   });
   if (error) return { ok: false, error: error.message };
 
+  // Put it in front of the approvers rather than waiting for them to check.
+  const who = profile?.full_name ?? 'An employee';
+  await notifyApprovers(
+    {
+      kind: 'request',
+      title: `${who} raised a ${type.replace('_', ' ')} request`,
+      body: `${startRaw === endRaw ? startRaw : `${startRaw} – ${endRaw}`} · ${days} day${days === 1 ? '' : 's'}`,
+      link: '/approvals',
+    },
+    profile?.id,
+  );
+
   revalidateRequestViews();
   return { ok: true };
 }
@@ -185,7 +229,7 @@ export async function cancelRequest(id: string): Promise<ActionResult> {
     .eq('id', id)
     .eq('employee_id', employeeId)
     .eq('status', 'pending')
-    .select('id');
+    .select('id, type');
   if (error) return { ok: false, error: error.message };
 
   if (!data || data.length === 0) {
@@ -195,6 +239,9 @@ export async function cancelRequest(id: string): Promise<ActionResult> {
         'The request was not cancelled — it may already have been reviewed, or your account may not have permission to withdraw it.',
     };
   }
+
+  // Withdrawing a comp-off application returns the credit to the balance.
+  if ((data[0] as { type?: string }).type === 'comp_off') await releaseCompOff(id);
 
   revalidateRequestViews();
   return { ok: true };

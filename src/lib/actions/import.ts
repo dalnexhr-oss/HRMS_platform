@@ -21,6 +21,8 @@ import {
   minutesToClock,
   type ParsedRegister,
 } from '@/lib/excel/parseRegister';
+import { autoCloseDay, getAutoPunchOutMinutes } from '@/lib/attendance-rules';
+import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/_guard';
 import type { AppRole } from '@/types/database';
 
 export interface MatchedEmployee {
@@ -73,6 +75,14 @@ function errMessage(e: unknown): string {
   return 'Unexpected error.';
 }
 
+/**
+ * Largest register we will parse. next.config.mjs already caps the Server Action
+ * body at 10mb, but that limit is about TRANSPORT — this one is about what we
+ * agree to decompress. A 2MB .xlsx is a zip that can expand to gigabytes in
+ * exceljs (a zip bomb), so the size is checked before the buffer is read.
+ */
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
 /** Turn the uploaded FormData field into a parsed register. */
 async function readUpload(formData: FormData): Promise<ParsedRegister> {
   const file = formData.get('file');
@@ -81,6 +91,12 @@ async function readUpload(formData: FormData): Promise<ParsedRegister> {
   }
   const upload = file as File;
   if (upload.size === 0) throw new Error('That file is empty.');
+  if (upload.size > MAX_UPLOAD_BYTES) {
+    throw new Error(
+      `That file is ${(upload.size / 1024 / 1024).toFixed(1)}MB — the register limit is ` +
+        `${MAX_UPLOAD_BYTES / 1024 / 1024}MB. Export a single month rather than a full year.`,
+    );
+  }
 
   const buf = await upload.arrayBuffer();
   return parseRegisterWorkbook(buf);
@@ -137,6 +153,8 @@ function planImport(
   reg: ParsedRegister,
   codeMap: Record<string, string>,
   names: Record<string, string>,
+  /** Auto punch-out time (minutes since midnight) for days left open. */
+  autoOutMin: number,
 ) {
   const resolve = buildResolver(codeMap);
   const matched: MatchedEmployee[] = [];
@@ -144,6 +162,7 @@ function planImport(
   const rows: UpsertRow[] = [];
   const warnings: string[] = [...reg.warnings];
   let skipped = 0;
+  let autoClosedCount = 0;
 
   const monthPrefix = reg.periodMonth.slice(0, 8); // 'YYYY-MM-'
 
@@ -170,13 +189,21 @@ function planImport(
         skipped++; // already warned by the parser
         continue;
       }
+      // Punched in but never out: close the day at the configured auto punch-out
+      // time (default 18:00) instead of importing an open day, which would read
+      // as zero worked minutes and inflate the hours-shortfall deduction.
+      const closed = autoCloseDay(d.inMin, d.outMin, autoOutMin);
+      const outMin = closed ? closed.outMin : d.outMin;
+      const workedMin = closed && d.workedMin === 0 ? closed.workedMin : d.workedMin;
+      if (closed) autoClosedCount++;
+
       rows.push({
         employee_id: hit.id,
         work_date: `${monthPrefix}${String(d.day).padStart(2, '0')}`,
         status: d.status,
         punch_in: minutesToClock(d.inMin),
-        punch_out: minutesToClock(d.outMin),
-        worked_minutes: d.workedMin,
+        punch_out: minutesToClock(outMin),
+        worked_minutes: workedMin,
       });
       usable++;
     }
@@ -187,6 +214,12 @@ function planImport(
     matched.push({ code: hit.code, name: names[hit.code] ?? hit.code, days: usable });
   }
 
+  if (autoClosedCount > 0) {
+    warnings.push(
+      `${autoClosedCount} day(s) had a punch-in but no punch-out — closed automatically at ${minutesToClock(autoOutMin)}.`,
+    );
+  }
+
   return { matched, unmatched, rows, warnings, skipped };
 }
 
@@ -194,6 +227,14 @@ function planImport(
 
 export async function previewImport(formData: FormData): Promise<PreviewResult> {
   try {
+    // Gate BEFORE parsing. This is a public HTTP endpoint, and parsing an
+    // attacker-supplied .xlsx is the expensive part — leaving it ungated let any
+    // authenticated user drive server CPU/memory with crafted workbooks, and
+    // leaked the employee roster through the preview's matched/unmatched lists.
+    // Mirrors commitImport's IMPORT_ROLES (admin/hr/manager).
+    const gate = await requireStaff('Previewing the register');
+    if (!gate.ok) return { ok: false, error: gate.error };
+
     const reg = await readUpload(formData);
 
     const codeMap = await getEmployeeCodeMap();
@@ -201,8 +242,9 @@ export async function previewImport(formData: FormData): Promise<PreviewResult> 
     // than implying the file was checked against real staff records.
     const configured = isSupabaseConfigured();
     const names = configured ? await fetchNames() : {};
+    const autoOutMin = await getAutoPunchOutMinutes();
 
-    const { matched, unmatched, rows, warnings } = planImport(reg, codeMap, names);
+    const { matched, unmatched, rows, warnings } = planImport(reg, codeMap, names, autoOutMin);
 
     if (!configured) {
       warnings.unshift(
@@ -298,7 +340,8 @@ export async function commitImport(formData: FormData): Promise<CommitResult> {
     const reg = await readUpload(formData);
     const codeMap = await getEmployeeCodeMap();
     const names = await fetchNames();
-    const { matched, unmatched, rows, skipped } = planImport(reg, codeMap, names);
+    const autoOutMin = await getAutoPunchOutMinutes();
+    const { matched, unmatched, rows, skipped } = planImport(reg, codeMap, names, autoOutMin);
 
     const errors: string[] = [];
     if (unmatched.length) {
@@ -318,6 +361,12 @@ export async function commitImport(formData: FormData): Promise<CommitResult> {
     }
 
     const supabase = await createClient();
+
+    // 3b. Never rewrite a month whose payroll is already locked or paid — the
+    //     payslips are final and 0005 blocks the recompute, so the register and
+    //     pay would silently diverge. Checked once for the sheet's own month.
+    const monthOpen = await requireOpenPayrollMonth(supabase, reg.periodMonth);
+    if (!monthOpen.ok) return { ok: false, error: monthOpen.error };
 
     // 4. Snapshot existing keys so inserted/updated are real, not guessed.
     const existing = await fetchExistingKeys(supabase, reg.periodMonth, reg.daysInMonth);

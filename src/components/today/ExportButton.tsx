@@ -16,9 +16,18 @@ interface ExportButtonProps {
 
 const HEADERS = ['Emp', 'Name', 'Branch', 'In', 'Out', 'Active', 'Status'] as const;
 
-/** RFC 4180: wrap in quotes when the value carries a comma, quote, CR or LF; double the quotes. */
+/**
+ * RFC 4180 quoting, plus formula-injection neutralisation.
+ *
+ * Excel/Sheets execute any cell whose text starts with = + - @ (or a leading
+ * tab/CR), so an employee named `=HYPERLINK("http://evil","payslip")` would
+ * become a live formula for whoever opens the export. Prefixing a single quote
+ * forces literal text. RFC quoting alone does NOT prevent this — a quoted
+ * "=cmd" is still evaluated.
+ */
 function csvCell(value: string | null): string {
-  const v = value ?? '';
+  let v = value ?? '';
+  if (/^[=+\-@\t\r]/.test(v)) v = `'${v}`;
   return /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 

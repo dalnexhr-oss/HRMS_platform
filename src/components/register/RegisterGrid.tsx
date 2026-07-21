@@ -1,10 +1,34 @@
 'use client';
 
-import { useActionState, useEffect, useRef, useState } from 'react';
+import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Stamp } from '@/components/ui/Stamp';
 import { DOW } from '@/lib/constants';
 import { correctAttendance, type CorrectionState } from '@/lib/actions/attendance';
+import { grantCompOff } from '@/lib/actions/compoff';
 import type { DayCell, RegisterEmployee } from '@/types/domain';
+
+/** Statuses that mean the day was scheduled off — mirrors OFF_DAY_STATUSES. */
+const OFF_DAY_STATUSES = new Set(['WO', 'OH']);
+
+/**
+ * A comp off is owed when a day off carries real work.
+ *
+ * "Day off" is either stamp-based (WO/OH) or schedule-based (`scheduledOff` —
+ * a Sunday or a 1st/3rd/5th Saturday). The schedule arm matters: an employee who
+ * works a non-working Saturday is often stamped plain 'P', so a stamp-only check
+ * would miss exactly the case this feature exists for.
+ */
+export function isCompOffEligible(cell: DayCell | undefined, scheduledOff = false): boolean {
+  if (!cell) return false;
+  if (!OFF_DAY_STATUSES.has(cell.status) && !scheduledOff) return false;
+  return cell.in !== null || (cell.hours !== null && cell.hours !== '00:00');
+}
+
+/** Stable key for "this employee, this day". */
+function compOffKey(employeeId: string, workDate: string): string {
+  return `${employeeId}|${workDate}`;
+}
 
 // The month register: a fixed employee/summary column + a scrollable day strip.
 // Clicking "Show punches" expands a row to reveal in/out/hours per day.
@@ -21,6 +45,7 @@ const STATUS_OPTIONS: [string, string][] = [
   ['AB', 'A · Absent'],
   ['S', 'S · Site'],
   ['T', 'T · Travel'],
+  ['CO', 'CO · Comp off'],
 ];
 
 interface Target {
@@ -30,6 +55,10 @@ interface Target {
   day: number;
   workDate: string;
   cell: DayCell | undefined;
+  /** Worked a scheduled-off day — a comp off is owed. */
+  compOffEligible: boolean;
+  /** A credit for this day has already been granted. */
+  compOffGranted: boolean;
   /** Bumped on every open so the form remounts with fresh state — see openSeq. */
   seq: number;
 }
@@ -40,6 +69,7 @@ export function RegisterGrid({
   weekOffs,
   periodMonth,
   canCorrect = false,
+  compOffKeys = [],
 }: {
   employees: RegisterEmployee[];
   days: number[];
@@ -48,10 +78,13 @@ export function RegisterGrid({
   periodMonth: string;
   /** Staff may click a day to correct it. */
   canCorrect?: boolean;
+  /** `employeeId|YYYY-MM-DD` keys that already have a comp-off credit. */
+  compOffKeys?: string[];
 }) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [target, setTarget] = useState<Target | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const granted = new Set(compOffKeys);
   // Monotonic open counter. Without it, the form's key is stable per cell, so
   // reopening a cell you just corrected reuses the instance whose state.ok is
   // still true — and the success effect immediately slams the drawer shut again.
@@ -60,13 +93,16 @@ export function RegisterGrid({
 
   function openCorrection(e: RegisterEmployee, day: number, cell: DayCell | undefined) {
     openSeq.current += 1;
+    const workDate = dateFor(periodMonth, day);
     setTarget({
       employeeId: e.id,
       employeeName: e.name,
       employeeCode: e.code,
       day,
-      workDate: dateFor(periodMonth, day),
+      workDate,
       cell,
+      compOffEligible: isCompOffEligible(cell, wo.has(day)),
+      compOffGranted: granted.has(compOffKey(e.id, workDate)),
       seq: openSeq.current,
     });
     setDrawerOpen(true);
@@ -151,14 +187,26 @@ export function RegisterGrid({
                     const c = byDay.get(d);
                     const isWeekOff = c ? c.isWeekOff : wo.has(d);
                     const punchTitle = c?.in ? `${c.in} – ${c.out} · ${c.hours}` : undefined;
+                    // Worked an off day: flag it so staff can grant the comp off.
+                    // `wo.has(d)` carries the schedule (Sundays + 1st/3rd/5th
+                    // Saturdays), so a worked non-working Saturday counts even
+                    // when it is stamped plain 'P'.
+                    const coEligible = isCompOffEligible(c, wo.has(d));
+                    const coGranted =
+                      coEligible && granted.has(compOffKey(e.id, dateFor(periodMonth, d)));
+                    const coTitle = coEligible
+                      ? coGranted
+                        ? ' · Comp off granted'
+                        : ' · Comp off applicable'
+                      : '';
                     return (
                       <div
                         key={d}
                         className={`dcell${isWeekOff ? ' wo-col' : ''}`}
                         title={
                           canCorrect
-                            ? `${punchTitle ? `${punchTitle} · ` : ''}Click to correct`
-                            : punchTitle
+                            ? `${punchTitle ? `${punchTitle} · ` : ''}Click to correct${coTitle}`
+                            : `${punchTitle ?? ''}${coTitle}`
                         }
                         onClick={canCorrect ? () => openCorrection(e, d, c) : undefined}
                         onKeyDown={
@@ -180,7 +228,21 @@ export function RegisterGrid({
                         }
                         style={canCorrect ? { cursor: 'pointer' } : undefined}
                       >
-                        <div style={{ display: 'grid', placeItems: 'center' }}>
+                        <div style={{ display: 'grid', placeItems: 'center', position: 'relative' }}>
+                          {coEligible && (
+                            <span
+                              aria-label={coGranted ? 'Comp off granted' : 'Comp off applicable'}
+                              style={{
+                                position: 'absolute',
+                                top: -2,
+                                right: -2,
+                                width: 7,
+                                height: 7,
+                                borderRadius: '50%',
+                                background: coGranted ? 'var(--p)' : 'var(--lm)',
+                              }}
+                            />
+                          )}
                           {c ? <Stamp status={c.status} /> : null}
                           {c?.in ? (
                             <div className="tms">
@@ -254,6 +316,8 @@ function CorrectionForm({ target, onClose }: { target: Target; onClose: () => vo
       </div>
 
       <div className="dbd">
+        {target.compOffEligible && <CompOffPanel target={target} />}
+
         <div className="hint">
           {target.employeeName} · <span className="mono">{target.employeeCode}</span> —{' '}
           <span className="mono">{target.workDate}</span>
@@ -339,6 +403,70 @@ function CorrectionForm({ target, onClose }: { target: Target; onClose: () => vo
         </button>
       </div>
     </form>
+  );
+}
+
+/**
+ * The "comp off applicable" callout. Shown at the top of the correction drawer
+ * whenever the clicked day is a worked week-off/holiday, with the one action
+ * that matters: grant the credit. Once granted it reports the state instead.
+ */
+function CompOffPanel({ target }: { target: Target }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [granted, setGranted] = useState(target.compOffGranted);
+  const [error, setError] = useState<string | null>(null);
+
+  const onGrant = () =>
+    startTransition(async () => {
+      setError(null);
+      const res = await grantCompOff(target.employeeId, target.workDate);
+      if (!res.ok) {
+        setError(res.error ?? 'Could not grant the comp off.');
+        return;
+      }
+      setGranted(true);
+      router.refresh();
+    });
+
+  return (
+    <div
+      style={{
+        border: '1px solid var(--lm-line)',
+        background: 'var(--lm-bg)',
+        borderRadius: 8,
+        padding: '10px 12px',
+        marginBottom: 14,
+      }}
+    >
+      <div style={{ fontWeight: 700, color: 'var(--lm)', marginBottom: 4 }}>
+        ⚡ Comp off applicable
+      </div>
+      <p className="muted" style={{ fontSize: 12, margin: '0 0 10px' }}>
+        {target.employeeName} worked on {target.cell?.status === 'OH' ? 'a holiday' : 'a week-off'} (
+        <span className="mono">{target.workDate}</span>
+        {target.cell?.in ? (
+          <>
+            {' '}
+            · <span className="mono">{target.cell.in}–{target.cell.out}</span>
+          </>
+        ) : null}
+        ). Granting a comp off credits them one day, which they can then apply for from their
+        dashboard.
+      </p>
+
+      {granted ? (
+        <span className="pill" style={{ borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' }}>
+          ✓ Comp off granted
+        </span>
+      ) : (
+        <button type="button" className="btn primary" onClick={onGrant} disabled={pending}>
+          {pending ? 'Granting…' : 'Grant comp off'}
+        </button>
+      )}
+
+      {error && <div className="login-error" style={{ marginTop: 8 }}>{error}</div>}
+    </div>
   );
 }
 

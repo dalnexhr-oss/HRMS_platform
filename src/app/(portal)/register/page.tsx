@@ -3,7 +3,15 @@ import Link from 'next/link';
 import { RegisterGrid } from '@/components/register/RegisterGrid';
 import { Stamp } from '@/components/ui/Stamp';
 import { REGISTER_LEGEND } from '@/lib/constants';
-import { DEFAULT_PERIOD_MONTH, getPayrollRun, getRegister, isSupabaseConfigured } from '@/lib/queries';
+import {
+  DEFAULT_PERIOD_MONTH,
+  getCompOffsForMonth,
+  getPayrollRun,
+  getRegister,
+  getWeekOffPolicy,
+  isSupabaseConfigured,
+} from '@/lib/queries';
+import { weekOffDaysInMonth } from '@/lib/week-off';
 import { getSession } from '@/lib/auth';
 import { minutesToHHMM } from '@/lib/format';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
@@ -78,18 +86,24 @@ export default async function RegisterPage({
   let run: Awaited<ReturnType<typeof getPayrollRun>> = null;
   let role: AppRole | null = null;
   let loadError: string | null = null;
+  let compOffKeys: string[] = [];
+  let scheduledWeekOffs: number[] = [];
   try {
     // getSession() throws when the profile lookup fails (e.g. schema not
     // applied), so it belongs inside the same guard — outside it, the error card
     // below is unreachable and the page dies with a stack trace instead.
-    const [session, register, payrollRun] = await Promise.all([
+    const [session, register, payrollRun, compOffs, policy] = await Promise.all([
       getSession(),
       getRegister(periodMonth),
       getPayrollRun(periodMonth),
+      getCompOffsForMonth(periodMonth),
+      getWeekOffPolicy(),
     ]);
     role = session.profile?.role ?? null;
     employees = register;
     run = payrollRun;
+    compOffKeys = compOffs.map((c) => `${c.employeeId}|${c.earnedDate}`);
+    scheduledWeekOffs = weekOffDaysInMonth(periodMonth, policy);
   } catch (e) {
     // Never swap in demo data to hide a real failure — show what broke.
     loadError = e instanceof Error ? e.message : String(e);
@@ -101,7 +115,13 @@ export default async function RegisterPage({
   const canCorrect = configured && role != null && CORRECTION_ROLES.includes(role);
 
   const days = daysInMonth(periodMonth);
-  const weekOffs = deriveWeekOffs(employees, days);
+  // The schedule (Sundays + 1st/3rd/5th Saturdays) is authoritative for which
+  // columns are week-offs. Days the DATA shows as WO for everyone are unioned in
+  // so a one-off closure still greys out, and so demo mode (no settings) still
+  // renders its seeded week-offs.
+  const weekOffs = Array.from(
+    new Set([...scheduledWeekOffs, ...deriveWeekOffs(employees, days)]),
+  ).sort((a, b) => a - b);
   const prev = shiftMonthParam(periodMonth, -1);
   const next = shiftMonthParam(periodMonth, 1);
 
@@ -193,6 +213,7 @@ export default async function RegisterPage({
             weekOffs={weekOffs}
             periodMonth={periodMonth}
             canCorrect={canCorrect}
+            compOffKeys={compOffKeys}
           />
 
           <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>
