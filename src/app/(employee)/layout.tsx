@@ -1,6 +1,7 @@
 import { getSession } from '@/lib/auth';
 import { SignOutButton } from '@/components/auth/SignOutButton';
 import { NotificationBell } from '@/components/shell/NotificationBell';
+import { Brand } from '@/components/ui/Brand';
 import { getMyNotifications, getUnreadNotificationCount } from '@/lib/queries';
 
 // Employee self-service shell — a slim top bar, no admin sidebar.
@@ -16,9 +17,7 @@ export default async function EmployeeLayout({ children }: { children: React.Rea
     <div className="main">
       <div className="topbar">
         <div>
-          <h2 style={{ fontFamily: 'var(--display)' }}>
-            Dalnex<span style={{ color: 'var(--brass)' }}>.</span>
-          </h2>
+          <Brand priority />
           <div className="sub">Employee self-service</div>
         </div>
         <div className="grow" />

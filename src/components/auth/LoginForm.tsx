@@ -21,7 +21,7 @@ export function LoginForm({ initialError }: { initialError?: string } = {}) {
     <form action={action} className="login-form">
       <div className="f">
         <label htmlFor="email">Email</label>
-        <input id="email" name="email" type="email" placeholder="you@dalnex.test" autoComplete="email" required />
+        <input id="email" name="email" type="email" placeholder="your_name@dalnex.com" autoComplete="email" required />
       </div>
       <div className="f">
         <label htmlFor="password">Password</label>

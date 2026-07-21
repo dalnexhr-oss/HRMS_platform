@@ -5,6 +5,7 @@ import type { Route } from 'next';
 import { usePathname } from 'next/navigation';
 import { NAV, NAV_ROLE_GATED, type NavItem } from '@/lib/constants';
 import { ICONS } from '@/components/Icons';
+import { Brand } from '@/components/ui/Brand';
 
 // The Excel register importer. Declared here rather than in NAV/ICONS so the
 // shared constants stay untouched; it sits with the other "Operate" screens,
@@ -97,10 +98,7 @@ export function Sidebar({ name, role }: { name?: string | null; role?: string | 
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="eyebrow">HRMS · Muster</div>
-        <h1>
-          Dalnex<span>.</span>
-        </h1>
+        <Brand priority />
       </div>
       <nav className="nav" aria-label="Primary">
         {groups.map((group) => (

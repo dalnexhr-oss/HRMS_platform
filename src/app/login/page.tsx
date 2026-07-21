@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { LoginForm } from '@/components/auth/LoginForm';
+import { Brand } from '@/components/ui/Brand';
 
 export const metadata: Metadata = { title: 'Sign in — Dalnex HRMS' };
 
@@ -17,10 +18,7 @@ export default async function LoginPage({
     <div className="login-shell">
       <div className="login-card card">
         <div className="login-brand">
-          <div className="eyebrow">HRMS · Muster</div>
-          <h1>
-            Dalnex<span>.</span>
-          </h1>
+          <Brand priority />
           <p className="muted">Sign in to your admin or employee account.</p>
         </div>
 

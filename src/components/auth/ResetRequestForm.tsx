@@ -69,7 +69,7 @@ export function ResetRequestForm() {
           id="email"
           name="email"
           type="email"
-          placeholder="you@dalnex.test"
+          placeholder="your_name@dalnex.com"
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
