@@ -44,7 +44,10 @@ export async function createTicket(formData: FormData) {
     profile?.id,
   );
 
+  // '/helpdesk' is the staff queue; '/me' is the employee's own ticket list —
+  // a ticket can be raised from either, so refresh both.
   revalidatePath('/helpdesk');
+  revalidatePath('/me');
   return { ok: true };
 }
 

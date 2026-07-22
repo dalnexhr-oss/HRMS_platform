@@ -26,8 +26,12 @@ export interface ActionResult {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Statuses that mean "this was a day off". Working one of these earns a credit. */
-export const OFF_DAY_STATUSES = ['WO', 'OH'] as const;
+// Statuses that mean "this was a day off". Working one of these earns a credit.
+// NOT exported: this file carries the 'use server' directive, and Next.js allows
+// a "use server" module to export only async functions — a `const` export throws
+// "A 'use server' file can only export async functions, found object" the moment
+// the module enters a client bundle. The constant is only used inside this file.
+const OFF_DAY_STATUSES = ['WO', 'OH'] as const;
 
 /**
  * Grant a comp-off credit for an off day the employee worked.

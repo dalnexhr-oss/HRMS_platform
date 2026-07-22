@@ -37,19 +37,25 @@ a{color:inherit;text-decoration:none}
 
 /* ============ shell ============ */
 .shell{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
-.sidebar{background:linear-gradient(135deg, #0D4A5C 0%, #084655 100%);color:var(--spine-text);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;border-right:4px solid #0E7A8F;box-shadow:2px 0 8px rgba(8,70,85,.15)}
-.brand{padding:22px 20px 18px;border-bottom:1px solid rgba(255,255,255,.12)}
+/* Sidebar tint is pulled from the logo: bright turquoise at the top of the mark
+   fading to blue at the bottom. The gradient is kept deep enough that the white
+   nav labels stay legible (nav text sits ≥5:1). The 4px right edge and the brand
+   separator use the logo's brightest aqua as an accent. */
+.sidebar{background:linear-gradient(165deg, #0C8CA0 0%, #0A7387 48%, #0d6c84 100%);color:var(--spine-text);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;border-right:4px solid #00B8D4;box-shadow:2px 0 8px rgba(7,86,106,.18);}
+/* The brand block above the separator is a white panel so the Dalnex logo shows
+   in full colour — identical to the login card — rather than inverted to white. */
+.brand{padding:20px 20px 18px;border-bottom:1px solid rgba(0,184,212,.35);background:#fff}
 .brand .eyebrow{font:600 10px/1 var(--mono);letter-spacing:.18em;color:#7FA3A9;text-transform:uppercase}
 .brand h1{margin:6px 0 0;font:600 22px/1 var(--display);color:#fff;letter-spacing:.01em}
 .brand h1 span{color:#00B8D4}
 .nav{padding:14px 10px;overflow:auto;flex:1}
-.nav .group{font:600 10px/1 var(--mono);letter-spacing:.16em;color:#6FA3AE;text-transform:uppercase;padding:16px 12px 8px}
+.nav .group{font:600 10px/1 var(--mono);letter-spacing:.16em;color:#8FCBD9;text-transform:uppercase;padding:16px 12px 8px}
 .nav a{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 12px;border-radius:8px;color:var(--spine-text);font-weight:500;transition:all .2s ease}
 .nav a:hover{background:rgba(255,255,255,.1);color:#fff}
 .nav a[aria-current="true"]{background:rgba(255,255,255,.15);color:#fff;position:relative}
 .nav a[aria-current="true"]::before{content:"";position:absolute;left:-10px;top:8px;bottom:8px;width:3px;border-radius:2px;background:#00B8D4}
 .nav .ic{width:17px;height:17px;flex:none;opacity:.9}
-.side-foot{padding:14px 20px;border-top:1px solid rgba(255,255,255,.12);font:500 11px/1.5 var(--mono);color:#7FA3A9}
+.side-foot{padding:14px 20px;border-top:1px solid rgba(0,184,212,.24);font:500 11px/1.5 var(--mono);color:#9BC7D2}
 .side-foot b{color:#fff;font-weight:600}
 
 .main{min-width:0}
@@ -224,10 +230,14 @@ tbody tr:hover{background:var(--card-2)}
 .brandmark-img{display:block;height:26px;width:auto;object-fit:contain}
 .brandmark-txt{font:600 22px/1 var(--display);letter-spacing:.01em;white-space:nowrap}
 
-/* sidebar — dark teal background, white nav text */
-.brand .brandmark-img{height:24px;filter:brightness(0) invert(1)}
-.brand .brandmark-txt{color:#fff}
-.brand .brandmark-txt span{color:#00B8D4}
+/* sidebar brand — a white panel (see .brand), so the Dalnex mark shows in full
+   colour exactly like the login card, NOT inverted to white. The mark sits a
+   little larger than the "HRMS." wordmark (34px vs 25px ≈ the login's 38/28
+   ratio); "HRMS." is dark ink with the teal dot, mirroring the login. */
+.brand .brandmark{gap:9px}
+.brand .brandmark-img{height:30px}
+.brand .brandmark-txt{font-size:25px;color:var(--ink)}
+.brand .brandmark-txt span{color:#0E7A8F}
 
 /* login / reset / update-password cards — light background, centred */
 .login-brand .brandmark{justify-content:center;gap:11px;margin-bottom:6px}

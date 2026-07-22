@@ -146,38 +146,42 @@ function ImportHolidays({ year }: { year: number }) {
 
 function HolidayRow({ holiday }: { holiday: HolidayView }) {
   const [pending, startTransition] = useTransition();
-  const remove = () =>
+  const [error, setError] = useState<string | null>(null);
+  const remove = () => {
+    setError(null);
     startTransition(async () => {
-      await deleteHoliday(holiday.id);
+      const res = await deleteHoliday(holiday.id);
+      if (!res.ok) setError(res.error ?? 'Could not delete the holiday.');
     });
+  };
 
   return (
     <div
-      className="f-row"
       style={{
-        alignItems: 'center',
-        gap: 12,
         padding: '10px 0',
         borderBottom: '1px solid var(--line-2)',
       }}
     >
-      <span className="mono" style={{ minWidth: 96, color: 'var(--ink-3)' }}>
-        {formatDate(holiday.date)}
-      </span>
-      <strong style={{ flex: 1 }}>{holiday.name}</strong>
-      <span
-        className="pill"
-        style={
-          holiday.branch
-            ? { borderColor: 'var(--line-2)', color: 'var(--ink-3)' }
-            : { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' }
-        }
-      >
-        {holiday.branch ?? 'All branches'}
-      </span>
-      <button className="btn quiet" onClick={remove} disabled={pending}>
-        {pending ? '…' : 'Delete'}
-      </button>
+      <div className="f-row" style={{ alignItems: 'center', gap: 12 }}>
+        <span className="mono" style={{ minWidth: 96, color: 'var(--ink-3)' }}>
+          {formatDate(holiday.date)}
+        </span>
+        <strong style={{ flex: 1 }}>{holiday.name}</strong>
+        <span
+          className="pill"
+          style={
+            holiday.branch
+              ? { borderColor: 'var(--line-2)', color: 'var(--ink-3)' }
+              : { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' }
+          }
+        >
+          {holiday.branch ?? 'All branches'}
+        </span>
+        <button className="btn quiet" onClick={remove} disabled={pending}>
+          {pending ? '…' : 'Delete'}
+        </button>
+      </div>
+      {error && <div className="login-error" role="alert" style={{ marginTop: 6 }}>{error}</div>}
     </div>
   );
 }

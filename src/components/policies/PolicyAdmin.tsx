@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useTransition } from 'react';
+import { useActionState, useState, useTransition } from 'react';
 import { createPolicy, setPolicyPublished } from '@/lib/actions/policies';
 import { formatDate } from '@/lib/format';
 import type { Policy } from '@/types/database';
@@ -35,10 +35,14 @@ export function PolicyAdmin({ policies }: { policies: Policy[] }) {
 
 function PolicyItem({ policy }: { policy: Policy }) {
   const [pending, startTransition] = useTransition();
-  const toggle = () =>
+  const [error, setError] = useState<string | null>(null);
+  const toggle = () => {
+    setError(null);
     startTransition(async () => {
-      await setPolicyPublished(policy.id, !policy.published);
+      const res = await setPolicyPublished(policy.id, !policy.published);
+      if (!res.ok) setError(res.error ?? 'Could not update the policy.');
     });
+  };
 
   return (
     <div className="policy">
@@ -65,6 +69,7 @@ function PolicyItem({ policy }: { policy: Policy }) {
         </button>
       </div>
       <p className="body">{policy.body}</p>
+      {error && <div className="login-error" role="alert">{error}</div>}
     </div>
   );
 }

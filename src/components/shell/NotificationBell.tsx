@@ -44,6 +44,7 @@ export function NotificationBell({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const boxRef = useRef<HTMLDivElement>(null);
 
@@ -67,19 +68,35 @@ export function NotificationBell({
 
   const onOpenItem = (n: NotificationRow) => {
     if (!n.readAt) {
+      setError(null);
       startTransition(async () => {
-        await markNotificationRead(n.id);
+        const res = await markNotificationRead(n.id);
+        if (!res.ok) {
+          // Keep the dropdown open so the error is visible. (A linked item
+          // navigates away on click regardless, so this only shows for the
+          // plain-button, non-link case.)
+          setError(res.error ?? 'Could not mark the notification read.');
+          return;
+        }
+        setOpen(false);
         router.refresh();
       });
+    } else {
+      setOpen(false);
     }
-    setOpen(false);
   };
 
-  const onMarkAll = () =>
+  const onMarkAll = () => {
+    setError(null);
     startTransition(async () => {
-      await markAllNotificationsRead();
+      const res = await markAllNotificationsRead();
+      if (!res.ok) {
+        setError(res.error ?? 'Could not mark notifications read.');
+        return;
+      }
       router.refresh();
     });
+  };
 
   return (
     <div ref={boxRef} style={{ position: 'relative' }}>
@@ -152,6 +169,12 @@ export function NotificationBell({
               </button>
             )}
           </div>
+
+          {error && (
+            <div className="login-error" role="alert" style={{ margin: 10, fontSize: 12 }}>
+              {error}
+            </div>
+          )}
 
           {notifications.length === 0 ? (
             <p className="muted" style={{ fontSize: 13, padding: 16, margin: 0, textAlign: 'center' }}>

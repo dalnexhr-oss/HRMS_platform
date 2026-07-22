@@ -22,11 +22,14 @@ export function PolicyList({ policies }: { policies: PolicyView[] }) {
 function PolicyRow({ policy }: { policy: PolicyView }) {
   const [acked, setAcked] = useState(policy.acknowledged);
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   const onAck = () => {
+    setError(null);
     startTransition(async () => {
       const res = await acknowledgePolicy(policy.id);
       if (res.ok) setAcked(true);
+      else setError(res.error ?? 'Could not mark the policy as read.');
     });
   };
 
@@ -49,6 +52,7 @@ function PolicyRow({ policy }: { policy: PolicyView }) {
         )}
       </div>
       <p className="body">{policy.body}</p>
+      {error && <div className="login-error" role="alert">{error}</div>}
     </div>
   );
 }

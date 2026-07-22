@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useTransition } from 'react';
+import { useActionState, useState, useTransition } from 'react';
 import { createNotice, deleteNotice } from '@/lib/actions/notices';
 import { formatDate } from '@/lib/format';
 import type { NoticeView } from '@/lib/queries';
@@ -43,10 +43,14 @@ export function NoticesScreen({ notices }: { notices: NoticeView[] }) {
 
 function NoticeItem({ notice }: { notice: NoticeView }) {
   const [pending, startTransition] = useTransition();
-  const remove = () =>
+  const [error, setError] = useState<string | null>(null);
+  const remove = () => {
+    setError(null);
     startTransition(async () => {
-      await deleteNotice(notice.id);
+      const res = await deleteNotice(notice.id);
+      if (!res.ok) setError(res.error ?? 'Could not delete the notice.');
     });
+  };
 
   return (
     <div className="policy">
@@ -70,6 +74,7 @@ function NoticeItem({ notice }: { notice: NoticeView }) {
         </button>
       </div>
       {notice.body && <p className="body muted">{notice.body}</p>}
+      {error && <div className="login-error" role="alert">{error}</div>}
     </div>
   );
 }

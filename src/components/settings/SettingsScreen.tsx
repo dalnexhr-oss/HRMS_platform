@@ -33,13 +33,16 @@ function SettingRow({ setting }: { setting: SettingView }) {
   const [value, setValue] = useState(String(setting.value ?? ''));
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const save = () => {
     setSaved(false);
+    setError(null);
     const parsed: unknown = isNumber ? Number(value) : value;
     startTransition(async () => {
       const res = await updateSetting(setting.key, parsed);
       if (res.ok) setSaved(true);
+      else setError(res.error ?? 'Could not save this setting.');
     });
   };
 
@@ -85,6 +88,11 @@ function SettingRow({ setting }: { setting: SettingView }) {
         {saved && !pending && (
           <span className="hint" style={{ whiteSpace: 'nowrap' }}>
             ✓ Saved
+          </span>
+        )}
+        {error && !pending && (
+          <span className="login-error" role="alert" style={{ whiteSpace: 'nowrap' }}>
+            {error}
           </span>
         )}
       </div>
