@@ -41,7 +41,22 @@ a{color:inherit;text-decoration:none}
    fading to blue at the bottom. The gradient is kept deep enough that the white
    nav labels stay legible (nav text sits ≥5:1). The 4px right edge and the brand
    separator use the logo's brightest aqua as an accent. */
-.sidebar{background:linear-gradient(165deg, #0C8CA0 0%, #0A7387 48%, #0d6c84 100%);color:var(--spine-text);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;border-right:4px solid #00B8D4;box-shadow:2px 0 8px rgba(7,86,106,.18);}
+.sidebar {
+    background: linear-gradient(
+        165deg,
+        #1CA0CB 0%,
+        #2786BE 50%,
+        #3367AD 100%
+    );
+    color: var(--spine-text);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    border-right: 4px solid #1CA0CB;
+    box-shadow: 2px 0 8px rgba(51, 103, 173, 0.18);
+}
 /* The brand block above the separator is a white panel so the Dalnex logo shows
    in full colour — identical to the login card — rather than inverted to white. */
 .brand{padding:20px 20px 18px;border-bottom:1px solid rgba(0,184,212,.35);background:#fff}
@@ -68,8 +83,17 @@ a{color:inherit;text-decoration:none}
 .av{width:40px;height:40px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font:600 14px var(--mono);overflow:hidden;flex:none;padding:0}
 .who .av{width:30px;height:30px;font:600 12px var(--mono)}
 .av-img{width:100%;height:100%;object-fit:cover;display:block}
-.av-preset{display:grid;place-items:center;width:100%;height:100%}
-.av-preset svg{width:62%;height:62%}
+.av-preset{display:block;width:100%;height:100%}
+/* animated character presets carry their own background and fill the round chip */
+.av-scene{display:block;width:100%;height:100%}
+@keyframes av-blink{0%,92%,100%{transform:scaleY(1)}96%{transform:scaleY(.12)}}
+@keyframes av-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.6px)}}
+@keyframes av-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.6px)}}
+@keyframes av-wave{0%,55%,100%{transform:rotate(0)}70%{transform:rotate(-18deg)}85%{transform:rotate(9deg)}}
+.av-eye{transform-box:fill-box;transform-origin:center;animation:av-blink 4.6s ease-in-out infinite}
+.av-bob{transform-box:fill-box;transform-origin:center;animation:av-bob 3.2s ease-in-out infinite}
+.av-float{transform-box:fill-box;transform-origin:center;animation:av-float 3.8s ease-in-out infinite}
+.av-hand{transform-box:fill-box;transform-origin:bottom center;animation:av-wave 2s ease-in-out infinite}
 /* clickable avatar + its picker popover (topbar & account) */
 .avatar-menu{position:relative;display:inline-flex}
 .av-trigger{cursor:pointer;border:0;transition:box-shadow .15s ease}
