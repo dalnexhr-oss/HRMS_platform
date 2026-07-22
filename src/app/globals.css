@@ -64,7 +64,26 @@ a{color:inherit;text-decoration:none}
 .topbar .sub{color:var(--ink-3);font:500 12px var(--mono)}
 .topbar .grow{flex:1}
 .who{display:flex;align-items:center;gap:10px;font-weight:600;font-size:13px;color:var(--ink)}
-.who .av{width:30px;height:30px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font:600 12px var(--mono)}
+/* avatar chip — shared base; each surface overrides only size/font below */
+.av{width:40px;height:40px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font:600 14px var(--mono);overflow:hidden;flex:none;padding:0}
+.who .av{width:30px;height:30px;font:600 12px var(--mono)}
+.av-img{width:100%;height:100%;object-fit:cover;display:block}
+.av-preset{display:grid;place-items:center;width:100%;height:100%}
+.av-preset svg{width:62%;height:62%}
+/* clickable avatar + its picker popover (topbar & account) */
+.avatar-menu{position:relative;display:inline-flex}
+.av-trigger{cursor:pointer;border:0;transition:box-shadow .15s ease}
+.av-trigger:hover{box-shadow:0 0 0 2px rgba(14,122,143,.45)}
+.av-trigger:disabled{opacity:.6;cursor:default}
+.avatar-pop{position:absolute;right:0;top:calc(100% + 8px);width:250px;background:#fff;border:1px solid var(--line-2);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.14);padding:12px;z-index:50}
+.avatar-pop.align-left{right:auto;left:0}
+.avatar-pop-hd{font:600 13px var(--sans);color:var(--ink);margin-bottom:10px}
+.avatar-pop-lab{font:600 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin:12px 0 8px}
+.avatar-swatches{display:flex;gap:8px;flex-wrap:wrap}
+.avatar-swatch{width:36px;height:36px;cursor:pointer;border:2px solid transparent}
+.avatar-swatch:hover{box-shadow:0 0 0 2px var(--brand-soft)}
+.avatar-swatch.is-selected{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-soft)}
+.avatar-swatch:disabled{opacity:.6;cursor:default}
 .screen{padding:24px 28px 56px;animation:fade .25s ease;background:#FFFFFF}
 @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 .wrap{max-width:1240px;margin:0 auto}
@@ -231,13 +250,41 @@ tbody tr:hover{background:var(--card-2)}
 .brandmark-txt{font:600 22px/1 var(--display);letter-spacing:.01em;white-space:nowrap}
 
 /* sidebar brand — a white panel (see .brand), so the Dalnex mark shows in full
-   colour exactly like the login card, NOT inverted to white. The mark sits a
-   little larger than the "HRMS." wordmark (34px vs 25px ≈ the login's 38/28
-   ratio); "HRMS." is dark ink with the teal dot, mirroring the login. */
-.brand .brandmark{gap:9px}
-.brand .brandmark-img{height:30px}
-.brand .brandmark-txt{font-size:25px;color:var(--ink)}
-.brand .brandmark-txt span{color:#0E7A8F}
+   colour exactly like the login card, NOT inverted to white. The Dalnex logo is
+   deliberately the dominant element: at 42px it is well over twice the height of
+   the 18px "HRMS." wordmark, so the size difference is unmistakable. "HRMS." is
+   dark ink with the teal dot, mirroring the login. */
+   /* Sidebar brand */
+.brand .brandmark{
+    display:flex;
+    align-items:center;
+    justify-content:flex-start;
+    gap:8px;
+}
+
+.brand .brandmark-img{
+    display:block;
+    height:42px;
+    width:auto;
+    flex-shrink:0;
+}
+
+.brand .brandmark-txt{
+    display:flex;
+    align-items:center;
+    margin:0;
+    padding:0;
+    font:600 20px/1 var(--display);
+    color:var(--ink);
+    white-space:nowrap;
+    position:relative;
+    top:4.5px;              /* aligns HRMS with the logo */
+}
+
+.brand .brandmark-txt span{
+    color:#0E7A8F;
+}
+
 
 /* login / reset / update-password cards — light background, centred */
 .login-brand .brandmark{justify-content:center;gap:11px;margin-bottom:6px}
@@ -278,13 +325,25 @@ tbody tr:hover{background:var(--card-2)}
 .policy .body{margin:8px 0 10px;font-size:13px;color:var(--ink-2);line-height:1.6}
 .ack{display:inline-flex;align-items:center;gap:7px;font:600 11px var(--mono);color:var(--p)}
 
+/* Content reflow for narrower windows — the sidebar stays full-width here. */
 @media (max-width:1120px){
-  .shell{grid-template-columns:64px 1fr}
-  .brand h1,.nav .group,.nav .txt,.side-foot{display:none}
-  .brand{padding:18px 0;text-align:center}
-  .brand .eyebrow{writing-mode:vertical-rl;letter-spacing:.3em}
-  .nav a{justify-content:center;padding:11px 0}
   .kpis,.totals{grid-template-columns:repeat(2,1fr)}
   .two-col,.appr,.exp-grid{grid-template-columns:1fr}
   .exp-col{border-right:0;border-bottom:1px dashed var(--line)}
+}
+
+/* Sidebar collapses to a 64px icon rail only on genuinely narrow (tablet)
+   viewports. The old 1120px breakpoint fired on ordinary laptops once Windows
+   display scaling is applied (a 1536px panel at 150% = 1024 CSS px < 1120), so
+   the sidebar looked like it "closed itself". 860px only triggers on real
+   tablet/split-screen widths. In the rail, only the compact logo shows — the
+   "HRMS." wordmark and labels are hidden so nothing overflows the 64px column. */
+@media (max-width:860px){
+  .shell{grid-template-columns:64px 1fr}
+  .brand h1,.brand .brandmark-txt,.nav .group,.nav .txt,.side-foot{display:none}
+  .brand{padding:16px 0;text-align:center}
+  .brand .brandmark{justify-content:center;gap:0}
+  .brand .brandmark-img{height:26px}
+  .brand .eyebrow{writing-mode:vertical-rl;letter-spacing:.3em}
+  .nav a{justify-content:center;padding:11px 0}
 }
