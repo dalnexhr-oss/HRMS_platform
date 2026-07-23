@@ -13,15 +13,23 @@ import {
   getMyReimbursements,
   getReimbursementRate,
   getPayrollRun,
+  getHolidays,
+  getNotices,
+  getReadNoticeIds,
+  getWeekOffPolicy,
   isSupabaseConfigured,
   type CompOffRow,
+  type HolidayView,
   type LeaveBalanceRow,
+  type NoticeView,
   type PayrollRunView,
   type ReimbursementView,
   type RequestView,
   type TicketView,
 } from '@/lib/queries';
 import { PolicyList } from '@/components/policies/PolicyList';
+import { EmployeeNotices } from '@/components/employee/EmployeeNotices';
+import { EmployeeHolidays } from '@/components/employee/EmployeeHolidays';
 import { MyAttendance } from '@/components/employee/MyAttendance';
 import { MyPayslips } from '@/components/employee/MyPayslips';
 import { ApplyLeave } from '@/components/employee/ApplyLeave';
@@ -52,6 +60,10 @@ export default async function MePage() {
     compOffs,
     reimbursements,
     ratePerKm,
+    holidays,
+    notices,
+    weekOffPolicy,
+    readNoticeIds,
   ] = await Promise.all([
       getEmployeeOverview(employeeId, profile?.full_name, DEFAULT_PERIOD_MONTH),
       getEmployeePolicies(employeeId),
@@ -68,7 +80,32 @@ export default async function MePage() {
       employeeId ? getMyCompOffs(employeeId) : Promise.resolve<CompOffRow[]>([]),
       employeeId ? getMyReimbursements(employeeId) : Promise.resolve<ReimbursementView[]>([]),
       getReimbursementRate(),
+      getHolidays(),
+      getNotices(),
+      getWeekOffPolicy(),
+      employeeId ? getReadNoticeIds(employeeId) : Promise.resolve<string[]>([]),
     ]);
+
+  // Notices are company announcements — every employee sees all PUBLISHED ones
+  // (drafts stay staff-only), with the branch tag shown on each. They expire off
+  // the dashboard 30 days after publication (and are hard-deleted from the DB by
+  // the daily pg_cron job in migration 0015 / the purge on the staff page).
+  // Compare epoch millis, not raw strings: PostgREST emits '…+00:00' timestamps
+  // while toISOString() emits '…Z', so a lexicographic compare is unreliable.
+  const noticeCutoffMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const visibleNotices: NoticeView[] = notices.filter(
+    (n) => n.published && n.publishedAt != null && new Date(n.publishedAt).getTime() >= noticeCutoffMs,
+  );
+  const readNoticeSet = new Set(readNoticeIds);
+  const unreadNotices = visibleNotices.filter((n) => !readNoticeSet.has(n.id)).length;
+  // Holidays legitimately differ by branch, so scope those to the employee's
+  // branch plus any all-branches entries.
+  const myBranch = overview.branch || null;
+  const visibleHolidays: HolidayView[] = holidays.filter(
+    (h) => !h.branch || h.branch === myBranch,
+  );
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const upcomingHolidayCount = visibleHolidays.filter((h) => h.date >= todayStr).length;
 
   const unread = policies.filter((p) => !p.acknowledged).length;
   const pendingRequests = requests.filter((r) => r.status === 'pending').length;
@@ -158,6 +195,37 @@ export default async function MePage() {
             {openTickets}
           </div>
           <div className="note">{tickets.length} raised in total</div>
+        </div>
+      </div>
+
+      {/* company notices */}
+      <div className="card">
+        <div className="hd">
+          <h3>Notices</h3>
+          <span className="folio">
+            {unreadNotices > 0 ? `${unreadNotices} unread · ` : ''}
+            {visibleNotices.length} total
+          </span>
+        </div>
+        <div className="bd">
+          <EmployeeNotices
+            notices={visibleNotices}
+            readIds={readNoticeIds}
+            canMark={!!employeeId}
+          />
+        </div>
+      </div>
+
+      {/* holiday calendar */}
+      <div className="card">
+        <div className="hd">
+          <h3>Holiday calendar</h3>
+          <span className="folio">
+            {upcomingHolidayCount} upcoming · {visibleHolidays.length} total
+          </span>
+        </div>
+        <div className="bd">
+          <EmployeeHolidays holidays={visibleHolidays} policy={weekOffPolicy} />
         </div>
       </div>
 

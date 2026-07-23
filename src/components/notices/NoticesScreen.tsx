@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState, useState, useTransition } from 'react';
-import { createNotice, deleteNotice } from '@/lib/actions/notices';
+import { createNotice, deleteNotice, setNoticePublished } from '@/lib/actions/notices';
 import { formatDate } from '@/lib/format';
 import type { NoticeView } from '@/lib/queries';
 
@@ -44,6 +44,15 @@ export function NoticesScreen({ notices }: { notices: NoticeView[] }) {
 function NoticeItem({ notice }: { notice: NoticeView }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  const toggle = () => {
+    setError(null);
+    startTransition(async () => {
+      const res = await setNoticePublished(notice.id, !notice.published);
+      if (!res.ok) setError(res.error ?? 'Could not update the notice.');
+    });
+  };
+
   const remove = () => {
     setError(null);
     startTransition(async () => {
@@ -69,6 +78,9 @@ function NoticeItem({ notice }: { notice: NoticeView }) {
             Draft
           </span>
         )}
+        <button className="btn" onClick={toggle} disabled={pending}>
+          {pending ? '…' : notice.published ? 'Unpublish' : 'Publish'}
+        </button>
         <button className="btn quiet" onClick={remove} disabled={pending}>
           {pending ? '…' : 'Delete'}
         </button>

@@ -65,7 +65,7 @@ export async function reviewRequest(
     .update({ status: decision, reviewed_at: new Date().toISOString() })
     .eq('id', id)
     .eq('status', 'pending')
-    .select('id, type');
+    .select('id, type, leave_kind, days, employee_id, start_date');
   if (error) return { ok: false, error: error.message };
 
   if (!data || data.length === 0) {
@@ -76,14 +76,56 @@ export async function reviewRequest(
     };
   }
 
-  // Comp-off requests carry side-effects: approving spends the credit and stamps
-  // the taken day 'CO'; rejecting releases it back to the employee's balance.
-  // The decision itself is already committed, so a side-effect failure is
-  // reported as a warning rather than reverting a saved approval.
+  const reviewed = data[0] as {
+    type: string;
+    leave_kind: string | null;
+    days: number;
+    employee_id: string;
+    start_date: string;
+  };
+
+  // Side-effects run after the decision is committed. A side-effect failure is
+  // reported as a warning rather than reverting a saved approval. The pending
+  // guard above means each transition (and its side-effect) fires at most once,
+  // so a leave balance can't be double-deducted by re-approving.
   let warning: string | null = null;
-  if ((data[0] as { type?: string }).type === 'comp_off') {
+
+  // Comp-off: approving spends the credit and stamps the day 'CO'; rejecting
+  // releases it back to the employee.
+  if (reviewed.type === 'comp_off') {
     if (decision === 'approved') warning = await settleApprovedCompOff(id);
     else await releaseCompOff(id);
+  }
+
+  // Leave: approving a paid leave (PL/CL/SL — not LWP) draws it down from the
+  // employee's yearly balance. Rejecting deducts nothing (the balance is only
+  // spent on approval).
+  if (
+    reviewed.type === 'leave' &&
+    decision === 'approved' &&
+    reviewed.leave_kind &&
+    reviewed.leave_kind !== 'LWP'
+  ) {
+    const year = Number(reviewed.start_date.slice(0, 4));
+    const { data: bal } = await supabase
+      .from('leave_balances')
+      .select('id, balance')
+      .eq('employee_id', reviewed.employee_id)
+      .eq('year', year)
+      .eq('type', reviewed.leave_kind)
+      .maybeSingle<{ id: string; balance: number }>();
+    if (bal) {
+      const next = Number(bal.balance) - Number(reviewed.days ?? 0);
+      const { error: balErr } = await supabase
+        .from('leave_balances')
+        .update({ balance: next })
+        .eq('id', bal.id);
+      if (balErr) {
+        warning = `Approved, but the ${reviewed.leave_kind} balance could not be updated: ${balErr.message}`;
+      }
+    }
+    // No balance row for this kind/year → nothing tracked to draw down; the
+    // approval still stands.
   }
 
   // Tell the employee the outcome. Look the owner up rather than trusting the

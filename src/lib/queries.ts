@@ -711,28 +711,32 @@ export async function getEmployeeCodeMap(): Promise<Record<string, string>> {
 export interface EmployeeListRow {
   code: string; name: string; branch: string; gender: string;
   doj: string; gross: number; uan: string; esic_no: string | null;
+  active: boolean;
 }
 
 function demoEmployees(): EmployeeListRow[] {
   return DATA.employees.map((e) => ({
     code: e.code, name: e.name, branch: e.branch, gender: e.gender,
-    doj: e.doj, gross: e.gross, uan: e.uan, esic_no: e.esic_no,
+    doj: e.doj, gross: e.gross, uan: e.uan, esic_no: e.esic_no, active: true,
   }));
 }
 
-export async function getEmployees(): Promise<EmployeeListRow[]> {
+/** Employee roster. Active-only by default; pass includeInactive to also return
+ *  deactivated employees (so the UI can offer a "reactivate"). */
+export async function getEmployees(includeInactive = false): Promise<EmployeeListRow[]> {
   if (!isSupabaseConfigured()) return demoEmployees();
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from('employees')
-    .select('code, full_name, gender, date_of_joining, gross_monthly, pf_uan, esic_number, branches(name)')
-    .eq('status', 'active')
-    .order('code');
+    .select('code, full_name, gender, date_of_joining, gross_monthly, pf_uan, esic_number, status, branches(name)');
+  if (!includeInactive) query = query.eq('status', 'active');
+  const { data, error } = await query.order('code');
   if (error) fail('getEmployees: could not load employees', error);
   return (data ?? []).map((e: any) => ({
     code: e.code, name: e.full_name, branch: e.branches?.name ?? '', gender: e.gender,
     doj: e.date_of_joining, gross: Number(e.gross_monthly), uan: e.pf_uan, esic_no: e.esic_number,
+    active: e.status === 'active',
   }));
 }
 
@@ -1259,6 +1263,44 @@ export async function getNotices(): Promise<NoticeView[]> {
     publishedAt: n.published_at,
     createdAt: n.created_at,
   }));
+}
+
+/** The ids of notices this employee has marked read (for the dashboard). */
+export async function getReadNoticeIds(employeeId: string | null): Promise<string[]> {
+  if (!employeeId || !isSupabaseConfigured()) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('notice_reads')
+    .select('notice_id')
+    .eq('employee_id', employeeId);
+  if (error) {
+    // Only the pre-migration case (table absent) is benign → treat all as unread.
+    // A real error (RLS/permission/network) must surface, not be swallowed.
+    if (isMissingTable(error)) return [];
+    fail('getReadNoticeIds: could not load read receipts', error);
+  }
+  return (data ?? []).map((r: { notice_id: string }) => r.notice_id);
+}
+
+/**
+ * Best-effort: hard-delete notices older than 30 days (published 30d ago, or a
+ * draft created 30d ago). Called from the staff Notices page so the table is
+ * cleaned even without pg_cron; employees never see expired notices regardless
+ * (the dashboard filters them out). Staff hold the delete grant; errors are
+ * swallowed so a cleanup hiccup never breaks the page.
+ */
+export async function purgeExpiredNotices(): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  try {
+    const supabase = await createClient();
+    await supabase
+      .from('notices')
+      .delete()
+      .or(`published_at.lt.${cutoff},and(published_at.is.null,created_at.lt.${cutoff})`);
+  } catch {
+    // ignore — this is opportunistic cleanup, not required for correctness
+  }
 }
 
 // --------------------------------------------------------------- helpdesk ---

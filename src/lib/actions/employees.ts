@@ -181,3 +181,27 @@ export async function deactivateEmployee(code: string) {
   revalidatePath('/employees');
   return { ok: true };
 }
+
+/** Bring a deactivated employee back onto the active roster. */
+export async function reactivateEmployee(code: string) {
+  const gate = await requireStaff('Reactivating an employee');
+  if (!gate.ok) return gate;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('employees')
+    .update({ status: 'active' })
+    .eq('code', code)
+    .select('id');
+
+  if (error) return { ok: false, error: error.message };
+  if (wroteNothing(data)) {
+    return {
+      ok: false,
+      error: 'The employee was not reactivated — they may no longer exist, or your role lacks permission.',
+    };
+  }
+
+  revalidatePath('/employees');
+  return { ok: true };
+}

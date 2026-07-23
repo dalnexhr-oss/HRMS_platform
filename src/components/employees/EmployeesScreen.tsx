@@ -4,28 +4,34 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { inr } from '@/lib/format';
 import { AddEmployeeDrawer } from './AddEmployeeDrawer';
-import { fetchEmployeeForEdit, deactivateEmployee } from '@/lib/actions/employees';
+import { fetchEmployeeForEdit, deactivateEmployee, reactivateEmployee } from '@/lib/actions/employees';
 import type { EmployeeListRow, EmployeeEditRow } from '@/lib/queries';
 
 export function EmployeesScreen({ rows }: { rows: EmployeeListRow[] }) {
   const router = useRouter();
   const [q, setQ] = useState('');
+  const [showInactive, setShowInactive] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const [editing, setEditing] = useState<EmployeeEditRow | null>(null);
   const [busyCode, setBusyCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const activeCount = useMemo(() => rows.filter((e) => e.active).length, [rows]);
+  const inactiveCount = rows.length - activeCount;
+
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
-    if (!term) return rows;
-    return rows.filter(
-      (e) =>
+    return rows.filter((e) => {
+      if (!showInactive && !e.active) return false;
+      if (!term) return true;
+      return (
         e.name.toLowerCase().includes(term) ||
         e.code.toLowerCase().includes(term) ||
-        (e.uan ?? '').toLowerCase().includes(term),
-    );
-  }, [q, rows]);
+        (e.uan ?? '').toLowerCase().includes(term)
+      );
+    });
+  }, [q, rows, showInactive]);
 
   function openAdd() {
     setEditing(null);
@@ -61,6 +67,18 @@ export function EmployeesScreen({ rows }: { rows: EmployeeListRow[] }) {
     });
   }
 
+  function onReactivate(code: string, name: string) {
+    if (!window.confirm(`Reactivate ${name} (${code})? They will return to the active roster.`)) return;
+    setError(null);
+    setBusyCode(code);
+    startTransition(async () => {
+      const res = await reactivateEmployee(code);
+      setBusyCode(null);
+      if (!res.ok) setError(res.error ?? 'Could not reactivate the employee.');
+      else router.refresh();
+    });
+  }
+
   return (
     <div className="wrap">
       <div className="emp-top">
@@ -76,8 +94,18 @@ export function EmployeesScreen({ rows }: { rows: EmployeeListRow[] }) {
           />
         </div>
         <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
-          {rows.length} active
+          {activeCount} active{inactiveCount ? ` · ${inactiveCount} inactive` : ''}
         </span>
+        {inactiveCount > 0 && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--ink-2)' }}>
+            <input
+              type="checkbox"
+              checked={showInactive}
+              onChange={(e) => setShowInactive(e.target.checked)}
+            />
+            Show inactive
+          </label>
+        )}
         <span style={{ flex: 1 }} />
         <button className="btn primary" onClick={openAdd}>
           + Add employee
@@ -131,30 +159,49 @@ export function EmployeesScreen({ rows }: { rows: EmployeeListRow[] }) {
                   <td className="mono muted">{e.uan}</td>
                   <td className="mono muted">{e.esic_no ?? '—'}</td>
                   <td>
-                    <span
-                      className="pill"
-                      style={{ borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' }}
-                    >
-                      Active
-                    </span>
+                    {e.active ? (
+                      <span
+                        className="pill"
+                        style={{ borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' }}
+                      >
+                        Active
+                      </span>
+                    ) : (
+                      <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-3)' }}>
+                        Inactive
+                      </span>
+                    )}
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button
-                        className="btn quiet"
-                        onClick={() => openEdit(e.code)}
-                        disabled={pending && busyCode === e.code}
-                      >
-                        {pending && busyCode === e.code ? '…' : 'Edit'}
-                      </button>
-                      <button
-                        className="btn quiet"
-                        onClick={() => onDeactivate(e.code, e.name)}
-                        disabled={pending && busyCode === e.code}
-                        title="Deactivate this employee"
-                      >
-                        Deactivate
-                      </button>
+                      {e.active ? (
+                        <>
+                          <button
+                            className="btn quiet"
+                            onClick={() => openEdit(e.code)}
+                            disabled={pending && busyCode === e.code}
+                          >
+                            {pending && busyCode === e.code ? '…' : 'Edit'}
+                          </button>
+                          <button
+                            className="btn quiet"
+                            onClick={() => onDeactivate(e.code, e.name)}
+                            disabled={pending && busyCode === e.code}
+                            title="Deactivate this employee"
+                          >
+                            Delete
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          className="btn quiet"
+                          onClick={() => onReactivate(e.code, e.name)}
+                          disabled={pending && busyCode === e.code}
+                          title="Reactivate this employee"
+                        >
+                          {pending && busyCode === e.code ? '…' : 'Reactivate'}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

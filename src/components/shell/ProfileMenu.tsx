@@ -31,7 +31,7 @@ export function ProfileMenu({
   role?: string | null;
   email?: string | null;
   /** Where "My account" navigates — /account for staff, /me for employees. */
-  accountHref: string;
+  accountHref: Route;
 }) {
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -79,7 +79,7 @@ export function ProfileMenu({
           </div>
 
           <Link
-            href={accountHref as Route}
+            href={accountHref}
             className="btn"
             style={{ width: '100%', justifyContent: 'center' }}
             onClick={() => setOpen(false)}
