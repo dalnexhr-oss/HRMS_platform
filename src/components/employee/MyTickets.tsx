@@ -62,6 +62,20 @@ export function MyTickets({
                   </span>
                 </div>
                 {t.body && <p className="body">{t.body}</p>}
+                {t.resolutionNote && (
+                  <div
+                    style={{
+                      fontSize: 13,
+                      marginTop: 8,
+                      padding: '8px 11px',
+                      borderLeft: '3px solid var(--brand)',
+                      background: 'var(--brand-soft)',
+                      borderRadius: 4,
+                    }}
+                  >
+                    <b>Reply from HR:</b> {t.resolutionNote}
+                  </div>
+                )}
               </div>
             ))
           )}

@@ -652,17 +652,28 @@ export async function getMyRequests(employeeId: string): Promise<RequestView[]> 
 }
 
 /** One employee's helpdesk tickets, newest first. */
+const TICKET_COLS = 'id, subject, body, category, status, created_at, resolution_note, employees(code, full_name)';
+const TICKET_COLS_LEGACY = 'id, subject, body, category, status, created_at, employees(code, full_name)';
+
 export async function getMyTickets(employeeId: string): Promise<TicketView[]> {
   if (!isSupabaseConfigured()) return DEMO_TICKETS;
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let res = await supabase
     .from('helpdesk_tickets')
-    .select('id, subject, body, category, status, created_at, employees(code, full_name)')
+    .select(TICKET_COLS)
     .eq('employee_id', employeeId)
     .order('created_at', { ascending: false });
-  if (error) fail('getMyTickets: could not load tickets', error);
-  return (data ?? []).map(mapTicket);
+  // Migration 0018 (resolution_note) not applied yet → retry without the column.
+  if (res.error?.code === '42703') {
+    res = (await supabase
+      .from('helpdesk_tickets')
+      .select(TICKET_COLS_LEGACY)
+      .eq('employee_id', employeeId)
+      .order('created_at', { ascending: false })) as typeof res;
+  }
+  if (res.error) fail('getMyTickets: could not load tickets', res.error);
+  return (res.data ?? []).map(mapTicket);
 }
 
 // --------------------------------------------------------- leave balances ---
@@ -1312,6 +1323,7 @@ export interface TicketView {
   status: 'open' | 'in_progress' | 'resolved' | 'closed';
   employeeName: string | null;
   employeeCode: string | null;
+  resolutionNote: string | null;
   createdAt: string;
 }
 
@@ -1324,6 +1336,7 @@ function mapTicket(t: any): TicketView {
     status: t.status,
     employeeName: t.employees?.full_name ?? null,
     employeeCode: t.employees?.code ?? null,
+    resolutionNote: t.resolution_note ?? null,
     createdAt: t.created_at,
   };
 }
@@ -1333,13 +1346,19 @@ export async function getTickets(): Promise<TicketView[]> {
   if (!isSupabaseConfigured()) return DEMO_TICKETS;
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let res = await supabase
     .from('helpdesk_tickets')
-    .select('id, subject, body, category, status, created_at, employees(code, full_name)')
+    .select(TICKET_COLS)
     .order('created_at', { ascending: false });
-  if (error) fail('getTickets: could not load tickets', error);
+  if (res.error?.code === '42703') {
+    res = (await supabase
+      .from('helpdesk_tickets')
+      .select(TICKET_COLS_LEGACY)
+      .order('created_at', { ascending: false })) as typeof res;
+  }
+  if (res.error) fail('getTickets: could not load tickets', res.error);
   // Open tickets first, otherwise preserve newest-first ordering.
-  return (data ?? [])
+  return (res.data ?? [])
     .map(mapTicket)
     .sort((a, b) => (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1));
 }

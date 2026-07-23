@@ -155,11 +155,12 @@ export const DEMO_NOTICES = [
 
 export const DEMO_TICKETS = [
   { id: 'tk-1', subject: 'Payslip PF amount looks wrong', body: 'My June payslip shows a PF deduction that seems higher than usual. Can someone check the basic used for the calculation?',
-    category: 'Payroll', status: 'open' as const, employeeName: 'Priya Deshmukh', employeeCode: 'DN003', createdAt: '2026-07-13T10:20:00+05:30' },
+    category: 'Payroll', status: 'open' as const, employeeName: 'Priya Deshmukh', employeeCode: 'DN003', resolutionNote: null, createdAt: '2026-07-13T10:20:00+05:30' },
   { id: 'tk-2', subject: 'Update my WhatsApp number', body: 'I changed my mobile number. Please update it so I keep getting notice alerts on WhatsApp.',
-    category: 'Profile', status: 'in_progress' as const, employeeName: 'Amit Shah', employeeCode: 'DN002', createdAt: '2026-07-11T14:05:00+05:30' },
+    category: 'Profile', status: 'in_progress' as const, employeeName: 'Amit Shah', employeeCode: 'DN002', resolutionNote: null, createdAt: '2026-07-11T14:05:00+05:30' },
   { id: 'tk-3', subject: 'Reimbursement not reflected', body: 'The travel reimbursement I submitted last month has not shown up in my payslip yet.',
-    category: 'Payroll', status: 'resolved' as const, employeeName: 'Rajesh Kumar', employeeCode: 'DN001', createdAt: '2026-07-04T09:40:00+05:30' },
+    category: 'Payroll', status: 'resolved' as const, employeeName: 'Rajesh Kumar', employeeCode: 'DN001',
+    resolutionNote: 'Verified with finance — the claim was approved and will appear in your July payslip.', createdAt: '2026-07-04T09:40:00+05:30' },
 ];
 
 export const DEMO_REQUESTS = [

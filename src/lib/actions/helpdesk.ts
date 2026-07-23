@@ -51,24 +51,40 @@ export async function createTicket(formData: FormData) {
   return { ok: true };
 }
 
-/** Change a ticket's status; stamp resolved_at when it closes/resolves. Staff-only. */
-export async function setTicketStatus(id: string, status: TicketStatus) {
-  const gate = await requireStaff('Changing a ticket status');
+/**
+ * Change a ticket's status and, optionally, send a written reply. Staff-only.
+ * Stamps resolved_at when it closes/resolves; the reply (when given) is stored on
+ * the ticket and included in the employee's notification.
+ */
+export async function setTicketStatus(id: string, status: TicketStatus, note?: string) {
+  const gate = await requireStaff('Updating a ticket');
   if (!gate.ok) return gate;
 
+  const reply = (note ?? '').trim();
   const supabase = await createClient();
   const resolved_at = status === 'resolved' || status === 'closed' ? new Date().toISOString() : null;
+
+  // Only touch resolution_note when a reply is actually written, so a plain
+  // status change keeps working even before migration 0018 is applied.
+  const patch: Record<string, unknown> = { status, resolved_at };
+  if (reply) patch.resolution_note = reply;
+
   const { data, error } = await supabase
     .from('helpdesk_tickets')
-    .update({ status, resolved_at })
+    .update(patch)
     .eq('id', id)
     .select('id, subject, employee_id');
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    if (error.code === '42703') {
+      return { ok: false, error: 'Ticket replies aren’t set up on the database yet — apply the latest migration.' };
+    }
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,
-      error: 'The ticket status was not changed — it may no longer exist, or your role lacks permission.',
+      error: 'The ticket was not updated — it may no longer exist, or your role lacks permission.',
     };
   }
 
@@ -76,10 +92,11 @@ export async function setTicketStatus(id: string, status: TicketStatus) {
   await notifyEmployee(row.employee_id, {
     kind: 'ticket',
     title: `Your ticket is now ${status.replace('_', ' ')}`,
-    body: row.subject,
+    body: reply ? `${row.subject} — ${reply}` : row.subject,
     link: '/me',
   });
 
   revalidatePath('/helpdesk');
+  revalidatePath('/me');
   return { ok: true };
 }

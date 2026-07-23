@@ -1,11 +1,13 @@
 'use client';
 
 import { useActionState, useState, useTransition } from 'react';
-import { createPolicy, setPolicyPublished } from '@/lib/actions/policies';
+import { createPolicy, updatePolicy, deletePolicy, setPolicyPublished } from '@/lib/actions/policies';
 import { formatDate } from '@/lib/format';
 import type { Policy } from '@/types/database';
 
 export function PolicyAdmin({ policies }: { policies: Policy[] }) {
+  const [editing, setEditing] = useState<Policy | null>(null);
+
   return (
     <div className="two-col">
       <div className="card">
@@ -16,31 +18,41 @@ export function PolicyAdmin({ policies }: { policies: Policy[] }) {
         <div className="bd">
           {policies.length === 0 && <p className="muted">No policies yet — create one on the right.</p>}
           {policies.map((p) => (
-            <PolicyItem key={p.id} policy={p} />
+            <PolicyItem key={p.id} policy={p} onEdit={() => setEditing(p)} />
           ))}
         </div>
       </div>
 
       <div className="card">
         <div className="hd">
-          <h3>New policy</h3>
+          <h3>{editing ? 'Edit policy' : 'New policy'}</h3>
         </div>
         <div className="bd">
-          <NewPolicyForm />
+          <PolicyForm key={editing?.id ?? 'new'} editing={editing} onDone={() => setEditing(null)} />
         </div>
       </div>
     </div>
   );
 }
 
-function PolicyItem({ policy }: { policy: Policy }) {
+function PolicyItem({ policy, onEdit }: { policy: Policy; onEdit: () => void }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
   const toggle = () => {
     setError(null);
     startTransition(async () => {
       const res = await setPolicyPublished(policy.id, !policy.published);
       if (!res.ok) setError(res.error ?? 'Could not update the policy.');
+    });
+  };
+
+  const remove = () => {
+    if (!window.confirm(`Delete “${policy.title}”? This removes it and all read receipts.`)) return;
+    setError(null);
+    startTransition(async () => {
+      const res = await deletePolicy(policy.id);
+      if (!res.ok) setError(res.error ?? 'Could not delete the policy.');
     });
   };
 
@@ -64,8 +76,14 @@ function PolicyItem({ policy }: { policy: Policy }) {
         >
           {policy.published ? 'Published' : 'Draft'}
         </span>
+        <button className="btn quiet" onClick={onEdit} disabled={pending}>
+          Edit
+        </button>
         <button className="btn" onClick={toggle} disabled={pending}>
           {pending ? '…' : policy.published ? 'Unpublish' : 'Publish'}
+        </button>
+        <button className="btn quiet" onClick={remove} disabled={pending}>
+          {pending ? '…' : 'Delete'}
         </button>
       </div>
       <p className="body">{policy.body}</p>
@@ -74,9 +92,13 @@ function PolicyItem({ policy }: { policy: Policy }) {
   );
 }
 
-function NewPolicyForm() {
+function PolicyForm({ editing, onDone }: { editing: Policy | null; onDone: () => void }) {
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
-    async (_prev, formData) => createPolicy(formData),
+    async (_prev, formData) => {
+      const res = editing ? await updatePolicy(editing.id, formData) : await createPolicy(formData);
+      if (res.ok && editing) onDone();
+      return res;
+    },
     {},
   );
 
@@ -84,21 +106,21 @@ function NewPolicyForm() {
     <form action={action}>
       <div className="f">
         <label>Title</label>
-        <input name="title" placeholder="e.g. Remote Work Policy" required />
+        <input name="title" placeholder="e.g. Remote Work Policy" required defaultValue={editing?.title} />
       </div>
       <div className="f-row">
         <div className="f">
           <label>Category</label>
-          <input name="category" placeholder="HR / Leave / Payroll…" />
+          <input name="category" placeholder="HR / Leave / Payroll…" defaultValue={editing?.category ?? ''} />
         </div>
         <div className="f">
           <label>Version</label>
-          <input name="version" className="mono" defaultValue="1" />
+          <input name="version" className="mono" defaultValue={editing ? String(editing.version) : '1'} />
         </div>
       </div>
       <div className="f">
         <label>Effective date</label>
-        <input name="effective_date" type="date" />
+        <input name="effective_date" type="date" defaultValue={editing?.effective_date ?? ''} />
       </div>
       <div className="f">
         <label>Body</label>
@@ -106,6 +128,7 @@ function NewPolicyForm() {
           name="body"
           rows={5}
           required
+          defaultValue={editing?.body ?? ''}
           style={{
             width: '100%',
             padding: '9px 11px',
@@ -117,16 +140,25 @@ function NewPolicyForm() {
           }}
         />
       </div>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 14 }}>
-        <input type="checkbox" name="published" defaultChecked /> Publish immediately
-      </label>
+      {!editing && (
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 14 }}>
+          <input type="checkbox" name="published" defaultChecked /> Publish immediately
+        </label>
+      )}
 
       {state.error && <div className="login-error">{state.error}</div>}
-      {state.ok && <div className="hint">✓&nbsp; Policy saved.</div>}
+      {state.ok && !editing && <div className="hint">✓&nbsp; Policy saved.</div>}
 
-      <button className="btn primary" type="submit" disabled={pending}>
-        {pending ? 'Saving…' : 'Save policy'}
-      </button>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn primary" type="submit" disabled={pending}>
+          {pending ? 'Saving…' : editing ? 'Save changes' : 'Save policy'}
+        </button>
+        {editing && (
+          <button className="btn quiet" type="button" onClick={onDone} disabled={pending}>
+            Cancel
+          </button>
+        )}
+      </div>
     </form>
   );
 }

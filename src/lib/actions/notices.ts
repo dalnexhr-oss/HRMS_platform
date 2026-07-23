@@ -106,6 +106,38 @@ export async function createNotice(formData: FormData) {
   return { ok: true };
 }
 
+/** Edit an existing notice's content (title/body/channel/branch). Staff-only.
+ *  Does not change its published state — that's the Publish/Unpublish toggle. */
+export async function updateNotice(id: string, formData: FormData) {
+  const title = String(formData.get('title') ?? '').trim();
+  const body = String(formData.get('body') ?? '').trim();
+  const channelRaw = String(formData.get('channel') ?? 'app').trim();
+  const branch = String(formData.get('branch') ?? '').trim();
+  if (!title) return { ok: false, error: 'Please enter a title.' };
+
+  const channel: 'app' | 'whatsapp' | 'both' =
+    channelRaw === 'whatsapp' || channelRaw === 'both' ? channelRaw : 'app';
+
+  const gate = await requireStaff('Editing a notice');
+  if (!gate.ok) return gate;
+
+  const supabase = await createClient();
+  const branch_id = await resolveBranchId(supabase, branch);
+  const { data, error } = await supabase
+    .from('notices')
+    .update({ title, body: body || null, channel, branch_id })
+    .eq('id', id)
+    .select('id');
+  if (error) return { ok: false, error: error.message };
+  if (wroteNothing(data)) {
+    return { ok: false, error: 'The notice was not updated — it may be gone, or your role lacks permission.' };
+  }
+
+  revalidatePath('/notices');
+  revalidatePath('/me');
+  return { ok: true };
+}
+
 /**
  * Publish or unpublish an existing notice. Publishing stamps published_at now
  * (and notifies everyone); unpublishing clears it back to a draft.

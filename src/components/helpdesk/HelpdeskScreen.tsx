@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useTransition } from 'react';
+import { useActionState, useState, useTransition } from 'react';
 import { createTicket, setTicketStatus } from '@/lib/actions/helpdesk';
 import type { TicketView } from '@/lib/queries';
 
@@ -74,10 +74,24 @@ export function HelpdeskScreen({ tickets }: { tickets: TicketView[] }) {
 
 function TicketRow({ ticket }: { ticket: TicketView }) {
   const [pending, startTransition] = useTransition();
+  const [status, setStatus] = useState<TicketStatus>(ticket.status);
+  const [note, setNote] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
 
-  const onChange = (status: TicketStatus) => {
+  const apply = (nextStatus: TicketStatus, reply: string) => {
+    setError(null);
+    setSent(false);
     startTransition(async () => {
-      await setTicketStatus(ticket.id, status);
+      const res = await setTicketStatus(ticket.id, nextStatus, reply.trim() || undefined);
+      if (!res.ok) setError(res.error ?? 'Could not update the ticket.');
+      else {
+        setStatus(nextStatus);
+        if (reply.trim()) {
+          setSent(true);
+          setNote('');
+        }
+      }
     });
   };
 
@@ -88,6 +102,20 @@ function TicketRow({ ticket }: { ticket: TicketView }) {
         {ticket.body && (
           <div className="muted" style={{ fontSize: 12 }}>
             {ticket.body}
+          </div>
+        )}
+        {ticket.resolutionNote && (
+          <div
+            style={{
+              fontSize: 12,
+              marginTop: 6,
+              padding: '6px 9px',
+              borderLeft: '3px solid var(--brand)',
+              background: 'var(--brand-soft)',
+              borderRadius: 4,
+            }}
+          >
+            <b>Reply:</b> {ticket.resolutionNote}
           </div>
         )}
       </td>
@@ -112,26 +140,56 @@ function TicketRow({ ticket }: { ticket: TicketView }) {
           {STATUS_LABEL[ticket.status]}
         </span>
       </td>
-      <td>
-        <select
-          value={ticket.status}
-          disabled={pending}
-          onChange={(e) => onChange(e.target.value as TicketStatus)}
-          style={{
-            padding: '5px 8px',
-            border: '1px solid var(--line-2)',
-            borderRadius: 8,
-            font: 'inherit',
-            fontSize: 13,
-            background: '#fff',
-          }}
-        >
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {STATUS_LABEL[s]}
-            </option>
-          ))}
-        </select>
+      <td style={{ minWidth: 220 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <select
+            value={status}
+            disabled={pending}
+            onChange={(e) => apply(e.target.value as TicketStatus, '')}
+            style={{
+              padding: '5px 8px',
+              border: '1px solid var(--line-2)',
+              borderRadius: 8,
+              font: 'inherit',
+              fontSize: 13,
+              background: '#fff',
+            }}
+          >
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {STATUS_LABEL[s]}
+              </option>
+            ))}
+          </select>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Write a reply to the employee…"
+            rows={2}
+            disabled={pending}
+            style={{
+              width: '100%',
+              padding: '6px 8px',
+              border: '1px solid var(--line-2)',
+              borderRadius: 8,
+              font: 'inherit',
+              fontSize: 12,
+              background: '#fff',
+              resize: 'vertical',
+            }}
+          />
+          <button
+            type="button"
+            className="btn quiet"
+            disabled={pending || !note.trim()}
+            onClick={() => apply(status, note)}
+            style={{ alignSelf: 'flex-start' }}
+          >
+            {pending ? 'Sending…' : 'Send reply'}
+          </button>
+          {sent && <span className="hint" style={{ fontSize: 11 }}>✓ Reply sent</span>}
+          {error && <span className="login-error" style={{ fontSize: 11 }}>{error}</span>}
+        </div>
       </td>
     </tr>
   );

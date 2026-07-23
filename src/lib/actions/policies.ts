@@ -117,3 +117,52 @@ export async function setPolicyPublished(policyId: string, published: boolean) {
   revalidatePath('/me');
   return { ok: true };
 }
+
+/** Edit an existing policy's content. Staff-only. Leaves published state alone. */
+export async function updatePolicy(id: string, formData: FormData) {
+  const gate = await requireStaff('Editing a policy');
+  if (!gate.ok) return gate;
+
+  const title = String(formData.get('title') ?? '').trim();
+  const body = String(formData.get('body') ?? '').trim();
+  if (!title) return { ok: false, error: 'Please enter a title.' };
+  if (!body) return { ok: false, error: 'Please enter the policy body.' };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('policies')
+    .update({
+      title,
+      category: (formData.get('category') as string) || null,
+      body,
+      version: Number(formData.get('version') ?? 1) || 1,
+      effective_date: (formData.get('effective_date') as string) || null,
+    })
+    .eq('id', id)
+    .select('id');
+  if (error) return { ok: false, error: error.message };
+  if (wroteNothing(data)) {
+    return { ok: false, error: 'The policy was not updated — it may be gone, or your role lacks permission.' };
+  }
+
+  revalidatePath('/policies');
+  revalidatePath('/me');
+  return { ok: true };
+}
+
+/** Delete a policy. Its acknowledgements cascade away (FK on delete cascade). */
+export async function deletePolicy(id: string) {
+  const gate = await requireStaff('Deleting a policy');
+  if (!gate.ok) return gate;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.from('policies').delete().eq('id', id).select('id');
+  if (error) return { ok: false, error: error.message };
+  if (wroteNothing(data)) {
+    return { ok: false, error: 'The policy was not removed — it may already be gone, or your role lacks permission.' };
+  }
+
+  revalidatePath('/policies');
+  revalidatePath('/me');
+  return { ok: true };
+}
