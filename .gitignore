@@ -35,7 +35,10 @@ reference for desktop app (1).xlsx
 supabase/.branches
 supabase/.temp
 **/.supabase
+# Migrations (supabase/migrations/*.sql) MUST stay tracked — they are the schema
+# history. Only local seed data and one-off apply helpers are ignored here.
+supabase/seed.sql
+supabase/APPLY_*.sql
 
 # typescript
 *.tsbuildinfo
-*.sql
