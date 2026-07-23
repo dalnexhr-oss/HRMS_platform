@@ -1,5 +1,6 @@
 import { getSession } from '@/lib/auth';
 import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm';
+import { AvatarMenu } from '@/components/shell/AvatarMenu';
 
 // Personal account settings for staff. (/settings holds the company-wide rules;
 // this is the signed-in user's own account.) Employees get the same card on /me.
@@ -14,6 +15,15 @@ export default async function AccountPage() {
           <span className="folio">{profile?.role ?? 'signed in'}</span>
         </div>
         <div className="bd">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+            <AvatarMenu name={profile?.full_name} avatar={profile?.avatar} align="left" />
+            <div>
+              <div style={{ fontWeight: 600 }}>{profile?.full_name ?? '—'}</div>
+              <div className="muted" style={{ fontSize: 12 }}>
+                Click your picture to upload a photo or pick an avatar.
+              </div>
+            </div>
+          </div>
           <div className="kv">
             <span>Name</span>
             <span className="v">{profile?.full_name ?? '—'}</span>

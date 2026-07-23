@@ -1,12 +1,13 @@
 import { getSession } from '@/lib/auth';
 import { SignOutButton } from '@/components/auth/SignOutButton';
 import { NotificationBell } from '@/components/shell/NotificationBell';
+import { ProfileMenu } from '@/components/shell/ProfileMenu';
 import { Brand } from '@/components/ui/Brand';
 import { getMyNotifications, getUnreadNotificationCount } from '@/lib/queries';
 
 // Employee self-service shell — a slim top bar, no admin sidebar.
 export default async function EmployeeLayout({ children }: { children: React.ReactNode }) {
-  const [{ profile }, notifications, unread] = await Promise.all([
+  const [{ profile, email }, notifications, unread] = await Promise.all([
     getSession(),
     getMyNotifications(),
     getUnreadNotificationCount(),
@@ -23,20 +24,17 @@ export default async function EmployeeLayout({ children }: { children: React.Rea
         <div className="grow" />
         <NotificationBell notifications={notifications} unread={unread} />
         <span className="who" style={{ marginRight: 4 }}>
-          <span className="av">{initials(name)}</span>
+          <ProfileMenu
+            name={name}
+            avatar={profile?.avatar ?? null}
+            role={profile?.role ?? null}
+            email={email}
+            accountHref="/me"
+          />
         </span>
         <SignOutButton />
       </div>
       <section className="screen">{children}</section>
     </div>
   );
-}
-
-function initials(name: string): string {
-  return name
-    .split(' ')
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
 }

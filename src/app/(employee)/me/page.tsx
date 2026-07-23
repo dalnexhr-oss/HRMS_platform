@@ -1,4 +1,5 @@
 import { getSession } from '@/lib/auth';
+import { AvatarMenu } from '@/components/shell/AvatarMenu';
 import {
   DEFAULT_PERIOD_MONTH,
   getEmployeeOverview,
@@ -89,7 +90,7 @@ export default async function MePage() {
   return (
     <div className="wrap grid">
       <div className="me-hero">
-        <span className="av">{initials(displayName)}</span>
+        <AvatarMenu name={displayName} avatar={profile?.avatar} align="left" />
         <div>
           <h2>Hi, {displayName.split(' ')[0]}</h2>
           <div className="meta">
@@ -240,13 +241,4 @@ function monthYear(periodMonth: string): string {
     year: 'numeric',
     timeZone: 'UTC',
   });
-}
-
-function initials(name: string): string {
-  return name
-    .split(' ')
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
 }

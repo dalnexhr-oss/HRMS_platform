@@ -6,7 +6,7 @@ import { getMyNotifications, getUnreadNotificationCount } from '@/lib/queries';
 // The portal shell (sidebar + sticky topbar) wraps every screen. Each route
 // under (portal) renders inside <main>, replacing the prototype's tab switch.
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
-  const [{ profile }, notifications, unread] = await Promise.all([
+  const [{ profile, email }, notifications, unread] = await Promise.all([
     getSession(),
     getMyNotifications(),
     getUnreadNotificationCount(),
@@ -17,6 +17,9 @@ export default async function PortalLayout({ children }: { children: React.React
       <main className="main">
         <Topbar
           name={profile?.full_name ?? 'Meera Kulkarni'}
+          avatar={profile?.avatar ?? null}
+          role={profile?.role ?? null}
+          email={email}
           notifications={notifications}
           unread={unread}
         />

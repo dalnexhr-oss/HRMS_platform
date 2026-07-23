@@ -4,14 +4,21 @@ import { usePathname } from 'next/navigation';
 import { TITLES } from '@/lib/constants';
 import { SignOutButton } from '@/components/auth/SignOutButton';
 import { NotificationBell } from '@/components/shell/NotificationBell';
+import { ProfileMenu } from '@/components/shell/ProfileMenu';
 import type { NotificationRow } from '@/lib/queries';
 
 export function Topbar({
   name = 'Meera Kulkarni',
+  avatar = null,
+  role = null,
+  email = null,
   notifications = [],
   unread = 0,
 }: {
   name?: string;
+  avatar?: string | null;
+  role?: string | null;
+  email?: string | null;
   notifications?: NotificationRow[];
   unread?: number;
 }) {
@@ -34,18 +41,9 @@ export function Topbar({
       </span>
       <NotificationBell notifications={notifications} unread={unread} />
       <div className="who">
-        <span className="av">{initials(name)}</span>
+        <ProfileMenu name={name} avatar={avatar} role={role} email={email} accountHref="/account" />
       </div>
       <SignOutButton />
     </div>
   );
-}
-
-function initials(name: string): string {
-  return name
-    .split(' ')
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
 }

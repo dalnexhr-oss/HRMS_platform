@@ -42,6 +42,7 @@ export async function getSession(): Promise<SessionContext> {
         role: 'admin',
         branch_id: null,
         employee_id: null,
+        avatar: null,
         created_at: '',
       },
     };

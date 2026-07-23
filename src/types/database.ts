@@ -48,6 +48,7 @@ export interface Profile {
   role: AppRole;
   branch_id: string | null;
   employee_id: string | null;
+  avatar: string | null;
   created_at: string;
 }
 
