@@ -77,7 +77,7 @@ alter type attendance_status add value if not exists 'CO';
 --     AP  =  'P+CO+HD+OH+T+S+LM'                       (row 4 labels AP 'Working Days')
 --     AQ  =  'to pay for (Working days + official Holidays + WO)'
 --
--- Worked example — employee block #1, Rajesh Kumar, June 2026 (30 days).
+-- Worked — employee block #1, Rajesh Kumar, June 2026 (30 days).
 -- Counts in AG..AO:  P:22  HD:1  L:1  WO:6   (22+1+1+6 = 30 ✓)
 --     AP = 22.5   which reconciles as  P(22) + 0.5*HD(1)          = 22.5
 --     AQ = 28.5   which reconciles as  AP(22.5) + OH(0) + WO(6)   = 28.5
@@ -86,7 +86,7 @@ alter type attendance_status add value if not exists 'CO';
 --     working_days = P + CO + LM + S + T + 0.5*HD          [ L is NOT included ]
 --     PAID days    = working_days + OH + WO                [ WO IS paid       ]
 --
--- Two things the worked example proves:
+-- Two things the worked  proves:
 --   * HD contributes 0.5, not 1. The header string 'P+CO+HD+...' is shorthand;
 --     the cell arithmetic halves it.
 --   * L (Leave) is excluded from AP. 22 + 0.5 + 1(L) would be 23.5, not 22.5.

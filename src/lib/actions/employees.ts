@@ -114,6 +114,18 @@ async function setEmployeeLoginAccess(
   }
 }
 
+function isMissingMigration(error: { code?: string }): boolean {
+  return error.code === '42703';
+}
+
+function migrationError() {
+  return {
+    ok: false as const,
+    error:
+      'The employee record could not be saved because a required system update is missing. Please contact your administrator.',
+  };
+}
+
 /** Parse '30,000' / '₹30,000' -> 30000. */
 function money(v: FormDataEntryValue | null): number {
   return Number(String(v ?? '0').replace(/[^0-9.-]/g, '')) || 0;
@@ -280,7 +292,15 @@ export async function createEmployee(formData: FormData) {
     })
     .select('id');
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    if (isMissingMigration(error)) {
+    return migrationError();
+  }
+  return {
+    ok: false,
+    error: error.message,
+  };
+};
   if (wroteNothing(data)) {
     return { ok: false, error: 'The employee was not added — your account may not have permission.' };
   }
@@ -351,7 +371,17 @@ export async function updateEmployee(formData: FormData) {
     .eq('code', originalCode)
     .select('id');
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+
+      if (isMissingMigration(error)) {
+          return migrationError();
+    }
+    return {
+        ok:false,
+        error:error.message
+    }
+
+};
   if (wroteNothing(data)) {
     return {
       ok: false,

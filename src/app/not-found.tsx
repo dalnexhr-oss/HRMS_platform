@@ -15,7 +15,7 @@ export default function NotFound() {
       }}
     >
       <div style={{ textAlign: 'center', maxWidth: 420 }}>
-        <div style={{ font: '700 48px var(--mono, monospace)', color: 'var(--brand, #3a5)' }}>404</div>
+        <div style={{ font: '700 48px var(--mono, monospace)', color: 'var(--brand, #1ca0cb))' }}>404</div>
         <h1 style={{ fontSize: 20, margin: '8px 0' }}>Page not found</h1>
         <p style={{ color: 'var(--ink-3, #777)', fontSize: 14, margin: '0 0 18px' }}>
           That page doesn’t exist or you don’t have access to it.
@@ -27,7 +27,7 @@ export default function NotFound() {
             padding: '9px 16px',
             borderRadius: 8,
             border: '1px solid var(--line-2, #ccc)',
-            color: 'var(--brand, #3a5)',
+            color: 'var(--brand, #1ca0cb)',
             textDecoration: 'none',
             fontWeight: 600,
           }}

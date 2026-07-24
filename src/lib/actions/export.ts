@@ -109,7 +109,7 @@ export async function exportRegisterImportTemplateXlsx(): Promise<ExportResult> 
   if (!role || !IMPORT_ROLES.includes(role)) {
     return {
       ok: false,
-      error: `Downloading the import template needs an admin, HR or manager account${
+      error: `Downloading the import template needs an admin or HR account${
         role ? ` — yours is "${role}".` : '.'
       }`,
     };
