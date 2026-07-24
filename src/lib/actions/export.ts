@@ -6,10 +6,13 @@
 // exports carry payroll/attendance data, so they are staff-gated.
 // ============================================================================
 import { getPayslips, getRegister, getReimbursements } from '@/lib/queries';
+import { getSession } from '@/lib/auth';
+import type { AppRole } from '@/types/database';
 import {
   attendanceTemplateWorkbook,
   payrollWorkbook,
   registerWorkbook,
+  registerImportTemplateWorkbook,
   reimbursementsWorkbook,
 } from '@/lib/excel/buildWorkbook';
 import {
@@ -81,6 +84,47 @@ export async function exportAttendanceTemplateXlsx(periodMonth: string): Promise
     return { ok: true, filename: `attendance-${periodMonth.slice(0, 7)}.xlsx`, base64: b64(bytes) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Export failed.' };
+  }
+}
+
+/** Roles that may import the register — mirrors IMPORT_ROLES in actions/import. */
+const IMPORT_ROLES: AppRole[] = ['admin', 'hr'];
+
+/** First-of-current-month as 'YYYY-MM-01'. */
+function currentPeriodMonth(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+/**
+ * A blank register-import template for HR/Admin to fill in and upload.
+ *
+ * Unlike the other exports this reads NO employee data — the workbook is blank —
+ * so it is gated on role via getSession() rather than requireStaff(), which lets
+ * it work even in demo mode (where getSession returns an admin) and exposes
+ * nothing sensitive by design.
+ */
+export async function exportRegisterImportTemplateXlsx(): Promise<ExportResult> {
+  const { profile } = await getSession();
+  const role = profile?.role ?? null;
+  if (!role || !IMPORT_ROLES.includes(role)) {
+    return {
+      ok: false,
+      error: `Downloading the import template needs an admin, HR or manager account${
+        role ? ` — yours is "${role}".` : '.'
+      }`,
+    };
+  }
+  try {
+    const periodMonth = currentPeriodMonth();
+    const bytes = await registerImportTemplateWorkbook(periodMonth);
+    return {
+      ok: true,
+      filename: `register-import-template-${periodMonth.slice(0, 7)}.xlsx`,
+      base64: b64(bytes),
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Template download failed.' };
   }
 }
 

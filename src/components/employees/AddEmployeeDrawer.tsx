@@ -108,6 +108,20 @@ export function AddEmployeeDrawer({
               <Field name="esic_number" label="ESIC number" mono defaultValue={employee?.esic_number ?? undefined} />
             </div>
 
+            <div className="fold">Bank details</div>
+            <Field name="bank_name" label="Bank name" placeholder="e.g. HDFC Bank" defaultValue={employee?.bank_name ?? undefined} />
+            <div className="f-row">
+              <Field name="bank_account_number" label="Account number" placeholder="50100123456789" mono defaultValue={employee?.bank_account_number ?? undefined} />
+              <Field name="bank_ifsc" label="IFSC code" placeholder="HDFC0001234" mono defaultValue={employee?.bank_ifsc ?? undefined} />
+            </div>
+
+            <div className="fold">Emergency contact</div>
+            <div className="f-row">
+              <Field name="emergency_contact_name" label="Contact name" placeholder="e.g. Meera Kulkarni" defaultValue={employee?.emergency_contact_name ?? undefined} />
+              <Field name="emergency_contact_relation" label="Relationship" placeholder="e.g. Spouse" defaultValue={employee?.emergency_contact_relation ?? undefined} />
+            </div>
+            <Field name="emergency_contact_phone" label="Emergency phone" placeholder="+91" mono defaultValue={employee?.emergency_contact_phone ?? undefined} />
+
             <div className="fold">Salary structure</div>
             <div className="f-row">
               <Field name="gross_monthly" label="Gross / month (₹)" defaultValue={fmt(employee?.gross_monthly, '30,000')} mono />

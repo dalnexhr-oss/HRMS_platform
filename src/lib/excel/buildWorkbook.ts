@@ -319,6 +319,142 @@ export async function registerWorkbook(
   return toBytes(wb);
 }
 
+// ------------------------------------------- register IMPORT template ---
+// A blank version of the register above, for HR/Admin to fill in and upload
+// back through the Import tab. It is built by the SAME writeReferenceSheet() the
+// register export uses — the one parseRegister.ts round-trips against — so the
+// template's structure can never drift from what the importer expects. It
+// carries a couple of clearly-marked example blocks (so users see the exact
+// shape of a filled row) and a run of blank blocks ready to complete.
+
+/** Days-of-month [1..N] for a 'YYYY-MM-01'. Local mirror of export.ts's daysOf. */
+function daysOfMonth(periodMonth: string): number[] {
+  const d = new Date(`${periodMonth.slice(0, 7)}-01T00:00:00Z`);
+  const n = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  return Array.from({ length: n }, (_, i) => i + 1);
+}
+
+/** Code → human label, for the template's legend. Keep in step with KNOWN_STATUSES. */
+const STATUS_LEGEND: [string, string][] = [
+  ['P', 'Present'],
+  ['HD', 'Half day'],
+  ['L', 'Leave'],
+  ['LM', 'Late mark'],
+  ['WO', 'Week off'],
+  ['OH', 'Official holiday'],
+  ['CO', 'Comp off'],
+  ['S', 'Site'],
+  ['T', 'Travel'],
+  ['AB', 'Absent'],
+];
+
+/** An empty employee block — labelled In/Out/Total rows with nothing to fill yet. */
+function blankBlock(i: number): RegisterEmployee {
+  return {
+    id: `blank-${i}`,
+    code: '',
+    name: '',
+    branch: '',
+    gender: 'Male',
+    doj: '',
+    summary: { P: 0, LM: 0, HD: 0, L: 0, WO: 0, working: 0, payable: 0 },
+    workedMinutes: 0,
+    targetMinutes: 0,
+    days: [],
+  };
+}
+
+/**
+ * The import template workbook: a "Register" sheet in the exact upload layout
+ * (one filled EXAMPLE block + `blankBlocks` empty ones) plus a "How to fill this
+ * in" sheet with the column guide and status legend.
+ *
+ * The example uses Empl. ID 901 (→ code DN901), which almost certainly matches
+ * no real employee — so if the file is uploaded WITHOUT being edited, the
+ * example is reported as unmatched and skipped in the preview rather than
+ * overwriting anyone's month.
+ */
+export async function registerImportTemplateWorkbook(
+  periodMonth: string,
+  blankBlocks = 15,
+): Promise<Uint8Array> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Dalnex HRMS';
+
+  const days = daysOfMonth(periodMonth);
+
+  const example: RegisterEmployee = {
+    id: 'example',
+    code: 'DN901',
+    name: 'EXAMPLE — replace with your data (or delete this block)',
+    branch: '',
+    gender: 'Male',
+    doj: '',
+    // Counts are recomputed from `days` by writeReferenceSheet; these are placeholders.
+    summary: { P: 0, LM: 0, HD: 0, L: 0, WO: 0, working: 22, payable: 24 },
+    workedMinutes: 0,
+    targetMinutes: 0,
+    days: [
+      { day: 1, status: 'P', in: '09:30', out: '18:30', hours: '09:00', isWeekOff: false },
+      { day: 2, status: 'P', in: '09:45', out: '18:40', hours: '08:55', isWeekOff: false },
+      { day: 3, status: 'WO', in: null, out: null, hours: null, isWeekOff: true },
+      { day: 4, status: 'L', in: null, out: null, hours: null, isWeekOff: false },
+      { day: 5, status: 'HD', in: '09:30', out: '13:30', hours: '04:00', isWeekOff: false },
+    ],
+  };
+
+  const employees: RegisterEmployee[] = [
+    example,
+    ...Array.from({ length: blankBlocks }, (_, i) => blankBlock(i)),
+  ];
+
+  writeReferenceSheet(wb.addWorksheet('Register'), employees, days, periodMonth);
+  writeTemplateGuideSheet(wb.addWorksheet('How to fill this in'), periodMonth);
+
+  return toBytes(wb);
+}
+
+/** The instruction + legend sheet that accompanies the blank register. */
+function writeTemplateGuideSheet(ws: ExcelJS.Worksheet, periodMonth: string): void {
+  ws.getColumn(1).width = 22;
+  ws.getColumn(2).width = 68;
+
+  const title = ws.getCell('A1');
+  title.value = `Monthly register import template — ${monthTitle(periodMonth)}`;
+  title.font = { bold: true, size: 13 };
+
+  const lines: [string, string][] = [
+    ['', ''],
+    ['Before you start', 'Fill in the "Register" sheet, then upload it in the Import tab. A preview shows exactly what will be written before anything is saved.'],
+    ['', ''],
+    ['Month (cell B2)', `Set to the month you are importing. This template is set to ${monthTitle(periodMonth)}. Cell B1 holds the year.`],
+    ['Day columns (row 4)', 'One column per day of the month (1..31), already laid out. Do not add or remove day columns.'],
+    ['Empl. ID (column A)', 'A whole number that maps to the employee code: 1 → DN001, 47 → DN047, and so on. Put it on the FIRST row of each 4-row block.'],
+    ['Name (column B)', 'For your reference only — matching is by Empl. ID, not name.'],
+    ['', ''],
+    ['Each employee = 4 rows', 'Row 1: day status codes (see legend below). Row 2 (In): punch-in time. Row 3 (Out): punch-out time. Row 4 (Total Hrs Completed): hours worked.'],
+    ['Time format', 'Use 24-hour h:mm, e.g. 09:30 or 18:45. Leave blank if there was no punch.'],
+    ['Blank days', 'Leave the status cell empty for days you are not recording — they are simply skipped.'],
+    ['', ''],
+    ['If something is wrong', 'The preview lists the affected Empl. ID / row and the reason (unknown status code, unmatched Empl. ID, missing In/Out, …). Fix the sheet and re-upload — nothing is saved until you confirm.'],
+    ['Example block', 'The first block on the Register sheet (Empl. ID 901) is an example. Replace it with real data or delete it before importing — it will not match a real employee.'],
+    ['', ''],
+    ['Status codes', 'Enter these codes in the status row (row 1 of each block):'],
+  ];
+
+  for (const [k, v] of lines) {
+    const row = ws.addRow([k, v]);
+    if (k) row.getCell(1).font = { bold: true };
+    row.getCell(2).alignment = { wrapText: true, vertical: 'top' };
+  }
+
+  for (const [code, label] of STATUS_LEGEND) {
+    const row = ws.addRow([code, label]);
+    row.getCell(1).font = { bold: true };
+    if (STATUS_FILL[code]) paint(row.getCell(1), STATUS_FILL[code]);
+  }
+}
+
 // ------------------------------------------------- attendance template ---
 
 /** Sanitise a string into a valid Excel sheet name (≤31 chars, no []:*?/\). */

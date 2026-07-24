@@ -132,6 +132,67 @@ function parseAadhaar(
   return { ok: true, value: raw };
 }
 
+/**
+ * Normalise an IFSC code: strip spaces, upper-case, require the standard
+ * 11-char shape (4 letters + '0' + 6 alphanumerics). Empty is allowed (null).
+ * Mirrors the DB check constraint (migration 0023).
+ */
+function parseIfsc(
+  v: FormDataEntryValue | null,
+): { ok: true; value: string | null } | { ok: false; error: string } {
+  const raw = String(v ?? '').replace(/\s/g, '').toUpperCase().trim();
+  if (!raw) return { ok: true, value: null };
+  if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(raw)) {
+    return { ok: false, error: 'IFSC must be 11 characters: 4 letters, a 0, then 6 letters/digits (e.g. HDFC0001234).' };
+  }
+  return { ok: true, value: raw };
+}
+
+/** Bank account number: keep digits only (strip spaces/hyphens). Empty -> null. */
+function parseAccountNumber(v: FormDataEntryValue | null): string | null {
+  const raw = String(v ?? '').replace(/[\s-]/g, '').trim();
+  return raw || null;
+}
+
+/** A plain optional text field: trimmed, or null when blank. */
+function optionalText(v: FormDataEntryValue | null): string | null {
+  return String(v ?? '').trim() || null;
+}
+
+/**
+ * Bank details + emergency contact columns (migration 0023), shared by create
+ * and update so both stay in lockstep. Validates IFSC; the rest are free text.
+ */
+function parseBankAndEmergency(
+  formData: FormData,
+):
+  | {
+      ok: true;
+      fields: {
+        bank_name: string | null;
+        bank_account_number: string | null;
+        bank_ifsc: string | null;
+        emergency_contact_name: string | null;
+        emergency_contact_relation: string | null;
+        emergency_contact_phone: string | null;
+      };
+    }
+  | { ok: false; error: string } {
+  const ifsc = parseIfsc(formData.get('bank_ifsc'));
+  if (!ifsc.ok) return ifsc;
+  return {
+    ok: true,
+    fields: {
+      bank_name: optionalText(formData.get('bank_name')),
+      bank_account_number: parseAccountNumber(formData.get('bank_account_number')),
+      bank_ifsc: ifsc.value,
+      emergency_contact_name: optionalText(formData.get('emergency_contact_name')),
+      emergency_contact_relation: optionalText(formData.get('emergency_contact_relation')),
+      emergency_contact_phone: optionalText(formData.get('emergency_contact_phone')),
+    },
+  };
+}
+
 /** Shared salary parse: derives special to satisfy the DB CHECK (basic+hra+special=gross). */
 function parseSalary(
   formData: FormData,
@@ -176,6 +237,9 @@ export async function createEmployee(formData: FormData) {
   const aadhaar = parseAadhaar(formData.get('aadhaar'));
   if (!aadhaar.ok) return aadhaar;
 
+  const extra = parseBankAndEmergency(formData);
+  if (!extra.ok) return extra;
+
   const supabase = await createClient();
 
   // The branch field arrives as a NAME ('Pune' | 'Vadodara'); resolve to id.
@@ -208,6 +272,7 @@ export async function createEmployee(formData: FormData) {
       pan: (formData.get('pan') as string) || null,
       pf_uan: (formData.get('pf_uan') as string) || null,
       esic_number: (formData.get('esic_number') as string) || null,
+      ...extra.fields,
       gross_monthly: salary.gross,
       basic_da: salary.basic,
       hra: salary.hra,
@@ -245,6 +310,9 @@ export async function updateEmployee(formData: FormData) {
   const aadhaar = parseAadhaar(formData.get('aadhaar'));
   if (!aadhaar.ok) return aadhaar;
 
+  const extra = parseBankAndEmergency(formData);
+  if (!extra.ok) return extra;
+
   const supabase = await createClient();
 
   const branchName = String(formData.get('branch') ?? '').trim();
@@ -274,6 +342,7 @@ export async function updateEmployee(formData: FormData) {
       pan: (formData.get('pan') as string) || null,
       pf_uan: (formData.get('pf_uan') as string) || null,
       esic_number: (formData.get('esic_number') as string) || null,
+      ...extra.fields,
       gross_monthly: salary.gross,
       basic_da: salary.basic,
       hra: salary.hra,

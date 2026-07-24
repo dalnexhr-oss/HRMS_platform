@@ -1053,6 +1053,12 @@ export interface EmployeeEditRow {
   pan: string | null;
   pf_uan: string | null;
   esic_number: string | null;
+  bank_name: string | null;
+  bank_account_number: string | null;
+  bank_ifsc: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_relation: string | null;
+  emergency_contact_phone: string | null;
   gross_monthly: number;
   basic_da: number;
   hra: number;
@@ -1073,6 +1079,8 @@ export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow 
       mobile_official: null, mobile_personal: null,
       email_official: null, email_personal: null, aadhaar: null,
       pan: null, pf_uan: e.uan, esic_number: e.esic_no,
+      bank_name: null, bank_account_number: null, bank_ifsc: null,
+      emergency_contact_name: null, emergency_contact_relation: null, emergency_contact_phone: null,
       gross_monthly: gross, basic_da: basic, hra, special_allowance: gross - basic - hra,
     };
   }
@@ -1082,7 +1090,10 @@ export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow 
   const FULL_COLS =
     `code, full_name, gender, date_of_joining, date_of_birth, whatsapp,
      mobile_official, mobile_personal, email_official, email_personal, aadhaar,
-     pan, pf_uan, esic_number, gross_monthly, basic_da, hra, special_allowance, branches(name)`;
+     pan, pf_uan, esic_number,
+     bank_name, bank_account_number, bank_ifsc,
+     emergency_contact_name, emergency_contact_relation, emergency_contact_phone,
+     gross_monthly, basic_da, hra, special_allowance, branches(name)`;
   const LEGACY_COLS =
     `code, full_name, gender, date_of_joining, date_of_birth, whatsapp,
      pan, pf_uan, esic_number, gross_monthly, basic_da, hra, special_allowance, branches(name)`;
@@ -1110,6 +1121,12 @@ export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow 
     pan: e.pan,
     pf_uan: e.pf_uan,
     esic_number: e.esic_number,
+    bank_name: e.bank_name ?? null,
+    bank_account_number: e.bank_account_number ?? null,
+    bank_ifsc: e.bank_ifsc ?? null,
+    emergency_contact_name: e.emergency_contact_name ?? null,
+    emergency_contact_relation: e.emergency_contact_relation ?? null,
+    emergency_contact_phone: e.emergency_contact_phone ?? null,
     gross_monthly: Number(e.gross_monthly),
     basic_da: Number(e.basic_da),
     hra: Number(e.hra),

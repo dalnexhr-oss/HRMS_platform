@@ -3,7 +3,12 @@
 import { useActionState, useRef, useState, useTransition } from 'react';
 import { previewImport, commitImport } from '@/lib/actions/import';
 import type { CommitResult, ImportPreview, PreviewResult } from '@/lib/actions/import';
+import { exportRegisterImportTemplateXlsx } from '@/lib/actions/export';
+import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import type { AppRole } from '@/types/database';
+
+/** Staff roles allowed to import — and so to download the blank template. */
+const IMPORT_ROLES: AppRole[] = ['admin', 'hr'];
 
 /** '2026-06-01' -> 'June 2026'. */
 function monthLabel(periodMonth: string): string {
@@ -26,6 +31,9 @@ export function ImportScreen({
   role: AppRole | null;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
+  // The blank template is data-free, so it is offered to any staff role even in
+  // demo mode — the server action re-checks the role before building it.
+  const canDownloadTemplate = !!role && IMPORT_ROLES.includes(role);
   const [file, setFile] = useState<File | null>(null);
   const [cancelled, setCancelled] = useState(false);
   const [result, setResult] = useState<CommitResult | null>(null);
@@ -119,8 +127,23 @@ export function ImportScreen({
           <div className="hd">
             <h3>Upload monthly register</h3>
             <span className="folio">.xlsx · from the attendance sheet</span>
+            <span style={{ flex: 1 }} />
+            {canDownloadTemplate && (
+              <XlsxExportButton
+                action={exportRegisterImportTemplateXlsx}
+                label="Download template"
+                className="btn quiet"
+              />
+            )}
           </div>
           <div className="bd">
+            {canDownloadTemplate && (
+              <p className="hint" style={{ marginTop: 0, marginBottom: 14 }}>
+                New to this? <b>Download template</b> gives you a blank register in the exact upload
+                format — the right columns, an example row, and a status-code legend. Fill it in and
+                upload it back here.
+              </p>
+            )}
             <form
               ref={formRef}
               action={previewAction}
