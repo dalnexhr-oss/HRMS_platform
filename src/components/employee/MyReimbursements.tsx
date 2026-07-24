@@ -1,13 +1,18 @@
 'use client';
 
-// Employee expense claims: file a new claim and track your own.
+// Employee expense claims: file a new claim, edit or withdraw a still-pending
+// one, and track your own.
 // For a TRAVEL claim the amount is derived live as km × rate. That preview is a
-// convenience only — createReimbursement recomputes it on the server, so the
+// convenience only — the server recomputes it on create AND at approval, so the
 // approved amount is never whatever the browser posted.
-import { useActionState, useState } from 'react';
+import { useActionState, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { inr, formatDate } from '@/lib/format';
-import { createReimbursement } from '@/lib/actions/reimbursements';
+import {
+  createReimbursement,
+  updateReimbursement,
+  deleteReimbursement,
+} from '@/lib/actions/reimbursements';
 import type { ReimbursementView } from '@/lib/queries';
 import type { ReimbursementPurpose } from '@/types/database';
 
@@ -44,6 +49,27 @@ export function MyReimbursements({
   canClaim: boolean;
   blockedReason: string;
 }) {
+  const router = useRouter();
+  const [editing, setEditing] = useState<ReimbursementView | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function withdraw(c: ReimbursementView) {
+    if (!window.confirm('Withdraw this claim? This cannot be undone.')) return;
+    setError(null);
+    setBusy(c.id);
+    startTransition(async () => {
+      const res = await deleteReimbursement(c.id);
+      setBusy(null);
+      if (!res.ok) setError(res.error ?? 'Could not withdraw the claim.');
+      else {
+        if (editing?.id === c.id) setEditing(null);
+        router.refresh();
+      }
+    });
+  }
+
   return (
     <div className="two-col">
       <div className="card">
@@ -52,6 +78,7 @@ export function MyReimbursements({
           <span className="folio">{claims.length} total</span>
         </div>
         <div className="bd">
+          {error && <div className="login-error">{error}</div>}
           {claims.length === 0 ? (
             <p className="muted" style={{ fontSize: 13 }}>
               {canClaim ? 'No claims yet — file one on the right.' : 'No claims to show.'}
@@ -68,6 +95,7 @@ export function MyReimbursements({
                     <th className="right">Kms</th>
                     <th className="right">Amount</th>
                     <th>Status</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -79,6 +107,11 @@ export function MyReimbursements({
                         {c.remarks && (
                           <div className="muted" style={{ fontSize: 11 }}>
                             {c.remarks}
+                          </div>
+                        )}
+                        {c.status === 'rejected' && c.reviewRemark && (
+                          <div style={{ fontSize: 11, color: 'var(--hd)', marginTop: 2 }}>
+                            <b>Rejected:</b> {c.reviewRemark}
                           </div>
                         )}
                       </td>
@@ -93,6 +126,29 @@ export function MyReimbursements({
                           {STATUS_LABEL[c.status]}
                         </span>
                       </td>
+                      <td>
+                        {c.status === 'pending' ? (
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              className="btn quiet"
+                              disabled={pending && busy === c.id}
+                              onClick={() => setEditing(c)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="btn quiet"
+                              disabled={pending && busy === c.id}
+                              onClick={() => withdraw(c)}
+                              style={{ color: 'var(--ab)' }}
+                            >
+                              {pending && busy === c.id ? '…' : 'Withdraw'}
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -104,12 +160,17 @@ export function MyReimbursements({
 
       <div className="card">
         <div className="hd">
-          <h3>File a claim</h3>
+          <h3>{editing ? 'Edit claim' : 'File a claim'}</h3>
           <span className="folio">Travel · ₹{ratePerKm}/km</span>
         </div>
         <div className="bd">
           {canClaim ? (
-            <ClaimForm ratePerKm={ratePerKm} />
+            <ClaimForm
+              key={editing?.id ?? 'new'}
+              ratePerKm={ratePerKm}
+              claim={editing}
+              onDone={() => setEditing(null)}
+            />
           ) : (
             <p className="muted" style={{ fontSize: 13 }}>
               {blockedReason}
@@ -121,18 +182,33 @@ export function MyReimbursements({
   );
 }
 
-function ClaimForm({ ratePerKm }: { ratePerKm: number }) {
+function ClaimForm({
+  ratePerKm,
+  claim,
+  onDone,
+}: {
+  ratePerKm: number;
+  /** When set, the form edits this pending claim instead of creating a new one. */
+  claim: ReimbursementView | null;
+  onDone: () => void;
+}) {
   const router = useRouter();
-  const [purpose, setPurpose] = useState<ReimbursementPurpose>('travel');
-  const [kms, setKms] = useState('');
-  const [amount, setAmount] = useState('');
+  const editing = claim !== null;
+  const [purpose, setPurpose] = useState<ReimbursementPurpose>(claim?.purpose ?? 'travel');
+  const [kms, setKms] = useState(claim?.kms != null ? String(claim.kms) : '');
+  const [amount, setAmount] = useState(claim && claim.purpose !== 'travel' ? String(claim.amount) : '');
 
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
     async (_prev, formData) => {
-      const res = await createReimbursement(formData);
+      const res = editing
+        ? await updateReimbursement(claim!.id, formData)
+        : await createReimbursement(formData);
       if (res.ok) {
-        setKms('');
-        setAmount('');
+        if (!editing) {
+          setKms('');
+          setAmount('');
+        }
+        onDone();
         router.refresh();
       }
       return res;
@@ -148,7 +224,12 @@ function ClaimForm({ ratePerKm }: { ratePerKm: number }) {
     <form action={action}>
       <div className="f">
         <label>Description</label>
-        <input name="description" placeholder="e.g. Client visit — Nashik plant" required />
+        <input
+          name="description"
+          placeholder="e.g. Client visit — Nashik plant"
+          defaultValue={claim?.description}
+          required
+        />
       </div>
 
       <div className="f-row">
@@ -168,18 +249,18 @@ function ClaimForm({ ratePerKm }: { ratePerKm: number }) {
         </div>
         <div className="f">
           <label>Date</label>
-          <input name="claim_date" type="date" required />
+          <input name="claim_date" type="date" defaultValue={claim?.claimDate} required />
         </div>
       </div>
 
       <div className="f-row">
         <div className="f">
           <label>Source / Medium</label>
-          <input name="source_medium" placeholder="e.g. Own car, Ola, Vendor" />
+          <input name="source_medium" placeholder="e.g. Own car, Ola, Vendor" defaultValue={claim?.sourceMedium ?? ''} />
         </div>
         <div className="f">
           <label>Mode of payment</label>
-          <input name="mode_of_payment" placeholder="e.g. Cash, UPI, Card" />
+          <input name="mode_of_payment" placeholder="e.g. Cash, UPI, Card" defaultValue={claim?.modeOfPayment ?? ''} />
         </div>
       </div>
 
@@ -229,6 +310,7 @@ function ClaimForm({ ratePerKm }: { ratePerKm: number }) {
           name="remarks"
           rows={3}
           placeholder="Anything the approver should know…"
+          defaultValue={claim?.remarks ?? ''}
           style={{
             width: '100%',
             padding: '9px 11px',
@@ -242,11 +324,18 @@ function ClaimForm({ ratePerKm }: { ratePerKm: number }) {
       </div>
 
       {state.error && <div className="login-error">{state.error}</div>}
-      {state.ok && <div className="hint">✓&nbsp; Claim submitted for approval.</div>}
+      {state.ok && !editing && <div className="hint">✓&nbsp; Claim submitted for approval.</div>}
 
-      <button className="btn primary" type="submit" disabled={pending} style={{ marginTop: 4 }}>
-        {pending ? 'Submitting…' : 'Submit claim'}
-      </button>
+      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+        <button className="btn primary" type="submit" disabled={pending}>
+          {pending ? 'Saving…' : editing ? 'Save changes' : 'Submit claim'}
+        </button>
+        {editing && (
+          <button type="button" className="btn quiet" onClick={onDone} disabled={pending}>
+            Cancel
+          </button>
+        )}
+      </div>
     </form>
   );
 }

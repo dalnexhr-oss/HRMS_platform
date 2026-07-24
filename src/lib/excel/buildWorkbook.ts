@@ -319,6 +319,89 @@ export async function registerWorkbook(
   return toBytes(wb);
 }
 
+// ------------------------------------------------- attendance template ---
+
+/** Sanitise a string into a valid Excel sheet name (≤31 chars, no []:*?/\). */
+function safeSheetName(name: string, fallback: string): string {
+  const cleaned = name.replace(/[[\]:*?/\\]/g, ' ').trim().slice(0, 31);
+  return cleaned || fallback;
+}
+
+/**
+ * A monthly attendance template — ONE worksheet per employee, the pay period
+ * day-by-day (Date/Day/Status/In/Out/Hours) with a summary footer. Intended to
+ * be handed out from /payroll alongside the payslips.
+ */
+export async function attendanceTemplateWorkbook(
+  employees: RegisterEmployee[],
+  periodMonth: string,
+): Promise<Uint8Array> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Dalnex HRMS';
+  const ym = periodMonth.slice(0, 7);
+  const title = monthTitle(periodMonth);
+
+  // exceljs writes an invalid file with zero worksheets — guard the empty case.
+  if (employees.length === 0) wb.addWorksheet('Attendance');
+
+  employees.forEach((e, ix) => {
+    const ws = wb.addWorksheet(safeSheetName(e.code || e.name, `Employee ${ix + 1}`));
+
+    ws.mergeCells('A1:F1');
+    const heading = ws.getCell('A1');
+    heading.value = `Monthly attendance · ${title}`;
+    heading.font = { bold: true, size: 13 };
+
+    ws.getCell('A2').value = 'Name';
+    ws.getCell('B2').value = safeText(e.name);
+    ws.getCell('D2').value = 'Branch';
+    ws.getCell('E2').value = safeText(e.branch);
+    ws.getCell('A3').value = 'Code';
+    ws.getCell('B3').value = safeText(e.code);
+    ws.getCell('D3').value = 'Month';
+    ws.getCell('E3').value = title;
+    for (const addr of ['A2', 'D2', 'A3', 'D3']) ws.getCell(addr).font = { bold: true };
+
+    const headerRowIx = 5;
+    const header = ws.getRow(headerRowIx);
+    header.values = ['Date', 'Day', 'Status', 'In', 'Out', 'Hours'];
+    styleHeader(header);
+
+    for (const c of [...e.days].sort((a, b) => a.day - b.day)) {
+      ws.addRow([
+        `${ym}-${String(c.day).padStart(2, '0')}`,
+        weekdayFor(periodMonth, c.day),
+        c.status,
+        c.in ?? '',
+        c.out ?? '',
+        c.hours ?? '',
+      ]);
+    }
+
+    const counts = countStatuses(e.days);
+    ws.addRow([]);
+    const summary = ws.addRow([
+      'Summary',
+      `Present ${counts.P}`,
+      `WO ${counts.WO}`,
+      `Holidays ${counts.OH}`,
+      `Leave ${counts.L}`,
+      `Working ${e.summary.working} · Payable ${e.summary.payable}`,
+    ]);
+    summary.font = { bold: true };
+
+    ws.getColumn(1).width = 12;
+    ws.getColumn(2).width = 6;
+    ws.getColumn(3).width = 8;
+    ws.getColumn(4).width = 10;
+    ws.getColumn(5).width = 10;
+    ws.getColumn(6).width = 12;
+    ws.views = [{ state: 'frozen', ySplit: headerRowIx }];
+  });
+
+  return toBytes(wb);
+}
+
 // ----------------------------------------------------------- reimbursements ---
 
 const PURPOSE_LABEL: Record<string, string> = {
@@ -330,7 +413,6 @@ const PURPOSE_LABEL: Record<string, string> = {
 /** The claim sheet, column-for-column as the business records it. */
 export async function reimbursementsWorkbook(
   claims: ReimbursementView[],
-  ratePerKm: number,
 ): Promise<Uint8Array> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Dalnex HRMS';
@@ -369,18 +451,10 @@ export async function reimbursementsWorkbook(
     });
   });
 
-  const total = ws.addRow({
-    description: `TOTAL · ${claims.length} claim${claims.length === 1 ? '' : 's'}`,
-    amount: claims.reduce((a, c) => a + c.amount, 0),
-  });
-  total.font = { bold: true };
-
+  // No TOTAL row and no calculation footnote — HR asked for a clean claim list
+  // that drops straight into their own sheet without stray summary lines.
   ws.getColumn(8).numFmt = '#,##0.0';
   ws.getColumn(10).numFmt = '#,##0.00';
-
-  const note = ws.addRow({});
-  note.getCell(4).value = `Travel claims are calculated as kms × ₹${ratePerKm}/km.`;
-  note.getCell(4).font = { italic: true, size: 10 };
 
   return toBytes(wb);
 }

@@ -2,7 +2,8 @@
 
 import { useActionState, useState, useTransition } from 'react';
 import { createTicket, setTicketStatus } from '@/lib/actions/helpdesk';
-import type { TicketView } from '@/lib/queries';
+import { TicketThread } from '@/components/helpdesk/TicketThread';
+import type { TicketComment, TicketView } from '@/lib/queries';
 
 type TicketStatus = TicketView['status'];
 
@@ -22,7 +23,13 @@ function statusPillStyle(status: TicketStatus): React.CSSProperties {
   return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
 }
 
-export function HelpdeskScreen({ tickets }: { tickets: TicketView[] }) {
+export function HelpdeskScreen({
+  tickets,
+  comments = {},
+}: {
+  tickets: TicketView[];
+  comments?: Record<string, TicketComment[]>;
+}) {
   return (
     <div className="wrap grid">
       <div className="two-col">
@@ -51,7 +58,7 @@ export function HelpdeskScreen({ tickets }: { tickets: TicketView[] }) {
                 </thead>
                 <tbody>
                   {tickets.map((t) => (
-                    <TicketRow key={t.id} ticket={t} />
+                    <TicketRow key={t.id} ticket={t} comments={comments[t.id] ?? []} />
                   ))}
                 </tbody>
               </table>
@@ -72,7 +79,7 @@ export function HelpdeskScreen({ tickets }: { tickets: TicketView[] }) {
   );
 }
 
-function TicketRow({ ticket }: { ticket: TicketView }) {
+function TicketRow({ ticket, comments }: { ticket: TicketView; comments: TicketComment[] }) {
   const [pending, startTransition] = useTransition();
   const [status, setStatus] = useState<TicketStatus>(ticket.status);
   const [note, setNote] = useState('');
@@ -118,6 +125,7 @@ function TicketRow({ ticket }: { ticket: TicketView }) {
             <b>Reply:</b> {ticket.resolutionNote}
           </div>
         )}
+        <TicketThread ticketId={ticket.id} comments={comments} />
       </td>
       <td>
         {ticket.employeeName ? (

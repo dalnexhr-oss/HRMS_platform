@@ -5,8 +5,13 @@
 // server-only) and return the bytes as base64 for the client to download. Both
 // exports carry payroll/attendance data, so they are staff-gated.
 // ============================================================================
-import { getPayslips, getRegister, getReimbursements, getReimbursementRate } from '@/lib/queries';
-import { payrollWorkbook, registerWorkbook, reimbursementsWorkbook } from '@/lib/excel/buildWorkbook';
+import { getPayslips, getRegister, getReimbursements } from '@/lib/queries';
+import {
+  attendanceTemplateWorkbook,
+  payrollWorkbook,
+  registerWorkbook,
+  reimbursementsWorkbook,
+} from '@/lib/excel/buildWorkbook';
 import {
   getStatutoryRows,
   buildPfEcr,
@@ -65,13 +70,27 @@ export async function exportRegisterXlsx(periodMonth: string): Promise<ExportRes
   }
 }
 
+/** Per-employee monthly attendance sheets for the pay period, to hand out with payroll. */
+export async function exportAttendanceTemplateXlsx(periodMonth: string): Promise<ExportResult> {
+  const gate = await requireStaff('Exporting the attendance template');
+  if (!gate.ok) return gate;
+  try {
+    const employees = await getRegister(periodMonth);
+    if (employees.length === 0) return { ok: false, error: 'No attendance to export for this month.' };
+    const bytes = await attendanceTemplateWorkbook(employees, periodMonth);
+    return { ok: true, filename: `attendance-${periodMonth.slice(0, 7)}.xlsx`, base64: b64(bytes) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Export failed.' };
+  }
+}
+
 export async function exportReimbursementsXlsx(): Promise<ExportResult> {
   const gate = await requireStaff('Exporting reimbursement claims');
   if (!gate.ok) return gate;
   try {
-    const [claims, rate] = await Promise.all([getReimbursements(), getReimbursementRate()]);
+    const claims = await getReimbursements();
     if (claims.length === 0) return { ok: false, error: 'There are no claims to export.' };
-    const bytes = await reimbursementsWorkbook(claims, rate);
+    const bytes = await reimbursementsWorkbook(claims);
     return { ok: true, filename: 'reimbursement-claims.xlsx', base64: b64(bytes) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Export failed.' };

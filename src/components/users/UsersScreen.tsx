@@ -60,6 +60,7 @@ export function UsersScreen({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   // Only an admin may hand out the admin role — mirrors the server guard.
@@ -229,19 +230,61 @@ export function UsersScreen({
                       >
                         Send reset
                       </button>
-                      <button
-                        className="btn quiet"
-                        disabled={(pending && busy === u.id) || u.id === selfId}
-                        onClick={() => onDelete(u)}
-                        title={
-                          u.id === selfId
-                            ? 'You cannot delete your own account'
-                            : 'Remove this login (the employee record is kept)'
-                        }
-                        style={u.id === selfId ? undefined : { color: 'var(--ab)' }}
-                      >
-                        Delete
-                      </button>
+                      {/* Delete is tucked behind an overflow menu — it removes a
+                          person's access and shouldn't sit a mis-click away. */}
+                      <div style={{ position: 'relative' }}>
+                        <button
+                          className="btn quiet"
+                          disabled={pending && busy === u.id}
+                          onClick={() => setMenuFor(menuFor === u.id ? null : u.id)}
+                          title="More actions"
+                          aria-label="More actions"
+                          aria-haspopup="menu"
+                          aria-expanded={menuFor === u.id}
+                        >
+                          ⋯
+                        </button>
+                        {menuFor === u.id && (
+                          <div
+                            role="menu"
+                            style={{
+                              position: 'absolute',
+                              right: 0,
+                              top: '100%',
+                              marginTop: 4,
+                              zIndex: 10,
+                              background: '#fff',
+                              border: '1px solid var(--line-2)',
+                              borderRadius: 8,
+                              boxShadow: '0 6px 18px rgba(0,0,0,0.14)',
+                              padding: 6,
+                              minWidth: 170,
+                            }}
+                          >
+                            <button
+                              role="menuitem"
+                              className="btn quiet"
+                              disabled={(pending && busy === u.id) || u.id === selfId}
+                              onClick={() => {
+                                setMenuFor(null);
+                                onDelete(u);
+                              }}
+                              title={
+                                u.id === selfId
+                                  ? 'You cannot delete your own account'
+                                  : 'Remove this login (the employee record is kept)'
+                              }
+                              style={{
+                                width: '100%',
+                                textAlign: 'left',
+                                color: u.id === selfId ? undefined : 'var(--ab)',
+                              }}
+                            >
+                              Delete login…
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </td>
                 </tr>

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { getSession } from '@/lib/auth';
 import { AvatarMenu } from '@/components/shell/AvatarMenu';
 import {
@@ -9,6 +10,7 @@ import {
   getMyPayslips,
   getMyRequests,
   getMyTickets,
+  getTicketComments,
   getMyCompOffs,
   getMyReimbursements,
   getReimbursementRate,
@@ -36,14 +38,13 @@ import { ApplyLeave } from '@/components/employee/ApplyLeave';
 import { MyTickets } from '@/components/employee/MyTickets';
 import { MyCompOffs } from '@/components/employee/MyCompOffs';
 import { MyReimbursements } from '@/components/employee/MyReimbursements';
-import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm';
 import { inr } from '@/lib/format';
 import type { DayCell, PayslipRow } from '@/types/domain';
 
 // Employee dashboard: personal snapshot, own attendance strip, payslips,
 // leave/duty requests, helpdesk tickets and the policies they must read.
 export default async function MePage() {
-  const { profile, email, demo } = await getSession();
+  const { profile, email } = await getSession();
   const employeeId = profile?.employee_id ?? null;
 
   // Only the per-employee queries need a linked employee record; the overview
@@ -92,6 +93,9 @@ export default async function MePage() {
   // the daily pg_cron job in migration 0015 / the purge on the staff page).
   // Compare epoch millis, not raw strings: PostgREST emits '…+00:00' timestamps
   // while toISOString() emits '…Z', so a lexicographic compare is unreliable.
+  // Ticket follow-up threads depend on the loaded ticket ids, so fetch after.
+  const ticketComments = await getTicketComments(tickets.map((t) => t.id));
+
   const noticeCutoffMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const visibleNotices: NoticeView[] = notices.filter(
     (n) => n.published && n.publishedAt != null && new Date(n.publishedAt).getTime() >= noticeCutoffMs,
@@ -254,7 +258,12 @@ export default async function MePage() {
       />
 
       {/* helpdesk */}
-      <MyTickets tickets={tickets} canRaise={canRaiseTicket} blockedReason={ticketBlockedReason} />
+      <MyTickets
+        tickets={tickets}
+        comments={ticketComments}
+        canRaise={canRaiseTicket}
+        blockedReason={ticketBlockedReason}
+      />
 
       {/* company policies */}
       <div className="card">
@@ -267,20 +276,19 @@ export default async function MePage() {
         </div>
       </div>
 
-      {/* account security */}
+      {/* account security lives on its own page now */}
       <div className="card">
         <div className="hd">
-          <h3>Change password</h3>
+          <h3>My account</h3>
           <span className="folio">{email ?? 'your account'}</span>
         </div>
         <div className="bd">
-          {demo ? (
-            <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-              Demo mode — there is no real account to change a password for.
-            </p>
-          ) : (
-            <ChangePasswordForm email={email} />
-          )}
+          <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+            Manage your profile picture and password on your account page.
+          </p>
+          <Link href="/me/account" className="btn">
+            Manage your account →
+          </Link>
         </div>
       </div>
     </div>

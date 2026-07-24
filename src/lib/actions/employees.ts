@@ -3,13 +3,133 @@
 // Server Actions for mutating employees. The Add/Edit-employee drawer submits its
 // <form> here. All are staff-only (admin/hr/manager).
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient, isServiceRoleConfigured } from '@/lib/supabase/server';
 import { requireStaff, wroteNothing } from '@/lib/actions/_guard';
 import { getEmployeeForEdit, type EmployeeEditRow } from '@/lib/queries';
+
+// Ban duration handed to Supabase's admin API to block sign-in. ~100 years is
+// "indefinite" in practice; 'none' lifts the ban. Existing access tokens are
+// re-validated against the auth server on every request (getSession →
+// supabase.auth.getUser), so a ban blocks the very next request rather than
+// waiting for the current token to expire.
+const BAN_INDEFINITE = '876000h';
+const BAN_NONE = 'none';
+
+/**
+ * Enable or disable sign-in for every login account linked to an employee.
+ *
+ * Logins are `profiles` rows (profiles.id === auth.users.id) with
+ * employee_id === the given employee. Banning/unbanning the auth user is
+ * reversible, so it mirrors deactivate/reactivate exactly and leaves the
+ * profile → employee link intact for when they come back.
+ *
+ * Managing auth users needs the service-role key. When it isn't configured no
+ * employee login could have been created in the first place (the Users screen
+ * requires it), so there is nothing to revoke — this returns ok and does
+ * nothing. A real failure to reach or update an existing account IS reported,
+ * so the caller never claims to have removed access it couldn't remove.
+ */
+async function setEmployeeLoginAccess(
+  employeeId: string,
+  enabled: boolean,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!isServiceRoleConfigured()) return { ok: true };
+
+  try {
+    const admin = createServiceClient();
+
+    const { data: profiles, error } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('employee_id', employeeId);
+
+    if (error) {
+      return {
+        ok: false,
+        error: `Could not find the linked login: ${error.message}`,
+      };
+    }
+
+    // No linked login = nothing to enable/disable.
+    if (!profiles?.length) {
+      return { ok: true };
+    }
+
+    const banDuration = enabled ? BAN_NONE : BAN_INDEFINITE;
+
+    for (const p of profiles) {
+      let lastError = 'Could not update login access.';
+
+      // Retry transient Supabase Auth failures.
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const { error: banErr } =
+            await admin.auth.admin.updateUserById(
+              p.id as string,
+              {
+                ban_duration: banDuration,
+              },
+            );
+
+          // Success.
+          if (!banErr) {
+            lastError = '';
+            break;
+          }
+
+          lastError = banErr.message;
+        } catch (e) {
+          lastError =
+            e instanceof Error
+              ? e.message
+              : 'Could not update login access.';
+        }
+
+        // Don't delay after the final attempt.
+        if (attempt < 3) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, attempt * 1000),
+          );
+        }
+      }
+
+      // All retries failed.
+      if (lastError) {
+        return {
+          ok: false,
+          error: lastError,
+        };
+      }
+    }
+
+    return { ok: true };
+  } catch (e) {
+    return {
+      ok: false,
+      error:
+        e instanceof Error
+          ? e.message
+          : 'Could not update login access.',
+    };
+  }
+}
 
 /** Parse '30,000' / '₹30,000' -> 30000. */
 function money(v: FormDataEntryValue | null): number {
   return Number(String(v ?? '0').replace(/[^0-9.-]/g, '')) || 0;
+}
+
+/**
+ * Normalise an Aadhaar number: strip spaces/hyphens, require exactly 12 digits.
+ * Empty is allowed (returns null). Mirrors the DB check constraint (migration 0019).
+ */
+function parseAadhaar(
+  v: FormDataEntryValue | null,
+): { ok: true; value: string | null } | { ok: false; error: string } {
+  const raw = String(v ?? '').replace(/[\s-]/g, '').trim();
+  if (!raw) return { ok: true, value: null };
+  if (!/^\d{12}$/.test(raw)) return { ok: false, error: 'Aadhaar number must be exactly 12 digits.' };
+  return { ok: true, value: raw };
 }
 
 /** Shared salary parse: derives special to satisfy the DB CHECK (basic+hra+special=gross). */
@@ -53,6 +173,9 @@ export async function createEmployee(formData: FormData) {
   const salary = parseSalary(formData);
   if (!salary.ok) return salary;
 
+  const aadhaar = parseAadhaar(formData.get('aadhaar'));
+  if (!aadhaar.ok) return aadhaar;
+
   const supabase = await createClient();
 
   // The branch field arrives as a NAME ('Pune' | 'Vadodara'); resolve to id.
@@ -77,6 +200,11 @@ export async function createEmployee(formData: FormData) {
       date_of_joining: dateOfJoining,
       date_of_birth: (formData.get('date_of_birth') as string) || null,
       whatsapp: (formData.get('whatsapp') as string) || null,
+      mobile_official: (formData.get('mobile_official') as string) || null,
+      mobile_personal: (formData.get('mobile_personal') as string) || null,
+      email_official: (formData.get('email_official') as string) || null,
+      email_personal: (formData.get('email_personal') as string) || null,
+      aadhaar: aadhaar.value,
       pan: (formData.get('pan') as string) || null,
       pf_uan: (formData.get('pf_uan') as string) || null,
       esic_number: (formData.get('esic_number') as string) || null,
@@ -114,6 +242,9 @@ export async function updateEmployee(formData: FormData) {
   const salary = parseSalary(formData);
   if (!salary.ok) return salary;
 
+  const aadhaar = parseAadhaar(formData.get('aadhaar'));
+  if (!aadhaar.ok) return aadhaar;
+
   const supabase = await createClient();
 
   const branchName = String(formData.get('branch') ?? '').trim();
@@ -135,6 +266,11 @@ export async function updateEmployee(formData: FormData) {
       date_of_joining: dateOfJoining,
       date_of_birth: (formData.get('date_of_birth') as string) || null,
       whatsapp: (formData.get('whatsapp') as string) || null,
+      mobile_official: (formData.get('mobile_official') as string) || null,
+      mobile_personal: (formData.get('mobile_personal') as string) || null,
+      email_official: (formData.get('email_official') as string) || null,
+      email_personal: (formData.get('email_personal') as string) || null,
+      aadhaar: aadhaar.value,
       pan: (formData.get('pan') as string) || null,
       pf_uan: (formData.get('pf_uan') as string) || null,
       esic_number: (formData.get('esic_number') as string) || null,
@@ -178,6 +314,18 @@ export async function deactivateEmployee(code: string) {
     };
   }
 
+  // Revoke sign-in for any linked login. The employee is already inactive at
+  // this point; if the ban fails, say so plainly so an admin can finish the job
+  // from /users rather than believing access was cut when it wasn't.
+  const login = await setEmployeeLoginAccess(data[0].id as string, false);
+  if (!login.ok) {
+    revalidatePath('/employees');
+    return {
+      ok: false,
+      error: `${code} was deactivated, but their login could not be disabled (${login.error}). Remove their access from the Users screen.`,
+    };
+  }
+
   revalidatePath('/employees');
   return { ok: true };
 }
@@ -199,6 +347,16 @@ export async function reactivateEmployee(code: string) {
     return {
       ok: false,
       error: 'The employee was not reactivated — they may no longer exist, or your role lacks permission.',
+    };
+  }
+
+  // Lift the sign-in ban that deactivation applied, so their login works again.
+  const login = await setEmployeeLoginAccess(data[0].id as string, true);
+  if (!login.ok) {
+    revalidatePath('/employees');
+    return {
+      ok: false,
+      error: `${code} was reactivated, but their login could not be re-enabled (${login.error}). Restore their access from the Users screen.`,
     };
   }
 

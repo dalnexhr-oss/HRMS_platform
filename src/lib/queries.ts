@@ -866,11 +866,17 @@ export interface ReimbursementView {
   modeOfPayment: string | null;
   amount: number;
   remarks: string | null;
+  /** The reviewer's note — set when a claim is rejected. Distinct from `remarks`. */
+  reviewRemark: string | null;
   status: 'pending' | 'approved' | 'rejected' | 'paid';
   createdAt: string;
 }
 
 const REIMBURSEMENT_FIELDS = `id, employee_id, claim_date, description, purpose, source_medium,
+  kms, mode_of_payment, amount, remarks, review_remark, status, created_at,
+  employees(code, full_name)`;
+// Before migration 0020 (review_remark) is applied, retry without that column.
+const REIMBURSEMENT_FIELDS_LEGACY = `id, employee_id, claim_date, description, purpose, source_medium,
   kms, mode_of_payment, amount, remarks, status, created_at,
   employees(code, full_name)`;
 
@@ -888,6 +894,7 @@ function mapReimbursement(r: any): ReimbursementView {
     modeOfPayment: r.mode_of_payment,
     amount: Number(r.amount),
     remarks: r.remarks,
+    reviewRemark: r.review_remark ?? null,
     status: r.status,
     createdAt: r.created_at,
   };
@@ -898,18 +905,25 @@ export async function getReimbursements(): Promise<ReimbursementView[]> {
   if (!isSupabaseConfigured()) return [];
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let res = await supabase
     .from('reimbursement_claims')
     .select(REIMBURSEMENT_FIELDS)
     .order('created_at', { ascending: false });
-  if (error) {
-    if (isMissingTable(error)) {
+  // Migration 0020 (review_remark) not applied yet → retry without the column.
+  if (res.error?.code === '42703') {
+    res = (await supabase
+      .from('reimbursement_claims')
+      .select(REIMBURSEMENT_FIELDS_LEGACY)
+      .order('created_at', { ascending: false })) as typeof res;
+  }
+  if (res.error) {
+    if (isMissingTable(res.error)) {
       warnNotMigrated('getReimbursements', 'migration 0009_reimbursements_compoff_sweep.sql');
       return [];
     }
-    fail('getReimbursements: could not load claims', error);
+    fail('getReimbursements: could not load claims', res.error);
   }
-  return (data ?? []).map(mapReimbursement);
+  return (res.data ?? []).map(mapReimbursement);
 }
 
 /** One employee's own claims, newest first. */
@@ -917,19 +931,26 @@ export async function getMyReimbursements(employeeId: string): Promise<Reimburse
   if (!isSupabaseConfigured()) return [];
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let res = await supabase
     .from('reimbursement_claims')
     .select(REIMBURSEMENT_FIELDS)
     .eq('employee_id', employeeId)
     .order('created_at', { ascending: false });
-  if (error) {
-    if (isMissingTable(error)) {
+  if (res.error?.code === '42703') {
+    res = (await supabase
+      .from('reimbursement_claims')
+      .select(REIMBURSEMENT_FIELDS_LEGACY)
+      .eq('employee_id', employeeId)
+      .order('created_at', { ascending: false })) as typeof res;
+  }
+  if (res.error) {
+    if (isMissingTable(res.error)) {
       warnNotMigrated('getMyReimbursements', 'migration 0009_reimbursements_compoff_sweep.sql');
       return [];
     }
-    fail('getMyReimbursements: could not load claims', error);
+    fail('getMyReimbursements: could not load claims', res.error);
   }
-  return (data ?? []).map(mapReimbursement);
+  return (res.data ?? []).map(mapReimbursement);
 }
 
 /** The ₹/km rate used to auto-calculate travel claims (settings-driven). */
@@ -1024,6 +1045,11 @@ export interface EmployeeEditRow {
   date_of_joining: string;
   date_of_birth: string | null;
   whatsapp: string | null;
+  mobile_official: string | null;
+  mobile_personal: string | null;
+  email_official: string | null;
+  email_personal: string | null;
+  aadhaar: string | null;
   pan: string | null;
   pf_uan: string | null;
   esic_number: string | null;
@@ -1043,21 +1069,28 @@ export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow 
     const hra = Math.round(gross * 0.3);
     return {
       code: e.code, full_name: e.name, branch: e.branch, gender: e.gender,
-      date_of_joining: e.doj, date_of_birth: null, whatsapp: null, pan: null,
-      pf_uan: e.uan, esic_number: e.esic_no,
+      date_of_joining: e.doj, date_of_birth: null, whatsapp: null,
+      mobile_official: null, mobile_personal: null,
+      email_official: null, email_personal: null, aadhaar: null,
+      pan: null, pf_uan: e.uan, esic_number: e.esic_no,
       gross_monthly: gross, basic_da: basic, hra, special_allowance: gross - basic - hra,
     };
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('employees')
-    .select(
-      `code, full_name, gender, date_of_joining, date_of_birth, whatsapp, pan, pf_uan, esic_number,
-       gross_monthly, basic_da, hra, special_allowance, branches(name)`,
-    )
-    .eq('code', code)
-    .maybeSingle();
+  // Migration 0019 (contact columns) may not be applied — retry without them.
+  const FULL_COLS =
+    `code, full_name, gender, date_of_joining, date_of_birth, whatsapp,
+     mobile_official, mobile_personal, email_official, email_personal, aadhaar,
+     pan, pf_uan, esic_number, gross_monthly, basic_da, hra, special_allowance, branches(name)`;
+  const LEGACY_COLS =
+    `code, full_name, gender, date_of_joining, date_of_birth, whatsapp,
+     pan, pf_uan, esic_number, gross_monthly, basic_da, hra, special_allowance, branches(name)`;
+  let res = await supabase.from('employees').select(FULL_COLS).eq('code', code).maybeSingle();
+  if (res.error?.code === '42703') {
+    res = await supabase.from('employees').select(LEGACY_COLS).eq('code', code).maybeSingle();
+  }
+  const { data, error } = res;
   if (error) fail('getEmployeeForEdit: could not load employee', error);
   if (!data) return null;
   const e: any = data;
@@ -1069,6 +1102,11 @@ export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow 
     date_of_joining: e.date_of_joining,
     date_of_birth: e.date_of_birth,
     whatsapp: e.whatsapp,
+    mobile_official: e.mobile_official ?? null,
+    mobile_personal: e.mobile_personal ?? null,
+    email_official: e.email_official ?? null,
+    email_personal: e.email_personal ?? null,
+    aadhaar: e.aadhaar ?? null,
     pan: e.pan,
     pf_uan: e.pf_uan,
     esic_number: e.esic_number,
@@ -1361,6 +1399,60 @@ export async function getTickets(): Promise<TicketView[]> {
   return (res.data ?? [])
     .map(mapTicket)
     .sort((a, b) => (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1));
+}
+
+// --------------------------------------------------- helpdesk thread ---
+export interface TicketComment {
+  id: string;
+  ticketId: string;
+  body: string;
+  authorName: string | null;
+  /** Distinguishes a staff/HR follow-up from the employee's own, for the pill. */
+  authorIsStaff: boolean;
+  createdAt: string;
+}
+
+function mapComment(c: any): TicketComment {
+  return {
+    id: c.id,
+    ticketId: c.ticket_id,
+    body: c.body,
+    authorName: c.author_name ?? null,
+    authorIsStaff: !!c.author_is_staff,
+    createdAt: c.created_at,
+  };
+}
+
+/**
+ * Follow-up comments for the given tickets, grouped by ticket id and ordered
+ * oldest-first. Returns `{}` when migration 0021 isn't applied (missing table)
+ * so the ticket screens keep rendering. RLS scopes visibility (staff read all,
+ * an employee reads their own tickets' threads).
+ */
+export async function getTicketComments(
+  ticketIds: string[],
+): Promise<Record<string, TicketComment[]>> {
+  if (!isSupabaseConfigured() || ticketIds.length === 0) return {};
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('helpdesk_ticket_comments')
+    .select('id, ticket_id, body, author_name, author_is_staff, created_at')
+    .in('ticket_id', ticketIds)
+    .order('created_at', { ascending: true });
+  if (error) {
+    if (isMissingTable(error)) {
+      warnNotMigrated('getTicketComments', 'migration 0021_helpdesk_thread.sql');
+      return {};
+    }
+    fail('getTicketComments: could not load comments', error);
+  }
+  const byTicket: Record<string, TicketComment[]> = {};
+  for (const row of data ?? []) {
+    const c = mapComment(row);
+    (byTicket[c.ticketId] ??= []).push(c);
+  }
+  return byTicket;
 }
 
 // --------------------------------------------------------------- settings ---

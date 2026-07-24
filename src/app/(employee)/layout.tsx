@@ -29,7 +29,7 @@ export default async function EmployeeLayout({ children }: { children: React.Rea
             avatar={profile?.avatar ?? null}
             role={profile?.role ?? null}
             email={email}
-            accountHref="/me"
+            accountHref="/me/account"
           />
         </span>
         <SignOutButton />

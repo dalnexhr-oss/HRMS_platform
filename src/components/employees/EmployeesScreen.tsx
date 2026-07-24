@@ -54,7 +54,7 @@ export function EmployeesScreen({ rows }: { rows: EmployeeListRow[] }) {
   }
 
   function onDeactivate(code: string, name: string) {
-    if (!window.confirm(`Deactivate ${name} (${code})? They will no longer appear in the active roster.`)) {
+    if (!window.confirm(`Deactivate ${name} (${code})? They will no longer appear in the active roster, and their login will be disabled.`)) {
       return;
     }
     setError(null);
@@ -68,7 +68,7 @@ export function EmployeesScreen({ rows }: { rows: EmployeeListRow[] }) {
   }
 
   function onReactivate(code: string, name: string) {
-    if (!window.confirm(`Reactivate ${name} (${code})? They will return to the active roster.`)) return;
+    if (!window.confirm(`Reactivate ${name} (${code})? They will return to the active roster, and their login will be re-enabled.`)) return;
     setError(null);
     setBusyCode(code);
     startTransition(async () => {
@@ -189,7 +189,7 @@ export function EmployeesScreen({ rows }: { rows: EmployeeListRow[] }) {
                             disabled={pending && busyCode === e.code}
                             title="Deactivate this employee"
                           >
-                            Delete
+                            Deactivate
                           </button>
                         </>
                       ) : (

@@ -88,12 +88,25 @@ export function AddEmployeeDrawer({
             </div>
             <Field name="whatsapp" label="WhatsApp number" placeholder="+91" mono defaultValue={employee?.whatsapp ?? undefined} />
 
+            <div className="fold">Contact</div>
+            <div className="f-row">
+              <Field name="mobile_official" label="Mobile (official)" placeholder="+91" mono defaultValue={employee?.mobile_official ?? undefined} />
+              <Field name="mobile_personal" label="Mobile (personal)" placeholder="+91" mono defaultValue={employee?.mobile_personal ?? undefined} />
+            </div>
+            <div className="f-row">
+              <Field name="email_official" label="Email (official)" type="email" placeholder="name@dalnex.com" mono defaultValue={employee?.email_official ?? undefined} />
+              <Field name="email_personal" label="Email (personal)" type="email" placeholder="name@gmail.com" mono defaultValue={employee?.email_personal ?? undefined} />
+            </div>
+
             <div className="fold">Statutory</div>
             <div className="f-row">
               <Field name="pan" label="PAN" placeholder="ABCDE1234F" mono defaultValue={employee?.pan ?? undefined} />
-              <Field name="pf_uan" label="PF UAN" mono defaultValue={employee?.pf_uan ?? undefined} />
+              <Field name="aadhaar" label="Aadhaar number" placeholder="1234 5678 9012" mono defaultValue={employee?.aadhaar ?? undefined} />
             </div>
-            <Field name="esic_number" label="ESIC number" mono defaultValue={employee?.esic_number ?? undefined} />
+            <div className="f-row">
+              <Field name="pf_uan" label="PF UAN" mono defaultValue={employee?.pf_uan ?? undefined} />
+              <Field name="esic_number" label="ESIC number" mono defaultValue={employee?.esic_number ?? undefined} />
+            </div>
 
             <div className="fold">Salary structure</div>
             <div className="f-row">

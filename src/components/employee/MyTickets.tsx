@@ -3,8 +3,9 @@
 import { useActionState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createTicket } from '@/lib/actions/helpdesk';
+import { TicketThread } from '@/components/helpdesk/TicketThread';
 import { formatDate } from '@/lib/format';
-import type { TicketView } from '@/lib/queries';
+import type { TicketComment, TicketView } from '@/lib/queries';
 
 const STATUS_LABEL: Record<TicketView['status'], string> = {
   open: 'Open',
@@ -30,10 +31,12 @@ function statusPillStyle(status: TicketView['status']): React.CSSProperties {
  */
 export function MyTickets({
   tickets,
+  comments = {},
   canRaise,
   blockedReason,
 }: {
   tickets: TicketView[];
+  comments?: Record<string, TicketComment[]>;
   canRaise: boolean;
   blockedReason: string;
 }) {
@@ -76,6 +79,7 @@ export function MyTickets({
                     <b>Reply from HR:</b> {t.resolutionNote}
                   </div>
                 )}
+                <TicketThread ticketId={t.id} comments={comments[t.id] ?? []} />
               </div>
             ))
           )}

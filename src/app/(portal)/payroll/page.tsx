@@ -5,7 +5,7 @@ import type { PayrollRunView } from '@/lib/queries';
 import { createClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/supabase/env';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
-import { exportPayrollXlsx } from '@/lib/actions/export';
+import { exportPayrollXlsx, exportAttendanceTemplateXlsx } from '@/lib/actions/export';
 import { StatutoryExports } from '@/components/payroll/StatutoryExports';
 
 // Timestamps are rendered on the server only, so a fixed zone keeps them stable
@@ -194,6 +194,10 @@ export default async function PayrollPage() {
         <XlsxExportButton
           action={exportPayrollXlsx.bind(null, run?.periodMonth ?? periodMonth)}
           label="Export payroll .xlsx"
+        />
+        <XlsxExportButton
+          action={exportAttendanceTemplateXlsx.bind(null, run?.periodMonth ?? periodMonth)}
+          label="Attendance template"
         />
         <StatutoryExports periodMonth={run?.periodMonth ?? periodMonth} disabled={payslips.length === 0} />
       </div>

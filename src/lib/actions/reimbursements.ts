@@ -183,23 +183,41 @@ async function addToPayroll(
 export async function reviewReimbursement(
   id: string,
   decision: 'approved' | 'rejected',
+  remark?: string,
 ): Promise<ActionResult> {
   const gate = await requireStaff(`Marking a claim ${decision}`);
   if (!gate.ok) return gate;
 
+  // A rejection must say why — the employee sees this note on their dashboard.
+  const cleanRemark = (remark ?? '').trim();
+  if (decision === 'rejected' && !cleanRemark) {
+    return { ok: false, error: 'Enter a reason for rejecting this claim.' };
+  }
+
   const supabase = await createClient();
+  const patch: Record<string, unknown> = {
+    status: decision,
+    reviewed_by: gate.profileId,
+    reviewed_at: new Date().toISOString(),
+  };
+  if (decision === 'rejected') patch.review_remark = cleanRemark;
+
   const { data, error } = await supabase
     .from('reimbursement_claims')
-    .update({
-      status: decision,
-      reviewed_by: gate.profileId,
-      reviewed_at: new Date().toISOString(),
-    })
+    .update(patch)
     .eq('id', id)
     .eq('status', 'pending')
-    .select('id, employee_id, claim_date, amount');
+    .select('id, employee_id, claim_date, amount, purpose, kms');
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    if (error.code === '42703') {
+      return {
+        ok: false,
+        error: 'Rejection remarks aren’t set up on the database yet — apply migration 0020.',
+      };
+    }
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,
@@ -208,30 +226,141 @@ export async function reviewReimbursement(
     };
   }
 
+  const row = data![0] as {
+    employee_id: string;
+    claim_date: string;
+    amount: number | string;
+    purpose: ReimbursementPurpose;
+    kms: number | string | null;
+  };
+
+  // Re-derive a travel claim's amount at approval so an employee who edited the
+  // pending claim's kms/amount (RLS can't restrict columns) can't inflate pay.
+  let finalAmount = Number(row.amount);
+  if (decision === 'approved' && row.purpose === 'travel' && row.kms != null) {
+    const rate = await getReimbursementRate();
+    const corrected = Math.round(Number(row.kms) * rate * 100) / 100;
+    if (corrected !== finalAmount) {
+      finalAmount = corrected;
+      await supabase.from('reimbursement_claims').update({ amount: corrected }).eq('id', id);
+    }
+  }
+
   revalidatePath('/reimbursements');
   revalidatePath('/me');
 
-  {
-    const row = data![0] as { employee_id: string; amount: number | string };
-    await notifyEmployee(row.employee_id, {
-      kind: 'reimbursement',
-      title: `Your reimbursement claim was ${decision}`,
-      body: `₹${Number(row.amount).toFixed(2)}${decision === 'approved' ? ' — it will be paid with your salary.' : ''}`,
-      link: '/me',
-    });
-  }
+  await notifyEmployee(row.employee_id, {
+    kind: 'reimbursement',
+    title: `Your reimbursement claim was ${decision}`,
+    body:
+      decision === 'approved'
+        ? `₹${finalAmount.toFixed(2)} — it will be paid with your salary.`
+        : `₹${finalAmount.toFixed(2)} — ${cleanRemark}`,
+    link: '/me',
+  });
 
   if (decision === 'approved') {
-    const row = data![0] as { employee_id: string; claim_date: string; amount: number | string };
     const warning = await addToPayroll(
       supabase,
       row.employee_id,
       String(row.claim_date).slice(0, 10),
-      Number(row.amount),
+      finalAmount,
     );
     if (warning) return { ok: false, error: warning };
   }
 
+  return { ok: true };
+}
+
+/**
+ * Employee edits their OWN still-pending claim. RLS (0020) restricts the write
+ * to own + pending rows; travel amount is recomputed server-side, exactly as at
+ * creation, so it never trusts the browser.
+ */
+export async function updateReimbursement(id: string, formData: FormData): Promise<ActionResult> {
+  const description = String(formData.get('description') ?? '').trim();
+  const purpose = String(formData.get('purpose') ?? '').trim() as ReimbursementPurpose;
+  const claimDate = String(formData.get('claim_date') ?? '').trim();
+  const sourceMedium = String(formData.get('source_medium') ?? '').trim() || null;
+  const modeOfPayment = String(formData.get('mode_of_payment') ?? '').trim() || null;
+  const remarks = String(formData.get('remarks') ?? '').trim() || null;
+
+  if (!description) return { ok: false, error: 'Enter a description.' };
+  if (!PURPOSES.includes(purpose)) return { ok: false, error: 'Choose a purpose.' };
+  if (!ISO_DATE.test(claimDate)) return { ok: false, error: 'Choose a valid date.' };
+
+  const kmsRaw = money(formData.get('kms'));
+  let amount: number;
+  let kms: number | null = null;
+  if (purpose === 'travel') {
+    if (kmsRaw === null || kmsRaw <= 0) {
+      return { ok: false, error: 'Enter the distance in km for a travel claim.' };
+    }
+    kms = kmsRaw;
+    const rate = await getReimbursementRate();
+    amount = Math.round(kms * rate * 100) / 100;
+  } else {
+    const typed = money(formData.get('amount'));
+    if (typed === null || typed <= 0) return { ok: false, error: 'Enter the claim amount.' };
+    amount = typed;
+  }
+
+  const db = requireDb('Editing a reimbursement claim');
+  if (!db.ok) return db;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('reimbursement_claims')
+    .update({
+      claim_date: claimDate,
+      description,
+      purpose,
+      source_medium: sourceMedium,
+      kms,
+      mode_of_payment: modeOfPayment,
+      amount,
+      remarks,
+    })
+    .eq('id', id)
+    .eq('status', 'pending')
+    .select('id');
+
+  if (error) return { ok: false, error: error.message };
+  if (wroteNothing(data)) {
+    return {
+      ok: false,
+      error: 'The claim was not updated — it may already have been reviewed, or it is not yours.',
+    };
+  }
+
+  revalidatePath('/me');
+  revalidatePath('/reimbursements');
+  return { ok: true };
+}
+
+/** Employee withdraws their OWN still-pending claim. RLS restricts it to that. */
+export async function deleteReimbursement(id: string): Promise<ActionResult> {
+  const db = requireDb('Withdrawing a reimbursement claim');
+  if (!db.ok) return db;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('reimbursement_claims')
+    .delete()
+    .eq('id', id)
+    .eq('status', 'pending')
+    .select('id');
+
+  if (error) return { ok: false, error: error.message };
+  if (wroteNothing(data)) {
+    return {
+      ok: false,
+      error: 'The claim was not withdrawn — it may already have been reviewed, or it is not yours.',
+    };
+  }
+
+  revalidatePath('/me');
+  revalidatePath('/reimbursements');
   return { ok: true };
 }
 

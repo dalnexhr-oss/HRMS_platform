@@ -63,6 +63,17 @@ export function ReimbursementsScreen({ claims }: { claims: ReimbursementView[] }
     });
   }
 
+  // Rejecting needs a reason — the employee sees it on their dashboard.
+  function reject(id: string) {
+    const reason = window.prompt('Why is this claim being rejected? (shown to the employee)', '');
+    if (reason === null) return;
+    if (!reason.trim()) {
+      setError('Enter a reason for rejecting the claim.');
+      return;
+    }
+    run(id, () => reviewReimbursement(id, 'rejected', reason.trim()));
+  }
+
   return (
     <div className="wrap grid">
       <div className="kpis">
@@ -158,6 +169,11 @@ export function ReimbursementsScreen({ claims }: { claims: ReimbursementView[] }
                     </td>
                     <td className="muted" style={{ fontSize: 12 }}>
                       {c.remarks ?? '—'}
+                      {c.status === 'rejected' && c.reviewRemark && (
+                        <div style={{ color: 'var(--hd)', marginTop: 4 }}>
+                          <b>Rejected:</b> {c.reviewRemark}
+                        </div>
+                      )}
                     </td>
                     <td>
                       <span className="pill" style={statusPillStyle(c.status)}>
@@ -178,7 +194,7 @@ export function ReimbursementsScreen({ claims }: { claims: ReimbursementView[] }
                             <button
                               className="btn"
                               disabled={pending && busy === c.id}
-                              onClick={() => run(c.id, () => reviewReimbursement(c.id, 'rejected'))}
+                              onClick={() => reject(c.id)}
                             >
                               Reject
                             </button>

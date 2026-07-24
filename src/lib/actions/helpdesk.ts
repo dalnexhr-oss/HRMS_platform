@@ -100,3 +100,84 @@ export async function setTicketStatus(id: string, status: TicketStatus, note?: s
   revalidatePath('/me');
   return { ok: true };
 }
+
+/**
+ * Post a follow-up comment on a ticket. Either side may post: staff on any
+ * ticket, an employee on their own (enforced by RLS). When the employee owner
+ * follows up on a resolved/closed ticket, it is REOPENED. The author name and
+ * staff flag are stored on the comment so the thread renders without reading
+ * another user's profile.
+ */
+export async function addTicketComment(ticketId: string, body: string) {
+  const text = (body ?? '').trim();
+  if (!text) return { ok: false, error: 'Write a message first.' };
+
+  const db = requireDb('Posting a follow-up');
+  if (!db.ok) return db;
+
+  const { profile } = await getSession();
+  if (!profile?.id) return { ok: false, error: 'You must be signed in to post a follow-up.' };
+  const isStaff = profile.role != null && profile.role !== 'employee';
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('helpdesk_ticket_comments')
+    .insert({
+      ticket_id: ticketId,
+      author_id: profile.id,
+      author_name: profile.full_name ?? null,
+      author_is_staff: isStaff,
+      body: text,
+    })
+    .select('id');
+
+  if (error) {
+    if (error.code === '42P01' || error.code === 'PGRST205') {
+      return { ok: false, error: 'Ticket follow-ups aren’t set up on the database yet — apply migration 0021.' };
+    }
+    return { ok: false, error: error.message };
+  }
+  if (wroteNothing(data)) {
+    return { ok: false, error: 'The follow-up was not posted — your account may not have permission.' };
+  }
+
+  // Load the parent ticket once — for the reopen check and for notifying the
+  // other party.
+  const { data: ticket } = await supabase
+    .from('helpdesk_tickets')
+    .select('status, subject, employee_id')
+    .eq('id', ticketId)
+    .maybeSingle<{ status: TicketStatus; subject: string; employee_id: string | null }>();
+
+  // An employee following up on a resolved/closed ticket reopens it.
+  if (!isStaff && ticket && (ticket.status === 'resolved' || ticket.status === 'closed')) {
+    await supabase
+      .from('helpdesk_tickets')
+      .update({ status: 'open', resolved_at: null })
+      .eq('id', ticketId);
+  }
+
+  const subject = ticket?.subject ?? 'your ticket';
+  if (isStaff) {
+    await notifyEmployee(ticket?.employee_id ?? null, {
+      kind: 'ticket',
+      title: `New reply on your ticket: ${subject}`,
+      body: text,
+      link: '/me',
+    });
+  } else {
+    await notifyApprovers(
+      {
+        kind: 'ticket',
+        title: `Follow-up on ticket: ${subject}`,
+        body: profile.full_name ? `From ${profile.full_name}: ${text}` : text,
+        link: '/helpdesk',
+      },
+      profile.id,
+    );
+  }
+
+  revalidatePath('/helpdesk');
+  revalidatePath('/me');
+  return { ok: true };
+}
