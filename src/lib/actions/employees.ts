@@ -148,7 +148,7 @@ function parseIfsc(
   return { ok: true, value: raw };
 }
 
-/** Bank account number: keep digits only (strip spaces/hyphens). Empty -> null. */
+/** Bank account number: strip spaces and hyphens; empty -> null. */
 function parseAccountNumber(v: FormDataEntryValue | null): string | null {
   const raw = String(v ?? '').replace(/[\s-]/g, '').trim();
   return raw || null;
@@ -212,8 +212,8 @@ function parseSalary(
 
 /**
  * Load one employee's full editable fields for the edit drawer. This is a READ —
- * RLS (portal roles read all employees) is the boundary, and demo mode returns
- * demo data — so it isn't staff-gated; the WRITE (updateEmployee) is.
+ * RLS (portal roles read all employees) is the boundary — so it isn't
+ * staff-gated; the WRITE (updateEmployee) is.
  */
 export async function fetchEmployeeForEdit(code: string): Promise<EmployeeEditRow | null> {
   return getEmployeeForEdit(code);

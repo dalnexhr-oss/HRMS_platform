@@ -238,19 +238,10 @@ export async function previewImport(formData: FormData): Promise<PreviewResult> 
     const reg = await readUpload(formData);
 
     const codeMap = await getEmployeeCodeMap();
-    // In demo mode getEmployeeCodeMap returns the demo roster; say so rather
-    // than implying the file was checked against real staff records.
-    const configured = isSupabaseConfigured();
-    const names = configured ? await fetchNames() : {};
+    const names = await fetchNames();
     const autoOutMin = await getAutoPunchOutMinutes();
 
     const { matched, unmatched, rows, warnings } = planImport(reg, codeMap, names, autoOutMin);
-
-    if (!configured) {
-      warnings.unshift(
-        'Supabase is not connected. This preview matched against demo employees and importing is disabled.',
-      );
-    }
 
     return {
       ok: true,

@@ -23,16 +23,14 @@ const AMBER_BG = '#fdf6e3';
 
 export function ImportScreen({
   canImport,
-  configured,
   role,
 }: {
   canImport: boolean;
-  configured: boolean;
   role: AppRole | null;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
-  // The blank template is data-free, so it is offered to any staff role even in
-  // demo mode — the server action re-checks the role before building it.
+  // The blank template is data-free, so it is offered to any staff role; the
+  // server action re-checks the role before building it.
   const canDownloadTemplate = !!role && IMPORT_ROLES.includes(role);
   const [file, setFile] = useState<File | null>(null);
   const [cancelled, setCancelled] = useState(false);
@@ -78,8 +76,6 @@ export function ImportScreen({
   // The single reason the Import button cannot run, or null if it can. Drives
   // both the disabled state and its tooltip, so the two can never disagree.
   function blockedReason(p: ImportPreview): string | null {
-    if (!configured)
-      return 'Supabase is not connected, so there is nowhere to write. Nothing can be imported in demo mode.';
     if (!canImport)
       return `Importing the register needs an admin, HR or manager account${
         role ? ` — yours is “${role}”.` : '.'
@@ -92,34 +88,19 @@ export function ImportScreen({
 
   return (
     <div className="wrap grid">
-      {!configured ? (
+      {!canImport && (
         <div className="card" style={{ borderColor: AMBER_LINE, background: AMBER_BG }}>
           <div className="hd">
-            <h3 style={{ color: AMBER }}>Demo mode — importing is disabled</h3>
+            <h3 style={{ color: AMBER }}>Read-only access</h3>
           </div>
           <div className="bd">
             <p className="muted" style={{ margin: 0 }}>
-              Supabase is not connected, so there is no database to write attendance to. You can
-              still upload a file to check that it parses, but the matched names below are demo
-              records, not your staff, and the import button stays disabled.
+              Importing the register needs an admin, HR or manager account
+              {role ? ` — yours is “${role}”.` : '.'} You can still upload a file to preview what
+              it contains; the import button is disabled.
             </p>
           </div>
         </div>
-      ) : (
-        !canImport && (
-          <div className="card" style={{ borderColor: AMBER_LINE, background: AMBER_BG }}>
-            <div className="hd">
-              <h3 style={{ color: AMBER }}>Read-only access</h3>
-            </div>
-            <div className="bd">
-              <p className="muted" style={{ margin: 0 }}>
-                Importing the register needs an admin, HR or manager account
-                {role ? ` — yours is “${role}”.` : '.'} You can still upload a file to preview what
-                it contains; the import button is disabled.
-              </p>
-            </div>
-          </div>
-        )
       )}
 
       {step === 'upload' && (
@@ -140,8 +121,8 @@ export function ImportScreen({
             {canDownloadTemplate && (
               <p className="hint" style={{ marginTop: 0, marginBottom: 14 }}>
                 New to this? <b>Download template</b> gives you a blank register in the exact upload
-                format — the right columns, an example row, and a status-code legend. Fill it in and
-                upload it back here.
+                format — the right columns and a status-code legend. Fill it in and upload it back
+                here.
               </p>
             )}
             <form

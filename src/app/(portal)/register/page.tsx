@@ -9,7 +9,6 @@ import {
   getPayrollRun,
   getRegister,
   getWeekOffPolicy,
-  isSupabaseConfigured,
 } from '@/lib/queries';
 import { weekOffDaysInMonth } from '@/lib/week-off';
 import { getSession } from '@/lib/auth';
@@ -58,8 +57,8 @@ function daysInMonth(periodMonth: string): number[] {
 
 /**
  * A day is a week-off *column* when every employee who has a row that day is on
- * a week off. Derived from the data rather than a hardcoded demo calendar, so
- * it stays correct for any month.
+ * a week off. Derived from the data rather than a fixed calendar, so it stays
+ * correct for any month.
  */
 function deriveWeekOffs(employees: RegisterEmployee[], days: number[]): number[] {
   return days.filter((d) => {
@@ -76,11 +75,6 @@ export default async function RegisterPage({
 }) {
   const { m } = await searchParams;
   const periodMonth = periodFromParam(m);
-  const configured = isSupabaseConfigured();
-
-  // The demo dataset is a single hardcoded month, so month navigation would be
-  // a lie there — the label would move while the data stood still.
-  const canNavigate = configured;
 
   let employees: RegisterEmployee[] = [];
   let run: Awaited<ReturnType<typeof getPayrollRun>> = null;
@@ -105,20 +99,16 @@ export default async function RegisterPage({
     compOffKeys = compOffs.map((c) => `${c.employeeId}|${c.earnedDate}`);
     scheduledWeekOffs = weekOffDaysInMonth(periodMonth, policy);
   } catch (e) {
-    // Never swap in demo data to hide a real failure — show what broke.
+    // Never swap in stand-in data to hide a real failure — show what broke.
     loadError = e instanceof Error ? e.message : String(e);
   }
 
-  // Corrections need somewhere to write. In demo mode the action correctly
-  // refuses every save, so offering the drawer would be a control that cannot
-  // succeed — the exact dead UI the brief forbids.
-  const canCorrect = configured && role != null && CORRECTION_ROLES.includes(role);
+  const canCorrect = role != null && CORRECTION_ROLES.includes(role);
 
   const days = daysInMonth(periodMonth);
   // The schedule (Sundays + 1st/3rd/5th Saturdays) is authoritative for which
-  // columns are week-offs. Days the DATA shows as WO for everyone are unioned in
-  // so a one-off closure still greys out, and so demo mode (no settings) still
-  // renders its seeded week-offs.
+  // columns are week-offs. Days the data shows as WO for everyone are unioned in
+  // so a one-off closure still greys out.
   const weekOffs = Array.from(
     new Set([...scheduledWeekOffs, ...deriveWeekOffs(employees, days)]),
   ).sort((a, b) => a - b);
@@ -129,31 +119,17 @@ export default async function RegisterPage({
     <div className="wrap">
       <div className="reg-head">
         <div className="month-nav">
-          {canNavigate ? (
-            <>
-              <Link
-                href={`/register?m=${prev}` as Route}
-                aria-label="Previous month"
-                role="button"
-              >
-                ‹
-              </Link>
-              <span className="cur">{monthLabel(periodMonth)}</span>
-              <Link href={`/register?m=${next}` as Route} aria-label="Next month" role="button">
-                ›
-              </Link>
-            </>
-          ) : (
-            <>
-              <button aria-label="Previous month" disabled title="Demo data covers one month only">
-                ‹
-              </button>
-              <span className="cur">{monthLabel(periodMonth)}</span>
-              <button aria-label="Next month" disabled title="Demo data covers one month only">
-                ›
-              </button>
-            </>
-          )}
+          <Link
+            href={`/register?m=${prev}` as Route}
+            aria-label="Previous month"
+            role="button"
+          >
+            ‹
+          </Link>
+          <span className="cur">{monthLabel(periodMonth)}</span>
+          <Link href={`/register?m=${next}` as Route} aria-label="Next month" role="button">
+            ›
+          </Link>
         </div>
 
         {run && (run.workingDays != null || run.targetMinutes != null) && (
@@ -166,15 +142,6 @@ export default async function RegisterPage({
         {run && (
           <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
             Payroll · {run.status.replace('_', ' ')}
-          </span>
-        )}
-
-        {!configured && (
-          <span
-            className="pill"
-            style={{ borderColor: 'var(--brass)', color: 'var(--brass)', background: 'var(--brass-soft)' }}
-          >
-            Demo data — from your Excel
           </span>
         )}
 
@@ -220,11 +187,9 @@ export default async function RegisterPage({
             Click a row to open punch detail (In / Out / Hours).{' '}
             {canCorrect
               ? 'Click any day to correct it — every manual correction asks for a reason and is written to the audit log.'
-              : !configured
-                ? 'Corrections need a database connection; this demo register is read-only.'
-                : role === 'viewer'
-                  ? 'Your role is read-only, so corrections are disabled — ask an admin or HR to make a change.'
-                  : 'Corrections are restricted to admin, HR and managers.'}
+              : role === 'viewer'
+                ? 'Your role is read-only, so corrections are disabled — ask an admin or HR to make a change.'
+                : 'Corrections are restricted to admin, HR and managers.'}
           </p>
         </>
       )}

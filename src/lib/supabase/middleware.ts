@@ -1,6 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { supabaseUrl, supabaseKey, isDemoMode } from '@/lib/supabase/env';
+import { supabaseUrl, supabaseKey } from '@/lib/supabase/env';
 
 // 'viewer' is an intentional read-only PORTAL role, but it must never be handed
 // out automatically: profiles.role now defaults to 'employee' (migration 0008)
@@ -9,21 +9,18 @@ import { supabaseUrl, supabaseKey, isDemoMode } from '@/lib/supabase/env';
 const STAFF_ROLES = ['admin', 'hr', 'manager', 'viewer'];
 
 // Refreshes the Supabase auth session on every request and gates the portal
-// vs. the employee area by role. When Supabase isn't configured AND this is not
-// a production build, the app runs in open demo mode (no gating). In production
-// with missing env we hard-fail rather than serving an open portal.
+// vs. the employee area by role. Supabase is required: with missing env we
+// hard-fail (503) rather than serving anything.
 export async function updateSession(request: NextRequest) {
   const url = supabaseUrl();
   const key = supabaseKey();
 
   let response = NextResponse.next({ request });
   if (!url || !key) {
-    if (isDemoMode()) return response; // dev/demo — no auth
-    // Production build with no Supabase env: fail closed, never open.
+    // No Supabase env: fail closed, never open.
     return new NextResponse(
       'Server is not configured: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ' +
-        '(or NEXT_PUBLIC_SUPABASE_ANON_KEY) must be set at build time. Set ALLOW_DEMO=1 only for a ' +
-        'deliberate, non-production demo.',
+        '(or NEXT_PUBLIC_SUPABASE_ANON_KEY) must be set at build time.',
       { status: 503 },
     );
   }

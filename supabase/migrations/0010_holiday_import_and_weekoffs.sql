@@ -5,8 +5,7 @@
 --      create duplicate rows.
 --   2. Settings describing which days are scheduled week-offs. Dalnex works the
 --      2nd and 4th Saturday of every month; the 1st/3rd/5th are off, and every
---      Sunday is off. This was previously implicit in the seeded demo data and
---      nowhere in the code.
+--      Sunday is off.
 -- ============================================================================
 
 

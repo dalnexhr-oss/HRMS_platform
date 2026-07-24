@@ -55,7 +55,7 @@ export async function reviewRequest(
   id: string,
   decision: 'approved' | 'rejected',
 ): Promise<ActionResult> {
-  // Staff-only, DB required. requireStaff also covers the demo-mode refusal.
+  // Staff-only, DB required. requireStaff also covers the no-database refusal.
   const gate = await requireStaff(`Marking a request ${decision}`);
   if (!gate.ok) return gate;
 

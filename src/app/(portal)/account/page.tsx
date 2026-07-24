@@ -5,7 +5,7 @@ import { AvatarMenu } from '@/components/shell/AvatarMenu';
 // Personal account settings for staff. (/settings holds the company-wide rules;
 // this is the signed-in user's own account.) Employees get the same card on /me.
 export default async function AccountPage() {
-  const { profile, email, demo } = await getSession();
+  const { profile, email } = await getSession();
 
   return (
     <div className="wrap grid">
@@ -44,13 +44,7 @@ export default async function AccountPage() {
           <h3>Change password</h3>
         </div>
         <div className="bd">
-          {demo ? (
-            <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-              Demo mode — there is no real account to change a password for.
-            </p>
-          ) : (
-            <ChangePasswordForm email={email} />
-          )}
+          <ChangePasswordForm email={email} />
         </div>
       </div>
     </div>

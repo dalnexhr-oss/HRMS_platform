@@ -26,30 +26,9 @@ export function supabaseKey(): string | undefined {
   );
 }
 
-/**
- * True when a URL + key pair is present. This is the ONLY switch that may turn
- * on demo data: when it returns true, real failures must surface as errors and
- * must never be masked with demo fallbacks.
- */
+/** True when a URL + key pair is present. Supabase is required to run the app. */
 export function isSupabaseConfigured(): boolean {
   return Boolean(supabaseUrl() && supabaseKey());
-}
-
-/**
- * True when the app may run in open, unauthenticated "demo mode" — i.e. Supabase
- * is not configured AND this is not a production build (unless the operator has
- * explicitly opted in with ALLOW_DEMO=1).
- *
- * This exists to close a fail-open hole: previously a *production* build made
- * without NEXT_PUBLIC_SUPABASE_* silently served an open, synthetic-admin portal
- * because the only switch was `!isSupabaseConfigured()`. In production, missing
- * env must hard-fail — never fall back to no-auth. Gate every open/demo path on
- * this function, not on `!isSupabaseConfigured()` alone.
- */
-export function isDemoMode(): boolean {
-  if (isSupabaseConfigured()) return false;
-  if (process.env.ALLOW_DEMO === '1') return true;
-  return process.env.NODE_ENV !== 'production';
 }
 
 /**

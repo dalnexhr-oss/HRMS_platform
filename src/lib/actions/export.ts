@@ -100,9 +100,8 @@ function currentPeriodMonth(): string {
  * A blank register-import template for HR/Admin to fill in and upload.
  *
  * Unlike the other exports this reads NO employee data — the workbook is blank —
- * so it is gated on role via getSession() rather than requireStaff(), which lets
- * it work even in demo mode (where getSession returns an admin) and exposes
- * nothing sensitive by design.
+ * so it is gated on role via getSession() rather than requireStaff(), and
+ * exposes nothing sensitive by design.
  */
 export async function exportRegisterImportTemplateXlsx(): Promise<ExportResult> {
   const { profile } = await getSession();

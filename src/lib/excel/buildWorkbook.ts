@@ -323,9 +323,8 @@ export async function registerWorkbook(
 // A blank version of the register above, for HR/Admin to fill in and upload
 // back through the Import tab. It is built by the SAME writeReferenceSheet() the
 // register export uses — the one parseRegister.ts round-trips against — so the
-// template's structure can never drift from what the importer expects. It
-// carries a couple of clearly-marked example blocks (so users see the exact
-// shape of a filled row) and a run of blank blocks ready to complete.
+// template's structure can never drift from what the importer expects. It is a
+// run of empty employee blocks (labelled In/Out/Total rows) ready to complete.
 
 /** Days-of-month [1..N] for a 'YYYY-MM-01'. Local mirror of export.ts's daysOf. */
 function daysOfMonth(periodMonth: string): number[] {
@@ -366,47 +365,18 @@ function blankBlock(i: number): RegisterEmployee {
 
 /**
  * The import template workbook: a "Register" sheet in the exact upload layout
- * (one filled EXAMPLE block + `blankBlocks` empty ones) plus a "How to fill this
- * in" sheet with the column guide and status legend.
- *
- * The example uses Empl. ID 901 (→ code DN901), which almost certainly matches
- * no real employee — so if the file is uploaded WITHOUT being edited, the
- * example is reported as unmatched and skipped in the preview rather than
- * overwriting anyone's month.
+ * (`blankBlocks` empty employee blocks) plus a "How to fill this in" sheet with
+ * the column guide and status legend.
  */
 export async function registerImportTemplateWorkbook(
   periodMonth: string,
-  blankBlocks = 15,
+  blankBlocks = 20,
 ): Promise<Uint8Array> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Dalnex HRMS';
 
   const days = daysOfMonth(periodMonth);
-
-  const example: RegisterEmployee = {
-    id: 'example',
-    code: 'DN901',
-    name: 'EXAMPLE — replace with your data (or delete this block)',
-    branch: '',
-    gender: 'Male',
-    doj: '',
-    // Counts are recomputed from `days` by writeReferenceSheet; these are placeholders.
-    summary: { P: 0, LM: 0, HD: 0, L: 0, WO: 0, working: 22, payable: 24 },
-    workedMinutes: 0,
-    targetMinutes: 0,
-    days: [
-      { day: 1, status: 'P', in: '09:30', out: '18:30', hours: '09:00', isWeekOff: false },
-      { day: 2, status: 'P', in: '09:45', out: '18:40', hours: '08:55', isWeekOff: false },
-      { day: 3, status: 'WO', in: null, out: null, hours: null, isWeekOff: true },
-      { day: 4, status: 'L', in: null, out: null, hours: null, isWeekOff: false },
-      { day: 5, status: 'HD', in: '09:30', out: '13:30', hours: '04:00', isWeekOff: false },
-    ],
-  };
-
-  const employees: RegisterEmployee[] = [
-    example,
-    ...Array.from({ length: blankBlocks }, (_, i) => blankBlock(i)),
-  ];
+  const employees: RegisterEmployee[] = Array.from({ length: blankBlocks }, (_, i) => blankBlock(i));
 
   writeReferenceSheet(wb.addWorksheet('Register'), employees, days, periodMonth);
   writeTemplateGuideSheet(wb.addWorksheet('How to fill this in'), periodMonth);
@@ -437,7 +407,6 @@ function writeTemplateGuideSheet(ws: ExcelJS.Worksheet, periodMonth: string): vo
     ['Blank days', 'Leave the status cell empty for days you are not recording — they are simply skipped.'],
     ['', ''],
     ['If something is wrong', 'The preview lists the affected Empl. ID / row and the reason (unknown status code, unmatched Empl. ID, missing In/Out, …). Fix the sheet and re-upload — nothing is saved until you confirm.'],
-    ['Example block', 'The first block on the Register sheet (Empl. ID 901) is an example. Replace it with real data or delete it before importing — it will not match a real employee.'],
     ['', ''],
     ['Status codes', 'Enter these codes in the status row (row 1 of each block):'],
   ];

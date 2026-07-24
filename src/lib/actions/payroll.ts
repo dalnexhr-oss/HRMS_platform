@@ -5,8 +5,8 @@
 // adjustments that feed net_payable.
 //
 // Every function here talks to the real database or fails loudly. There is no
-// demo short-circuit that returns { ok: true } without writing: when Supabase
-// is not configured the run simply cannot happen, and we say so.
+// short-circuit that returns { ok: true } without writing: when Supabase is not
+// configured the run simply cannot happen, and we say so.
 //
 // Postgres is the authority on what is allowed. fn_compute_run / fn_lock_run /
 // fn_mark_run_paid RAISE on an illegal transition (migration 0005) and those

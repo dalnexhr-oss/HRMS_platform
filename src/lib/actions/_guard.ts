@@ -3,7 +3,7 @@
 //
 // These centralise the three things every mutating action must do, and which
 // the older actions were doing inconsistently (or not at all):
-//   1. Refuse in demo mode — a write with no database is a FAILURE, not a
+//   1. Refuse when Supabase is not configured — a write with no database is a FAILURE, not a
 //      silent {ok:true} over nothing persisted.
 //   2. Gate on a real staff role at the app layer (admin/hr/manager), mirroring
 //      the database's is_staff() so a viewer gets an explained refusal instead of
@@ -44,7 +44,7 @@ export async function requireStaff(action = 'This action'): Promise<StaffGate> {
   if (!isSupabaseConfigured()) {
     return {
       ok: false,
-      error: `${action} needs a database connection. Supabase is not configured, so nothing can be saved (demo data is read-only).`,
+      error: `${action} needs a database connection. Supabase is not configured, so nothing can be saved.`,
     };
   }
   const { profile } = await getSession();
@@ -72,7 +72,7 @@ export async function requireRoles(
   if (!isSupabaseConfigured()) {
     return {
       ok: false,
-      error: `${action} needs a database connection. Supabase is not configured, so nothing can be saved (demo data is read-only).`,
+      error: `${action} needs a database connection. Supabase is not configured, so nothing can be saved.`,
     };
   }
   const { profile } = await getSession();
@@ -88,14 +88,14 @@ export async function requireRoles(
 
 /**
  * A lighter guard for employee-facing writes (raise ticket, acknowledge policy):
- * they don't need a staff role, but a write in demo mode is still a failure, not
+ * they don't need a staff role, but a write with no database is still a failure, not
  * a fake success.
  */
 export function requireDb(action = 'This action'): { ok: true } | { ok: false; error: string } {
   if (!isSupabaseConfigured()) {
     return {
       ok: false,
-      error: `${action} needs a database connection. Supabase is not configured, so nothing can be saved (demo data is read-only).`,
+      error: `${action} needs a database connection. Supabase is not configured, so nothing can be saved.`,
     };
   }
   return { ok: true };

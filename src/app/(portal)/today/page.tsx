@@ -13,7 +13,7 @@ import {
 import type { MarkWatch, RegisterEmployee } from '@/types/domain';
 
 // "Today" is, by definition, never cacheable — a prerendered dashboard would freeze
-// the date at build time (in demo mode no dynamic API is touched, so Next would).
+// the date at build time.
 export const dynamic = 'force-dynamic';
 
 const TZ = 'Asia/Kolkata';
@@ -47,7 +47,7 @@ function monthLabelOf(periodMonth: string): string {
 /**
  * Settle a query into a value-or-real-error. Each card fails on its own instead of
  * taking the page down, and the failure text is the query's actual message — we do
- * NOT fall back to demo data to paper over a broken database.
+ * NOT fall back to stand-in data to paper over a broken database.
  */
 async function load<T>(promise: Promise<T>): Promise<Loaded<T>> {
   try {

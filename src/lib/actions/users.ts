@@ -238,7 +238,7 @@ export async function updateUserRole(
   try {
     const admin = createServiceClient();
 
-    // HR must not be able to demote/hijack an existing admin.
+    // HR must not be able to demote/Aceess an existing admin.
     const allowed = await assertMayActOnTarget(admin, userId, gate.role);
     if (!allowed.ok) return allowed;
 

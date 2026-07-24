@@ -38,8 +38,7 @@ src/
   components/            # shell/, ui/, register/, payroll/, employees/
   lib/
     supabase/            # browser, server & service-role clients + middleware
-    queries.ts           # data access (Supabase, demo fallback)
-    demo-data.ts         # the prototype's DATA, ported for offline rendering
+    queries.ts           # data access (Supabase)
     format.ts constants.ts
     actions/             # Server Actions (mutations)
   types/                 # database.ts (schema types) + domain.ts (UI shapes)
@@ -60,23 +59,17 @@ npm install
 # 1. Database (local Supabase stack via Docker)
 npx supabase start          # boots Postgres + Studio + Auth
 npx supabase db reset       # applies migrations/*.sql then seed.sql
+# NEXT_PUBLIC_SUPABASE_URL
+# NEXT_PUBLIC_SUPABASE_ANON_KEY
+# SUPABASE_SERVICE_ROLE_KEY
 
-# 2. Env — copy the local stack's keys (printed by `supabase start`)
-cp .env.local.example .env.local
-#   NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
-
-# 3. Demo login accounts (admin + employee)
-npm run seed:users          # creates admin@dalnex.test / employee@dalnex.test
-
-# 4. App
+# 3. App
 npm run dev                 # http://localhost:3000  (redirects to /login)
 ```
 
-Without Supabase env vars the app renders in **open demo mode** — auth is skipped
-and `queries.ts` falls back to the ported demo data. **Demo mode is dev-only:** a
-production build (`NODE_ENV=production`) with missing env fails closed (HTTP 503)
-rather than serving an open portal. To run a deliberate non-production demo build,
-set `ALLOW_DEMO=1`.
+Supabase is required to run the app. With missing env vars every request fails
+closed (HTTP 503) rather than serving anything — there is no offline/no-database
+fallback.
 
 ## Auth & roles
 
@@ -89,7 +82,7 @@ and, for employees, an `employee_id` linking to their `employees` record.
 | `employee`                    | `/me`    | Own attendance/pay snapshot + company policies    |
 
 `middleware.ts` refreshes the session and routes each role to its area (employees
-can't reach the portal; staff can't reach `/me`). Demo accounts (both `password123`):
+can't reach the portal; staff can't reach `/me`). Seed accounts (both `password123`):
 
 ```
 admin@dalnex.test      → admin portal
@@ -139,8 +132,7 @@ npm run db:types            # supabase gen types typescript --local > src/types/
 
 ## Notes & assumptions
 
-- Payroll figures in `demo-data.ts` are copied from the prototype so the UI matches
-  exactly; `fn_compute_payslip` recomputes equivalent values from first principles
+- `fn_compute_payslip` recomputes payroll values from first principles
   (rounding may differ by ₹1 on pro-rated lines).
 - Auth is live: `src/middleware.ts` refreshes the session and gates every route by
   role. New self-service logins default to the non-portal `employee` role

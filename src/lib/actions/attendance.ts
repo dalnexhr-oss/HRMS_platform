@@ -10,7 +10,7 @@
 // what and why.
 //
 // House rule, deliberately honoured here: we never return { ok: true } for a
-// write that did not write. Demo mode is NOT a licence to fake a save.
+// write that did not write. A missing database is NOT a licence to fake a save.
 // ============================================================================
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
@@ -134,12 +134,12 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
     workedMinutes = to - from;
   }
 
-  // Demo mode is the ONLY place a fallback is allowed, and a write has no
-  // honest fallback: there is nowhere to put the row. Say so.
+  // A write has no honest fallback: without a database there is nowhere to put
+  // the row. Say so rather than faking a save.
   if (!isSupabaseConfigured()) {
     return {
       ok: false,
-      error: 'Supabase is not configured, so this correction cannot be saved. Demo data is read-only.',
+      error: 'Supabase is not configured, so this correction cannot be saved.',
     };
   }
 

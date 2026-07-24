@@ -2,23 +2,17 @@
 // Data access layer. These run in Server Components.
 //
 // THE ONE RULE — read before editing:
-//   Demo data is served ONLY when Supabase is not configured. When Supabase IS
-//   configured and a query fails, the error is THROWN, not swallowed into demo
-//   data. A broken database must never be indistinguishable from a working one.
+//   When a query fails, the error is THROWN, not swallowed. A broken database
+//   must never be indistinguishable from a working one.
 //
-//   if (!isSupabaseConfigured()) return demoX();       // legit demo mode
 //   const { data, error } = await ...;
 //   if (error) fail('context', error);                 // surface it
 //   return map(data);
 //
 // A legitimately empty result (no payroll run for the month yet) returns an
-// empty array — that is an empty state, not an error, and not a reason to fake.
+// empty array — that is an empty state, not an error.
 // ============================================================================
 import { createClient } from '@/lib/supabase/server';
-import {
-  DATA, ACTIVITY, CELEBRATIONS, PUNCH_LOG, DEMO_POLICIES, DEMO_SETTINGS,
-  DEMO_HOLIDAYS, DEMO_NOTICES, DEMO_TICKETS, DEMO_REQUESTS,
-} from '@/lib/demo-data';
 import { minutesToHHMM, trimTime } from '@/lib/format';
 import { isSupabaseConfigured } from '@/lib/supabase/env';
 import {
@@ -29,7 +23,7 @@ import {
 import type {
   RegisterEmployee, PayslipRow, DayCell, TodayKpis, Celebration, PunchLogRow,
 } from '@/types/domain';
-import type { AttendanceStatus, Policy, LeaveType, RequestType } from '@/types/database';
+import type { Policy, LeaveType, RequestType } from '@/types/database';
 
 // Re-exported: ~8 action files already import isSupabaseConfigured from here.
 // The implementation now lives in @/lib/supabase/env (single source of truth).
@@ -116,11 +110,6 @@ function clockTime(ts: string): string {
   }).format(new Date(ts));
 }
 
-/** The demo activity feed carries <b> markup; ActivityRow.message is plain text. */
-function stripTags(html: string): string {
-  return html.replace(/<[^>]*>/g, '');
-}
-
 const PAYSLIP_FIELDS = `payable_days, earned_gross, shortfall_amount, per_day_rate,
   basic_earned, hra_earned, special_earned, pf_employee, pf_employer, esic_employee,
   esic_employer, professional_tax, net_payable, shortfall_minutes`;
@@ -151,45 +140,9 @@ function mapPayslip(p: any): PayslipRow {
 }
 
 // --------------------------------------------------------------- register ---
-function demoDayCells(e: (typeof DATA.employees)[number]): DayCell[] {
-  const wo = new Set(DATA.week_offs);
-  return e.statuses.map<DayCell>((status, ix) => {
-    const t = e.times[ix];
-    const hasPunch = t && t.in !== '00:00';
-    return {
-      day: ix + 1,
-      status: status as AttendanceStatus,
-      in: hasPunch ? t.in : null,
-      out: hasPunch ? t.out : null,
-      hours: hasPunch ? t.hrs : null,
-      isWeekOff: wo.has(ix + 1),
-    };
-  });
-}
-
-function demoRegister(): RegisterEmployee[] {
-  return DATA.employees.map((e) => ({
-    id: e.code,
-    code: e.code,
-    name: e.name,
-    branch: e.branch,
-    gender: e.gender,
-    doj: e.doj,
-    summary: {
-      P: e.sum.P, LM: e.sum.LM, HD: e.sum.HD, L: e.sum.L, WO: e.sum.WO,
-      working: e.sum.working, payable: e.sum.payable,
-    },
-    workedMinutes: e.worked_min,
-    targetMinutes: e.target_min,
-    days: demoDayCells(e),
-  }));
-}
-
 export async function getRegister(
   periodMonth: string = DEFAULT_PERIOD_MONTH,
 ): Promise<RegisterEmployee[]> {
-  if (!isSupabaseConfigured()) return demoRegister();
-
   const { start, end } = monthRange(periodMonth);
   const supabase = await createClient();
 
@@ -232,7 +185,7 @@ export async function getRegister(
       in: trimTime(d.punch_in),
       out: trimTime(d.punch_out),
       hours: d.worked_minutes ? minutesToHHMM(d.worked_minutes) : null,
-      // Week-offs come from the resolved status, not a hardcoded demo calendar.
+      // Week-offs come from the resolved status, not a hardcoded calendar.
       isWeekOff: d.status === 'WO',
     }));
     const workedMinutes = rows.reduce((a: number, d: any) => a + (d.worked_minutes ?? 0), 0);
@@ -260,36 +213,9 @@ export async function getRegister(
 }
 
 // --------------------------------------------------------------- payroll ---
-function demoPayslips(): PayslipRow[] {
-  return DATA.employees.map((e) => ({
-    id: e.code,
-    code: e.code,
-    name: e.name,
-    branch: e.branch,
-    state: e.branch === 'Vadodara' ? 'Gujarat' : 'Maharashtra',
-    periodMonth: DEFAULT_PERIOD_MONTH,
-    payableDays: e.sum.payable,
-    earnedGross: e.pay.earned,
-    shortfallAmount: e.pay.shortfall,
-    perDayRate: e.pay.perday,
-    basicEarned: e.pay.basic_e,
-    hraEarned: e.pay.hra_e,
-    specialEarned: e.pay.spl_e,
-    pfEmployee: e.pay.pf,
-    pfEmployer: e.pay.pf_er,
-    esicEmployee: e.pay.esic,
-    esicEmployer: e.pay.esic_er,
-    professionalTax: e.pay.pt,
-    netPayable: e.pay.net,
-    shortfallMinutes: e.pay.shortmin,
-  }));
-}
-
 export async function getPayslips(
   periodMonth: string = DEFAULT_PERIOD_MONTH,
 ): Promise<PayslipRow[]> {
-  if (!isSupabaseConfigured()) return demoPayslips();
-
   const { start } = monthRange(periodMonth);
   const supabase = await createClient();
 
@@ -342,26 +268,11 @@ function mapRun(r: any): PayrollRunView {
   };
 }
 
-function demoRuns(): PayrollRunView[] {
-  return [{
-    id: 'demo-run-2026-06',
-    periodMonth: DEFAULT_PERIOD_MONTH,
-    status: 'in_review',
-    workingDays: 26,
-    targetMinutes: 12488,
-    monthClosedAt: null,
-    draftsComputedAt: '2026-07-01T04:00:00Z',
-    lockedAt: null,
-    paidAt: null,
-  }];
-}
-
 const RUN_FIELDS = `id, period_month, status, working_days, target_minutes,
   month_closed_at, drafts_computed_at, locked_at, paid_at`;
 
 /** Every payroll run, newest month first. */
 export async function getPayrollRuns(): Promise<PayrollRunView[]> {
-  if (!isSupabaseConfigured()) return demoRuns();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('payroll_runs')
@@ -374,9 +285,6 @@ export async function getPayrollRuns(): Promise<PayrollRunView[]> {
 /** A single run by month, or null when that month has no run yet. */
 export async function getPayrollRun(periodMonth: string): Promise<PayrollRunView | null> {
   const { start } = monthRange(periodMonth);
-  if (!isSupabaseConfigured()) {
-    return demoRuns().find((r) => r.periodMonth === start) ?? null;
-  }
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('payroll_runs')
@@ -394,16 +302,8 @@ export interface BranchRow {
   state: string;
 }
 
-function demoBranches(): BranchRow[] {
-  return [
-    { id: 'demo-pune', name: 'Pune', state: 'Maharashtra' },
-    { id: 'demo-vadodara', name: 'Vadodara', state: 'Gujarat' },
-  ];
-}
-
 /** All branches, alphabetical. */
 export async function getBranches(): Promise<BranchRow[]> {
-  if (!isSupabaseConfigured()) return demoBranches();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('branches')
@@ -414,25 +314,8 @@ export async function getBranches(): Promise<BranchRow[]> {
 }
 
 // ------------------------------------------------------------ today board ---
-function demoTodayBoard(): TodayKpis {
-  // The prototype's dashboard figures, kept verbatim.
-  return {
-    headcount: 45,
-    present: 42,
-    inOffice: 38,
-    field: 4,
-    absent: 3,
-    byBranch: [
-      { branch: 'Pune', count: 30 },
-      { branch: 'Vadodara', count: 15 },
-    ],
-  };
-}
-
 /** Today's headcount / attendance KPIs, aggregated from v_today_board. */
 export async function getTodayBoard(): Promise<TodayKpis> {
-  if (!isSupabaseConfigured()) return demoTodayBoard();
-
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('v_today_board')
@@ -457,19 +340,8 @@ export async function getTodayBoard(): Promise<TodayKpis> {
 }
 
 // ---------------------------------------------------------- punch log ---
-function demoPunchLog(): PunchLogRow[] {
-  const nul = (v: string) => (v === '—' ? null : v);
-  return PUNCH_LOG.map((r) => ({
-    code: r[0], name: r[1], branch: r[2],
-    in: nul(r[3]), out: nul(r[4]), active: nul(r[5]),
-    status: r[6],
-  }));
-}
-
 /** Today's punch log, earliest punch first. */
 export async function getPunchLogToday(): Promise<PunchLogRow[]> {
-  if (!isSupabaseConfigured()) return demoPunchLog();
-
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('attendance_days')
@@ -512,25 +384,8 @@ export async function getPunchLogToday(): Promise<PunchLogRow[]> {
 }
 
 // ------------------------------------------------------------ celebrations ---
-function demoCelebrations(): Celebration[] {
-  return CELEBRATIONS.map((c, i) => {
-    const [branch, department] = c.meta.split(' · ');
-    const years = Number(c.note.match(/^(\d+)\s+year/)?.[1] ?? 0);
-    return {
-      id: `demo-cel-${i}`,
-      name: c.name,
-      branch,
-      department: department ?? null,
-      kind: c.note === 'birthday' ? 'birthday' : 'anniversary',
-      years,
-    };
-  });
-}
-
 /** Today's birthdays and work anniversaries, from v_celebrations. */
 export async function getCelebrationsToday(): Promise<Celebration[]> {
-  if (!isSupabaseConfigured()) return demoCelebrations();
-
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('v_celebrations')
@@ -554,18 +409,8 @@ export interface ActivityRow {
   message: string;
 }
 
-function demoActivity(limit: number): ActivityRow[] {
-  return ACTIVITY.slice(0, limit).map((a, i) => ({
-    id: `demo-activity-${i}`,
-    when: a.when,
-    message: stripTags(a.html),
-  }));
-}
-
 /** The dashboard activity feed, newest first. */
 export async function getActivityFeed(limit = 20): Promise<ActivityRow[]> {
-  if (!isSupabaseConfigured()) return demoActivity(limit);
-
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('activity_log')
@@ -588,8 +433,6 @@ export async function getMyAttendance(
   employeeId: string,
   periodMonth: string = DEFAULT_PERIOD_MONTH,
 ): Promise<DayCell[]> {
-  if (!isSupabaseConfigured()) return demoDayCells(DATA.employees[0]);
-
   const { start, end } = monthRange(periodMonth);
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -613,8 +456,6 @@ export async function getMyAttendance(
 
 /** One employee's payslips, newest month first. */
 export async function getMyPayslips(employeeId: string): Promise<PayslipRow[]> {
-  if (!isSupabaseConfigured()) return demoPayslips().slice(0, 1);
-
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('payslips')
@@ -636,8 +477,6 @@ export async function getMyPayslips(employeeId: string): Promise<PayslipRow[]> {
 
 /** One employee's leave / duty requests, newest first. */
 export async function getMyRequests(employeeId: string): Promise<RequestView[]> {
-  if (!isSupabaseConfigured()) return DEMO_REQUESTS;
-
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('requests')
@@ -656,8 +495,6 @@ const TICKET_COLS = 'id, subject, body, category, status, created_at, resolution
 const TICKET_COLS_LEGACY = 'id, subject, body, category, status, created_at, employees(code, full_name)';
 
 export async function getMyTickets(employeeId: string): Promise<TicketView[]> {
-  if (!isSupabaseConfigured()) return DEMO_TICKETS;
-
   const supabase = await createClient();
   let res = await supabase
     .from('helpdesk_tickets')
@@ -682,19 +519,8 @@ export interface LeaveBalanceRow {
   balance: number;
 }
 
-function demoLeaveBalances(): LeaveBalanceRow[] {
-  return [
-    { type: 'PL', balance: 12 },
-    { type: 'CL', balance: 6 },
-    { type: 'SL', balance: 6 },
-    { type: 'LWP', balance: 0 },
-  ];
-}
-
 /** An employee's leave balances for the current year. */
 export async function getLeaveBalances(employeeId: string): Promise<LeaveBalanceRow[]> {
-  if (!isSupabaseConfigured()) return demoLeaveBalances();
-
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('leave_balances')
@@ -709,9 +535,6 @@ export async function getLeaveBalances(employeeId: string): Promise<LeaveBalance
 // ------------------------------------------------------- employee code map ---
 /** employees.code -> employees.id, for the Excel importer. */
 export async function getEmployeeCodeMap(): Promise<Record<string, string>> {
-  if (!isSupabaseConfigured()) {
-    return Object.fromEntries(DATA.employees.map((e) => [e.code, e.code]));
-  }
   const supabase = await createClient();
   const { data, error } = await supabase.from('employees').select('id, code');
   if (error) fail('getEmployeeCodeMap: could not load employees', error);
@@ -725,18 +548,9 @@ export interface EmployeeListRow {
   active: boolean;
 }
 
-function demoEmployees(): EmployeeListRow[] {
-  return DATA.employees.map((e) => ({
-    code: e.code, name: e.name, branch: e.branch, gender: e.gender,
-    doj: e.doj, gross: e.gross, uan: e.uan, esic_no: e.esic_no, active: true,
-  }));
-}
-
 /** Employee roster. Active-only by default; pass includeInactive to also return
  *  deactivated employees (so the UI can offer a "reactivate"). */
 export async function getEmployees(includeInactive = false): Promise<EmployeeListRow[]> {
-  if (!isSupabaseConfigured()) return demoEmployees();
-
   const supabase = await createClient();
   let query = supabase
     .from('employees')
@@ -767,8 +581,6 @@ export interface NotificationRow {
  * `recipient_id = auth.uid()`, so no caller-supplied id is needed or accepted.
  */
 export async function getMyNotifications(limit = 20): Promise<NotificationRow[]> {
-  if (!isSupabaseConfigured()) return [];
-
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('notifications')
@@ -795,8 +607,6 @@ export async function getMyNotifications(limit = 20): Promise<NotificationRow[]>
 
 /** Unread count for the topbar badge. */
 export async function getUnreadNotificationCount(): Promise<number> {
-  if (!isSupabaseConfigured()) return 0;
-
   const supabase = await createClient();
   const { count, error } = await supabase
     .from('notifications')
@@ -817,8 +627,6 @@ export async function getUnreadNotificationCount(): Promise<number> {
  * its week-off columns over a missing row.
  */
 export async function getWeekOffPolicy(): Promise<WeekOffPolicy> {
-  if (!isSupabaseConfigured()) return DEFAULT_WEEK_OFF_POLICY;
-
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('settings')
@@ -839,9 +647,6 @@ export interface EmployeeOption {
 
 /** Active employees as {id, code, name} — for "link this login to an employee". */
 export async function getEmployeeOptions(): Promise<EmployeeOption[]> {
-  if (!isSupabaseConfigured()) {
-    return DATA.employees.map((e) => ({ id: e.code, code: e.code, name: e.name }));
-  }
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('employees')
@@ -902,8 +707,6 @@ function mapReimbursement(r: any): ReimbursementView {
 
 /** Every claim, newest first — the staff review queue. */
 export async function getReimbursements(): Promise<ReimbursementView[]> {
-  if (!isSupabaseConfigured()) return [];
-
   const supabase = await createClient();
   let res = await supabase
     .from('reimbursement_claims')
@@ -928,8 +731,6 @@ export async function getReimbursements(): Promise<ReimbursementView[]> {
 
 /** One employee's own claims, newest first. */
 export async function getMyReimbursements(employeeId: string): Promise<ReimbursementView[]> {
-  if (!isSupabaseConfigured()) return [];
-
   const supabase = await createClient();
   let res = await supabase
     .from('reimbursement_claims')
@@ -956,7 +757,6 @@ export async function getMyReimbursements(employeeId: string): Promise<Reimburse
 /** The ₹/km rate used to auto-calculate travel claims (settings-driven). */
 export async function getReimbursementRate(): Promise<number> {
   const FALLBACK = 3.5;
-  if (!isSupabaseConfigured()) return FALLBACK;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('settings')
@@ -985,8 +785,6 @@ export interface CompOffRow {
 export async function getCompOffsForMonth(
   periodMonth: string = DEFAULT_PERIOD_MONTH,
 ): Promise<CompOffRow[]> {
-  if (!isSupabaseConfigured()) return [];
-
   const { start, end } = monthRange(periodMonth);
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -1012,8 +810,6 @@ export async function getCompOffsForMonth(
 
 /** One employee's comp-off credits, newest earned first. */
 export async function getMyCompOffs(employeeId: string): Promise<CompOffRow[]> {
-  if (!isSupabaseConfigured()) return [];
-
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('comp_offs')
@@ -1066,25 +862,6 @@ export interface EmployeeEditRow {
 }
 
 export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow | null> {
-  if (!isSupabaseConfigured()) {
-    const e = DATA.employees.find((x) => x.code === code);
-    if (!e) return null;
-    // Demo rows carry no salary split — synthesise the usual 50/30/20 structure.
-    const gross = e.gross;
-    const basic = Math.round(gross * 0.5);
-    const hra = Math.round(gross * 0.3);
-    return {
-      code: e.code, full_name: e.name, branch: e.branch, gender: e.gender,
-      date_of_joining: e.doj, date_of_birth: null, whatsapp: null,
-      mobile_official: null, mobile_personal: null,
-      email_official: null, email_personal: null, aadhaar: null,
-      pan: null, pf_uan: e.uan, esic_number: e.esic_no,
-      bank_name: null, bank_account_number: null, bank_ifsc: null,
-      emergency_contact_name: null, emergency_contact_relation: null, emergency_contact_phone: null,
-      gross_monthly: gross, basic_da: basic, hra, special_allowance: gross - basic - hra,
-    };
-  }
-
   const supabase = await createClient();
   // Migration 0019 (contact columns) may not be applied — retry without them.
   const FULL_COLS =
@@ -1151,16 +928,6 @@ export async function getEmployeeOverview(
   fallbackName?: string | null,
   periodMonth: string = DEFAULT_PERIOD_MONTH,
 ): Promise<EmployeeOverview> {
-  const demo = (): EmployeeOverview => {
-    const e = DATA.employees.find((x) => x.name === fallbackName) ?? DATA.employees[0];
-    return {
-      name: e.name, code: e.code, branch: e.branch,
-      present: e.sum.P, halfDays: e.sum.HD, leaves: e.sum.L,
-      workedHours: e.worked, netPay: e.pay.net,
-    };
-  };
-  if (!isSupabaseConfigured()) return demo();
-
   // No linked employee record is a real state (e.g. a staff login), not an error.
   if (!employeeId) {
     return {
@@ -1222,17 +989,8 @@ export interface PolicyView {
   acknowledged: boolean;
 }
 
-function demoPolicies(): PolicyView[] {
-  return DEMO_POLICIES.map((p) => ({
-    id: p.id, title: p.title, category: p.category, version: p.version,
-    effective_date: p.effective_date, body: p.body, published: true, acknowledged: false,
-  }));
-}
-
 /** Published policies for an employee, flagged with whether they've acknowledged. */
 export async function getEmployeePolicies(employeeId: string | null): Promise<PolicyView[]> {
-  if (!isSupabaseConfigured()) return demoPolicies();
-
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('policies')
@@ -1255,13 +1013,6 @@ export async function getEmployeePolicies(employeeId: string | null): Promise<Po
 
 /** All policies for the admin management screen. */
 export async function getAllPolicies(): Promise<Policy[]> {
-  if (!isSupabaseConfigured()) {
-    return demoPolicies().map((p) => ({
-      id: p.id, title: p.title, category: p.category, body: p.body, version: p.version,
-      effective_date: p.effective_date, branch_id: null, published: p.published,
-      created_by: null, created_at: '', updated_at: '',
-    }));
-  }
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('policies')
@@ -1281,8 +1032,6 @@ export interface HolidayView {
 
 /** Company holidays, sorted ascending by date. */
 export async function getHolidays(): Promise<HolidayView[]> {
-  if (!isSupabaseConfigured()) return DEMO_HOLIDAYS;
-
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('holidays')
@@ -1311,8 +1060,6 @@ export interface NoticeView {
 
 /** Notices, newest first. */
 export async function getNotices(): Promise<NoticeView[]> {
-  if (!isSupabaseConfigured()) return DEMO_NOTICES;
-
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('notices')
@@ -1333,7 +1080,7 @@ export async function getNotices(): Promise<NoticeView[]> {
 
 /** The ids of notices this employee has marked read (for the dashboard). */
 export async function getReadNoticeIds(employeeId: string | null): Promise<string[]> {
-  if (!employeeId || !isSupabaseConfigured()) return [];
+  if (!employeeId) return [];
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('notice_reads')
@@ -1356,7 +1103,6 @@ export async function getReadNoticeIds(employeeId: string | null): Promise<strin
  * swallowed so a cleanup hiccup never breaks the page.
  */
 export async function purgeExpiredNotices(): Promise<void> {
-  if (!isSupabaseConfigured()) return;
   const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   try {
     const supabase = await createClient();
@@ -1398,8 +1144,6 @@ function mapTicket(t: any): TicketView {
 
 /** Helpdesk tickets, open first then newest. */
 export async function getTickets(): Promise<TicketView[]> {
-  if (!isSupabaseConfigured()) return DEMO_TICKETS;
-
   const supabase = await createClient();
   let res = await supabase
     .from('helpdesk_tickets')
@@ -1449,7 +1193,7 @@ function mapComment(c: any): TicketComment {
 export async function getTicketComments(
   ticketIds: string[],
 ): Promise<Record<string, TicketComment[]>> {
-  if (!isSupabaseConfigured() || ticketIds.length === 0) return {};
+  if (ticketIds.length === 0) return {};
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -1482,8 +1226,6 @@ export interface SettingView {
 
 /** App settings. */
 export async function getSettings(): Promise<SettingView[]> {
-  if (!isSupabaseConfigured()) return DEMO_SETTINGS;
-
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('settings')
@@ -1533,8 +1275,6 @@ function mapRequest(r: any): RequestView {
 
 /** Leave / duty requests, pending first then reviewed. */
 export async function getRequests(): Promise<RequestView[]> {
-  if (!isSupabaseConfigured()) return DEMO_REQUESTS;
-
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('requests')

@@ -354,9 +354,6 @@ tbody tr:hover{background:var(--card-2)}
 .login-form input{width:100%;padding:10px 12px;border:1px solid var(--line-2);border-radius:8px;font:inherit;background:#fff;color:var(--ink)}
 .login-form input:focus{border-color:var(--brand);outline:none}
 .login-error{margin:0 0 14px;padding:9px 12px;border-radius:8px;font-size:12.5px;border:1px solid var(--ab-line);background:var(--ab-bg);color:var(--ab)}
-.login-demo{margin-top:18px;padding-top:14px;border-top:1px dashed var(--line);text-align:center;color:var(--ink-3);font-size:11.5px}
-.login-demo .folio{display:block;font:600 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;margin-bottom:8px}
-.login-demo .mono{font-size:11.5px;color:var(--ink-2)}
 
 /* ============ employee dashboard ============ */
 .me-hero{display:flex;align-items:center;gap:16px;margin-bottom:4px}

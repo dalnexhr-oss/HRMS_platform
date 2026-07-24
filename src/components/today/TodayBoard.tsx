@@ -8,7 +8,7 @@ import type { Celebration, MarkWatch, PunchLogRow, TodayKpis } from '@/types/dom
 /**
  * Every section loads independently, so one broken query does not blank the whole
  * dashboard. A failure carries the REAL error message to the screen — we never swap
- * in demo data to hide it.
+ * in stand-in data to hide it.
  *
  * `ok` is a literal discriminant on purpose: `error: string | null` would not narrow
  * `.data` for TypeScript, and it mirrors the { ok, error } shape server actions use.

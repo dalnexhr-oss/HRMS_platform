@@ -23,9 +23,6 @@ export default async function LoginPage({
         </div>
 
         <LoginForm initialError={initialError} />
-
-        <div className="login-demo">
-        </div>
       </div>
     </div>
   );
