@@ -82,7 +82,7 @@ export function ExportButton({ rows, date, disabledReason = null }: ExportButton
     <>
       <button
         type="button"
-        className="btn quiet"
+        className="btn"
         onClick={onExport}
         disabled={disabled}
         title={reason ?? `Download ${rows.length} rows as CSV`}

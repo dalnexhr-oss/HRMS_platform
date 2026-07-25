@@ -5,6 +5,7 @@ import type { ChangeEvent } from 'react';
 import { inr } from '@/lib/format';
 import { computeRun, lockRun, markRunPaid, openRun, saveAdjustments } from '@/lib/actions/payroll';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import { printPayslip } from '@/lib/payslip-print';
 import type { PayslipRow } from '@/types/domain';
 import type { PayrollRunView } from '@/lib/queries';
@@ -395,8 +396,11 @@ function AdjForm({
     (e: ChangeEvent<HTMLInputElement>) =>
       setForm((f) => ({ ...f, [k]: e.target.value }));
 
+  const { toast, toastNode } = useToast();
+
   return (
     <form action={action}>
+      {toastNode}
       <h4>
         Manual adjustments
         {frozen ? ` — frozen (run ${runStatus ?? 'unavailable'})` : ''}
@@ -460,7 +464,7 @@ function AdjForm({
           type="button"
           onClick={() => {
             if (!printPayslip(p)) {
-              alert('Your browser blocked the payslip window. Allow pop-ups for this site and try again.');
+              toast('Your browser blocked the payslip window. Allow pop-ups for this site and try again.', 'error');
             }
           }}
           title="Open a printable payslip (Save as PDF from the print dialog)"

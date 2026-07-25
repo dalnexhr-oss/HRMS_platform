@@ -70,21 +70,105 @@ export const NAV_ROLE_GATED: Record<string, readonly string[]> = {
   items: ['admin', 'hr'],
 };
 
-// Page titles + subtitles keyed by slug (ported from TITLES).
+// Page titles + FALLBACK subtitles keyed by slug. These are deliberately plain
+// descriptions: anything carrying a live figure (today's date, the current
+// period, head-counts, pending queues) is filled in by pageHeader() from real
+// data, so a stale number is never invented here. The prototype's hardcoded
+// "Wednesday, 8 July 2026", "45 active" and "2 pending" used to live in this map.
 export const TITLES: Record<string, [string, string]> = {
-  today: ['Today', 'Wednesday, 8 July 2026 · IST'],
-  register: ['Monthly register', 'June 2026 · closed'],
-  payroll: ['Payroll', 'June 2026 · in review — locks Fri 10 Jul'],
+  today: ['Today', 'Live attendance · IST'],
+  register: ['Monthly register', 'Attendance by month'],
+  payroll: ['Payroll', 'Salary runs & payslips'],
   reimbursements: ['Reimbursements', 'Expense claims · approve & pay'],
-  employees: ['Employees', '45 active · Pune & Vadodara'],
+  employees: ['Employees', 'Staff directory'],
   assets: ['Asset Management', 'Company IT assets'],
   items: ['Item Management', 'Inventory & assignments'],
   policies: ['Company policies', 'Published to employee dashboards'],
-  approvals: ['Approvals', '2 pending'],
-  holidays: ['Holidays', '2026 calendar'],
+  approvals: ['Approvals', 'Leave & duty requests'],
+  holidays: ['Holidays', 'Holiday calendar'],
   notices: ['Notices', 'Policy bulletin'],
   helpdesk: ['Helpdesk', 'Employee tickets'],
   settings: ['Settings', 'Rules & thresholds'],
   users: ['Users', 'Login accounts & roles'],
   account: ['My account', 'Your profile & password'],
 };
+
+/**
+ * Live figures behind the topbar subtitles, resolved by the portal layout (see
+ * getTopbarStats). Date labels are pre-formatted on the SERVER so the client
+ * cannot hydrate a different day.
+ *
+ * The interface lives here rather than in queries.ts so the client-side Topbar
+ * can import it without dragging a server-only module into the browser bundle.
+ */
+export interface TopbarStats {
+  /** e.g. 'Saturday, 25 July 2026' — today in the business timezone. */
+  todayLabel: string;
+  /** e.g. 'July 2026' — the current payroll period. */
+  periodLabel: string;
+  /** Current year in the business timezone. */
+  year: number;
+  /** Active head-count, or null when the lookup failed. */
+  activeEmployees: number | null;
+  /** Branch names, for the '· Pune & Vadodara' tail. */
+  branches: string[];
+  /** Requests awaiting a decision, or null when the lookup failed. */
+  pendingApprovals: number | null;
+  /** payroll_runs.status for the current period; null when there is no run. */
+  runStatus: string | null;
+  /** Configured auto punch-out time, already formatted ('11:00 PM'). */
+  nightSweep: string | null;
+}
+
+const RUN_STATUS_LABEL: Record<string, string> = {
+  draft: 'draft',
+  in_review: 'in review',
+  locked: 'locked',
+  paid: 'paid',
+};
+
+/**
+ * Title + subtitle for a page. Falls back to the static TITLES row whenever the
+ * figure behind a subtitle is unavailable, so a failed count degrades to a plain
+ * description rather than to a wrong number.
+ */
+export function pageHeader(slug: string, stats?: TopbarStats | null): [string, string] {
+  const [title, fallback] = TITLES[slug] ?? ['', ''];
+  if (!stats) return [title, fallback];
+
+  switch (slug) {
+    case 'today':
+      return [title, `${stats.todayLabel} · IST`];
+
+    case 'register': {
+      // A register reads as "closed" once its payroll can no longer be recomputed.
+      const closed = stats.runStatus === 'locked' || stats.runStatus === 'paid';
+      return [title, `${stats.periodLabel} · ${closed ? 'closed' : 'open'}`];
+    }
+
+    case 'payroll': {
+      const status = stats.runStatus ? RUN_STATUS_LABEL[stats.runStatus] ?? stats.runStatus : null;
+      return [title, `${stats.periodLabel} · ${status ?? 'no run yet'}`];
+    }
+
+    case 'employees': {
+      if (stats.activeEmployees == null) return [title, fallback];
+      const where = stats.branches.length ? ` · ${stats.branches.join(' & ')}` : '';
+      return [title, `${stats.activeEmployees} active${where}`];
+    }
+
+    case 'approvals': {
+      if (stats.pendingApprovals == null) return [title, fallback];
+      return [
+        title,
+        stats.pendingApprovals === 0 ? 'Nothing pending' : `${stats.pendingApprovals} pending`,
+      ];
+    }
+
+    case 'holidays':
+      return [title, `${stats.year} calendar`];
+
+    default:
+      return [title, fallback];
+  }
+}

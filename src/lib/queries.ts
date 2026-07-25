@@ -20,6 +20,7 @@ import {
   policyFromSettings,
   type WeekOffPolicy,
 } from '@/lib/week-off';
+import type { TopbarStats } from '@/lib/constants';
 import type {
   RegisterEmployee, PayslipRow, DayCell, TodayKpis, Celebration, PunchLogRow,
 } from '@/types/domain';
@@ -1344,6 +1345,83 @@ export interface SettingView {
 }
 
 /** App settings. */
+// ------------------------------------------------------------- topbar ---
+/** '23:00' (or a JSON-quoted "23:00") -> '11:00 PM'. Null when unparseable. */
+function prettyClock(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const m = /^"?(\d{1,2}):(\d{2})/.exec(value);
+  if (!m) return null;
+  const h = Number(m[1]);
+  if (!Number.isFinite(h) || h > 23) return null;
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${m[2]} ${suffix}`;
+}
+
+/**
+ * Live figures for the topbar's page subtitles (see pageHeader in constants).
+ *
+ * DELIBERATE EXCEPTION to the throw-on-error rule at the top of this file, for
+ * the same reason as getWeekOffPolicy/getReimbursementRate: a subtitle is
+ * decoration. This runs in the (portal) layout, so throwing here would take down
+ * EVERY staff page over a cosmetic count. Each lookup degrades to null and
+ * pageHeader() then falls back to a plain description instead of a wrong number.
+ *
+ * Cost: five count/single-row lookups issued in parallel (~one round trip), paid
+ * once per full page load — layouts are preserved across client-side navigation
+ * and re-run on router.refresh(), which the mutating screens already call.
+ */
+export async function getTopbarStats(): Promise<TopbarStats> {
+  const now = new Date();
+  const IST = 'Asia/Kolkata';
+  const fmt = (opts: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat('en-GB', { timeZone: IST, ...opts }).format(now);
+
+  const base: TopbarStats = {
+    todayLabel: fmt({ weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+    periodLabel: fmt({ month: 'long', year: 'numeric' }),
+    year: Number(todayISO().slice(0, 4)),
+    activeEmployees: null,
+    branches: [],
+    pendingApprovals: null,
+    runStatus: null,
+    nightSweep: null,
+  };
+
+  if (!isSupabaseConfigured()) return base;
+
+  try {
+    const supabase = await createClient();
+    const periodMonth = `${todayISO().slice(0, 7)}-01`;
+    const [employees, branches, approvals, run, sweep] = await Promise.all([
+      supabase.from('employees').select('code', { count: 'exact', head: true }).eq('status', 'active'),
+      supabase.from('branches').select('name').order('name'),
+      supabase.from('requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase
+        .from('payroll_runs')
+        .select('status')
+        .eq('period_month', periodMonth)
+        .maybeSingle<{ status: string }>(),
+      supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'night_sweep_time')
+        .maybeSingle<{ value: unknown }>(),
+    ]);
+
+    return {
+      ...base,
+      activeEmployees: employees.error ? null : employees.count ?? null,
+      branches: branches.error ? [] : (branches.data ?? []).map((b: any) => b.name as string),
+      pendingApprovals: approvals.error ? null : approvals.count ?? null,
+      runStatus: run.error ? null : run.data?.status ?? null,
+      nightSweep: sweep.error ? null : prettyClock(sweep.data?.value),
+    };
+  } catch {
+    return base;
+  }
+}
+
 export async function getSettings(): Promise<SettingView[]> {
   const supabase = await createClient();
   const { data, error } = await supabase

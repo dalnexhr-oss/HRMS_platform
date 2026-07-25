@@ -87,7 +87,7 @@ export function TicketThread({
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
         <button
           type="button"
-          className="btn quiet"
+          className="btn primary"
           disabled={pending || !body.trim()}
           onClick={submit}
         >

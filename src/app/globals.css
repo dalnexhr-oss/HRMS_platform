@@ -146,7 +146,7 @@ a{color:inherit;text-decoration:none}
 .btn:hover{border-color:var(--brand);color:var(--brand)}
 .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
 .btn.primary:hover{background:var(--brand-deep);color:#fff}
-.btn.quiet{border-color:transparent;color:var(--ink-2)}
+.btn.quiet{border-color:var(--line);color:var(--ink-2)}
 .pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:99px;font:600 11px var(--mono);border:1px solid}
 .dot{width:6px;height:6px;border-radius:50%}
 .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
@@ -283,6 +283,13 @@ tbody tr:hover{background:var(--card-2)}
 .modal-card .m-ft{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
 .btn.danger{background:var(--ab);border-color:var(--ab);color:#fff}
 .btn.danger:hover{background:var(--ab);border-color:var(--ab);color:#fff;filter:brightness(.93)}
+
+/* Toast notifications (styled replacement for alert()). */
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:70;display:flex;flex-direction:column;gap:10px;max-width:min(360px,92vw)}
+.toast{padding:11px 14px;border-radius:10px;font-size:13px;line-height:1.45;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);box-shadow:0 10px 28px rgba(13,74,92,.18);animation:toast-in .18s ease}
+.toast.error{border-color:var(--ab-line);background:var(--ab-bg);color:var(--ab)}
+.toast.success{border-color:var(--p-line);background:var(--p-bg);color:var(--p)}
+@keyframes toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .fold{border-top:1px dashed var(--line);margin:18px 0 14px;padding-top:14px;font:600 11px var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3)}
 
 /* ============ approvals / placeholders ============ */

@@ -113,7 +113,7 @@ export function ImportScreen({
               <XlsxExportButton
                 action={exportRegisterImportTemplateXlsx}
                 label="Download template"
-                className="btn quiet"
+                className="btn"
               />
             )}
           </div>

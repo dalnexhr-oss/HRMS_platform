@@ -188,7 +188,7 @@ function TicketRow({ ticket, comments }: { ticket: TicketView; comments: TicketC
           />
           <button
             type="button"
-            className="btn quiet"
+            className="btn primary"
             disabled={pending || !note.trim()}
             onClick={() => apply(status, note)}
             style={{ alignSelf: 'flex-start' }}

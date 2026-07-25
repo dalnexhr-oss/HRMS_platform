@@ -3,6 +3,7 @@
 import { Fragment, useState } from 'react';
 import { inr } from '@/lib/format';
 import { printPayslip } from '@/lib/payslip-print';
+import { useToast } from '@/components/ui/Toast';
 import type { PayslipRow } from '@/types/domain';
 
 /** Everything withheld from the earned gross to reach net payable. */
@@ -18,11 +19,11 @@ function monthLabel(periodMonth: string | null): string | null {
   return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
 
-function downloadPayslip(p: PayslipRow) {
-  if (!printPayslip(p)) {
-    alert('Your browser blocked the payslip window. Allow pop-ups for this site and try again.');
-  }
+function downloadPayslip(p: PayslipRow, onBlocked: () => void) {
+  if (!printPayslip(p)) onBlocked();
 }
+
+const POPUP_BLOCKED = 'Your browser blocked the payslip window. Allow pop-ups for this site and try again.';
 
 /**
  * The employee's own payslips, newest month first (the order `getMyPayslips`
@@ -99,6 +100,7 @@ export function MyPayslips({ payslips }: { payslips: PayslipRow[] }) {
 }
 
 function PayslipBreakdown({ p }: { p: PayslipRow }) {
+  const { toast, toastNode } = useToast();
   return (
     <tr className="exp">
       <td colSpan={5}>
@@ -140,9 +142,14 @@ function PayslipBreakdown({ p }: { p: PayslipRow }) {
               <span>Paid by the company on top of your gross — not deducted from your pay.</span>
             </div>
             <div style={{ marginTop: 12 }}>
-              <button className="btn primary" type="button" onClick={() => downloadPayslip(p)}>
+              <button
+                className="btn primary"
+                type="button"
+                onClick={() => downloadPayslip(p, () => toast(POPUP_BLOCKED, 'error'))}
+              >
                 Download payslip (PDF)
               </button>
+              {toastNode}
             </div>
           </div>
         </div>

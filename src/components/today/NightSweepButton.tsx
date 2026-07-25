@@ -34,7 +34,7 @@ export function NightSweepButton({ date }: { date: string }) {
     <>
       <button
         type="button"
-        className="btn quiet"
+        className="btn"
         onClick={onClick}
         disabled={pending}
         title="Close today's open sessions at the configured auto punch-out time"

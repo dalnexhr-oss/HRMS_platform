@@ -19,7 +19,7 @@ function base64ToBlob(base64: string, mime: string): Blob {
 export function XlsxExportButton({
   action,
   label = 'Export .xlsx',
-  className = 'btn quiet',
+  className = 'btn',
 }: {
   action: () => Promise<ExportResult>;
   label?: string;
