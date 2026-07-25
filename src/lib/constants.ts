@@ -51,6 +51,7 @@ export const NAV: NavItem[] = [
   { slug: 'reimbursements', label: 'Reimbursements', group: 'Pay' },
   { slug: 'employees', label: 'Employees', group: 'People' },
   { slug: 'assets', label: 'Asset Management', group: 'People' },
+  { slug: 'items', label: 'Item Management', group: 'People' },
   { slug: 'policies', label: 'Company policies', group: 'People' },
   { slug: 'holidays', label: 'Holidays', group: 'More' },
   { slug: 'notices', label: 'Notices', group: 'More' },
@@ -66,6 +67,7 @@ export const NAV: NavItem[] = [
 export const NAV_ROLE_GATED: Record<string, readonly string[]> = {
   users: ['admin', 'hr'],
   assets: ['admin', 'hr'],
+  items: ['admin', 'hr'],
 };
 
 // Page titles + subtitles keyed by slug (ported from TITLES).
@@ -76,6 +78,7 @@ export const TITLES: Record<string, [string, string]> = {
   reimbursements: ['Reimbursements', 'Expense claims · approve & pay'],
   employees: ['Employees', '45 active · Pune & Vadodara'],
   assets: ['Asset Management', 'Company IT assets'],
+  items: ['Item Management', 'Inventory & assignments'],
   policies: ['Company policies', 'Published to employee dashboards'],
   approvals: ['Approvals', '2 pending'],
   holidays: ['Holidays', '2026 calendar'],
