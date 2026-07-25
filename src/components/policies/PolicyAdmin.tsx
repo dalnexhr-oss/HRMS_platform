@@ -2,6 +2,7 @@
 
 import { useActionState, useState, useTransition } from 'react';
 import { createPolicy, updatePolicy, deletePolicy, setPolicyPublished } from '@/lib/actions/policies';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { formatDate } from '@/lib/format';
 import type { Policy } from '@/types/database';
 
@@ -38,6 +39,7 @@ export function PolicyAdmin({ policies }: { policies: Policy[] }) {
 function PolicyItem({ policy, onEdit }: { policy: Policy; onEdit: () => void }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
 
   const toggle = () => {
     setError(null);
@@ -47,8 +49,14 @@ function PolicyItem({ policy, onEdit }: { policy: Policy; onEdit: () => void }) 
     });
   };
 
-  const remove = () => {
-    if (!window.confirm(`Delete “${policy.title}”? This removes it and all read receipts.`)) return;
+  const remove = async () => {
+    const ok = await confirm({
+      title: 'Delete policy',
+      message: `Delete “${policy.title}”? This removes it and all read receipts.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     setError(null);
     startTransition(async () => {
       const res = await deletePolicy(policy.id);
@@ -58,6 +66,7 @@ function PolicyItem({ policy, onEdit }: { policy: Policy; onEdit: () => void }) 
 
   return (
     <div className="policy">
+      {confirmDialog}
       <div className="phd">
         <h4>{policy.title}</h4>
         {policy.category && <span className="cat">{policy.category}</span>}

@@ -4,6 +4,7 @@ import { Fragment, useState, useTransition, useActionState } from 'react';
 import type { ChangeEvent } from 'react';
 import { inr } from '@/lib/format';
 import { computeRun, lockRun, markRunPaid, openRun, saveAdjustments } from '@/lib/actions/payroll';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { printPayslip } from '@/lib/payslip-print';
 import type { PayslipRow } from '@/types/domain';
 import type { PayrollRunView } from '@/lib/queries';
@@ -65,6 +66,7 @@ export function RunActions({
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
 
   // No run for this month yet — offer to start one rather than only disabling
   // every action (a new month previously needed a manual SQL insert).
@@ -99,9 +101,17 @@ export function RunActions({
   // therefore freeze the month into a state where payslips can NEVER be built.
   const nothingToLock = payslipCount === 0;
 
-  const call = (fn: (runId: string) => Promise<ActionResult>, confirmMessage?: string) => {
+  const call = async (fn: (runId: string) => Promise<ActionResult>, confirmMessage?: string) => {
     if (!run) return;
-    if (confirmMessage && !window.confirm(confirmMessage)) return;
+    if (confirmMessage) {
+      const ok = await confirm({
+        title: 'Please confirm',
+        message: confirmMessage,
+        confirmLabel: 'Confirm',
+        danger: true,
+      });
+      if (!ok) return;
+    }
     setError(null);
     startTransition(async () => {
       const res = await fn(run.id);
@@ -113,6 +123,7 @@ export function RunActions({
 
   return (
     <>
+      {confirmDialog}
       <button
         className="btn"
         disabled={!run || frozen || pending}

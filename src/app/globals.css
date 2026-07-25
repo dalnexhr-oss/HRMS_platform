@@ -272,6 +272,17 @@ tbody tr:hover{background:var(--card-2)}
 .f-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .hint{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border-radius:8px;font-size:12px;border:1px solid var(--p-line);background:var(--p-bg);color:var(--p)}
 .drawer .dft{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
+
+/* Centered confirmation modal — themed replacement for window.confirm(). */
+.modal{position:fixed;inset:0;z-index:62;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 24px 60px rgba(13,74,92,.28);width:440px;max-width:92vw;overflow:hidden;animation:modal-in .16s ease}
+@keyframes modal-in{from{opacity:0;transform:translateY(6px) scale(.985)}to{opacity:1;transform:none}}
+.modal-card .m-hd{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--line);font:600 16px var(--display);color:var(--ink)}
+.modal-card .m-ic{display:inline-flex;width:30px;height:30px;flex:none;align-items:center;justify-content:center;border-radius:8px;background:var(--ab-bg);color:var(--ab)}
+.modal-card .m-bd{padding:16px 20px;font-size:13.5px;line-height:1.55;color:var(--ink-2)}
+.modal-card .m-ft{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
+.btn.danger{background:var(--ab);border-color:var(--ab);color:#fff}
+.btn.danger:hover{background:var(--ab);border-color:var(--ab);color:#fff;filter:brightness(.93)}
 .fold{border-top:1px dashed var(--line);margin:18px 0 14px;padding-top:14px;font:600 11px var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3)}
 
 /* ============ approvals / placeholders ============ */

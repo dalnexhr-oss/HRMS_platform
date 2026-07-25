@@ -13,6 +13,7 @@ import {
   updateReimbursement,
   deleteReimbursement,
 } from '@/lib/actions/reimbursements';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import type { ReimbursementView } from '@/lib/queries';
 import type { ReimbursementPurpose } from '@/types/database';
 
@@ -54,9 +55,16 @@ export function MyReimbursements({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const { confirm, confirmDialog } = useConfirm();
 
-  function withdraw(c: ReimbursementView) {
-    if (!window.confirm('Withdraw this claim? This cannot be undone.')) return;
+  async function withdraw(c: ReimbursementView) {
+    const ok = await confirm({
+      title: 'Withdraw claim',
+      message: 'Withdraw this claim? This cannot be undone.',
+      confirmLabel: 'Withdraw',
+      danger: true,
+    });
+    if (!ok) return;
     setError(null);
     setBusy(c.id);
     startTransition(async () => {
@@ -72,6 +80,7 @@ export function MyReimbursements({
 
   return (
     <div className="two-col">
+      {confirmDialog}
       <div className="card">
         <div className="hd">
           <h3>My reimbursement claims</h3>

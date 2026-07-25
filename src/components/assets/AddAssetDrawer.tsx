@@ -3,7 +3,7 @@
 // Slide-in drawer for adding OR editing an IT asset. Create mode submits to
 // createAsset; when an `asset` is passed it prefills and submits to updateAsset
 // (keyed by the hidden id). Mirrors AddEmployeeDrawer.
-import { useActionState, useEffect } from 'react';
+import { useActionState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createAsset, updateAsset } from '@/lib/actions/assets';
 import type { AssetRow } from '@/lib/queries';
@@ -28,12 +28,16 @@ export function AddAssetDrawer({
     {},
   );
 
+  // Close + refresh once per successful submit — keyed on the `state` object
+  // identity so a reopened drawer isn't snapped shut by a stale state.ok=true.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => {
     if (state.ok) {
-      onClose();
+      onCloseRef.current();
       router.refresh();
     }
-  }, [state.ok, onClose, router]);
+  }, [state, router]);
 
   return (
     <>

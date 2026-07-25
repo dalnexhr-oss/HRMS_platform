@@ -3,7 +3,7 @@
 // Slide-in drawer for adding OR editing an employee. In create mode it submits to
 // createEmployee; when an `employee` is passed it prefills the fields and submits
 // to updateEmployee (keyed by the immutable original code). On success it closes.
-import { useActionState, useEffect } from 'react';
+import { useActionState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createEmployee, updateEmployee } from '@/lib/actions/employees';
 import type { EmployeeEditRow } from '@/lib/queries';
@@ -31,13 +31,17 @@ export function AddEmployeeDrawer({
     {},
   );
 
-  // Close + refresh once the action succeeds.
+  // Close + refresh once per successful submit. Keyed on the `state` object
+  // identity (fresh per dispatch) with onClose read from a ref, so a reopened
+  // drawer isn't snapped shut by a stale state.ok that never resets.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => {
     if (state.ok) {
-      onClose();
+      onCloseRef.current();
       router.refresh();
     }
-  }, [state.ok, onClose, router]);
+  }, [state, router]);
 
   return (
     <>

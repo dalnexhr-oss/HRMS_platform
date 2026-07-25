@@ -3,9 +3,10 @@
 // Assign an item to an employee, and view/return its existing assignments.
 // Opens when `item` is non-null. The assignment log loads on open and after any
 // change; Remaining is recomputed from the active (not-returned) assignments.
-import { useActionState, useEffect, useState, useTransition } from 'react';
+import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { assignItem, returnAssignment, fetchItemAssignments } from '@/lib/actions/items';
+import { assignItem, returnAssignment, deleteAssignment, fetchItemAssignments } from '@/lib/actions/items';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import type { ItemRow, EmployeeOption, ItemAssignmentRow } from '@/lib/queries';
 
 type State = { ok?: boolean; error?: string };
@@ -28,10 +29,15 @@ export function AssignItemDrawer({
   const [rowError, setRowError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const { confirm, confirmDialog } = useConfirm();
+  const latestId = useRef<string | null>(null);
 
   async function reload(itemId: string) {
+    latestId.current = itemId;
     setLoading(true);
     const rows = await fetchItemAssignments(itemId);
+    // Drop the result if a newer load (different item) started meanwhile.
+    if (latestId.current !== itemId) return;
     setLog(rows);
     setLoading(false);
   }
@@ -52,13 +58,15 @@ export function AssignItemDrawer({
   );
 
   // After a successful assign: refresh page data, reload the log, reset the form.
+  // Keyed on the `state` object identity (fresh per dispatch) so it runs once per
+  // assign — including a 2nd consecutive assign where state.ok stays true.
   useEffect(() => {
     if (state.ok && item) {
       router.refresh();
       reload(item.id);
       setFormKey((k) => k + 1);
     }
-  }, [state.ok]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeAssigned = log.filter((a) => !a.returned).reduce((s, a) => s + a.quantity, 0);
   const remaining = item ? item.total_quantity - activeAssigned : 0;
@@ -72,6 +80,29 @@ export function AssignItemDrawer({
       setBusyId(null);
       if (!res.ok) {
         setRowError(res.error ?? 'Could not mark as returned.');
+        return;
+      }
+      router.refresh();
+      reload(item.id);
+    });
+  }
+
+  async function onDeleteAssignment(a: ItemAssignmentRow) {
+    if (!item) return;
+    const ok = await confirm({
+      title: 'Delete assignment',
+      message: `Remove this record${a.person_name ? ` for ${a.person_name}` : ''} (${a.quantity})? If it wasn't returned, the stock is freed.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    setRowError(null);
+    setBusyId(a.id);
+    startTransition(async () => {
+      const res = await deleteAssignment(a.id);
+      setBusyId(null);
+      if (!res.ok) {
+        setRowError(res.error ?? 'Could not delete the assignment.');
         return;
       }
       router.refresh();
@@ -165,15 +196,25 @@ export function AssignItemDrawer({
                           <td>{a.assigned_by ?? '—'}</td>
                           <td>{a.returned ? `Returned ${a.returned_date ?? ''}` : 'Held'}</td>
                           <td>
-                            {!a.returned && item.returnable && (
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              {!a.returned && item.returnable && (
+                                <button
+                                  className="btn quiet"
+                                  onClick={() => onReturn(a)}
+                                  disabled={pending && busyId === a.id}
+                                >
+                                  {pending && busyId === a.id ? '…' : 'Return'}
+                                </button>
+                              )}
                               <button
                                 className="btn quiet"
-                                onClick={() => onReturn(a)}
+                                onClick={() => onDeleteAssignment(a)}
                                 disabled={pending && busyId === a.id}
+                                title="Delete this assignment record"
                               >
-                                {pending && busyId === a.id ? '…' : 'Return'}
+                                Delete
                               </button>
-                            )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -190,6 +231,7 @@ export function AssignItemDrawer({
           </>
         )}
       </aside>
+      {confirmDialog}
     </>
   );
 }

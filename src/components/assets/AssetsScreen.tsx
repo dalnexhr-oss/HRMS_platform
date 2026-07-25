@@ -6,6 +6,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AddAssetDrawer } from './AddAssetDrawer';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { deleteAsset } from '@/lib/actions/assets';
 import type { AssetRow } from '@/lib/queries';
 
@@ -17,6 +18,7 @@ export function AssetsScreen({ assets }: { assets: AssetRow[] }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const { confirm, confirmDialog } = useConfirm();
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -38,8 +40,14 @@ export function AssetsScreen({ assets }: { assets: AssetRow[] }) {
     setDrawer(true);
   }
 
-  function onDelete(a: AssetRow) {
-    if (!window.confirm(`Delete asset “${a.desktop_name}”? This cannot be undone.`)) return;
+  async function onDelete(a: AssetRow) {
+    const ok = await confirm({
+      title: 'Delete asset',
+      message: `Delete “${a.desktop_name}”? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     setError(null);
     setBusyId(a.id);
     startTransition(async () => {
@@ -150,6 +158,7 @@ export function AssetsScreen({ assets }: { assets: AssetRow[] }) {
           setEditing(null);
         }}
       />
+      {confirmDialog}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { inr } from '@/lib/format';
 import { AddEmployeeDrawer } from './AddEmployeeDrawer';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { fetchEmployeeForEdit, deactivateEmployee, reactivateEmployee } from '@/lib/actions/employees';
 import type { EmployeeListRow, EmployeeEditRow } from '@/lib/queries';
 
@@ -22,6 +23,7 @@ export function EmployeesScreen({
   const [busyCode, setBusyCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const { confirm, confirmDialog } = useConfirm();
 
   const activeCount = useMemo(() => rows.filter((e) => e.active).length, [rows]);
   const inactiveCount = rows.length - activeCount;
@@ -59,10 +61,14 @@ export function EmployeesScreen({
     });
   }
 
-  function onDeactivate(code: string, name: string) {
-    if (!window.confirm(`Deactivate ${name} (${code})? They will no longer appear in the active roster, and their login will be disabled.`)) {
-      return;
-    }
+  async function onDeactivate(code: string, name: string) {
+    const ok = await confirm({
+      title: 'Deactivate employee',
+      message: `Deactivate ${name} (${code})? They will no longer appear in the active roster, and their login will be disabled.`,
+      confirmLabel: 'Deactivate',
+      danger: true,
+    });
+    if (!ok) return;
     setError(null);
     setBusyCode(code);
     startTransition(async () => {
@@ -73,8 +79,13 @@ export function EmployeesScreen({
     });
   }
 
-  function onReactivate(code: string, name: string) {
-    if (!window.confirm(`Reactivate ${name} (${code})? They will return to the active roster, and their login will be re-enabled.`)) return;
+  async function onReactivate(code: string, name: string) {
+    const ok = await confirm({
+      title: 'Reactivate employee',
+      message: `Reactivate ${name} (${code})? They will return to the active roster, and their login will be re-enabled.`,
+      confirmLabel: 'Reactivate',
+    });
+    if (!ok) return;
     setError(null);
     setBusyCode(code);
     startTransition(async () => {
@@ -233,6 +244,7 @@ export function EmployeesScreen({
           setEditing(null);
         }}
       />
+      {confirmDialog}
     </div>
   );
 }

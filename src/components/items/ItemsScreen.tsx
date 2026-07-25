@@ -7,6 +7,7 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AddItemDrawer } from './AddItemDrawer';
 import { AssignItemDrawer } from './AssignItemDrawer';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { deleteItem } from '@/lib/actions/items';
 import type { ItemRow, EmployeeOption } from '@/lib/queries';
 
@@ -19,6 +20,7 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const { confirm, confirmDialog } = useConfirm();
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -37,8 +39,14 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
     setEditDrawer(true);
   }
 
-  function onDelete(i: ItemRow) {
-    if (!window.confirm(`Delete item “${i.item_name}” and all its assignments? This cannot be undone.`)) return;
+  async function onDelete(i: ItemRow) {
+    const ok = await confirm({
+      title: 'Delete item',
+      message: `Delete “${i.item_name}” and all its assignments? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     setError(null);
     setBusyId(i.id);
     startTransition(async () => {
@@ -165,6 +173,7 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
         employees={employees}
         onClose={() => setAssignFor(null)}
       />
+      {confirmDialog}
     </div>
   );
 }

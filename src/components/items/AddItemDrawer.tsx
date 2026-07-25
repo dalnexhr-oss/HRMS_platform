@@ -2,7 +2,7 @@
 
 // Add / edit an inventory item. Create submits to createItem; with an `item`
 // passed it prefills and submits to updateItem (keyed by hidden id).
-import { useActionState, useEffect } from 'react';
+import { useActionState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createItem, updateItem } from '@/lib/actions/items';
 import type { ItemRow } from '@/lib/queries';
@@ -28,12 +28,18 @@ export function AddItemDrawer({
     {},
   );
 
+  // Close + refresh once per successful submit. Keyed on the `state` object
+  // identity (useActionState returns a fresh object each dispatch) so it fires
+  // exactly once per submit — not again when the parent re-renders with a new
+  // onClose identity (which would snap a reopened drawer shut).
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => {
     if (state.ok) {
-      onClose();
+      onCloseRef.current();
       router.refresh();
     }
-  }, [state.ok, onClose, router]);
+  }, [state, router]);
 
   return (
     <>
