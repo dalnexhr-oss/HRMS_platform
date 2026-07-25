@@ -927,6 +927,44 @@ export async function getDepartments(): Promise<string[]> {
   return Array.from(new Set(names));
 }
 
+// ---------------------------------------------------------------- assets ---
+/** One row of the IT asset register (migration 0025). Admin/HR only. */
+export interface AssetRow {
+  id: string;
+  desktop_name: string;
+  brand: string | null;
+  serial_no: string | null;
+  model_no: string | null;
+  warranty_upto: string | null;
+  warranty_renew: string | null;
+  product_id: string | null;
+  device_id: string | null;
+  processor: string | null;
+  ram: string | null;
+  graphics_card: string | null;
+  storage: string | null;
+  antivirus: string | null;
+}
+
+const ASSET_COLS =
+  `id, desktop_name, brand, serial_no, model_no, warranty_upto, warranty_renew,
+   product_id, device_id, processor, ram, graphics_card, storage, antivirus`;
+
+export async function getAssets(): Promise<AssetRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('assets')
+    .select(ASSET_COLS)
+    .order('desktop_name');
+  if (error) {
+    // Tolerate the table not existing yet (migration 0025 not applied) so the
+    // tab renders empty instead of crashing.
+    if (error.code === 'PGRST205' || error.code === '42P01') return [];
+    fail('getAssets: could not load assets', error);
+  }
+  return (data ?? []) as unknown as AssetRow[];
+}
+
 // ---------------------------------------------------- employee overview ---
 export interface EmployeeOverview {
   name: string;

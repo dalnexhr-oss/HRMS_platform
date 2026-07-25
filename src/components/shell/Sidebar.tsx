@@ -10,7 +10,7 @@ import { Brand } from '@/components/ui/Brand';
 // The Excel register importer. Declared here rather than in NAV/ICONS so the
 // shared constants stay untouched; it sits with the other "Operate" screens,
 // directly after the register it populates.
-const IMPORT_ITEM: NavItem = { slug: 'import', label: 'Import', group: 'Operate' };
+const IMPORT_ITEM: NavItem = { slug: 'import', label: 'Import', group: 'Operations' };
 
 // User administration — admin/HR only, so it is injected here (and filtered by
 // role below) rather than living in the shared NAV every role renders.
@@ -49,10 +49,20 @@ const ACCOUNT_ICON = (
   </svg>
 );
 
+// Monitor + stand for the Asset Management (IT assets) screen.
+const ASSETS_ICON = (
+  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <rect x="3" y="4" width="18" height="12" rx="1.5" />
+    <path d="M9 20h6" />
+    <path d="M12 16v4" />
+  </svg>
+);
+
 const EXTRA_ICONS: Record<string, React.ReactNode> = {
   reimbursements: REIMBURSE_ICON,
   users: USERS_ICON,
   account: ACCOUNT_ICON,
+  assets: ASSETS_ICON,
 };
 
 /** Icon for a nav slug, falling back per-screen rather than to one shared mark. */
