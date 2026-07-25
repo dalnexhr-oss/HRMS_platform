@@ -7,7 +7,13 @@ import { AddEmployeeDrawer } from './AddEmployeeDrawer';
 import { fetchEmployeeForEdit, deactivateEmployee, reactivateEmployee } from '@/lib/actions/employees';
 import type { EmployeeListRow, EmployeeEditRow } from '@/lib/queries';
 
-export function EmployeesScreen({ rows }: { rows: EmployeeListRow[] }) {
+export function EmployeesScreen({
+  rows,
+  departments,
+}: {
+  rows: EmployeeListRow[];
+  departments: string[];
+}) {
   const router = useRouter();
   const [q, setQ] = useState('');
   const [showInactive, setShowInactive] = useState(false);
@@ -221,6 +227,7 @@ export function EmployeesScreen({ rows }: { rows: EmployeeListRow[] }) {
       <AddEmployeeDrawer
         open={drawer}
         employee={editing}
+        departments={departments}
         onClose={() => {
           setDrawer(false);
           setEditing(null);

@@ -231,6 +231,36 @@ export async function fetchEmployeeForEdit(code: string): Promise<EmployeeEditRo
   return getEmployeeForEdit(code);
 }
 
+type DbClient = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Resolve a department NAME (from the combobox) to its id within the given branch,
+ * creating the department if it doesn't exist yet. Empty name → null (optional field).
+ * Matches case-insensitively first so 'sales'/'Sales' don't spawn duplicates.
+ */
+async function resolveDepartmentId(
+  supabase: DbClient,
+  name: string,
+  branchId: string,
+): Promise<string | null> {
+  const dept = name.trim();
+  if (!dept) return null;
+  const { data: found } = await supabase
+    .from('departments')
+    .select('id')
+    .eq('branch_id', branchId)
+    .ilike('name', dept)
+    .maybeSingle();
+  if (found) return found.id;
+  const { data: created, error } = await supabase
+    .from('departments')
+    .insert({ name: dept, branch_id: branchId })
+    .select('id')
+    .single();
+  if (error) throw error;
+  return created!.id;
+}
+
 export async function createEmployee(formData: FormData) {
   const gate = await requireStaff('Adding an employee');
   if (!gate.ok) return gate;
@@ -266,12 +296,21 @@ export async function createEmployee(formData: FormData) {
     return { ok: false, error: branchError?.message ?? `Unknown branch: ${branchName}` };
   }
 
+  let departmentId: string | null;
+  try {
+    departmentId = await resolveDepartmentId(supabase, String(formData.get('department') ?? ''), branch.id);
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? 'Could not save the department.' };
+  }
+
   const { data, error } = await supabase
     .from('employees')
     .insert({
       code,
       full_name: fullName,
       branch_id: branch.id,
+      department_id: departmentId,
+      designation: (formData.get('designation') as string) || null,
       gender: String(formData.get('gender') ?? 'Male') as 'Male' | 'Female' | 'Other',
       date_of_joining: dateOfJoining,
       date_of_birth: (formData.get('date_of_birth') as string) || null,
@@ -294,13 +333,19 @@ export async function createEmployee(formData: FormData) {
 
   if (error) {
     if (isMissingMigration(error)) {
-    return migrationError();
+      return migrationError();
+    }
+    if (error.code === '23505') {
+      const dup = /aadhaar/i.test(error.message)
+        ? 'That Aadhaar number is already registered to another employee.'
+        : `Employee code “${code}” is already in use. Pick a different code.`;
+      return { ok: false, error: dup };
+    }
+    return {
+      ok: false,
+      error: error.message,
+    };
   }
-  return {
-    ok: false,
-    error: error.message,
-  };
-};
   if (wroteNothing(data)) {
     return { ok: false, error: 'The employee was not added — your account may not have permission.' };
   }
@@ -345,11 +390,20 @@ export async function updateEmployee(formData: FormData) {
     return { ok: false, error: branchError?.message ?? `Unknown branch: ${branchName}` };
   }
 
+  let departmentId: string | null;
+  try {
+    departmentId = await resolveDepartmentId(supabase, String(formData.get('department') ?? ''), branch.id);
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? 'Could not save the department.' };
+  }
+
   const { data, error } = await supabase
     .from('employees')
     .update({
       full_name: fullName,
       branch_id: branch.id,
+      department_id: departmentId,
+      designation: (formData.get('designation') as string) || null,
       gender: String(formData.get('gender') ?? 'Male') as 'Male' | 'Female' | 'Other',
       date_of_joining: dateOfJoining,
       date_of_birth: (formData.get('date_of_birth') as string) || null,
@@ -372,16 +426,20 @@ export async function updateEmployee(formData: FormData) {
     .select('id');
 
   if (error) {
-
-      if (isMissingMigration(error)) {
-          return migrationError();
+    if (isMissingMigration(error)) {
+      return migrationError();
+    }
+    if (error.code === '23505') {
+      const dup = /aadhaar/i.test(error.message)
+        ? 'That Aadhaar number is already registered to another employee.'
+        : 'That value is already in use by another employee.';
+      return { ok: false, error: dup };
     }
     return {
-        ok:false,
-        error:error.message
-    }
-
-};
+      ok: false,
+      error: error.message,
+    };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,

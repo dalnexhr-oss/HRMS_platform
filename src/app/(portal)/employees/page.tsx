@@ -1,7 +1,7 @@
 import { EmployeesScreen } from '@/components/employees/EmployeesScreen';
-import { getEmployees } from '@/lib/queries';
+import { getEmployees, getDepartments } from '@/lib/queries';
 
 export default async function EmployeesPage() {
-  const rows = await getEmployees(true);
-  return <EmployeesScreen rows={rows} />;
+  const [rows, departments] = await Promise.all([getEmployees(true), getDepartments()]);
+  return <EmployeesScreen rows={rows} departments={departments} />;
 }

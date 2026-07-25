@@ -837,6 +837,8 @@ export interface EmployeeEditRow {
   code: string;
   full_name: string;
   branch: string;
+  department: string | null;
+  designation: string | null;
   gender: string;
   date_of_joining: string;
   date_of_birth: string | null;
@@ -865,15 +867,15 @@ export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow 
   const supabase = await createClient();
   // Migration 0019 (contact columns) may not be applied — retry without them.
   const FULL_COLS =
-    `code, full_name, gender, date_of_joining, date_of_birth, whatsapp,
+    `code, full_name, designation, gender, date_of_joining, date_of_birth, whatsapp,
      mobile_official, mobile_personal, email_official, email_personal, aadhaar,
      pan, pf_uan, esic_number,
      bank_name, bank_account_number, bank_ifsc,
      emergency_contact_name, emergency_contact_relation, emergency_contact_phone,
-     gross_monthly, basic_da, hra, special_allowance, branches(name)`;
+     gross_monthly, basic_da, hra, special_allowance, branches(name), departments(name)`;
   const LEGACY_COLS =
-    `code, full_name, gender, date_of_joining, date_of_birth, whatsapp,
-     pan, pf_uan, esic_number, gross_monthly, basic_da, hra, special_allowance, branches(name)`;
+    `code, full_name, designation, gender, date_of_joining, date_of_birth, whatsapp,
+     pan, pf_uan, esic_number, gross_monthly, basic_da, hra, special_allowance, branches(name), departments(name)`;
   let res = await supabase.from('employees').select(FULL_COLS).eq('code', code).maybeSingle();
   if (res.error?.code === '42703') {
     res = await supabase.from('employees').select(LEGACY_COLS).eq('code', code).maybeSingle();
@@ -886,6 +888,8 @@ export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow 
     code: e.code,
     full_name: e.full_name,
     branch: e.branches?.name ?? '',
+    department: e.departments?.name ?? null,
+    designation: e.designation ?? null,
     gender: e.gender,
     date_of_joining: e.date_of_joining,
     date_of_birth: e.date_of_birth,
@@ -909,6 +913,18 @@ export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow 
     hra: Number(e.hra),
     special_allowance: Number(e.special_allowance),
   };
+}
+
+/** Distinct department names — suggestions for the Add/Edit Employee combobox. */
+export async function getDepartments(): Promise<string[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('departments')
+    .select('name')
+    .order('name');
+  if (error) fail('getDepartments: could not load departments', error);
+  const names = (data ?? []).map((d: any) => d.name as string);
+  return Array.from(new Set(names));
 }
 
 // ---------------------------------------------------- employee overview ---

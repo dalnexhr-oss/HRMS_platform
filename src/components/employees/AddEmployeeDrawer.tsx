@@ -14,11 +14,14 @@ export function AddEmployeeDrawer({
   open,
   onClose,
   employee = null,
+  departments = [],
 }: {
   open: boolean;
   onClose: () => void;
   /** When set, the drawer edits this employee instead of creating a new one. */
   employee?: EmployeeEditRow | null;
+  /** Existing department names, shown as combobox suggestions (pick or type new). */
+  departments?: string[];
 }) {
   const router = useRouter();
   const editing = employee !== null;
@@ -57,7 +60,8 @@ export function AddEmployeeDrawer({
               <Field
                 name="code"
                 label="Employee code"
-                defaultValue={employee?.code ?? 'DN046'}
+                placeholder="Enter a unique code"
+                defaultValue={employee?.code ?? undefined}
                 mono
                 readOnly={editing}
               />
@@ -79,7 +83,23 @@ export function AddEmployeeDrawer({
                 options={[
                   { value: 'Male', label: 'Male' },
                   { value: 'Female', label: 'Female' },
+                  { value: 'Other', label: 'Other' },
                 ]}
+              />
+            </div>
+            <div className="f-row">
+              <ComboField
+                name="department"
+                label="Department"
+                placeholder="Pick or type a new one"
+                defaultValue={employee?.department ?? undefined}
+                options={departments}
+              />
+              <Field
+                name="designation"
+                label="Designation"
+                placeholder="e.g. Accountant"
+                defaultValue={employee?.designation ?? undefined}
               />
             </div>
             <div className="f-row">
@@ -184,6 +204,34 @@ function Field({
         type={type}
         readOnly={readOnly}
       />
+    </div>
+  );
+}
+
+/** Text input backed by a <datalist>: pick an existing suggestion or type a new value. */
+function ComboField({
+  name,
+  label,
+  options,
+  placeholder,
+  defaultValue,
+}: {
+  name: string;
+  label: string;
+  options: string[];
+  placeholder?: string;
+  defaultValue?: string;
+}) {
+  const listId = `${name}-list`;
+  return (
+    <div className="f">
+      <label>{label}</label>
+      <input name={name} list={listId} placeholder={placeholder} defaultValue={defaultValue} />
+      <datalist id={listId}>
+        {options.map((o) => (
+          <option key={o} value={o} />
+        ))}
+      </datalist>
     </div>
   );
 }
