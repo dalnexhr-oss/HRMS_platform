@@ -1140,6 +1140,7 @@ export async function getItemAssignments(itemId: string): Promise<ItemAssignment
 export interface AssetRow {
   id: string;
   desktop_name: string;
+  asset_category: string | null;
   brand: string | null;
   serial_no: string | null;
   model_no: string | null;
@@ -1158,11 +1159,16 @@ export interface AssetRow {
   assigned_date: string | null;
 }
 
+// Full (0034: + asset_category). Falls back to no-category (0028 only), then to
+// pre-0028 (no assignment columns), so the tab renders on any applied version.
 const ASSET_COLS =
+  `id, desktop_name, asset_category, brand, serial_no, model_no, warranty_upto, warranty_renew,
+   product_id, device_id, processor, ram, graphics_card, storage, antivirus,
+   assigned_employee_id, assigned_person_name, assigned_employee_code, assigned_date`;
+const ASSET_COLS_NO_CATEGORY =
   `id, desktop_name, brand, serial_no, model_no, warranty_upto, warranty_renew,
    product_id, device_id, processor, ram, graphics_card, storage, antivirus,
    assigned_employee_id, assigned_person_name, assigned_employee_code, assigned_date`;
-// Before migration 0028 the assignment columns don't exist — retry without them.
 const ASSET_COLS_LEGACY =
   `id, desktop_name, brand, serial_no, model_no, warranty_upto, warranty_renew,
    product_id, device_id, processor, ram, graphics_card, storage, antivirus`;
@@ -1171,10 +1177,10 @@ export async function getAssets(): Promise<AssetRow[]> {
   const supabase = await createClient();
   let res = await supabase.from('assets').select(ASSET_COLS).order('desktop_name');
   if (res.error?.code === '42703') {
-    res = (await supabase
-      .from('assets')
-      .select(ASSET_COLS_LEGACY)
-      .order('desktop_name')) as typeof res;
+    res = (await supabase.from('assets').select(ASSET_COLS_NO_CATEGORY).order('desktop_name')) as typeof res;
+  }
+  if (res.error?.code === '42703') {
+    res = (await supabase.from('assets').select(ASSET_COLS_LEGACY).order('desktop_name')) as typeof res;
   }
   if (res.error) {
     // Tolerate the table not existing yet (migration 0025 not applied) so the
@@ -1183,6 +1189,87 @@ export async function getAssets(): Promise<AssetRow[]> {
     fail('getAssets: could not load assets', res.error);
   }
   return (res.data ?? []) as unknown as AssetRow[];
+}
+
+/** Asset stock summary from v_asset_summary (migration 0034). */
+export interface AssetSummaryRow {
+  category: string;
+  total: number;
+  assigned: number;
+  available: number;
+  warranty_expiring: number;
+}
+
+export async function getAssetSummary(): Promise<AssetSummaryRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('v_asset_summary')
+    .select('category, total, assigned, available, warranty_expiring');
+  if (error) {
+    if (error.code === 'PGRST205' || error.code === '42P01') return [];
+    fail('getAssetSummary: could not load the asset summary', error);
+  }
+  return (data ?? []).map((r: any) => ({
+    category: r.category,
+    total: Number(r.total ?? 0),
+    assigned: Number(r.assigned ?? 0),
+    available: Number(r.available ?? 0),
+    warranty_expiring: Number(r.warranty_expiring ?? 0),
+  }));
+}
+
+/** One asset transfer-history row (migration 0034). */
+export interface AssetAssignmentRow {
+  id: string;
+  asset_id: string;
+  person_name: string | null;
+  employee_code: string | null;
+  assigned_date: string;
+  assigned_by: string | null;
+  returned: boolean;
+  returned_date: string | null;
+  remarks: string | null;
+}
+
+export async function getAssetAssignments(assetId: string): Promise<AssetAssignmentRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('asset_assignments')
+    .select('id, asset_id, person_name, employee_code, assigned_date, assigned_by, returned, returned_date, remarks')
+    .eq('asset_id', assetId)
+    .order('assigned_date', { ascending: false });
+  if (error) {
+    if (error.code === 'PGRST205' || error.code === '42P01') return [];
+    fail('getAssetAssignments: could not load history', error);
+  }
+  return (data ?? []) as unknown as AssetAssignmentRow[];
+}
+
+/** One asset maintenance row (migration 0034). */
+export interface AssetMaintenanceRow {
+  id: string;
+  asset_id: string;
+  maint_date: string;
+  maint_type: string | null;
+  cost: number | null;
+  vendor: string | null;
+  notes: string | null;
+  next_due: string | null;
+  created_by: string | null;
+}
+
+export async function getAssetMaintenance(assetId: string): Promise<AssetMaintenanceRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('asset_maintenance')
+    .select('id, asset_id, maint_date, maint_type, cost, vendor, notes, next_due, created_by')
+    .eq('asset_id', assetId)
+    .order('maint_date', { ascending: false });
+  if (error) {
+    if (error.code === 'PGRST205' || error.code === '42P01') return [];
+    fail('getAssetMaintenance: could not load maintenance', error);
+  }
+  return (data ?? []).map((r: any) => ({ ...r, cost: r.cost == null ? null : Number(r.cost) })) as AssetMaintenanceRow[];
 }
 
 // ------------------------------------------------- employee assets / items ---

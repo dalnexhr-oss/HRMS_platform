@@ -10,9 +10,17 @@ import { AssignAssetDrawer } from './AssignAssetDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import { deleteAsset } from '@/lib/actions/assets';
-import type { AssetRow, EmployeeOption } from '@/lib/queries';
+import type { AssetRow, EmployeeOption, AssetSummaryRow } from '@/lib/queries';
 
-export function AssetsScreen({ assets, employees }: { assets: AssetRow[]; employees: EmployeeOption[] }) {
+export function AssetsScreen({
+  assets,
+  employees,
+  summary = [],
+}: {
+  assets: AssetRow[];
+  employees: EmployeeOption[];
+  summary?: AssetSummaryRow[];
+}) {
   const router = useRouter();
   const [q, setQ] = useState('');
   const [drawer, setDrawer] = useState(false);
@@ -89,12 +97,30 @@ export function AssetsScreen({ assets, employees }: { assets: AssetRow[]; employ
 
       {toastNode}
 
+      {summary.length > 0 && (
+        <div className="kpis" style={{ marginBottom: 12 }}>
+          {summary.map((s) => (
+            <div className="card kpi" key={s.category}>
+              <div className="lab">{s.category}</div>
+              <div className="val">{s.total}</div>
+              <div className="note">
+                {s.assigned} assigned · {s.available} free
+                {s.warranty_expiring > 0 && (
+                  <> · <span style={{ color: 'var(--lm)' }}>{s.warranty_expiring} warranty≤30d</span></>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="card">
         <div style={{ overflowX: 'auto' }}>
           <table>
             <thead>
               <tr>
                 <th>Desktop name</th>
+                <th>Category</th>
                 <th>Brand</th>
                 <th>Serial no.</th>
                 <th>Model</th>
@@ -111,6 +137,15 @@ export function AssetsScreen({ assets, employees }: { assets: AssetRow[]; employ
                 <tr key={a.id}>
                   <td>
                     <b>{a.desktop_name}</b>
+                  </td>
+                  <td>
+                    {a.asset_category ? (
+                      <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
+                        {a.asset_category}
+                      </span>
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
                   </td>
                   <td>{a.brand ?? '—'}</td>
                   <td className="mono">{a.serial_no ?? '—'}</td>
@@ -158,7 +193,7 @@ export function AssetsScreen({ assets, employees }: { assets: AssetRow[]; employ
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td className="muted" colSpan={10} style={{ textAlign: 'center' }}>
+                  <td className="muted" colSpan={11} style={{ textAlign: 'center' }}>
                     {q ? `No assets match “${q}”.` : 'No assets yet.'}
                   </td>
                 </tr>

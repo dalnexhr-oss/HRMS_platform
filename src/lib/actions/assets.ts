@@ -4,8 +4,17 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth';
 import { notifyEmployee } from '@/lib/notify';
+import { getAssetAssignments, getAssetMaintenance } from '@/lib/queries';
 import { requireRoles, wroteNothing } from './_guard';
 import type { AppRole } from '@/types/database';
+
+/** Client-callable wrappers for the per-asset drawer (queries.ts is server-only). */
+export async function fetchAssetAssignments(assetId: string) {
+  return getAssetAssignments(assetId);
+}
+export async function fetchAssetMaintenance(assetId: string) {
+  return getAssetMaintenance(assetId);
+}
 
 // Asset Management is admin/HR only — same gate as user administration.
 const ASSET_ADMIN_ROLES: AppRole[] = ['admin', 'hr'];
@@ -18,6 +27,7 @@ function assetFields(formData: FormData) {
   };
   return {
     desktop_name: String(formData.get('desktop_name') ?? '').trim(),
+    asset_category: text('asset_category'),
     brand: text('brand'),
     serial_no: text('serial_no'),
     model_no: text('model_no'),
@@ -96,13 +106,14 @@ export async function assignAsset(formData: FormData) {
 
   const { profile } = await getSession();
 
+  const assignedDate = new Date().toISOString().slice(0, 10);
   const { data, error } = await supabase
     .from('assets')
     .update({
       assigned_employee_id: employeeId,
       assigned_person_name: emp.full_name,
       assigned_employee_code: emp.code,
-      assigned_date: new Date().toISOString().slice(0, 10),
+      assigned_date: assignedDate,
       assigned_by: profile?.full_name ?? null,
     })
     .eq('id', assetId)
@@ -111,6 +122,21 @@ export async function assignAsset(formData: FormData) {
   if (wroteNothing(data)) {
     return { ok: false, error: 'The asset was not assigned — it may no longer exist, or your role lacks permission.' };
   }
+
+  // Record the transfer in the history trail (0034). Best-effort: the snapshot
+  // on the asset row is the source of truth for the CURRENT holder; a failed
+  // history insert must not fail the assignment, so it is logged, not fatal.
+  const remarks = String(formData.get('remarks') ?? '').trim() || null;
+  const { error: histErr } = await supabase.from('asset_assignments').insert({
+    asset_id: assetId,
+    employee_id: employeeId,
+    person_name: emp.full_name,
+    employee_code: emp.code,
+    assigned_date: assignedDate,
+    assigned_by: profile?.full_name ?? null,
+    remarks,
+  });
+  if (histErr) console.warn('[dalnex-hrms] asset history insert failed:', histErr.message);
 
   const row = data![0] as { desktop_name: string; brand: string | null };
   await notifyEmployee(employeeId, {
@@ -159,6 +185,15 @@ export async function unassignAsset(id: string) {
     return { ok: false, error: 'The asset was not unassigned — your role may lack permission.' };
   }
 
+  // Close the open history row for this holder (best-effort).
+  const { error: histErr } = await supabase
+    .from('asset_assignments')
+    .update({ returned: true, returned_date: new Date().toISOString().slice(0, 10) })
+    .eq('asset_id', id)
+    .eq('employee_id', before.assigned_employee_id)
+    .eq('returned', false);
+  if (histErr) console.warn('[dalnex-hrms] asset history return failed:', histErr.message);
+
   await notifyEmployee(before.assigned_employee_id, {
     kind: 'asset',
     title: 'An asset was returned',
@@ -166,6 +201,42 @@ export async function unassignAsset(id: string) {
     link: '/me',
   });
 
+  revalidatePath('/assets');
+  return { ok: true };
+}
+
+/** Log a maintenance/service event for an asset (admin/HR). */
+export async function createAssetMaintenance(formData: FormData) {
+  const gate = await requireRoles(ASSET_ADMIN_ROLES, 'Logging maintenance');
+  if (!gate.ok) return gate;
+
+  const assetId = String(formData.get('asset_id') ?? '').trim();
+  if (!assetId) return { ok: false, error: 'Which asset is missing.' };
+
+  const text = (k: string) => String(formData.get(k) ?? '').trim() || null;
+  const costRaw = String(formData.get('cost') ?? '').trim();
+  const cost = costRaw ? Number(costRaw) : null;
+  if (cost != null && !Number.isFinite(cost)) return { ok: false, error: 'Cost must be a number.' };
+
+  const { profile } = await getSession();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('asset_maintenance')
+    .insert({
+      asset_id: assetId,
+      maint_date: text('maint_date') ?? new Date().toISOString().slice(0, 10),
+      maint_type: text('maint_type'),
+      cost,
+      vendor: text('vendor'),
+      notes: text('notes'),
+      next_due: text('next_due'),
+      created_by: profile?.full_name ?? null,
+    })
+    .select('id');
+  if (error) return { ok: false, error: error.message };
+  if (wroteNothing(data)) {
+    return { ok: false, error: 'The maintenance record was not saved — your role may lack permission.' };
+  }
   revalidatePath('/assets');
   return { ok: true };
 }

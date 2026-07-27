@@ -24,6 +24,7 @@ export type NotificationKind =
   | 'payroll'
   | 'asset'
   | 'item'
+  | 'warranty'
   | 'system';
 
 export interface NotifyInput {

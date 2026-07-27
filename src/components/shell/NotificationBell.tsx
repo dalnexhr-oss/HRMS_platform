@@ -22,6 +22,7 @@ const KIND_ICON: Record<string, string> = {
   payroll: '🧾',
   asset: '💻',
   item: '📦',
+  warranty: '🛡️',
   system: '⚙️',
 };
 

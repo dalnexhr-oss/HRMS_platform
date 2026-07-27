@@ -55,9 +55,26 @@ export function AddAssetDrawer({
           <div className="dbd">
             <Field name="desktop_name" label="Desktop name" placeholder="e.g. DALNEX-PC-07" defaultValue={asset?.desktop_name} />
             <div className="f-row">
-              <Field name="brand" label="Laptop brand" placeholder="e.g. Dell" defaultValue={asset?.brand ?? undefined} />
-              <Field name="model_no" label="Model no." mono defaultValue={asset?.model_no ?? undefined} />
+              <div className="f">
+                <label>Category</label>
+                <input
+                  name="asset_category"
+                  list="asset-category-options"
+                  placeholder="e.g. Desktop, Laptop, Monitor"
+                  defaultValue={asset?.asset_category ?? undefined}
+                />
+                <datalist id="asset-category-options">
+                  <option value="Desktop" />
+                  <option value="Laptop" />
+                  <option value="Monitor" />
+                  <option value="Printer" />
+                  <option value="Peripheral" />
+                  <option value="Networking" />
+                </datalist>
+              </div>
+              <Field name="brand" label="Brand" placeholder="e.g. Dell" defaultValue={asset?.brand ?? undefined} />
             </div>
+            <Field name="model_no" label="Model no." mono defaultValue={asset?.model_no ?? undefined} />
             <div className="f-row">
               <Field name="serial_no" label="Serial no." mono defaultValue={asset?.serial_no ?? undefined} />
               <Field name="device_id" label="Device ID" mono defaultValue={asset?.device_id ?? undefined} />
