@@ -7,6 +7,7 @@ import { useActionState, useEffect, useRef, useState, useTransition } from 'reac
 import { useRouter } from 'next/navigation';
 import { assignItem, returnAssignment, deleteAssignment, fetchItemAssignments } from '@/lib/actions/items';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import type { ItemRow, EmployeeOption, ItemAssignmentRow } from '@/lib/queries';
 
 type State = { ok?: boolean; error?: string };
@@ -30,6 +31,7 @@ export function AssignItemDrawer({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const { confirm, confirmDialog } = useConfirm();
+  const { toast, toastNode } = useToast();
   const latestId = useRef<string | null>(null);
 
   async function reload(itemId: string) {
@@ -62,6 +64,7 @@ export function AssignItemDrawer({
   // assign — including a 2nd consecutive assign where state.ok stays true.
   useEffect(() => {
     if (state.ok && item) {
+      toast('Item assigned.', 'success');
       router.refresh();
       reload(item.id);
       setFormKey((k) => k + 1);
@@ -80,8 +83,10 @@ export function AssignItemDrawer({
       setBusyId(null);
       if (!res.ok) {
         setRowError(res.error ?? 'Could not mark as returned.');
+        toast(res.error ?? 'Could not mark as returned.', 'error');
         return;
       }
+      toast('Marked as returned.', 'success');
       router.refresh();
       reload(item.id);
     });
@@ -103,8 +108,10 @@ export function AssignItemDrawer({
       setBusyId(null);
       if (!res.ok) {
         setRowError(res.error ?? 'Could not delete the assignment.');
+        toast(res.error ?? 'Could not delete the assignment.', 'error');
         return;
       }
+      toast('Assignment deleted.', 'success');
       router.refresh();
       reload(item.id);
     });
@@ -232,6 +239,7 @@ export function AssignItemDrawer({
         )}
       </aside>
       {confirmDialog}
+      {toastNode}
     </>
   );
 }

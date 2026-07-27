@@ -3,14 +3,20 @@
 import { useActionState, useState, useTransition } from 'react';
 import { createPolicy, updatePolicy, deletePolicy, setPolicyPublished } from '@/lib/actions/policies';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast, type ToastKind } from '@/components/ui/Toast';
 import { formatDate } from '@/lib/format';
 import type { Policy } from '@/types/database';
 
 export function PolicyAdmin({ policies }: { policies: Policy[] }) {
   const [editing, setEditing] = useState<Policy | null>(null);
+  // Shared confirm modal + toast stack for every row and the form.
+  const { confirm, confirmDialog } = useConfirm();
+  const { toast, toastNode } = useToast();
 
   return (
     <div className="two-col">
+      {confirmDialog}
+      {toastNode}
       <div className="card">
         <div className="hd">
           <h3>Published &amp; draft policies</h3>
@@ -19,7 +25,7 @@ export function PolicyAdmin({ policies }: { policies: Policy[] }) {
         <div className="bd">
           {policies.length === 0 && <p className="muted">No policies yet — create one on the right.</p>}
           {policies.map((p) => (
-            <PolicyItem key={p.id} policy={p} onEdit={() => setEditing(p)} />
+            <PolicyItem key={p.id} policy={p} onEdit={() => setEditing(p)} confirm={confirm} toast={toast} />
           ))}
         </div>
       </div>
@@ -29,23 +35,31 @@ export function PolicyAdmin({ policies }: { policies: Policy[] }) {
           <h3>{editing ? 'Edit policy' : 'New policy'}</h3>
         </div>
         <div className="bd">
-          <PolicyForm key={editing?.id ?? 'new'} editing={editing} onDone={() => setEditing(null)} />
+          <PolicyForm key={editing?.id ?? 'new'} editing={editing} onDone={() => setEditing(null)} toast={toast} />
         </div>
       </div>
     </div>
   );
 }
 
-function PolicyItem({ policy, onEdit }: { policy: Policy; onEdit: () => void }) {
+function PolicyItem({
+  policy,
+  onEdit,
+  confirm,
+  toast,
+}: {
+  policy: Policy;
+  onEdit: () => void;
+  confirm: (opts: { title?: string; message: string; confirmLabel?: string; danger?: boolean }) => Promise<boolean>;
+  toast: (message: string, kind?: ToastKind) => void;
+}) {
   const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const { confirm, confirmDialog } = useConfirm();
 
   const toggle = () => {
-    setError(null);
     startTransition(async () => {
       const res = await setPolicyPublished(policy.id, !policy.published);
-      if (!res.ok) setError(res.error ?? 'Could not update the policy.');
+      if (!res.ok) toast(res.error ?? 'Could not update the policy.', 'error');
+      else toast(policy.published ? 'Policy unpublished.' : 'Policy published.', 'success');
     });
   };
 
@@ -57,16 +71,15 @@ function PolicyItem({ policy, onEdit }: { policy: Policy; onEdit: () => void }) 
       danger: true,
     });
     if (!ok) return;
-    setError(null);
     startTransition(async () => {
       const res = await deletePolicy(policy.id);
-      if (!res.ok) setError(res.error ?? 'Could not delete the policy.');
+      if (!res.ok) toast(res.error ?? 'Could not delete the policy.', 'error');
+      else toast('Policy deleted.', 'success');
     });
   };
 
   return (
     <div className="policy">
-      {confirmDialog}
       <div className="phd">
         <h4>{policy.title}</h4>
         {policy.category && <span className="cat">{policy.category}</span>}
@@ -96,16 +109,26 @@ function PolicyItem({ policy, onEdit }: { policy: Policy; onEdit: () => void }) 
         </button>
       </div>
       <p className="body">{policy.body}</p>
-      {error && <div className="login-error" role="alert">{error}</div>}
     </div>
   );
 }
 
-function PolicyForm({ editing, onDone }: { editing: Policy | null; onDone: () => void }) {
+function PolicyForm({
+  editing,
+  onDone,
+  toast,
+}: {
+  editing: Policy | null;
+  onDone: () => void;
+  toast: (message: string, kind?: ToastKind) => void;
+}) {
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
     async (_prev, formData) => {
       const res = editing ? await updatePolicy(editing.id, formData) : await createPolicy(formData);
-      if (res.ok && editing) onDone();
+      if (res.ok) {
+        toast(editing ? 'Policy updated.' : 'Policy saved.', 'success');
+        if (editing) onDone();
+      }
       return res;
     },
     {},

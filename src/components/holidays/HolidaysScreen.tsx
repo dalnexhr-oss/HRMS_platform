@@ -4,6 +4,8 @@ import { useActionState, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { addHoliday, deleteHoliday, importHolidaysFromGoogle } from '@/lib/actions/holidays';
 import { formatDate } from '@/lib/format';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast, type ToastKind } from '@/components/ui/Toast';
 import type { HolidayView } from '@/lib/queries';
 
 export function HolidaysScreen({
@@ -16,8 +18,13 @@ export function HolidaysScreen({
   /** e.g. "Sun off · Sat off except 2nd, 4th" — the scheduled week-off rule. */
   weekOffSummary: string;
 }) {
+  // One shared confirm modal + toast stack for the whole screen.
+  const { confirm, confirmDialog } = useConfirm();
+  const { toast, toastNode } = useToast();
   return (
     <div className="wrap grid">
+      {confirmDialog}
+      {toastNode}
       <div className="card">
         <div className="hd">
           <h3>Weekly off schedule</h3>
@@ -46,7 +53,7 @@ export function HolidaysScreen({
               <p className="empty">No holidays yet — import them or add one on the right.</p>
             )}
             {holidays.map((h) => (
-              <HolidayRow key={h.id} holiday={h} />
+              <HolidayRow key={h.id} holiday={h} confirm={confirm} toast={toast} />
             ))}
           </div>
         </div>
@@ -57,7 +64,7 @@ export function HolidaysScreen({
               <h3>Import from Google Calendar</h3>
             </div>
             <div className="bd">
-              <ImportHolidays year={year} />
+              <ImportHolidays year={year} toast={toast} />
             </div>
           </div>
 
@@ -66,7 +73,7 @@ export function HolidaysScreen({
               <h3>Add holiday</h3>
             </div>
             <div className="bd">
-              <AddHolidayForm />
+              <AddHolidayForm toast={toast} />
             </div>
           </div>
         </div>
@@ -75,7 +82,7 @@ export function HolidaysScreen({
   );
 }
 
-function ImportHolidays({ year }: { year: number }) {
+function ImportHolidays({ year, toast }: { year: number; toast: (message: string, kind?: ToastKind) => void }) {
   const router = useRouter();
   const [target, setTarget] = useState(year);
   const [pending, start] = useTransition();
@@ -93,14 +100,16 @@ function ImportHolidays({ year }: { year: number }) {
       const res = await importHolidaysFromGoogle(target);
       if (!res.ok) {
         setError(res.error);
+        toast(res.error, 'error');
         return;
       }
-      setResult(
+      const msg =
         res.imported === 0
           ? `All ${res.skipped} public holiday(s) for ${res.year} are already in your calendar.`
           : `Imported ${res.imported} public holiday(s) for ${res.year}` +
-              (res.skipped ? `, skipped ${res.skipped} already present.` : '.'),
-      );
+              (res.skipped ? `, skipped ${res.skipped} already present.` : '.');
+      setResult(msg);
+      toast(msg, 'success');
       setTentative(res.tentative);
       router.refresh();
     });
@@ -144,14 +153,28 @@ function ImportHolidays({ year }: { year: number }) {
   );
 }
 
-function HolidayRow({ holiday }: { holiday: HolidayView }) {
+function HolidayRow({
+  holiday,
+  confirm,
+  toast,
+}: {
+  holiday: HolidayView;
+  confirm: (opts: { title?: string; message: string; confirmLabel?: string; danger?: boolean }) => Promise<boolean>;
+  toast: (message: string, kind?: ToastKind) => void;
+}) {
   const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const remove = () => {
-    setError(null);
+  const remove = async () => {
+    const ok = await confirm({
+      title: 'Delete holiday',
+      message: `Delete “${holiday.name}” (${formatDate(holiday.date)})? This affects payable-day counts for that date.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await deleteHoliday(holiday.id);
-      if (!res.ok) setError(res.error ?? 'Could not delete the holiday.');
+      if (!res.ok) toast(res.error ?? 'Could not delete the holiday.', 'error');
+      else toast('Holiday deleted.', 'success');
     });
   };
 
@@ -181,14 +204,17 @@ function HolidayRow({ holiday }: { holiday: HolidayView }) {
           {pending ? '…' : 'Delete'}
         </button>
       </div>
-      {error && <div className="login-error" role="alert" style={{ marginTop: 6 }}>{error}</div>}
     </div>
   );
 }
 
-function AddHolidayForm() {
+function AddHolidayForm({ toast }: { toast: (message: string, kind?: ToastKind) => void }) {
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
-    async (_prev, formData) => addHoliday(formData),
+    async (_prev, formData) => {
+      const res = await addHoliday(formData);
+      if (res.ok) toast('Holiday added.', 'success');
+      return res;
+    },
     {},
   );
 

@@ -44,11 +44,11 @@ export function AddItemDrawer({
   return (
     <>
       <div className={`overlay${open ? ' on' : ''}`} onClick={onClose} />
-      <aside className={`drawer${open ? ' on' : ''}`} aria-label={editing ? 'Edit item' : 'Add item'}>
+      <aside className={`drawer${open ? ' on' : ''}`} aria-label={editing ? 'Edit material / tool' : 'Add material / tool'}>
         <form key={item?.id ?? 'new'} action={formAction} style={{ display: 'contents' }}>
           {editing && <input type="hidden" name="id" value={item!.id} />}
           <div className="dhd">
-            <h3>{editing ? 'Edit item' : 'Add item'}</h3>
+            <h3>{editing ? 'Edit material / tool' : 'Add material / tool'}</h3>
             <span style={{ flex: 1 }} />
             <button type="button" className="btn quiet" onClick={onClose}>
               ✕
@@ -56,8 +56,8 @@ export function AddItemDrawer({
           </div>
           <div className="dbd">
             <div className="f-row">
-              <Field name="item_name" label="Item name" placeholder="e.g. Wireless mouse" defaultValue={item?.item_name} />
-              <Field name="item_code" label="Item ID" mono placeholder="e.g. ITM-001" defaultValue={item?.item_code ?? undefined} />
+              <Field name="item_name" label="Name" placeholder="e.g. Wireless mouse" defaultValue={item?.item_name} />
+              <Field name="item_code" label="Material / Tool ID" mono placeholder="e.g. ITM-001" defaultValue={item?.item_code ?? undefined} />
             </div>
             <div className="f-row">
               <Field name="category" label="Category" placeholder="e.g. Peripherals" defaultValue={item?.category ?? undefined} />
@@ -103,7 +103,7 @@ export function AddItemDrawer({
               Cancel
             </button>
             <button type="submit" className="btn primary" disabled={pending}>
-              {pending ? 'Saving…' : editing ? 'Save changes' : 'Save item'}
+              {pending ? 'Saving…' : editing ? 'Save changes' : 'Save material / tool'}
             </button>
           </div>
         </form>

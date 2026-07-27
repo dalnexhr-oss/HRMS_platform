@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { AddAssetDrawer } from './AddAssetDrawer';
 import { AssignAssetDrawer } from './AssignAssetDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import { deleteAsset } from '@/lib/actions/assets';
 import type { AssetRow, EmployeeOption } from '@/lib/queries';
 
@@ -18,9 +19,9 @@ export function AssetsScreen({ assets, employees }: { assets: AssetRow[]; employ
   const [editing, setEditing] = useState<AssetRow | null>(null);
   const [assigning, setAssigning] = useState<AssetRow | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const { confirm, confirmDialog } = useConfirm();
+  const { toast, toastNode } = useToast();
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -50,15 +51,15 @@ export function AssetsScreen({ assets, employees }: { assets: AssetRow[]; employ
       danger: true,
     });
     if (!ok) return;
-    setError(null);
     setBusyId(a.id);
     startTransition(async () => {
       const res = await deleteAsset(a.id);
       setBusyId(null);
       if (!res.ok) {
-        setError(res.error ?? 'Could not delete the asset.');
+        toast(res.error ?? 'Could not delete the asset.', 'error');
         return;
       }
+      toast('Asset deleted.', 'success');
       router.refresh();
     });
   }
@@ -86,11 +87,7 @@ export function AssetsScreen({ assets, employees }: { assets: AssetRow[]; employ
         </button>
       </div>
 
-      {error && (
-        <div className="login-error" style={{ margin: '0 0 12px' }}>
-          {error}
-        </div>
-      )}
+      {toastNode}
 
       <div className="card">
         <div style={{ overflowX: 'auto' }}>

@@ -13,6 +13,8 @@ import {
   deleteUser,
   type ManagedUser,
 } from '@/lib/actions/users';
+import { usePrompt } from '@/components/ui/PromptDialog';
+import { useToast } from '@/components/ui/Toast';
 import type { EmployeeOption } from '@/lib/queries';
 import type { AppRole } from '@/types/database';
 
@@ -57,68 +59,77 @@ export function UsersScreen({
 }) {
   const router = useRouter();
   const [drawer, setDrawer] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const { prompt, promptDialog } = usePrompt();
+  const { toast, toastNode } = useToast();
 
   // Only an admin may hand out the admin role — mirrors the server guard.
   const assignable = callerRole === 'admin' ? ROLE_ORDER : ROLE_ORDER.filter((r) => r !== 'admin');
 
   function run(id: string, fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) {
-    setError(null);
-    setNotice(null);
     setBusy(id);
     startTransition(async () => {
       const res = await fn();
       setBusy(null);
-      if (!res.ok) setError(res.error ?? 'The action failed.');
+      if (!res.ok) toast(res.error ?? 'The action failed.', 'error');
       else {
-        setNotice(okMsg);
+        toast(okMsg, 'success');
         router.refresh();
       }
     });
   }
 
-  function onRoleChange(u: ManagedUser, role: AppRole) {
+  async function onRoleChange(u: ManagedUser, role: AppRole) {
     let employeeId: string | null = u.employeeId;
     if (role === 'employee' && !employeeId) {
-      const code = window.prompt(
-        `Which employee is ${u.email}? Enter their code (e.g. DN001).`,
-        '',
-      );
-      const match = employees.find((e) => e.code.toLowerCase() === (code ?? '').trim().toLowerCase());
-      if (!match) {
-        setError(code ? `No active employee with code “${code}”.` : 'Role change cancelled.');
-        return;
-      }
+      const code = await prompt({
+        title: 'Link an employee',
+        message: `Which employee is ${u.email}? Enter their code (e.g. DN001).`,
+        placeholder: 'DN001',
+        confirmLabel: 'Link',
+        validate: (v) =>
+          employees.some((e) => e.code.toLowerCase() === v.trim().toLowerCase())
+            ? null
+            : `No active employee with code “${v.trim()}”.`,
+      });
+      if (code === null) return;
+      const match = employees.find((e) => e.code.toLowerCase() === code.trim().toLowerCase());
+      if (!match) return; // validate() blocks this, but keep the type narrow.
       employeeId = match.id;
     }
     run(u.id, () => updateUserRole(u.id, role, employeeId), `Role updated for ${u.email}.`);
   }
 
-  function onSetPassword(u: ManagedUser) {
-    const pw = window.prompt(`Set a new password for ${u.email} (min 8 characters):`, '');
-    if (!pw) return;
+  async function onSetPassword(u: ManagedUser) {
+    const pw = await prompt({
+      title: 'Set password',
+      message: `Set a new password for ${u.email} (min 8 characters):`,
+      inputType: 'password',
+      confirmLabel: 'Set password',
+      validate: (v) => (v.length >= 8 ? null : 'Password must be at least 8 characters.'),
+    });
+    if (pw === null) return;
     run(u.id, () => setUserPassword(u.id, pw), `Password updated for ${u.email}.`);
   }
 
-  function onDelete(u: ManagedUser) {
+  async function onDelete(u: ManagedUser) {
     // Typing the email is deliberate friction: this removes a person's access,
     // and the row's Delete button sits next to Set password / Send reset.
-    const typed = window.prompt(
-      `Delete the login for ${u.email}?\n\n` +
+    const typed = await prompt({
+      title: 'Delete login',
+      message:
+        `Delete the login for ${u.email}?\n\n` +
         'Their employee record, attendance, payslips and claims are KEPT — only the ' +
         'ability to sign in is removed.\n\n' +
-        `Type the email to confirm:`,
-      '',
-    );
+        'Type the email to confirm:',
+      placeholder: u.email,
+      confirmLabel: 'Delete login',
+      danger: true,
+      matchToken: u.email,
+    });
     if (typed === null) return;
-    if (typed.trim().toLowerCase() !== u.email.toLowerCase()) {
-      setError('The email did not match — nothing was deleted.');
-      return;
-    }
     run(u.id, () => deleteUser(u.id), `Deleted the login for ${u.email}.`);
   }
 
@@ -140,6 +151,8 @@ export function UsersScreen({
 
   return (
     <div className="wrap grid">
+      {promptDialog}
+      {toastNode}
       <div className="emp-top">
         <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
           {users.length} account{users.length === 1 ? '' : 's'}
@@ -149,9 +162,6 @@ export function UsersScreen({
           + Add user
         </button>
       </div>
-
-      {error && <div className="login-error">{error}</div>}
-      {notice && <div className="hint">✓&nbsp; {notice}</div>}
 
       <div className="card">
         <div style={{ overflowX: 'auto' }}>
@@ -314,7 +324,7 @@ export function UsersScreen({
         assignable={assignable}
         onCreated={() => {
           setDrawer(false);
-          setNotice('User created.');
+          toast('User created.', 'success');
           router.refresh();
         }}
       />

@@ -15,7 +15,7 @@ export function MyItems({ items }: { items: MyItemRow[] }) {
   return (
     <div className="card">
       <div className="hd">
-        <h3>My items</h3>
+        <h3>My materials &amp; tools</h3>
         <span className="folio">
           {held} held · {items.length} issued
         </span>
@@ -23,14 +23,14 @@ export function MyItems({ items }: { items: MyItemRow[] }) {
       <div className="bd">
         {items.length === 0 ? (
           <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-            No items have been issued to you, it will appear here.
+            No materials or tools have been issued to you, they will appear here.
           </p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table>
               <thead>
                 <tr>
-                  <th>Item</th>
+                  <th>Material / Tool</th>
                   <th>Category</th>
                   <th className="right">Qty</th>
                   <th>Issued on</th>

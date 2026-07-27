@@ -121,9 +121,9 @@ export async function requireOpenPayrollMonth(
   const periodMonth = `${workDate.slice(0, 7)}-01`;
   const { data, error } = await supabase
     .from('payroll_runs')
-    .select('status')
+    .select('status, month_closed_at')
     .eq('period_month', periodMonth)
-    .maybeSingle<{ status: string }>();
+    .maybeSingle<{ status: string; month_closed_at: string | null }>();
 
   if (error) {
     return {
@@ -137,6 +137,14 @@ export async function requireOpenPayrollMonth(
     return {
       ok: false,
       error: `Payroll for ${periodMonth.slice(0, 7)} is ${status}. Attendance for that month can no longer be changed — raise a payslip adjustment instead.`,
+    };
+  }
+  // month_closed_at is the attendance seal set by the auto-lock job (0033),
+  // independent of payroll status — treat a sealed month as closed too.
+  if (data?.month_closed_at) {
+    return {
+      ok: false,
+      error: `${periodMonth.slice(0, 7)} has been closed for attendance. It can no longer be changed — raise a payslip adjustment instead.`,
     };
   }
   return { ok: true };

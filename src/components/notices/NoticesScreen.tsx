@@ -3,6 +3,8 @@
 import { useActionState, useState, useTransition } from 'react';
 import { createNotice, updateNotice, deleteNotice, setNoticePublished } from '@/lib/actions/notices';
 import { formatDate } from '@/lib/format';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast, type ToastKind } from '@/components/ui/Toast';
 import type { NoticeView } from '@/lib/queries';
 
 const CHANNEL_LABEL: Record<NoticeView['channel'], string> = {
@@ -13,9 +15,14 @@ const CHANNEL_LABEL: Record<NoticeView['channel'], string> = {
 
 export function NoticesScreen({ notices }: { notices: NoticeView[] }) {
   const [editing, setEditing] = useState<NoticeView | null>(null);
+  // Confirm + toast are hoisted so every row shares one modal / toast stack.
+  const { confirm, confirmDialog } = useConfirm();
+  const { toast, toastNode } = useToast();
 
   return (
     <div className="two-col">
+      {confirmDialog}
+      {toastNode}
       <div className="card">
         <div className="hd">
           <h3>Published notices</h3>
@@ -26,7 +33,7 @@ export function NoticesScreen({ notices }: { notices: NoticeView[] }) {
             <p className="muted">No notices yet — publish one on the right.</p>
           )}
           {notices.map((n) => (
-            <NoticeItem key={n.id} notice={n} onEdit={() => setEditing(n)} />
+            <NoticeItem key={n.id} notice={n} onEdit={() => setEditing(n)} confirm={confirm} toast={toast} />
           ))}
         </div>
       </div>
@@ -40,6 +47,7 @@ export function NoticesScreen({ notices }: { notices: NoticeView[] }) {
             key={editing?.id ?? 'new'}
             editing={editing}
             onDone={() => setEditing(null)}
+            toast={toast}
           />
         </div>
       </div>
@@ -47,23 +55,39 @@ export function NoticesScreen({ notices }: { notices: NoticeView[] }) {
   );
 }
 
-function NoticeItem({ notice, onEdit }: { notice: NoticeView; onEdit: () => void }) {
+function NoticeItem({
+  notice,
+  onEdit,
+  confirm,
+  toast,
+}: {
+  notice: NoticeView;
+  onEdit: () => void;
+  confirm: (opts: { title?: string; message: string; confirmLabel?: string; danger?: boolean }) => Promise<boolean>;
+  toast: (message: string, kind?: ToastKind) => void;
+}) {
   const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
 
   const toggle = () => {
-    setError(null);
     startTransition(async () => {
       const res = await setNoticePublished(notice.id, !notice.published);
-      if (!res.ok) setError(res.error ?? 'Could not update the notice.');
+      if (!res.ok) toast(res.error ?? 'Could not update the notice.', 'error');
+      else toast(notice.published ? 'Notice unpublished.' : 'Notice published.', 'success');
     });
   };
 
-  const remove = () => {
-    setError(null);
+  const remove = async () => {
+    const ok = await confirm({
+      title: 'Delete notice',
+      message: `Delete “${notice.title}”? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await deleteNotice(notice.id);
-      if (!res.ok) setError(res.error ?? 'Could not delete the notice.');
+      if (!res.ok) toast(res.error ?? 'Could not delete the notice.', 'error');
+      else toast('Notice deleted.', 'success');
     });
   };
 
@@ -92,16 +116,26 @@ function NoticeItem({ notice, onEdit }: { notice: NoticeView; onEdit: () => void
         </button>
       </div>
       {notice.body && <p className="body muted">{notice.body}</p>}
-      {error && <div className="login-error" role="alert">{error}</div>}
     </div>
   );
 }
 
-function NoticeForm({ editing, onDone }: { editing: NoticeView | null; onDone: () => void }) {
+function NoticeForm({
+  editing,
+  onDone,
+  toast,
+}: {
+  editing: NoticeView | null;
+  onDone: () => void;
+  toast: (message: string, kind?: ToastKind) => void;
+}) {
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
     async (_prev, formData) => {
       const res = editing ? await updateNotice(editing.id, formData) : await createNotice(formData);
-      if (res.ok && editing) onDone();
+      if (res.ok) {
+        toast(editing ? 'Notice updated.' : 'Notice published.', 'success');
+        if (editing) onDone();
+      }
       return res;
     },
     {},

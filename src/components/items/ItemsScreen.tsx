@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { AddItemDrawer } from './AddItemDrawer';
 import { AssignItemDrawer } from './AssignItemDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import { deleteItem } from '@/lib/actions/items';
 import type { ItemRow, EmployeeOption } from '@/lib/queries';
 
@@ -18,9 +19,9 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
   const [editing, setEditing] = useState<ItemRow | null>(null);
   const [assignFor, setAssignFor] = useState<ItemRow | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const { confirm, confirmDialog } = useConfirm();
+  const { toast, toastNode } = useToast();
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -41,21 +42,21 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
 
   async function onDelete(i: ItemRow) {
     const ok = await confirm({
-      title: 'Delete item',
+      title: 'Delete material / tool',
       message: `Delete “${i.item_name}” and all its assignments? This cannot be undone.`,
       confirmLabel: 'Delete',
       danger: true,
     });
     if (!ok) return;
-    setError(null);
     setBusyId(i.id);
     startTransition(async () => {
       const res = await deleteItem(i.id);
       setBusyId(null);
       if (!res.ok) {
-        setError(res.error ?? 'Could not delete the item.');
+        toast(res.error ?? 'Could not delete the material / tool.', 'error');
         return;
       }
+      toast('Material / tool deleted.', 'success');
       router.refresh();
     });
   }
@@ -71,26 +72,22 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
           <input placeholder="Search name, code, category…" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
-          {items.length} item{items.length === 1 ? '' : 's'}
+          {items.length} item{items.length === 1 ? '' : 's'} · materials &amp; tools
         </span>
         <span style={{ flex: 1 }} />
         <button className="btn primary" onClick={openAdd}>
-          + Add item
+          + Add material / tool
         </button>
       </div>
 
-      {error && (
-        <div className="login-error" style={{ margin: '0 0 12px' }}>
-          {error}
-        </div>
-      )}
+      {toastNode}
 
       <div className="card">
         <div style={{ overflowX: 'auto' }}>
           <table>
             <thead>
               <tr>
-                <th>Item ID</th>
+                <th>Material / Tool ID</th>
                 <th>Name</th>
                 <th>Category</th>
                 <th>Brand</th>
@@ -150,7 +147,7 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
               {filtered.length === 0 && (
                 <tr>
                   <td className="muted" colSpan={12} style={{ textAlign: 'center' }}>
-                    {q ? `No items match “${q}”.` : 'No items yet.'}
+                    {q ? `No materials or tools match “${q}”.` : 'No materials or tools yet.'}
                   </td>
                 </tr>
               )}

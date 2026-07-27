@@ -143,15 +143,33 @@ function mapPayslip(p: any): PayslipRow {
 // --------------------------------------------------------------- register ---
 export async function getRegister(
   periodMonth: string = DEFAULT_PERIOD_MONTH,
+  branch?: string | null,
 ): Promise<RegisterEmployee[]> {
   const { start, end } = monthRange(periodMonth);
   const supabase = await createClient();
 
-  const { data: employees, error } = await supabase
+  // Branch scoping: resolve the branch name to its id and filter on the FK, so
+  // employees are actually excluded (filtering on an embedded column would only
+  // null the join, not drop the parent row). Blank/absent branch = all branches.
+  let branchId: string | null = null;
+  if (branch) {
+    const { data: b } = await supabase
+      .from('branches')
+      .select('id')
+      .eq('name', branch)
+      .maybeSingle<{ id: string }>();
+    // Unknown branch name → no matches rather than silently showing everyone.
+    branchId = b?.id ?? '__none__';
+  }
+
+  let employeeQuery = supabase
     .from('employees')
     .select('id, code, full_name, gender, date_of_joining, branches(name)')
     .eq('status', 'active')
     .order('code');
+  if (branchId) employeeQuery = employeeQuery.eq('branch_id', branchId);
+
+  const { data: employees, error } = await employeeQuery;
   if (error) fail('getRegister: could not load employees', error);
   if (!employees?.length) return [];
 
@@ -211,6 +229,130 @@ export async function getRegister(
       days: cells,
     };
   });
+}
+
+// ----------------------------------------------- register reconciliation ---
+export interface LeaveRegisterMismatch {
+  employeeId: string;
+  code: string;
+  name: string;
+  /** 'YYYY-MM-DD' of the approved-leave day the register does not reflect. */
+  date: string;
+  leaveKind: string | null;
+  /** What the register shows instead of 'L' — 'AB', another code, or null (no row). */
+  registerStatus: string | null;
+}
+
+/** Expand an inclusive ISO date span into 'YYYY-MM-DD' strings, clamped to a window. */
+function isoDaysInRange(start: string, end: string, clampStart: string, clampEnd: string): string[] {
+  const from = start < clampStart ? clampStart : start;
+  const to = end > clampEnd ? clampEnd : end;
+  const out: string[] = [];
+  const d = new Date(`${from}T00:00:00Z`);
+  const last = new Date(`${to}T00:00:00Z`);
+  while (d.getTime() <= last.getTime()) {
+    out.push(d.toISOString().slice(0, 10));
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return out;
+}
+
+/**
+ * Approved leave that the monthly register does not reflect.
+ *
+ * Approving a leave request (reviewRequest) only draws down leave_balances — it
+ * never stamps attendance_days 'L'. So an approved leave and the register can
+ * silently diverge: the employee is on sanctioned leave but the register shows
+ * them Absent (or has no row). This surfaces exactly those days for review,
+ * without mutating anything. Days already covered on the register (L / WO / OH /
+ * CO / a present-style code) are NOT flagged — only genuine gaps ('AB' or no row).
+ */
+export async function getLeaveRegisterMismatches(
+  periodMonth: string = DEFAULT_PERIOD_MONTH,
+  branch?: string | null,
+): Promise<LeaveRegisterMismatch[]> {
+  const { start, end } = monthRange(periodMonth);
+  const supabase = await createClient();
+
+  // Approved leave requests overlapping the month.
+  const { data: reqs, error: reqErr } = await supabase
+    .from('requests')
+    .select('employee_id, leave_kind, start_date, end_date, employees(code, full_name, branch_id, branches(name))')
+    .eq('type', 'leave')
+    .eq('status', 'approved')
+    .lte('start_date', end)
+    .gte('end_date', start);
+  if (reqErr) fail('getLeaveRegisterMismatches: could not load approved leave', reqErr);
+  if (!reqs?.length) return [];
+
+  // Register rows for the month, keyed employee|date.
+  const { data: days, error: dayErr } = await supabase
+    .from('attendance_days')
+    .select('employee_id, work_date, status')
+    .gte('work_date', start)
+    .lte('work_date', end);
+  if (dayErr) fail('getLeaveRegisterMismatches: could not load attendance', dayErr);
+
+  const byKey = new Map<string, string>();
+  for (const d of days ?? []) {
+    byKey.set(`${(d as any).employee_id}|${(d as any).work_date}`, (d as any).status);
+  }
+
+  // Statuses that already account for the day — not a divergence.
+  const COVERED = new Set(['L', 'WO', 'OH', 'CO']);
+
+  const out: LeaveRegisterMismatch[] = [];
+  for (const r of reqs as any[]) {
+    if (branch && r.employees?.branches?.name !== branch) continue;
+    for (const date of isoDaysInRange(r.start_date, r.end_date, start, end)) {
+      const status = byKey.get(`${r.employee_id}|${date}`) ?? null;
+      if (status && COVERED.has(status)) continue;
+      out.push({
+        employeeId: r.employee_id,
+        code: r.employees?.code ?? '',
+        name: r.employees?.full_name ?? '',
+        date,
+        leaveKind: r.leave_kind ?? null,
+        registerStatus: status,
+      });
+    }
+  }
+  out.sort((a, b) => a.date.localeCompare(b.date) || a.code.localeCompare(b.code));
+  return out;
+}
+
+// ------------------------------------------------------- attendance audit ---
+export interface AuditEntry {
+  id: string;
+  eventType: string;
+  message: string;
+  actor: string | null;
+  employeeCode: string | null;
+  employeeName: string | null;
+  occurredAt: string;
+}
+
+/** Attendance-related audit trail (corrections, imports, night sweeps), newest
+ *  first. Reads activity_log; messages are rendered as TEXT only (stored-XSS
+ *  safe). Staff-gated by RLS on activity_log. */
+export async function getAttendanceAudit(limit = 200): Promise<AuditEntry[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('activity_log')
+    .select('id, event_type, message, occurred_at, actor:profiles(full_name), employee:employees(code, full_name)')
+    .in('event_type', ['attendance_correction', 'register_import', 'night_sweep'])
+    .order('occurred_at', { ascending: false })
+    .limit(limit);
+  if (error) fail('getAttendanceAudit: could not load the audit log', error);
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    eventType: r.event_type,
+    message: r.message,
+    actor: r.actor?.full_name ?? null,
+    employeeCode: r.employee?.code ?? null,
+    employeeName: r.employee?.full_name ?? null,
+    occurredAt: r.occurred_at,
+  }));
 }
 
 // --------------------------------------------------------------- payroll ---

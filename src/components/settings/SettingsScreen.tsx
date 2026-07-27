@@ -2,11 +2,14 @@
 
 import { useState, useTransition } from 'react';
 import { updateSetting } from '@/lib/actions/settings';
+import { useToast, type ToastKind } from '@/components/ui/Toast';
 import type { SettingView } from '@/lib/queries';
 
 export function SettingsScreen({ settings }: { settings: SettingView[] }) {
+  const { toast, toastNode } = useToast();
   return (
     <div className="wrap">
+      {toastNode}
       <div className="card">
         <div className="hd">
           <h3>Rule flags</h3>
@@ -19,7 +22,7 @@ export function SettingsScreen({ settings }: { settings: SettingView[] }) {
           {settings.length === 0 && <p className="empty">No rules configured.</p>}
           <div style={{ display: 'grid', gap: 12 }}>
             {settings.map((s) => (
-              <SettingRow key={s.key} setting={s} />
+              <SettingRow key={s.key} setting={s} toast={toast} />
             ))}
           </div>
         </div>
@@ -28,7 +31,7 @@ export function SettingsScreen({ settings }: { settings: SettingView[] }) {
   );
 }
 
-function SettingRow({ setting }: { setting: SettingView }) {
+function SettingRow({ setting, toast }: { setting: SettingView; toast: (message: string, kind?: ToastKind) => void }) {
   const isNumber = typeof setting.value === 'number';
   const [value, setValue] = useState(String(setting.value ?? ''));
   const [pending, startTransition] = useTransition();
@@ -41,8 +44,13 @@ function SettingRow({ setting }: { setting: SettingView }) {
     const parsed: unknown = isNumber ? Number(value) : value;
     startTransition(async () => {
       const res = await updateSetting(setting.key, parsed);
-      if (res.ok) setSaved(true);
-      else setError(res.error ?? 'Could not save this setting.');
+      if (res.ok) {
+        setSaved(true);
+        toast(`Saved “${setting.label ?? setting.key}”.`, 'success');
+      } else {
+        setError(res.error ?? 'Could not save this setting.');
+        toast(res.error ?? 'Could not save this setting.', 'error');
+      }
     });
   };
 

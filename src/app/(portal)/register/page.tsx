@@ -5,14 +5,16 @@ import { Stamp } from '@/components/ui/Stamp';
 import { REGISTER_LEGEND } from '@/lib/constants';
 import {
   DEFAULT_PERIOD_MONTH,
+  getBranches,
   getCompOffsForMonth,
+  getLeaveRegisterMismatches,
   getPayrollRun,
   getRegister,
   getWeekOffPolicy,
 } from '@/lib/queries';
 import { weekOffDaysInMonth } from '@/lib/week-off';
 import { getSession } from '@/lib/auth';
-import { minutesToHHMM } from '@/lib/format';
+import { minutesToHHMM, formatDate } from '@/lib/format';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { exportRegisterXlsx } from '@/lib/actions/export';
 import type { AppRole } from '@/types/database';
@@ -71,10 +73,11 @@ export default async function RegisterPage({
   searchParams,
 }: {
   // Next 15: searchParams is a Promise.
-  searchParams: Promise<{ m?: string }>;
+  searchParams: Promise<{ m?: string; b?: string }>;
 }) {
-  const { m } = await searchParams;
+  const { m, b } = await searchParams;
   const periodMonth = periodFromParam(m);
+  const branch = b && b.trim() ? b.trim() : null;
 
   let employees: RegisterEmployee[] = [];
   let run: Awaited<ReturnType<typeof getPayrollRun>> = null;
@@ -82,22 +85,29 @@ export default async function RegisterPage({
   let loadError: string | null = null;
   let compOffKeys: string[] = [];
   let scheduledWeekOffs: number[] = [];
+  let branches: Awaited<ReturnType<typeof getBranches>> = [];
+  let mismatches: Awaited<ReturnType<typeof getLeaveRegisterMismatches>> = [];
   try {
     // getSession() throws when the profile lookup fails (e.g. schema not
     // applied), so it belongs inside the same guard — outside it, the error card
     // below is unreachable and the page dies with a stack trace instead.
-    const [session, register, payrollRun, compOffs, policy] = await Promise.all([
-      getSession(),
-      getRegister(periodMonth),
-      getPayrollRun(periodMonth),
-      getCompOffsForMonth(periodMonth),
-      getWeekOffPolicy(),
-    ]);
+    const [session, register, payrollRun, compOffs, policy, allBranches, leaveGaps] =
+      await Promise.all([
+        getSession(),
+        getRegister(periodMonth, branch),
+        getPayrollRun(periodMonth),
+        getCompOffsForMonth(periodMonth),
+        getWeekOffPolicy(),
+        getBranches(),
+        getLeaveRegisterMismatches(periodMonth, branch),
+      ]);
     role = session.profile?.role ?? null;
     employees = register;
     run = payrollRun;
     compOffKeys = compOffs.map((c) => `${c.employeeId}|${c.earnedDate}`);
     scheduledWeekOffs = weekOffDaysInMonth(periodMonth, policy);
+    branches = allBranches;
+    mismatches = leaveGaps;
   } catch (e) {
     // Never swap in stand-in data to hide a real failure — show what broke.
     loadError = e instanceof Error ? e.message : String(e);
@@ -115,22 +125,55 @@ export default async function RegisterPage({
   const prev = shiftMonthParam(periodMonth, -1);
   const next = shiftMonthParam(periodMonth, 1);
 
+  // Preserve the current month when switching branch, and vice-versa.
+  const withParams = (mm: string, bb: string | null): Route =>
+    (`/register?m=${mm}${bb ? `&b=${encodeURIComponent(bb)}` : ''}` as Route);
+
   return (
     <div className="wrap">
       <div className="reg-head">
         <div className="month-nav">
-          <Link
-            href={`/register?m=${prev}` as Route}
-            aria-label="Previous month"
-            role="button"
-          >
+          <Link href={withParams(prev, branch)} aria-label="Previous month" role="button">
             ‹
           </Link>
           <span className="cur">{monthLabel(periodMonth)}</span>
-          <Link href={`/register?m=${next}` as Route} aria-label="Next month" role="button">
+          <Link href={withParams(next, branch)} aria-label="Next month" role="button">
             ›
           </Link>
         </div>
+
+        {branches.length > 0 && (
+          <div className="legend" role="group" aria-label="Filter by branch">
+            <Link
+              href={withParams(m && MONTH_RE.test(m) ? m : periodMonth.slice(0, 7), null)}
+              className="pill"
+              style={
+                branch == null
+                  ? { borderColor: 'var(--brand)', color: 'var(--brand)' }
+                  : { borderColor: 'var(--line-2)', color: 'var(--ink-3)' }
+              }
+            >
+              All branches
+            </Link>
+            {branches.map((br) => {
+              const on = branch === br.name;
+              return (
+                <Link
+                  key={br.id}
+                  href={withParams(m && MONTH_RE.test(m) ? m : periodMonth.slice(0, 7), br.name)}
+                  className="pill"
+                  style={
+                    on
+                      ? { borderColor: 'var(--brand)', color: 'var(--brand)' }
+                      : { borderColor: 'var(--line-2)', color: 'var(--ink-3)' }
+                  }
+                >
+                  {br.name}
+                </Link>
+              );
+            })}
+          </div>
+        )}
 
         {run && (run.workingDays != null || run.targetMinutes != null) && (
           <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
@@ -174,6 +217,52 @@ export default async function RegisterPage({
         </div>
       ) : (
         <>
+          {canCorrect && mismatches.length > 0 && (
+            <div className="card" style={{ marginBottom: 12, borderColor: 'var(--lm-line)' }}>
+              <div className="hd">
+                <h3>Approved leave not on the register</h3>
+                <span className="folio">{mismatches.length} day{mismatches.length === 1 ? '' : 's'}</span>
+              </div>
+              <div className="bd">
+                <p className="muted" style={{ marginTop: 0, fontSize: 12 }}>
+                  These employees have an <b>approved</b> leave request for these days, but the
+                  register shows them absent (or has no row). Approving leave draws down the balance
+                  but does not stamp the register — mark the day <b>L</b> here so pay and the register
+                  agree.
+                </p>
+                <div style={{ overflowX: 'auto' }}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Employee</th>
+                        <th>Date</th>
+                        <th>Leave</th>
+                        <th>Register shows</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mismatches.map((mm) => (
+                        <tr key={`${mm.employeeId}|${mm.date}`}>
+                          <td>
+                            <b>{mm.name}</b>{' '}
+                            <span className="mono muted" style={{ fontSize: 11 }}>{mm.code}</span>
+                          </td>
+                          <td className="mono">{formatDate(mm.date)}</td>
+                          <td>{mm.leaveKind ?? 'Leave'}</td>
+                          <td>
+                            <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--hd)' }}>
+                              {mm.registerStatus ?? 'no entry'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
           <RegisterGrid
             employees={employees}
             days={days}

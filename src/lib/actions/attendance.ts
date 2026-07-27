@@ -17,6 +17,7 @@ import { createClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/queries';
 import { getSession } from '@/lib/auth';
 import { hhmmToMinutes } from '@/lib/format';
+import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/_guard';
 import type { AppRole, AttendanceStatus } from '@/types/database';
 
 export interface CorrectionState {
@@ -252,6 +253,92 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
       ok: false,
       error: `Attendance was updated, but the audit-log entry failed: ${logError.message}`,
     };
+  }
+
+  revalidatePath('/register');
+  return { ok: true };
+}
+
+export interface BulkTarget {
+  employeeId: string;
+  workDate: string;
+}
+
+/**
+ * Apply ONE status to MANY employee/day cells in a single reasoned correction.
+ *
+ * Mirrors correctAttendance's guarantees at scale: staff-only, reason required,
+ * every closed/locked month refused (the WHOLE batch, not silently partial —
+ * mixed success is worse than an honest refusal), each row stamped is_corrected
+ * with the reason, and ONE audit-log summary row for the batch. Punches are
+ * cleared: a bulk status set ("mark these days L") is a day-status change, not a
+ * punch edit, so worked_minutes goes to 0.
+ */
+export async function correctAttendanceBulk(input: {
+  targets: BulkTarget[];
+  status: string;
+  reason: string;
+}): Promise<CorrectionState> {
+  const reason = String(input.reason ?? '').trim();
+  const status = String(input.status ?? '').trim();
+  const targets = Array.isArray(input.targets) ? input.targets : [];
+
+  if (!reason) return { ok: false, error: 'A correction reason is required.' };
+  if (!isAllowedStatus(status)) return { ok: false, error: `Invalid status: ${status || '(missing)'}` };
+  if (targets.length === 0) return { ok: false, error: 'Select at least one day to correct.' };
+  if (targets.length > 2000) return { ok: false, error: 'Too many cells at once — narrow the selection.' };
+
+  for (const t of targets) {
+    if (!UUID_RE.test(t.employeeId) || !DATE_RE.test(t.workDate)) {
+      return { ok: false, error: 'One of the selected cells is invalid, so nothing was changed.' };
+    }
+  }
+
+  const gate = await requireStaff('Bulk-correcting attendance');
+  if (!gate.ok) return gate;
+
+  const supabase = await createClient();
+
+  // Refuse the whole batch if ANY touched month is locked/paid/closed.
+  const months = [...new Set(targets.map((t) => t.workDate))];
+  for (const d of months) {
+    const open = await requireOpenPayrollMonth(supabase, d);
+    if (!open.ok) return open;
+  }
+
+  const rows = targets.map((t) => ({
+    employee_id: t.employeeId,
+    work_date: t.workDate,
+    status,
+    punch_in: null,
+    punch_out: null,
+    worked_minutes: 0,
+    is_corrected: true,
+    correction_reason: reason,
+    corrected_by: gate.profileId,
+  }));
+
+  const { data: saved, error: saveError } = await supabase
+    .from('attendance_days')
+    .upsert(rows, { onConflict: 'employee_id,work_date' })
+    .select('id');
+  if (saveError) return { ok: false, error: `Could not save the corrections: ${saveError.message}` };
+  if (!saved || saved.length === 0) {
+    return { ok: false, error: 'No rows were written — your role may not have permission to write attendance.' };
+  }
+
+  const { profile } = await getSession();
+  const actor = profile?.full_name ?? 'A staff user';
+  const { error: logError } = await supabase.from('activity_log').insert({
+    actor_id: gate.profileId,
+    employee_id: null,
+    event_type: 'attendance_correction',
+    message: `${actor} bulk-set ${saved.length} day(s) to ${status} — ${reason}`,
+    metadata: { status, reason, count: saved.length, bulk: true },
+  });
+  if (logError) {
+    revalidatePath('/register');
+    return { ok: false, error: `Corrections saved, but the audit-log entry failed: ${logError.message}` };
   }
 
   revalidatePath('/register');

@@ -9,6 +9,8 @@ import { inr, formatDate } from '@/lib/format';
 import { reviewReimbursement, markReimbursementPaid } from '@/lib/actions/reimbursements';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { exportReimbursementsXlsx } from '@/lib/actions/export';
+import { usePrompt } from '@/components/ui/PromptDialog';
+import { useToast } from '@/components/ui/Toast';
 import type { ReimbursementView } from '@/lib/queries';
 
 const PURPOSE_LABEL: Record<ReimbursementView['purpose'], string> = {
@@ -36,9 +38,10 @@ type Filter = 'pending' | 'all';
 export function ReimbursementsScreen({ claims }: { claims: ReimbursementView[] }) {
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>('pending');
-  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const { prompt, promptDialog } = usePrompt();
+  const { toast, toastNode } = useToast();
 
   const rows = useMemo(
     () => (filter === 'pending' ? claims.filter((c) => c.status === 'pending') : claims),
@@ -52,30 +55,37 @@ export function ReimbursementsScreen({ claims }: { claims: ReimbursementView[] }
     .filter((c) => c.status === 'approved')
     .reduce((a, c) => a + c.amount, 0);
 
-  function run(id: string, fn: () => Promise<{ ok: boolean; error?: string }>) {
-    setError(null);
+  function run(id: string, fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) {
     setBusy(id);
     startTransition(async () => {
       const res = await fn();
       setBusy(null);
-      if (!res.ok) setError(res.error ?? 'The action failed.');
-      else router.refresh();
+      if (!res.ok) toast(res.error ?? 'The action failed.', 'error');
+      else {
+        toast(okMsg, 'success');
+        router.refresh();
+      }
     });
   }
 
   // Rejecting needs a reason — the employee sees it on their dashboard.
-  function reject(id: string) {
-    const reason = window.prompt('Why is this claim being rejected? (shown to the employee)', '');
+  async function reject(id: string) {
+    const reason = await prompt({
+      title: 'Reject claim',
+      message: 'Why is this claim being rejected? (shown to the employee)',
+      placeholder: 'e.g. Missing receipt for the material purchase',
+      confirmLabel: 'Reject claim',
+      danger: true,
+      validate: (v) => (v.trim() ? null : 'Enter a reason for rejecting the claim.'),
+    });
     if (reason === null) return;
-    if (!reason.trim()) {
-      setError('Enter a reason for rejecting the claim.');
-      return;
-    }
-    run(id, () => reviewReimbursement(id, 'rejected', reason.trim()));
+    run(id, () => reviewReimbursement(id, 'rejected', reason.trim()), 'Claim rejected.');
   }
 
   return (
     <div className="wrap grid">
+      {promptDialog}
+      {toastNode}
       <div className="kpis">
         <div className="card kpi">
           <div className="lab">Pending claims</div>
@@ -97,8 +107,6 @@ export function ReimbursementsScreen({ claims }: { claims: ReimbursementView[] }
           <div className="note">All time</div>
         </div>
       </div>
-
-      {error && <div className="login-error">{error}</div>}
 
       <div className="card">
         <div className="hd">
@@ -187,7 +195,7 @@ export function ReimbursementsScreen({ claims }: { claims: ReimbursementView[] }
                             <button
                               className="btn primary"
                               disabled={pending && busy === c.id}
-                              onClick={() => run(c.id, () => reviewReimbursement(c.id, 'approved'))}
+                              onClick={() => run(c.id, () => reviewReimbursement(c.id, 'approved'), 'Claim approved and added to payroll.')}
                             >
                               {pending && busy === c.id ? '…' : 'Approve'}
                             </button>
@@ -204,7 +212,7 @@ export function ReimbursementsScreen({ claims }: { claims: ReimbursementView[] }
                           <button
                             className="btn quiet"
                             disabled={pending && busy === c.id}
-                            onClick={() => run(c.id, () => markReimbursementPaid(c.id))}
+                            onClick={() => run(c.id, () => markReimbursementPaid(c.id), 'Claim marked paid.')}
                           >
                             Mark paid
                           </button>

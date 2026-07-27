@@ -14,6 +14,7 @@ import {
   deleteReimbursement,
 } from '@/lib/actions/reimbursements';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast, type ToastKind } from '@/components/ui/Toast';
 import type { ReimbursementView } from '@/lib/queries';
 import type { ReimbursementPurpose } from '@/types/database';
 
@@ -52,10 +53,10 @@ export function MyReimbursements({
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<ReimbursementView | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const { confirm, confirmDialog } = useConfirm();
+  const { toast, toastNode } = useToast();
 
   async function withdraw(c: ReimbursementView) {
     const ok = await confirm({
@@ -65,13 +66,13 @@ export function MyReimbursements({
       danger: true,
     });
     if (!ok) return;
-    setError(null);
     setBusy(c.id);
     startTransition(async () => {
       const res = await deleteReimbursement(c.id);
       setBusy(null);
-      if (!res.ok) setError(res.error ?? 'Could not withdraw the claim.');
+      if (!res.ok) toast(res.error ?? 'Could not withdraw the claim.', 'error');
       else {
+        toast('Claim withdrawn.', 'success');
         if (editing?.id === c.id) setEditing(null);
         router.refresh();
       }
@@ -81,13 +82,13 @@ export function MyReimbursements({
   return (
     <div className="two-col">
       {confirmDialog}
+      {toastNode}
       <div className="card">
         <div className="hd">
           <h3>My reimbursement claims</h3>
           <span className="folio">{claims.length} total</span>
         </div>
         <div className="bd">
-          {error && <div className="login-error">{error}</div>}
           {claims.length === 0 ? (
             <p className="muted" style={{ fontSize: 13 }}>
               {canClaim ? 'No claims yet — file one on the right.' : 'No claims to show.'}
@@ -179,6 +180,7 @@ export function MyReimbursements({
               ratePerKm={ratePerKm}
               claim={editing}
               onDone={() => setEditing(null)}
+              toast={toast}
             />
           ) : (
             <p className="muted" style={{ fontSize: 13 }}>
@@ -195,11 +197,13 @@ function ClaimForm({
   ratePerKm,
   claim,
   onDone,
+  toast,
 }: {
   ratePerKm: number;
   /** When set, the form edits this pending claim instead of creating a new one. */
   claim: ReimbursementView | null;
   onDone: () => void;
+  toast: (message: string, kind?: ToastKind) => void;
 }) {
   const router = useRouter();
   const editing = claim !== null;
@@ -213,6 +217,7 @@ function ClaimForm({
         ? await updateReimbursement(claim!.id, formData)
         : await createReimbursement(formData);
       if (res.ok) {
+        toast(editing ? 'Claim updated.' : 'Claim submitted for approval.', 'success');
         if (!editing) {
           setKms('');
           setAmount('');

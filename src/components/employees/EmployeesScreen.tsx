@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { inr } from '@/lib/format';
 import { AddEmployeeDrawer } from './AddEmployeeDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import { fetchEmployeeForEdit, deactivateEmployee, reactivateEmployee } from '@/lib/actions/employees';
 import type { EmployeeListRow, EmployeeEditRow } from '@/lib/queries';
 
@@ -21,9 +22,9 @@ export function EmployeesScreen({
   const [drawer, setDrawer] = useState(false);
   const [editing, setEditing] = useState<EmployeeEditRow | null>(null);
   const [busyCode, setBusyCode] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const { confirm, confirmDialog } = useConfirm();
+  const { toast, toastNode } = useToast();
 
   const activeCount = useMemo(() => rows.filter((e) => e.active).length, [rows]);
   const inactiveCount = rows.length - activeCount;
@@ -47,13 +48,12 @@ export function EmployeesScreen({
   }
 
   function openEdit(code: string) {
-    setError(null);
     setBusyCode(code);
     startTransition(async () => {
       const data = await fetchEmployeeForEdit(code);
       setBusyCode(null);
       if (!data) {
-        setError(`Could not load ${code} for editing.`);
+        toast(`Could not load ${code} for editing.`, 'error');
         return;
       }
       setEditing(data);
@@ -69,13 +69,15 @@ export function EmployeesScreen({
       danger: true,
     });
     if (!ok) return;
-    setError(null);
     setBusyCode(code);
     startTransition(async () => {
       const res = await deactivateEmployee(code);
       setBusyCode(null);
-      if (!res.ok) setError(res.error ?? 'Could not deactivate the employee.');
-      else router.refresh();
+      if (!res.ok) toast(res.error ?? 'Could not deactivate the employee.', 'error');
+      else {
+        toast(`${name} deactivated.`, 'success');
+        router.refresh();
+      }
     });
   }
 
@@ -86,13 +88,15 @@ export function EmployeesScreen({
       confirmLabel: 'Reactivate',
     });
     if (!ok) return;
-    setError(null);
     setBusyCode(code);
     startTransition(async () => {
       const res = await reactivateEmployee(code);
       setBusyCode(null);
-      if (!res.ok) setError(res.error ?? 'Could not reactivate the employee.');
-      else router.refresh();
+      if (!res.ok) toast(res.error ?? 'Could not reactivate the employee.', 'error');
+      else {
+        toast(`${name} reactivated.`, 'success');
+        router.refresh();
+      }
     });
   }
 
@@ -129,11 +133,7 @@ export function EmployeesScreen({
         </button>
       </div>
 
-      {error && (
-        <div className="login-error" style={{ margin: '0 0 12px' }}>
-          {error}
-        </div>
-      )}
+      {toastNode}
 
       <div className="card">
         <div style={{ overflowX: 'auto' }}>

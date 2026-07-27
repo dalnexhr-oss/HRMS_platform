@@ -46,12 +46,13 @@ export interface NavItem {
 export const NAV: NavItem[] = [
   { slug: 'today', label: 'Today', group: 'Operate' },
   { slug: 'register', label: 'Monthly register', group: 'Operate' },
+  { slug: 'audit', label: 'Attendance audit', group: 'Operate' },
   { slug: 'approvals', label: 'Approvals', group: 'Operate' },
   { slug: 'payroll', label: 'Payroll', group: 'Pay' },
   { slug: 'reimbursements', label: 'Reimbursements', group: 'Pay' },
   { slug: 'employees', label: 'Employees', group: 'People' },
   { slug: 'assets', label: 'Asset Management', group: 'People' },
-  { slug: 'items', label: 'Item Management', group: 'People' },
+  { slug: 'items', label: 'Material / Tools', group: 'People' },
   { slug: 'policies', label: 'Company policies', group: 'People' },
   { slug: 'holidays', label: 'Holidays', group: 'More' },
   { slug: 'notices', label: 'Notices', group: 'More' },
@@ -68,6 +69,7 @@ export const NAV_ROLE_GATED: Record<string, readonly string[]> = {
   users: ['admin', 'hr'],
   assets: ['admin', 'hr'],
   items: ['admin', 'hr'],
+  audit: ['admin', 'hr', 'manager'],
 };
 
 // Page titles + FALLBACK subtitles keyed by slug. These are deliberately plain
@@ -78,11 +80,12 @@ export const NAV_ROLE_GATED: Record<string, readonly string[]> = {
 export const TITLES: Record<string, [string, string]> = {
   today: ['Today', 'Live attendance · IST'],
   register: ['Monthly register', 'Attendance by month'],
+  audit: ['Attendance audit', 'Who edited attendance & why'],
   payroll: ['Payroll', 'Salary runs & payslips'],
   reimbursements: ['Reimbursements', 'Expense claims · approve & pay'],
   employees: ['Employees', 'Staff directory'],
   assets: ['Asset Management', 'Company IT assets'],
-  items: ['Item Management', 'Inventory & assignments'],
+  items: ['Material / Tools', 'Inventory & assignments'],
   policies: ['Company policies', 'Published to employee dashboards'],
   approvals: ['Approvals', 'Leave & duty requests'],
   holidays: ['Holidays', 'Holiday calendar'],
