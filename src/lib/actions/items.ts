@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth';
 import { getItemAssignments, type ItemAssignmentRow } from '@/lib/queries';
+import { notifyEmployee } from '@/lib/notify';
 import { requireRoles, wroteNothing } from './_guard';
 import type { AppRole } from '@/types/database';
 
@@ -110,9 +111,9 @@ export async function assignItem(formData: FormData) {
   // How much is still available? Read the derived remaining from v_items.
   const { data: item, error: itemErr } = await supabase
     .from('v_items')
-    .select('quantity_remaining')
+    .select('item_name, quantity_remaining')
     .eq('id', itemId)
-    .maybeSingle<{ quantity_remaining: number }>();
+    .maybeSingle<{ item_name: string; quantity_remaining: number }>();
   if (itemErr) return { ok: false, error: itemErr.message };
   if (!item) return { ok: false, error: 'That item no longer exists.' };
   if (quantity > item.quantity_remaining) {
@@ -150,6 +151,14 @@ export async function assignItem(formData: FormData) {
   if (wroteNothing(data)) {
     return { ok: false, error: 'The assignment was not saved — your role may lack permission.' };
   }
+
+  await notifyEmployee(employeeId, {
+    kind: 'item',
+    title: 'An item was issued to you',
+    body: `${quantity} × ${item.item_name}`,
+    link: '/me',
+  });
+
   revalidatePath('/items');
   return { ok: true };
 }
@@ -164,11 +173,24 @@ export async function returnAssignment(id: string) {
     .update({ returned: true, returned_date: new Date().toISOString().slice(0, 10) })
     .eq('id', id)
     .eq('returned', false)
-    .select('id');
+    .select('id, quantity, employee_id, items(item_name)');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
     return { ok: false, error: 'Nothing to return — it may already be marked returned.' };
   }
+
+  const row = data![0] as unknown as {
+    quantity: number;
+    employee_id: string | null;
+    items: { item_name: string } | null;
+  };
+  await notifyEmployee(row.employee_id, {
+    kind: 'item',
+    title: 'An item was marked returned',
+    body: `${row.quantity} × ${row.items?.item_name ?? 'item'}`,
+    link: '/me',
+  });
+
   revalidatePath('/items');
   return { ok: true };
 }
@@ -178,11 +200,32 @@ export async function deleteAssignment(id: string) {
   if (!gate.ok) return gate;
 
   const supabase = await createClient();
-  const { data, error } = await supabase.from('item_assignments').delete().eq('id', id).select('id');
+  const { data, error } = await supabase
+    .from('item_assignments')
+    .delete()
+    .eq('id', id)
+    .select('id, quantity, returned, employee_id, items(item_name)');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
     return { ok: false, error: 'The assignment was not deleted — it may no longer exist.' };
   }
+
+  // Only tell the employee if it was still an active holding (not already returned).
+  const row = data![0] as unknown as {
+    quantity: number;
+    returned: boolean;
+    employee_id: string | null;
+    items: { item_name: string } | null;
+  };
+  if (!row.returned) {
+    await notifyEmployee(row.employee_id, {
+      kind: 'item',
+      title: 'An item was removed from you',
+      body: `${row.quantity} × ${row.items?.item_name ?? 'item'}`,
+      link: '/me',
+    });
+  }
+
   revalidatePath('/items');
   return { ok: true };
 }

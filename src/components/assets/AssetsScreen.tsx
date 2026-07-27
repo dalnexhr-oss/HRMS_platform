@@ -6,15 +6,17 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AddAssetDrawer } from './AddAssetDrawer';
+import { AssignAssetDrawer } from './AssignAssetDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { deleteAsset } from '@/lib/actions/assets';
-import type { AssetRow } from '@/lib/queries';
+import type { AssetRow, EmployeeOption } from '@/lib/queries';
 
-export function AssetsScreen({ assets }: { assets: AssetRow[] }) {
+export function AssetsScreen({ assets, employees }: { assets: AssetRow[]; employees: EmployeeOption[] }) {
   const router = useRouter();
   const [q, setQ] = useState('');
   const [drawer, setDrawer] = useState(false);
   const [editing, setEditing] = useState<AssetRow | null>(null);
+  const [assigning, setAssigning] = useState<AssetRow | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -99,11 +101,11 @@ export function AssetsScreen({ assets }: { assets: AssetRow[] }) {
                 <th>Brand</th>
                 <th>Serial no.</th>
                 <th>Model</th>
+                <th>Assigned to</th>
                 <th>Warranty upto</th>
                 <th>Processor</th>
                 <th>RAM</th>
                 <th>Storage</th>
-                <th>Antivirus</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -116,15 +118,34 @@ export function AssetsScreen({ assets }: { assets: AssetRow[] }) {
                   <td>{a.brand ?? '—'}</td>
                   <td className="mono">{a.serial_no ?? '—'}</td>
                   <td>{a.model_no ?? '—'}</td>
+                  <td>
+                    {a.assigned_employee_id ? (
+                      <>
+                        {a.assigned_person_name ?? '—'}{' '}
+                        <span className="mono muted" style={{ fontSize: 11 }}>
+                          {a.assigned_employee_code ?? ''}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
+                  </td>
                   <td className="mono">{a.warranty_upto ?? '—'}</td>
                   <td>{a.processor ?? '—'}</td>
                   <td>{a.ram ?? '—'}</td>
                   <td>{a.storage ?? '—'}</td>
-                  <td>{a.antivirus ?? '—'}</td>
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button className="btn quiet" onClick={() => openEdit(a)} disabled={pending && busyId === a.id}>
                         Edit
+                      </button>
+                      <button
+                        className="btn quiet"
+                        onClick={() => setAssigning(a)}
+                        disabled={pending && busyId === a.id}
+                        title="Assign this asset to an employee"
+                      >
+                        {a.assigned_employee_id ? 'Reassign' : 'Assign'}
                       </button>
                       <button
                         className="btn quiet"
@@ -158,6 +179,7 @@ export function AssetsScreen({ assets }: { assets: AssetRow[] }) {
           setEditing(null);
         }}
       />
+      <AssignAssetDrawer asset={assigning} employees={employees} onClose={() => setAssigning(null)} />
       {confirmDialog}
     </div>
   );

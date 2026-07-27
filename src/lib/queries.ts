@@ -1010,25 +1010,98 @@ export interface AssetRow {
   graphics_card: string | null;
   storage: string | null;
   antivirus: string | null;
+  assigned_employee_id: string | null;
+  assigned_person_name: string | null;
+  assigned_employee_code: string | null;
+  assigned_date: string | null;
 }
 
 const ASSET_COLS =
+  `id, desktop_name, brand, serial_no, model_no, warranty_upto, warranty_renew,
+   product_id, device_id, processor, ram, graphics_card, storage, antivirus,
+   assigned_employee_id, assigned_person_name, assigned_employee_code, assigned_date`;
+// Before migration 0028 the assignment columns don't exist — retry without them.
+const ASSET_COLS_LEGACY =
   `id, desktop_name, brand, serial_no, model_no, warranty_upto, warranty_renew,
    product_id, device_id, processor, ram, graphics_card, storage, antivirus`;
 
 export async function getAssets(): Promise<AssetRow[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('assets')
-    .select(ASSET_COLS)
-    .order('desktop_name');
-  if (error) {
+  let res = await supabase.from('assets').select(ASSET_COLS).order('desktop_name');
+  if (res.error?.code === '42703') {
+    res = (await supabase
+      .from('assets')
+      .select(ASSET_COLS_LEGACY)
+      .order('desktop_name')) as typeof res;
+  }
+  if (res.error) {
     // Tolerate the table not existing yet (migration 0025 not applied) so the
     // tab renders empty instead of crashing.
-    if (error.code === 'PGRST205' || error.code === '42P01') return [];
-    fail('getAssets: could not load assets', error);
+    if (res.error.code === 'PGRST205' || res.error.code === '42P01') return [];
+    fail('getAssets: could not load assets', res.error);
   }
-  return (data ?? []) as unknown as AssetRow[];
+  return (res.data ?? []) as unknown as AssetRow[];
+}
+
+// ------------------------------------------------- employee assets / items ---
+/** An asset currently assigned to the signed-in employee (migration 0028). */
+export interface MyAssetRow {
+  id: string;
+  desktop_name: string;
+  brand: string | null;
+  serial_no: string | null;
+  model_no: string | null;
+  assigned_date: string | null;
+}
+
+export async function getMyAssets(employeeId: string): Promise<MyAssetRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('assets')
+    .select('id, desktop_name, brand, serial_no, model_no, assigned_date')
+    .eq('assigned_employee_id', employeeId)
+    .order('desktop_name');
+  if (error) {
+    // Table/column not migrated yet, or no read access — show nothing, don't crash.
+    if (['PGRST205', '42P01', '42703'].includes(error.code ?? '')) return [];
+    fail('getMyAssets: could not load assigned assets', error);
+  }
+  return (data ?? []) as unknown as MyAssetRow[];
+}
+
+/** An item issued to the signed-in employee (migration 0028 RLS). */
+export interface MyItemRow {
+  id: string;
+  itemName: string;
+  category: string | null;
+  unit: string | null;
+  quantity: number;
+  assignedDate: string;
+  returned: boolean;
+  returnedDate: string | null;
+}
+
+export async function getMyItems(employeeId: string): Promise<MyItemRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('item_assignments')
+    .select('id, quantity, assigned_date, returned, returned_date, items(item_name, category, unit)')
+    .eq('employee_id', employeeId)
+    .order('assigned_date', { ascending: false });
+  if (error) {
+    if (['PGRST205', '42P01', '42703'].includes(error.code ?? '')) return [];
+    fail('getMyItems: could not load assigned items', error);
+  }
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    itemName: r.items?.item_name ?? 'Item',
+    category: r.items?.category ?? null,
+    unit: r.items?.unit ?? null,
+    quantity: r.quantity,
+    assignedDate: String(r.assigned_date).slice(0, 10),
+    returned: !!r.returned,
+    returnedDate: r.returned_date ? String(r.returned_date).slice(0, 10) : null,
+  }));
 }
 
 // ---------------------------------------------------- employee overview ---

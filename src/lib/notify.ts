@@ -22,6 +22,8 @@ export type NotificationKind =
   | 'comp_off'
   | 'ticket'
   | 'payroll'
+  | 'asset'
+  | 'item'
   | 'system';
 
 export interface NotifyInput {

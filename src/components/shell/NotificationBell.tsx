@@ -20,6 +20,8 @@ const KIND_ICON: Record<string, string> = {
   comp_off: '🌴',
   ticket: '🎫',
   payroll: '🧾',
+  asset: '💻',
+  item: '📦',
   system: '⚙️',
 };
 

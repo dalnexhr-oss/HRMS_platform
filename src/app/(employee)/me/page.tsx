@@ -14,6 +14,8 @@ import {
   getMyCompOffs,
   getMyReimbursements,
   getReimbursementRate,
+  getMyAssets,
+  getMyItems,
   getPayrollRun,
   getHolidays,
   getNotices,
@@ -28,6 +30,8 @@ import {
   type ReimbursementView,
   type RequestView,
   type TicketView,
+  type MyAssetRow,
+  type MyItemRow,
 } from '@/lib/queries';
 import { PolicyList } from '@/components/policies/PolicyList';
 import { EmployeeNotices } from '@/components/employee/EmployeeNotices';
@@ -38,6 +42,8 @@ import { ApplyLeave } from '@/components/employee/ApplyLeave';
 import { MyTickets } from '@/components/employee/MyTickets';
 import { MyCompOffs } from '@/components/employee/MyCompOffs';
 import { MyReimbursements } from '@/components/employee/MyReimbursements';
+import { MyAssets } from '@/components/employee/MyAssets';
+import { MyItems } from '@/components/employee/MyItems';
 import { inr } from '@/lib/format';
 import type { DayCell, PayslipRow } from '@/types/domain';
 
@@ -61,6 +67,8 @@ export default async function MePage() {
     compOffs,
     reimbursements,
     ratePerKm,
+    myAssets,
+    myItems,
     holidays,
     notices,
     weekOffPolicy,
@@ -81,6 +89,8 @@ export default async function MePage() {
       employeeId ? getMyCompOffs(employeeId) : Promise.resolve<CompOffRow[]>([]),
       employeeId ? getMyReimbursements(employeeId) : Promise.resolve<ReimbursementView[]>([]),
       getReimbursementRate(),
+      employeeId ? getMyAssets(employeeId) : Promise.resolve<MyAssetRow[]>([]),
+      employeeId ? getMyItems(employeeId) : Promise.resolve<MyItemRow[]>([]),
       getHolidays(),
       getNotices(),
       getWeekOffPolicy(),
@@ -256,6 +266,10 @@ export default async function MePage() {
         canClaim={canRaiseTicket}
         blockedReason={ticketBlockedReason}
       />
+
+      {/* equipment assigned to me */}
+      <MyAssets assets={myAssets} />
+      <MyItems items={myItems} />
 
       {/* helpdesk */}
       <MyTickets

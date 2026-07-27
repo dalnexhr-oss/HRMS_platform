@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { getSession } from '@/lib/auth';
+import { notifyEmployee } from '@/lib/notify';
 import { requireRoles, wroteNothing } from './_guard';
 import type { AppRole } from '@/types/database';
 
@@ -67,6 +69,103 @@ export async function updateAsset(formData: FormData) {
       error: 'The asset was not updated — it may no longer exist, or your role lacks permission.',
     };
   }
+  revalidatePath('/assets');
+  return { ok: true };
+}
+
+/** Assign an asset to an employee (single holder). Snapshots name/code + notifies them. */
+export async function assignAsset(formData: FormData) {
+  const gate = await requireRoles(ASSET_ADMIN_ROLES, 'Assigning an asset');
+  if (!gate.ok) return gate;
+
+  const assetId = String(formData.get('asset_id') ?? '').trim();
+  const employeeId = String(formData.get('employee_id') ?? '').trim();
+  if (!assetId) return { ok: false, error: 'Which asset to assign is missing.' };
+  if (!employeeId) return { ok: false, error: 'Choose an employee to assign to.' };
+
+  const supabase = await createClient();
+
+  // Snapshot the employee's name + code so the record survives their removal.
+  const { data: emp, error: empErr } = await supabase
+    .from('employees')
+    .select('code, full_name')
+    .eq('id', employeeId)
+    .maybeSingle<{ code: string; full_name: string }>();
+  if (empErr) return { ok: false, error: empErr.message };
+  if (!emp) return { ok: false, error: 'That employee no longer exists.' };
+
+  const { profile } = await getSession();
+
+  const { data, error } = await supabase
+    .from('assets')
+    .update({
+      assigned_employee_id: employeeId,
+      assigned_person_name: emp.full_name,
+      assigned_employee_code: emp.code,
+      assigned_date: new Date().toISOString().slice(0, 10),
+      assigned_by: profile?.full_name ?? null,
+    })
+    .eq('id', assetId)
+    .select('id, desktop_name, brand');
+  if (error) return { ok: false, error: error.message };
+  if (wroteNothing(data)) {
+    return { ok: false, error: 'The asset was not assigned — it may no longer exist, or your role lacks permission.' };
+  }
+
+  const row = data![0] as { desktop_name: string; brand: string | null };
+  await notifyEmployee(employeeId, {
+    kind: 'asset',
+    title: 'An asset was assigned to you',
+    body: [row.desktop_name, row.brand].filter(Boolean).join(' · '),
+    link: '/me',
+  });
+
+  revalidatePath('/assets');
+  return { ok: true };
+}
+
+/** Clear an asset's assignment (return/unassign) and notify the prior holder. */
+export async function unassignAsset(id: string) {
+  const gate = await requireRoles(ASSET_ADMIN_ROLES, 'Unassigning an asset');
+  if (!gate.ok) return gate;
+
+  const supabase = await createClient();
+
+  // Read the prior holder BEFORE clearing it — the update would null it out.
+  const { data: before, error: readErr } = await supabase
+    .from('assets')
+    .select('assigned_employee_id, desktop_name, brand')
+    .eq('id', id)
+    .maybeSingle<{ assigned_employee_id: string | null; desktop_name: string; brand: string | null }>();
+  if (readErr) return { ok: false, error: readErr.message };
+  if (!before) return { ok: false, error: 'That asset no longer exists.' };
+  if (!before.assigned_employee_id) {
+    return { ok: false, error: 'Nothing to unassign — the asset is not assigned.' };
+  }
+
+  const { data, error } = await supabase
+    .from('assets')
+    .update({
+      assigned_employee_id: null,
+      assigned_person_name: null,
+      assigned_employee_code: null,
+      assigned_date: null,
+      assigned_by: null,
+    })
+    .eq('id', id)
+    .select('id');
+  if (error) return { ok: false, error: error.message };
+  if (wroteNothing(data)) {
+    return { ok: false, error: 'The asset was not unassigned — your role may lack permission.' };
+  }
+
+  await notifyEmployee(before.assigned_employee_id, {
+    kind: 'asset',
+    title: 'An asset was returned',
+    body: [before.desktop_name, before.brand].filter(Boolean).join(' · '),
+    link: '/me',
+  });
+
   revalidatePath('/assets');
   return { ok: true };
 }

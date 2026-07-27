@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { AssetsScreen } from '@/components/assets/AssetsScreen';
-import { getAssets } from '@/lib/queries';
+import { getAssets, getEmployeeOptions } from '@/lib/queries';
 import { getSession } from '@/lib/auth';
 import type { AppRole } from '@/types/database';
 
@@ -13,6 +13,6 @@ export default async function AssetsPage() {
   const role = profile?.role ?? null;
   if (!role || !ASSET_ADMIN_ROLES.includes(role)) redirect('/today');
 
-  const assets = await getAssets();
-  return <AssetsScreen assets={assets} />;
+  const [assets, employees] = await Promise.all([getAssets(), getEmployeeOptions()]);
+  return <AssetsScreen assets={assets} employees={employees} />;
 }
