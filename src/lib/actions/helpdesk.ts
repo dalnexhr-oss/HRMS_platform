@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/_guard';
 import { notifyApprovers, notifyEmployee } from '@/lib/notify';
+import type { TicketComment } from '@/lib/queries';
 
 type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 
@@ -126,20 +127,45 @@ export async function addTicketComment(ticketId: string, body: string) {
       ticket_id: ticketId,
       author_id: profile.id,
       author_name: profile.full_name ?? null,
+      author_role: profile.role ?? null,
       author_is_staff: isStaff,
       body: text,
     })
-    .select('id');
+    .select('id, ticket_id, author_id, author_name, author_role, author_is_staff, body, created_at');
 
   if (error) {
     if (error.code === '42P01' || error.code === 'PGRST205') {
       return { ok: false, error: 'Ticket follow-ups aren’t set up on the database yet — apply migration 0021.' };
+    }
+    if (error.code === '42703') {
+      return { ok: false, error: 'The ticket chat isn’t set up on the database yet — apply migration 0030.' };
     }
     return { ok: false, error: error.message };
   }
   if (wroteNothing(data)) {
     return { ok: false, error: 'The follow-up was not posted — your account may not have permission.' };
   }
+
+  const inserted = data![0] as {
+    id: string;
+    ticket_id: string;
+    author_id: string | null;
+    author_name: string | null;
+    author_role: string | null;
+    author_is_staff: boolean;
+    body: string;
+    created_at: string;
+  };
+  const comment: TicketComment = {
+    id: inserted.id,
+    ticketId: inserted.ticket_id,
+    body: inserted.body,
+    authorId: inserted.author_id,
+    authorName: inserted.author_name,
+    authorRole: inserted.author_role,
+    authorIsStaff: !!inserted.author_is_staff,
+    createdAt: inserted.created_at,
+  };
 
   // Load the parent ticket once — for the reopen check and for notifying the
   // other party.
@@ -179,5 +205,5 @@ export async function addTicketComment(ticketId: string, body: string) {
 
   revalidatePath('/helpdesk');
   revalidatePath('/me');
-  return { ok: true };
+  return { ok: true, comment };
 }

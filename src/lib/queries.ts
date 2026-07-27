@@ -1360,7 +1360,10 @@ export interface TicketComment {
   id: string;
   ticketId: string;
   body: string;
+  authorId: string | null;
   authorName: string | null;
+  /** The author's role at post time ('admin' | 'hr' | … | 'employee'), for the label. */
+  authorRole: string | null;
   /** Distinguishes a staff/HR follow-up from the employee's own, for the pill. */
   authorIsStaff: boolean;
   createdAt: string;
@@ -1371,7 +1374,9 @@ function mapComment(c: any): TicketComment {
     id: c.id,
     ticketId: c.ticket_id,
     body: c.body,
+    authorId: c.author_id ?? null,
     authorName: c.author_name ?? null,
+    authorRole: c.author_role ?? null,
     authorIsStaff: !!c.author_is_staff,
     createdAt: c.created_at,
   };
@@ -1389,11 +1394,22 @@ export async function getTicketComments(
   if (ticketIds.length === 0) return {};
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const COLS = 'id, ticket_id, body, author_id, author_name, author_role, author_is_staff, created_at';
+  const COLS_LEGACY = 'id, ticket_id, body, author_id, author_name, author_is_staff, created_at';
+  let res = await supabase
     .from('helpdesk_ticket_comments')
-    .select('id, ticket_id, body, author_name, author_is_staff, created_at')
+    .select(COLS)
     .in('ticket_id', ticketIds)
     .order('created_at', { ascending: true });
+  // Migration 0030 (author_role) not applied yet → retry without the column.
+  if (res.error?.code === '42703') {
+    res = (await supabase
+      .from('helpdesk_ticket_comments')
+      .select(COLS_LEGACY)
+      .in('ticket_id', ticketIds)
+      .order('created_at', { ascending: true })) as typeof res;
+  }
+  const { data, error } = res;
   if (error) {
     if (isMissingTable(error)) {
       warnNotMigrated('getTicketComments', 'migration 0021_helpdesk_thread.sql');

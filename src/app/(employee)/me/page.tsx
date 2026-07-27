@@ -275,6 +275,7 @@ export default async function MePage() {
       <MyTickets
         tickets={tickets}
         comments={ticketComments}
+        selfId={profile?.id ?? null}
         canRaise={canRaiseTicket}
         blockedReason={ticketBlockedReason}
       />

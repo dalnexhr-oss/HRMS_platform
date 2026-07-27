@@ -1,9 +1,9 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createTicket } from '@/lib/actions/helpdesk';
-import { TicketThread } from '@/components/helpdesk/TicketThread';
+import { TicketChatDrawer } from '@/components/helpdesk/TicketChatDrawer';
 import { formatDate } from '@/lib/format';
 import type { TicketComment, TicketView } from '@/lib/queries';
 
@@ -22,24 +22,24 @@ function statusPillStyle(status: TicketView['status']): React.CSSProperties {
 }
 
 /**
- * The employee's own helpdesk tickets, plus a raise-ticket form.
- *
- * `canRaise` is decided on the server: `createTicket` stamps the ticket with the
- * session's employee_id and short-circuits to a bare {ok:true} when Supabase is
- * unconfigured, so in either failing case the form would report success over a
- * ticket that is invisible here (or never written). We disable it instead.
+ * The employee's own helpdesk tickets, plus a raise-ticket form. Each ticket
+ * opens a real-time chat window with HR.
  */
 export function MyTickets({
   tickets,
   comments = {},
+  selfId = null,
   canRaise,
   blockedReason,
 }: {
   tickets: TicketView[];
   comments?: Record<string, TicketComment[]>;
+  selfId?: string | null;
   canRaise: boolean;
   blockedReason: string;
 }) {
+  const [chat, setChat] = useState<TicketView | null>(null);
+
   return (
     <div className="two-col">
       <div className="card">
@@ -53,35 +53,31 @@ export function MyTickets({
               {canRaise ? 'No tickets yet — raise one on the right.' : 'No tickets to show.'}
             </p>
           ) : (
-            tickets.map((t) => (
-              <div className="policy" key={t.id}>
-                <div className="phd">
-                  <h4>{t.subject}</h4>
-                  {t.category && <span className="cat">{t.category}</span>}
-                  <span className="ver">{formatDate(t.createdAt.slice(0, 10))}</span>
-                  <span style={{ flex: 1 }} />
-                  <span className="pill" style={statusPillStyle(t.status)}>
-                    {STATUS_LABEL[t.status]}
-                  </span>
-                </div>
-                {t.body && <p className="body">{t.body}</p>}
-                {t.resolutionNote && (
-                  <div
-                    style={{
-                      fontSize: 13,
-                      marginTop: 8,
-                      padding: '8px 11px',
-                      borderLeft: '3px solid var(--brand)',
-                      background: 'var(--brand-soft)',
-                      borderRadius: 4,
-                    }}
-                  >
-                    <b>Reply from HR:</b> {t.resolutionNote}
+            tickets.map((t) => {
+              const count = comments[t.id]?.length ?? 0;
+              return (
+                <div className="policy" key={t.id}>
+                  <div className="phd">
+                    <h4>{t.subject}</h4>
+                    {t.category && <span className="cat">{t.category}</span>}
+                    <span className="ver">{formatDate(t.createdAt.slice(0, 10))}</span>
+                    <span style={{ flex: 1 }} />
+                    <span className="pill" style={statusPillStyle(t.status)}>
+                      {STATUS_LABEL[t.status]}
+                    </span>
                   </div>
-                )}
-                <TicketThread ticketId={t.id} comments={comments[t.id] ?? []} />
-              </div>
-            ))
+                  {t.body && <p className="body">{t.body}</p>}
+                  <button
+                    type="button"
+                    className="btn primary"
+                    style={{ marginTop: 8 }}
+                    onClick={() => setChat(t)}
+                  >
+                    Open conversation{count > 0 ? ` · ${count}` : ''}
+                  </button>
+                </div>
+              );
+            })
           )}
         </div>
       </div>
@@ -100,6 +96,15 @@ export function MyTickets({
           )}
         </div>
       </div>
+
+      <TicketChatDrawer
+        ticket={chat}
+        initialComments={chat ? comments[chat.id] ?? [] : []}
+        selfId={selfId}
+        isStaff={false}
+        open={chat !== null}
+        onClose={() => setChat(null)}
+      />
     </div>
   );
 }

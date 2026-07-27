@@ -273,6 +273,25 @@ tbody tr:hover{background:var(--card-2)}
 .hint{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border-radius:8px;font-size:12px;border:1px solid var(--p-line);background:var(--p-bg);color:var(--p)}
 .drawer .dft{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
 
+/* ---- ticket chat window (helpdesk conversation) -------------------------- */
+.chat-drawer{width:560px}
+.chat{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:14px;padding:18px 18px;background:linear-gradient(0deg,var(--brand-soft) 0%, #f6f9f9 40%)}
+.chat-empty{margin:auto;color:var(--ink-3);font-size:13px;text-align:center}
+.chat-row{display:flex;gap:8px;align-items:flex-end;max-width:82%}
+.chat-row.me{margin-left:auto;flex-direction:row-reverse}
+.chat-av{width:30px;height:30px;font:600 11px var(--mono)}
+.chat-col{display:flex;flex-direction:column;gap:3px;min-width:0}
+.chat-meta{font:700 11px var(--sans);color:var(--ink-2);display:flex;gap:6px;align-items:baseline}
+.chat-row.me .chat-meta{justify-content:flex-end}
+.chat-role{font:600 10px var(--mono);letter-spacing:.04em;text-transform:uppercase;color:var(--brand-deep)}
+.chat-time{font:400 10px var(--mono);color:var(--ink-3)}
+.chat-bubble{padding:9px 12px;border-radius:14px;background:#fff;border:1px solid var(--line-2);color:var(--ink);font-size:13px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 1px 2px rgba(13,74,92,.06)}
+.chat-row:not(.me) .chat-bubble{border-bottom-left-radius:4px}
+.chat-row.me .chat-bubble{background:var(--brand);border-color:var(--brand);color:#fff;border-bottom-right-radius:4px}
+.chat-composer{border-top:1px solid var(--line);padding:10px 12px;display:flex;gap:8px;align-items:flex-end;background:var(--card)}
+.chat-composer textarea{flex:1;padding:9px 11px;border:1px solid var(--line-2);border-radius:12px;font:inherit;font-size:13px;background:#fff;resize:none;line-height:1.4}
+.chat-status{padding:5px 8px;border:1px solid var(--line-2);border-radius:8px;font:inherit;font-size:12px;background:#fff}
+
 /* Centered confirmation modal — themed replacement for window.confirm(). */
 .modal{position:fixed;inset:0;z-index:62;display:flex;align-items:center;justify-content:center;padding:20px}
 .modal-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 24px 60px rgba(13,74,92,.28);width:440px;max-width:92vw;overflow:hidden;animation:modal-in .16s ease}
