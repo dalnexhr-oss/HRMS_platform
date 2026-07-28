@@ -12,6 +12,8 @@ import {
   createReimbursement,
   updateReimbursement,
   deleteReimbursement,
+  uploadReimbursementReceipt,
+  getReceiptUrl,
 } from '@/lib/actions/reimbursements';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast, type ToastKind } from '@/components/ui/Toast';
@@ -28,13 +30,15 @@ const PURPOSE_OPTIONS: ReimbursementPurpose[] = ['travel', 'material_purchase', 
 
 const STATUS_LABEL: Record<ReimbursementView['status'], string> = {
   pending: 'Pending',
+  finance_review: 'With Finance',
   approved: 'Approved',
   rejected: 'Rejected',
   paid: 'Paid',
 };
 
 function statusPillStyle(status: ReimbursementView['status']): React.CSSProperties {
-  if (status === 'pending') return { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' };
+  if (status === 'pending' || status === 'finance_review')
+    return { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' };
   if (status === 'approved') return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
   if (status === 'rejected') return { borderColor: 'var(--line-2)', color: 'var(--hd)' };
   return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
@@ -57,6 +61,16 @@ export function MyReimbursements({
   const [pending, startTransition] = useTransition();
   const { confirm, confirmDialog } = useConfirm();
   const { toast, toastNode } = useToast();
+
+  // Receipts live in a private bucket — open via a short-lived signed URL.
+  async function openReceipt(id: string) {
+    const res = await getReceiptUrl(id);
+    if (!res.ok || !res.url) {
+      toast(res.error ?? 'Could not open the receipt.', 'error');
+      return;
+    }
+    window.open(res.url, '_blank', 'noopener,noreferrer');
+  }
 
   async function withdraw(c: ReimbursementView) {
     const ok = await confirm({
@@ -137,27 +151,47 @@ export function MyReimbursements({
                         </span>
                       </td>
                       <td>
-                        {c.status === 'pending' ? (
-                          <div style={{ display: 'flex', gap: 6 }}>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {c.status === 'pending' && (
+                            <>
+                              <button
+                                className="btn quiet"
+                                disabled={pending && busy === c.id}
+                                onClick={() => setEditing(c)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className="btn quiet"
+                                disabled={pending && busy === c.id}
+                                onClick={() => withdraw(c)}
+                                style={{ color: 'var(--ab)' }}
+                              >
+                                {pending && busy === c.id ? '…' : 'Withdraw'}
+                              </button>
+                            </>
+                          )}
+                          {/* A rejection is no longer terminal (0035): correct it
+                              and resubmit — saving puts it back in the queue. */}
+                          {c.status === 'rejected' && (
                             <button
                               className="btn quiet"
                               disabled={pending && busy === c.id}
                               onClick={() => setEditing(c)}
+                              title="Correct this claim and submit it again"
                             >
-                              Edit
+                              Fix &amp; resubmit
                             </button>
-                            <button
-                              className="btn quiet"
-                              disabled={pending && busy === c.id}
-                              onClick={() => withdraw(c)}
-                              style={{ color: 'var(--ab)' }}
-                            >
-                              {pending && busy === c.id ? '…' : 'Withdraw'}
+                          )}
+                          {c.receiptPath && (
+                            <button className="btn quiet" onClick={() => openReceipt(c.id)}>
+                              📎 Receipt
                             </button>
-                          </div>
-                        ) : (
-                          <span className="muted">—</span>
-                        )}
+                          )}
+                          {c.status !== 'pending' && c.status !== 'rejected' && !c.receiptPath && (
+                            <span className="muted">—</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -337,6 +371,16 @@ function ClaimForm({
         />
       </div>
 
+      {/* Receipt upload is only offered when EDITING an existing claim: the file
+          needs a claim id to attach to, so a new claim is saved first, then the
+          receipt added from the row. */}
+      {editing && (
+        <div className="f">
+          <label>Receipt</label>
+          <ReceiptUpload claimId={claim!.id} hasReceipt={claim!.receiptPath != null} toast={toast} />
+        </div>
+      )}
+
       {state.error && <div className="login-error">{state.error}</div>}
       {state.ok && !editing && <div className="hint">✓&nbsp; Claim submitted for approval.</div>}
 
@@ -351,5 +395,51 @@ function ClaimForm({
         )}
       </div>
     </form>
+  );
+}
+
+/**
+ * Attach (or replace) a receipt on an existing claim. Uploads straight to the
+ * private reimbursement-receipts bucket via the server action, which puts it in
+ * the employee's own folder so storage RLS keeps it to them + staff.
+ */
+function ReceiptUpload({
+  claimId,
+  hasReceipt,
+  toast,
+}: {
+  claimId: string;
+  hasReceipt: boolean;
+  toast: (message: string, kind?: ToastKind) => void;
+}) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <>
+      <input
+        type="file"
+        accept="image/*,application/pdf"
+        disabled={busy}
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          setBusy(true);
+          const fd = new FormData();
+          fd.set('receipt', file);
+          const res = await uploadReimbursementReceipt(claimId, fd);
+          setBusy(false);
+          e.target.value = '';
+          if (!res.ok) toast(res.error ?? 'The receipt could not be attached.', 'error');
+          else {
+            toast('Receipt attached.', 'success');
+            router.refresh();
+          }
+        }}
+      />
+      <span className="hint">
+        {busy ? 'Uploading…' : hasReceipt ? 'A receipt is attached — choosing a file replaces it.' : 'JPG/PNG/PDF, up to 5 MB.'}
+      </span>
+    </>
   );
 }

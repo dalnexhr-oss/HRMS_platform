@@ -6,7 +6,12 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { inr, formatDate } from '@/lib/format';
-import { reviewReimbursement, markReimbursementPaid } from '@/lib/actions/reimbursements';
+import {
+  reviewReimbursement,
+  markReimbursementPaid,
+  financeReviewReimbursement,
+  getReceiptUrl,
+} from '@/lib/actions/reimbursements';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { exportReimbursementsXlsx } from '@/lib/actions/export';
 import { usePrompt } from '@/components/ui/PromptDialog';
@@ -21,13 +26,15 @@ const PURPOSE_LABEL: Record<ReimbursementView['purpose'], string> = {
 
 const STATUS_LABEL: Record<ReimbursementView['status'], string> = {
   pending: 'Pending',
+  finance_review: 'With Finance',
   approved: 'Approved',
   rejected: 'Rejected',
   paid: 'Paid',
 };
 
 function statusPillStyle(status: ReimbursementView['status']): React.CSSProperties {
-  if (status === 'pending') return { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' };
+  if (status === 'pending' || status === 'finance_review')
+    return { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' };
   if (status === 'approved') return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
   if (status === 'rejected') return { borderColor: 'var(--line-2)', color: 'var(--hd)' };
   return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
@@ -35,7 +42,15 @@ function statusPillStyle(status: ReimbursementView['status']): React.CSSProperti
 
 type Filter = 'pending' | 'all';
 
-export function ReimbursementsScreen({ claims }: { claims: ReimbursementView[] }) {
+export function ReimbursementsScreen({
+  claims,
+  callerRole,
+}: {
+  claims: ReimbursementView[];
+  /** Finance sign-off is admin-only — mirrors the server guard. */
+  callerRole?: string | null;
+}) {
+  const canFinance = callerRole === 'admin';
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>('pending');
   const [busy, setBusy] = useState<string | null>(null);
@@ -80,6 +95,42 @@ export function ReimbursementsScreen({ claims }: { claims: ReimbursementView[] }
     });
     if (reason === null) return;
     run(id, () => reviewReimbursement(id, 'rejected', reason.trim()), 'Claim rejected.');
+  }
+
+  // Finance stage (0035): the second, final approval — this is what credits payroll.
+  async function financeReject(id: string) {
+    const reason = await prompt({
+      title: 'Finance rejection',
+      message: 'Why is Finance rejecting this claim? (shown to the employee)',
+      placeholder: 'e.g. Receipt does not match the claimed amount',
+      confirmLabel: 'Reject claim',
+      danger: true,
+      validate: (v) => (v.trim() ? null : 'Enter a reason for rejecting the claim.'),
+    });
+    if (reason === null) return;
+    run(id, () => financeReviewReimbursement(id, 'rejected', reason.trim()), 'Claim rejected by Finance.');
+  }
+
+  // Capture the payment reference (UTR/cheque) so 'paid' is verifiable.
+  async function markPaid(id: string) {
+    const ref = await prompt({
+      title: 'Mark paid',
+      message: 'Payment reference (UTR / cheque no.) — optional but recommended:',
+      placeholder: 'e.g. UTR2026072700123',
+      confirmLabel: 'Mark paid',
+    });
+    if (ref === null) return;
+    run(id, () => markReimbursementPaid(id, ref.trim()), 'Claim marked paid.');
+  }
+
+  // Receipts live in a private bucket — open via a short-lived signed URL.
+  async function openReceipt(id: string) {
+    const res = await getReceiptUrl(id);
+    if (!res.ok || !res.url) {
+      toast(res.error ?? 'Could not open the receipt.', 'error');
+      return;
+    }
+    window.open(res.url, '_blank', 'noopener,noreferrer');
   }
 
   return (
@@ -208,16 +259,55 @@ export function ReimbursementsScreen({ claims }: { claims: ReimbursementView[] }
                             </button>
                           </>
                         )}
+                        {c.status === 'finance_review' &&
+                          (canFinance ? (
+                            <>
+                              <button
+                                className="btn primary"
+                                disabled={pending && busy === c.id}
+                                onClick={() =>
+                                  run(
+                                    c.id,
+                                    () => financeReviewReimbursement(c.id, 'approved'),
+                                    'Finance approved — added to payroll.',
+                                  )
+                                }
+                                title="Final approval — this credits payroll"
+                              >
+                                {pending && busy === c.id ? '…' : 'Finance approve'}
+                              </button>
+                              <button
+                                className="btn"
+                                disabled={pending && busy === c.id}
+                                onClick={() => financeReject(c.id)}
+                              >
+                                Reject
+                              </button>
+                            </>
+                          ) : (
+                            <span className="muted" style={{ fontSize: 12 }}>
+                              Awaiting Finance
+                            </span>
+                          ))}
                         {c.status === 'approved' && (
                           <button
                             className="btn quiet"
                             disabled={pending && busy === c.id}
-                            onClick={() => run(c.id, () => markReimbursementPaid(c.id), 'Claim marked paid.')}
+                            onClick={() => markPaid(c.id)}
                           >
                             Mark paid
                           </button>
                         )}
-                        {(c.status === 'rejected' || c.status === 'paid') && (
+                        {c.receiptPath && (
+                          <button
+                            className="btn quiet"
+                            onClick={() => openReceipt(c.id)}
+                            title="Open the attached receipt"
+                          >
+                            📎 Receipt
+                          </button>
+                        )}
+                        {(c.status === 'rejected' || c.status === 'paid') && !c.receiptPath && (
                           <span className="muted" style={{ fontSize: 12 }}>
                             —
                           </span>

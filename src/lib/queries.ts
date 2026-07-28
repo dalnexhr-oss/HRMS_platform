@@ -816,11 +816,22 @@ export interface ReimbursementView {
   remarks: string | null;
   /** The reviewer's note — set when a claim is rejected. Distinct from `remarks`. */
   reviewRemark: string | null;
-  status: 'pending' | 'approved' | 'rejected' | 'paid';
+  status: 'pending' | 'finance_review' | 'approved' | 'rejected' | 'paid';
   createdAt: string;
+  /** Receipt object path in the private bucket (0035); null when none attached. */
+  receiptPath: string | null;
+  paidAt: string | null;
+  paymentRef: string | null;
+  financeReviewedAt: string | null;
 }
 
+// Full (0035) → 0020 (review_remark only) → pre-0020. Each tier is retried on a
+// 42703 so the screen renders on whichever migrations are actually applied.
 const REIMBURSEMENT_FIELDS = `id, employee_id, claim_date, description, purpose, source_medium,
+  kms, mode_of_payment, amount, remarks, review_remark, status, created_at,
+  receipt_path, paid_at, payment_ref, finance_reviewed_at,
+  employees(code, full_name)`;
+const REIMBURSEMENT_FIELDS_NO_WORKFLOW = `id, employee_id, claim_date, description, purpose, source_medium,
   kms, mode_of_payment, amount, remarks, review_remark, status, created_at,
   employees(code, full_name)`;
 // Before migration 0020 (review_remark) is applied, retry without that column.
@@ -845,7 +856,45 @@ function mapReimbursement(r: any): ReimbursementView {
     reviewRemark: r.review_remark ?? null,
     status: r.status,
     createdAt: r.created_at,
+    receiptPath: r.receipt_path ?? null,
+    paidAt: r.paid_at ?? null,
+    paymentRef: r.payment_ref ?? null,
+    financeReviewedAt: r.finance_reviewed_at ?? null,
   };
+}
+
+/** One lifecycle event on a claim's timeline (migration 0035). */
+export interface ReimbursementEvent {
+  id: string;
+  action: string;
+  fromStatus: string | null;
+  toStatus: string | null;
+  remark: string | null;
+  actorName: string | null;
+  occurredAt: string;
+}
+
+/** A claim's timeline, oldest first (reads as a story). */
+export async function getReimbursementEvents(claimId: string): Promise<ReimbursementEvent[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('reimbursement_events')
+    .select('id, action, from_status, to_status, remark, actor_name, occurred_at')
+    .eq('claim_id', claimId)
+    .order('occurred_at', { ascending: true });
+  if (error) {
+    if (isMissingTable(error)) return [];
+    fail('getReimbursementEvents: could not load the claim timeline', error);
+  }
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    action: r.action,
+    fromStatus: r.from_status,
+    toStatus: r.to_status,
+    remark: r.remark,
+    actorName: r.actor_name,
+    occurredAt: r.occurred_at,
+  }));
 }
 
 /** Every claim, newest first — the staff review queue. */
@@ -855,6 +904,13 @@ export async function getReimbursements(): Promise<ReimbursementView[]> {
     .from('reimbursement_claims')
     .select(REIMBURSEMENT_FIELDS)
     .order('created_at', { ascending: false });
+  // Migration 0035 (workflow columns) not applied yet → drop them.
+  if (res.error?.code === '42703') {
+    res = (await supabase
+      .from('reimbursement_claims')
+      .select(REIMBURSEMENT_FIELDS_NO_WORKFLOW)
+      .order('created_at', { ascending: false })) as typeof res;
+  }
   // Migration 0020 (review_remark) not applied yet → retry without the column.
   if (res.error?.code === '42703') {
     res = (await supabase
@@ -880,6 +936,13 @@ export async function getMyReimbursements(employeeId: string): Promise<Reimburse
     .select(REIMBURSEMENT_FIELDS)
     .eq('employee_id', employeeId)
     .order('created_at', { ascending: false });
+  if (res.error?.code === '42703') {
+    res = (await supabase
+      .from('reimbursement_claims')
+      .select(REIMBURSEMENT_FIELDS_NO_WORKFLOW)
+      .eq('employee_id', employeeId)
+      .order('created_at', { ascending: false })) as typeof res;
+  }
   if (res.error?.code === '42703') {
     res = (await supabase
       .from('reimbursement_claims')

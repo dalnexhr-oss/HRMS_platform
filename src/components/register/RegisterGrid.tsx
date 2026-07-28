@@ -4,8 +4,10 @@ import { useActionState, useEffect, useRef, useState, useTransition } from 'reac
 import { useRouter } from 'next/navigation';
 import { Stamp } from '@/components/ui/Stamp';
 import { DOW } from '@/lib/constants';
-import { correctAttendance, type CorrectionState } from '@/lib/actions/attendance';
+import { correctAttendance, correctAttendanceBulk, type CorrectionState } from '@/lib/actions/attendance';
 import { grantCompOff } from '@/lib/actions/compoff';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import type { DayCell, RegisterEmployee } from '@/types/domain';
 
 /** Statuses that mean the day was scheduled off — mirrors OFF_DAY_STATUSES. */
@@ -81,6 +83,7 @@ export function RegisterGrid({
   /** `employeeId|YYYY-MM-DD` keys that already have a comp-off credit. */
   compOffKeys?: string[];
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [target, setTarget] = useState<Target | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -90,6 +93,32 @@ export function RegisterGrid({
   // still true — and the success effect immediately slams the drawer shut again.
   const openSeq = useRef(0);
   const wo = new Set(weekOffs);
+
+  // --- bulk correction: select many cells, apply one status + reason at once ---
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const { confirm, confirmDialog } = useConfirm();
+  const { toast, toastNode } = useToast();
+
+  function toggleSelect(employeeId: string, day: number) {
+    const key = `${employeeId}|${dateFor(periodMonth, day)}`;
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function exitBulk() {
+    setBulkMode(false);
+    setSelected(new Set());
+  }
+
+  function onCellClick(e: RegisterEmployee, day: number, cell: DayCell | undefined) {
+    if (bulkMode) toggleSelect(e.id, day);
+    else openCorrection(e, day, cell);
+  }
 
   function openCorrection(e: RegisterEmployee, day: number, cell: DayCell | undefined) {
     openSeq.current += 1;
@@ -110,6 +139,37 @@ export function RegisterGrid({
 
   return (
     <div className="card register">
+      {confirmDialog}
+      {toastNode}
+      {canCorrect && (
+        <BulkBar
+          bulkMode={bulkMode}
+          count={selected.size}
+          onEnter={() => setBulkMode(true)}
+          onExit={exitBulk}
+          onClear={() => setSelected(new Set())}
+          onApply={async (status, reason) => {
+            const targets = [...selected].map((k) => {
+              const i = k.indexOf('|');
+              return { employeeId: k.slice(0, i), workDate: k.slice(i + 1) };
+            });
+            const ok = await confirm({
+              title: 'Apply bulk correction',
+              message: `Set ${targets.length} day(s) to “${status}”? Each is stamped as a correction against your name and written to the audit log.`,
+              confirmLabel: 'Apply',
+              danger: true,
+            });
+            if (!ok) return;
+            const res = await correctAttendanceBulk({ targets, status, reason });
+            if (!res.ok) toast(res.error ?? 'The bulk correction failed.', 'error');
+            else {
+              toast(`Corrected ${targets.length} day(s).`, 'success');
+              exitBulk();
+              router.refresh();
+            }
+          }}
+        />
+      )}
       <div className="reg-scroll">
         <div id="reggrid" style={{ minWidth: 1660 }}>
           {/* header row */}
@@ -199,22 +259,26 @@ export function RegisterGrid({
                         ? ' · Comp off granted'
                         : ' · Comp off applicable'
                       : '';
+                    const isSelected =
+                      bulkMode && selected.has(`${e.id}|${dateFor(periodMonth, d)}`);
                     return (
                       <div
                         key={d}
                         className={`dcell${isWeekOff ? ' wo-col' : ''}`}
                         title={
                           canCorrect
-                            ? `${punchTitle ? `${punchTitle} · ` : ''}Click to correct${coTitle}`
+                            ? bulkMode
+                              ? `${punchTitle ? `${punchTitle} · ` : ''}Click to ${isSelected ? 'deselect' : 'select'}`
+                              : `${punchTitle ? `${punchTitle} · ` : ''}Click to correct${coTitle}`
                             : `${punchTitle ?? ''}${coTitle}`
                         }
-                        onClick={canCorrect ? () => openCorrection(e, d, c) : undefined}
+                        onClick={canCorrect ? () => onCellClick(e, d, c) : undefined}
                         onKeyDown={
                           canCorrect
                             ? (ev) => {
                                 if (ev.key === 'Enter' || ev.key === ' ') {
                                   ev.preventDefault();
-                                  openCorrection(e, d, c);
+                                  onCellClick(e, d, c);
                                 }
                               }
                             : undefined
@@ -223,10 +287,22 @@ export function RegisterGrid({
                         tabIndex={canCorrect ? 0 : undefined}
                         aria-label={
                           canCorrect
-                            ? `Correct ${e.name} on day ${d}${c ? ` — currently ${c.status}` : ''}`
+                            ? bulkMode
+                              ? `${isSelected ? 'Deselect' : 'Select'} ${e.name} on day ${d}`
+                              : `Correct ${e.name} on day ${d}${c ? ` — currently ${c.status}` : ''}`
                             : undefined
                         }
-                        style={canCorrect ? { cursor: 'pointer' } : undefined}
+                        aria-pressed={bulkMode ? isSelected : undefined}
+                        style={
+                          canCorrect
+                            ? {
+                                cursor: 'pointer',
+                                ...(isSelected
+                                  ? { outline: '2px solid var(--brand)', outlineOffset: -2, background: 'var(--p-bg)' }
+                                  : {}),
+                              }
+                            : undefined
+                        }
                       >
                         <div style={{ display: 'grid', placeItems: 'center', position: 'relative' }}>
                           {coEligible && (
@@ -466,6 +542,90 @@ function CompOffPanel({ target }: { target: Target }) {
       )}
 
       {error && <div className="login-error" style={{ marginTop: 8 }}>{error}</div>}
+    </div>
+  );
+}
+
+/**
+ * The bulk-correction toolbar above the grid. Off by default (a single "Select
+ * cells" button); once on, clicking cells toggles selection and this bar takes a
+ * status + reason and applies them to the whole selection in one audited write.
+ */
+function BulkBar({
+  bulkMode,
+  count,
+  onEnter,
+  onExit,
+  onClear,
+  onApply,
+}: {
+  bulkMode: boolean;
+  count: number;
+  onEnter: () => void;
+  onExit: () => void;
+  onClear: () => void;
+  onApply: (status: string, reason: string) => Promise<void>;
+}) {
+  const [status, setStatus] = useState('L');
+  const [reason, setReason] = useState('');
+  const [pending, startTransition] = useTransition();
+
+  if (!bulkMode) {
+    return (
+      <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--line-2)' }}>
+        <button type="button" className="btn quiet" onClick={onEnter}>
+          ☑ Select cells (bulk correct)
+        </button>
+      </div>
+    );
+  }
+
+  const canApply = count > 0 && reason.trim().length > 0 && !pending;
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        gap: 8,
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        padding: '10px 12px',
+        borderBottom: '1px solid var(--line-2)',
+        background: 'var(--p-bg)',
+      }}
+    >
+      <span className="pill" style={{ borderColor: 'var(--brand)', color: 'var(--brand)' }}>
+        {count} selected
+      </span>
+      <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Bulk status">
+        {STATUS_OPTIONS.map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </select>
+      <input
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Reason (required)"
+        style={{ flex: '1 1 220px', minWidth: 160 }}
+        aria-label="Bulk correction reason"
+      />
+      <button
+        type="button"
+        className="btn primary"
+        disabled={!canApply}
+        title={count === 0 ? 'Select at least one cell' : !reason.trim() ? 'Enter a reason' : undefined}
+        onClick={() => startTransition(async () => onApply(status, reason.trim()))}
+      >
+        {pending ? 'Applying…' : `Apply to ${count}`}
+      </button>
+      <button type="button" className="btn quiet" onClick={onClear} disabled={pending || count === 0}>
+        Clear
+      </button>
+      <button type="button" className="btn quiet" onClick={onExit} disabled={pending}>
+        Done
+      </button>
     </div>
   );
 }
