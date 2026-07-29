@@ -41,3 +41,6 @@ supabase/APPLY_*.sql
 
 # typescript
 *.tsbuildinfo
+templates.ts
+database.ts
+src/types

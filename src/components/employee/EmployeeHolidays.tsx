@@ -19,6 +19,31 @@ export function EmployeeHolidays({
     <div>
       {policy && <WeekOffBanner policy={policy} />}
 
+      {/* Subscribe/download the personal .ics feed: approved leave, comp-off
+          credits and these holidays, in the employee's own calendar app. */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          flexWrap: 'wrap',
+          padding: '10px 12px',
+          border: '1px solid var(--line-2)',
+          borderRadius: 8,
+          marginBottom: 14,
+        }}
+      >
+        <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 13 }}>Add to your calendar</div>
+          <div className="muted" style={{ fontSize: 12 }}>
+            Your approved leave, comp-off credits and company holidays as one calendar file.
+          </div>
+        </div>
+        <a className="btn quiet" href="/api/calendar" download="dalnex-hr.ics">
+          ⬇ Download .ics
+        </a>
+      </div>
+
       {holidays.length === 0 ? (
         <p className="muted" style={{ fontSize: 13, margin: 0 }}>
           No public holidays published yet.
