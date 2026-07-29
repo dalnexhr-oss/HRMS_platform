@@ -48,6 +48,8 @@ export const NAV: NavItem[] = [
   { slug: 'register', label: 'Monthly register', group: 'Operate' },
   { slug: 'audit', label: 'Attendance audit', group: 'Operate' },
   { slug: 'approvals', label: 'Approvals', group: 'Operate' },
+  { slug: 'leave', label: 'Leave balances', group: 'People' },
+  { slug: 'exits', label: 'Exits', group: 'People' },
   { slug: 'payroll', label: 'Payroll', group: 'Pay' },
   { slug: 'reimbursements', label: 'Reimbursements', group: 'Pay' },
   { slug: 'employees', label: 'Employees', group: 'People' },
@@ -70,6 +72,8 @@ export const NAV_ROLE_GATED: Record<string, readonly string[]> = {
   assets: ['admin', 'hr'],
   items: ['admin', 'hr'],
   audit: ['admin', 'hr', 'manager'],
+  leave: ['admin', 'hr'],
+  exits: ['admin', 'hr'],
 };
 
 // Page titles + FALLBACK subtitles keyed by slug. These are deliberately plain
@@ -81,6 +85,8 @@ export const TITLES: Record<string, [string, string]> = {
   today: ['Today', 'Live attendance · IST'],
   register: ['Monthly register', 'Attendance by month'],
   audit: ['Attendance audit', 'Who edited attendance & why'],
+  leave: ['Leave balances', 'Entitlement, adjustments & encashment'],
+  exits: ['Exits', 'Clearance, settlement & documents'],
   payroll: ['Payroll', 'Salary runs & payslips'],
   reimbursements: ['Reimbursements', 'Expense claims · approve & pay'],
   employees: ['Employees', 'Staff directory'],

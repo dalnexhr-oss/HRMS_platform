@@ -321,6 +321,205 @@ export async function getLeaveRegisterMismatches(
   return out;
 }
 
+// ------------------------------------------------------------------ exits ---
+export interface ExitCaseRow {
+  id: string;
+  employeeId: string;
+  code: string;
+  name: string;
+  stage: 'initiated' | 'clearance' | 'settlement' | 'completed';
+  resignationDate: string | null;
+  lastWorkingDay: string | null;
+  reason: string | null;
+  /** Outstanding counts from v_exit_clearance_pending. */
+  assetsOutstanding: number;
+  itemsOutstanding: number;
+  clearanceItemsOpen: number;
+  clearanceComplete: boolean;
+  /** Settlement, when one has been prepared. */
+  fnfStatus: 'draft' | 'approved' | 'paid' | null;
+  fnfNetPayable: number | null;
+}
+
+/** Every exit case with its clearance and settlement state — the HR exits board. */
+export async function getExitCases(): Promise<ExitCaseRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('exit_cases')
+    .select(
+      'id, employee_id, stage, resignation_date, last_working_day, reason, employees(code, full_name)',
+    )
+    .order('last_working_day', { ascending: false });
+  if (error) {
+    if (isMissingTable(error)) return [];
+    fail('getExitCases: could not load exit cases', error);
+  }
+  const cases = (data ?? []) as any[];
+  if (cases.length === 0) return [];
+
+  // The clearance view and the settlement are separate reads: a missing view
+  // (migration not applied) must degrade to zeroes, not break the board.
+  const [{ data: pending }, { data: fnfs }] = await Promise.all([
+    supabase
+      .from('v_exit_clearance_pending')
+      .select('exit_case_id, assets_outstanding, items_outstanding, clearance_items_open, clearance_complete'),
+    supabase.from('full_and_final').select('exit_case_id, status, net_payable'),
+  ]);
+  const byCase = new Map((pending ?? []).map((p: any) => [p.exit_case_id, p]));
+  const fnfByCase = new Map((fnfs ?? []).map((f: any) => [f.exit_case_id, f]));
+
+  return cases.map((c) => {
+    const p = byCase.get(c.id);
+    const f = fnfByCase.get(c.id);
+    return {
+      id: c.id,
+      employeeId: c.employee_id,
+      code: c.employees?.code ?? '',
+      name: c.employees?.full_name ?? '',
+      stage: c.stage,
+      resignationDate: c.resignation_date,
+      lastWorkingDay: c.last_working_day,
+      reason: c.reason,
+      assetsOutstanding: Number(p?.assets_outstanding ?? 0),
+      itemsOutstanding: Number(p?.items_outstanding ?? 0),
+      clearanceItemsOpen: Number(p?.clearance_items_open ?? 0),
+      clearanceComplete: Boolean(p?.clearance_complete ?? false),
+      fnfStatus: f?.status ?? null,
+      fnfNetPayable: f ? Number(f.net_payable ?? 0) : null,
+    };
+  });
+}
+
+export interface ClearanceItemRow {
+  id: string;
+  area: string;
+  description: string | null;
+  cleared: boolean;
+}
+
+/** The clearance checklist for one exit case. */
+export async function getClearanceItems(exitCaseId: string): Promise<ClearanceItemRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('exit_clearance_items')
+    .select('id, area, description, cleared')
+    .eq('exit_case_id', exitCaseId)
+    .order('area');
+  if (error) {
+    if (isMissingTable(error)) return [];
+    fail('getClearanceItems: could not load clearance items', error);
+  }
+  return (data ?? []) as unknown as ClearanceItemRow[];
+}
+
+// ------------------------------------------------------------ leave admin ---
+export interface LeaveBalanceAdminRow {
+  employeeId: string;
+  code: string;
+  name: string;
+  year: number;
+  type: string;
+  balance: number;
+}
+
+/** Every employee's leave balances for a year — the HR balances screen. */
+export async function getLeaveBalancesForYear(year: number): Promise<LeaveBalanceAdminRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('leave_balances')
+    .select('employee_id, year, type, balance, employees(code, full_name)')
+    .eq('year', year);
+  if (error) {
+    if (isMissingTable(error)) return [];
+    fail('getLeaveBalancesForYear: could not load balances', error);
+  }
+  return (data ?? [])
+    .map((r: any) => ({
+      employeeId: r.employee_id,
+      code: r.employees?.code ?? '',
+      name: r.employees?.full_name ?? '',
+      year: Number(r.year),
+      type: r.type,
+      balance: Number(r.balance ?? 0),
+    }))
+    .sort((a, b) => a.code.localeCompare(b.code) || a.type.localeCompare(b.type));
+}
+
+export interface LeaveEncashmentRow {
+  id: string;
+  employeeId: string;
+  code: string;
+  name: string;
+  year: number;
+  type: string;
+  days: number;
+  amount: number;
+  status: 'requested' | 'approved' | 'paid';
+  requestedAt: string;
+  remarks: string | null;
+}
+
+/** Encashment requests, newest first. */
+export async function getLeaveEncashments(): Promise<LeaveEncashmentRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('leave_encashment')
+    .select('id, employee_id, year, type, days, amount, status, requested_at, remarks, employees(code, full_name)')
+    .order('requested_at', { ascending: false });
+  if (error) {
+    if (isMissingTable(error)) return [];
+    fail('getLeaveEncashments: could not load encashments', error);
+  }
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    employeeId: r.employee_id,
+    code: r.employees?.code ?? '',
+    name: r.employees?.full_name ?? '',
+    year: Number(r.year),
+    type: r.type,
+    days: Number(r.days ?? 0),
+    amount: Number(r.amount ?? 0),
+    status: r.status,
+    requestedAt: r.requested_at,
+    remarks: r.remarks,
+  }));
+}
+
+export interface LeaveAdjustmentRow {
+  id: string;
+  code: string;
+  name: string;
+  year: number;
+  type: string;
+  delta: number;
+  reason: string;
+  createdAt: string;
+}
+
+/** Recent manual balance adjustments — the "why did this change?" trail. */
+export async function getLeaveAdjustments(limit = 100): Promise<LeaveAdjustmentRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('leave_balance_adjustments')
+    .select('id, year, type, delta, reason, created_at, employees(code, full_name)')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) {
+    if (isMissingTable(error)) return [];
+    fail('getLeaveAdjustments: could not load adjustments', error);
+  }
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    code: r.employees?.code ?? '',
+    name: r.employees?.full_name ?? '',
+    year: Number(r.year),
+    type: r.type,
+    delta: Number(r.delta ?? 0),
+    reason: r.reason,
+    createdAt: r.created_at,
+  }));
+}
+
 // ------------------------------------------------------- attendance audit ---
 export interface AuditEntry {
   id: string;

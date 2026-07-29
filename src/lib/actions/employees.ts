@@ -6,6 +6,8 @@ import { revalidatePath } from 'next/cache';
 import { createClient, createServiceClient, isServiceRoleConfigured } from '@/lib/supabase/server';
 import { requireStaff, wroteNothing } from '@/lib/actions/_guard';
 import { getEmployeeForEdit, type EmployeeEditRow } from '@/lib/queries';
+import { sendEmail, isEmailConfigured } from '@/lib/email';
+import { buildWelcomeEmail } from '@/lib/documents/templates';
 
 // Ban duration handed to Supabase's admin API to block sign-in. ~100 years is
 // "indefinite" in practice; 'none' lifts the ban. Existing access tokens are
@@ -348,6 +350,27 @@ export async function createEmployee(formData: FormData) {
   }
   if (wroteNothing(data)) {
     return { ok: false, error: 'The employee was not added — your account may not have permission.' };
+  }
+
+  // Welcome email — BEST-EFFORT and last: it is sent through our own SMTP
+  // (src/lib/email.ts) and a mail failure must never undo a saved employee. When
+  // SMTP is unconfigured this no-ops with a console warning, exactly like
+  // notifications without a service key.
+  const welcomeTo =
+    (formData.get('email_official') as string) || (formData.get('email_personal') as string) || '';
+  if (welcomeTo.trim() && isEmailConfigured()) {
+    const mail = buildWelcomeEmail({
+      employeeName: fullName,
+      employeeCode: code,
+      startDate: dateOfJoining,
+      portalUrl: process.env.NEXT_PUBLIC_SITE_URL ?? 'https://portal.dalnex.com',
+    });
+    await sendEmail({
+      to: welcomeTo.trim(),
+      subject: mail.subject,
+      text: mail.text,
+      html: mail.html,
+    });
   }
 
   revalidatePath('/employees');

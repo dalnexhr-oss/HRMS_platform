@@ -122,10 +122,22 @@ export async function reviewRequest(
         .eq('id', bal.id);
       if (balErr) {
         warning = `Approved, but the ${reviewed.leave_kind} balance could not be updated: ${balErr.message}`;
+      } else if (next < 0) {
+        // Approving past zero is allowed (HR sometimes must), but it is never
+        // silent — an overdrawn balance is a payroll problem later.
+        warning =
+          `Approved, but this takes ${reviewed.leave_kind} to ${next} day(s) — the balance is now overdrawn. ` +
+          `Correct it from Leave balances, or convert the excess to LWP.`;
       }
+    } else {
+      // No balance row for this kind/year. Before migration 0036 this drew down
+      // NOTHING and said nothing, so leave was effectively unlimited. The
+      // approval still stands (refusing it would strand HR mid-flow), but it now
+      // says so loudly and points at the fix.
+      warning =
+        `Approved, but ${reviewed.leave_kind} has no balance on record for ${year}, so nothing was deducted. ` +
+        `Provision the leave year from Leave balances so entitlements are tracked.`;
     }
-    // No balance row for this kind/year → nothing tracked to draw down; the
-    // approval still stands.
   }
 
   // Tell the employee the outcome. Look the owner up rather than trusting the
