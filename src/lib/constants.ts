@@ -36,44 +36,126 @@ export const REGISTER_LEGEND: [AttendanceStatus, string][] = [
 
 export const DOW = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
-// Portal navigation model (mirrors the sidebar in the prototype).
+/**
+ * Document types offered when an employee files paperwork. Free text in the DB;
+ * this just keeps the drop-down tidy.
+ *
+ * It lives here rather than beside the upload action because that module is
+ * `'use server'`, and Next allows only async function exports from one — a
+ * plain const there fails the build.
+ */
+export const DOCUMENT_CATEGORIES = [
+  'offer_letter',
+  'id_proof',
+  'education',
+  'experience',
+  'bank',
+  'other',
+] as const;
+
+// ---------------------------------------------------------------------------
+// Portal navigation model
+// ---------------------------------------------------------------------------
+
+/**
+ * Sidebar section headers. Declared as constants rather than typed inline on
+ * each row: a free-typed `group: 'Operations'` next to `group: 'Operate'` is
+ * how Import ended up alone under its own header, and the compiler could not
+ * see it. With NavItem['group'] bound to this object, the same slip is a build
+ * error.
+ *
+ * Each name states a domain ('Attendance', 'Company') rather than a frequency
+ * or a shrug — the old 'More' told the reader nothing, so every item under it
+ * had to be re-read on each visit.
+ */
+export const GROUPS = {
+  ATTENDANCE: 'Attendance',
+  WORKFORCE: 'Workforce',
+  HR: 'HR',
+  RESOURCES: 'Resources',
+  COMPANY: 'Company',
+  ADMIN: 'Admin',
+} as const;
+
+export type NavGroup = (typeof GROUPS)[keyof typeof GROUPS];
+
+/**
+ * Header order in the sidebar. The renderer walks this list, not NAV, and
+ * skips any group whose visible items come to zero — otherwise a role that
+ * cannot see Users, Import or Settings still gets a bare 'Admin' heading.
+ */
+export const GROUP_ORDER: NavGroup[] = [
+  GROUPS.ATTENDANCE,
+  GROUPS.WORKFORCE,
+  GROUPS.HR,
+  GROUPS.RESOURCES,
+  GROUPS.COMPANY,
+  GROUPS.ADMIN,
+];
+
 export interface NavItem {
   slug: string;
   label: string;
-  group: string;
+  group: NavGroup;
 }
 
+/**
+ * Every sidebar row, in render order within its group.
+ *
+ * `users` and `import` were previously injected by Sidebar.tsx and absent from
+ * this list. That split is what let their group names drift, and why 'import'
+ * had no TITLES row and no role gate. They are declared here now; Sidebar.tsx
+ * must no longer add them itself.
+ *
+ * 'My account' is deliberately absent — a personal profile is not navigation,
+ * and gating it alongside Users would have hidden it from the people who need
+ * it most. It belongs in the avatar menu beside Sign out.
+ */
 export const NAV: NavItem[] = [
-  { slug: 'today', label: 'Today', group: 'Operate' },
-  { slug: 'register', label: 'Monthly register', group: 'Operate' },
-  { slug: 'audit', label: 'Attendance audit', group: 'Operate' },
-  { slug: 'approvals', label: 'Approvals', group: 'Operate' },
-  { slug: 'leave', label: 'Leave balances', group: 'People' },
-  { slug: 'exits', label: 'Exits', group: 'People' },
-  { slug: 'payroll', label: 'Payroll', group: 'Pay' },
-  { slug: 'reimbursements', label: 'Reimbursements', group: 'Pay' },
-  { slug: 'employees', label: 'Employees', group: 'People' },
-  { slug: 'assets', label: 'Asset Management', group: 'People' },
-  { slug: 'items', label: 'Material / Tools', group: 'People' },
-  { slug: 'policies', label: 'Company policies', group: 'People' },
-  { slug: 'holidays', label: 'Holidays', group: 'More' },
-  { slug: 'notices', label: 'Notices', group: 'More' },
-  { slug: 'helpdesk', label: 'Helpdesk', group: 'More' },
-  { slug: 'settings', label: 'Settings', group: 'More' },
-  { slug: 'account', label: 'My account', group: 'More' },
+  { slug: 'today', label: 'Today', group: GROUPS.ATTENDANCE },
+  { slug: 'register', label: 'Monthly register', group: GROUPS.ATTENDANCE },
+  { slug: 'audit', label: 'Attendance audit', group: GROUPS.ATTENDANCE },
+  { slug: 'approvals', label: 'Approvals', group: GROUPS.ATTENDANCE },
+
+  { slug: 'employees', label: 'Employees', group: GROUPS.WORKFORCE },
+  { slug: 'onboarding', label: 'Onboarding', group: GROUPS.WORKFORCE },
+  { slug: 'exits', label: 'Exits', group: GROUPS.WORKFORCE },
+
+  { slug: 'leave', label: 'Leave balances', group: GROUPS.HR },
+  { slug: 'payroll', label: 'Payroll', group: GROUPS.HR },
+  { slug: 'reimbursements', label: 'Reimbursements', group: GROUPS.HR },
+
+  { slug: 'assets', label: 'Asset management', group: GROUPS.RESOURCES },
+  { slug: 'items', label: 'Inventory management', group: GROUPS.RESOURCES },
+
+  { slug: 'policies', label: 'Company policies', group: GROUPS.COMPANY },
+  { slug: 'holidays', label: 'Holidays', group: GROUPS.COMPANY },
+  { slug: 'notices', label: 'Notices', group: GROUPS.COMPANY },
+  { slug: 'helpdesk', label: 'Helpdesk', group: GROUPS.COMPANY },
+
+  { slug: 'users', label: 'Users', group: GROUPS.ADMIN },
+  { slug: 'import', label: 'Import', group: GROUPS.ADMIN },
+  { slug: 'settings', label: 'Settings', group: GROUPS.ADMIN },
 ];
 
 /**
  * Nav items only some roles may see. The page itself re-checks and redirects —
  * this just avoids showing a link that would bounce.
+ *
+ * 'import' and 'settings' are new entries: both were reachable by every role
+ * because Sidebar.tsx injected Import outside this map, and Settings was simply
+ * never listed. A plain employee could open 'Rules & thresholds'.
  */
 export const NAV_ROLE_GATED: Record<string, readonly string[]> = {
-  users: ['admin', 'hr'],
+  audit: ['admin', 'hr', 'manager'],
+  onboarding: ['admin', 'hr'],
+  exits: ['admin', 'hr'],
+  leave: ['admin', 'hr'],
   assets: ['admin', 'hr'],
   items: ['admin', 'hr'],
-  audit: ['admin', 'hr', 'manager'],
-  leave: ['admin', 'hr'],
-  exits: ['admin', 'hr'],
+  users: ['admin', 'hr'],
+  import: ['admin', 'hr'],
+  settings: ['admin'],
 };
 
 // Page titles + FALLBACK subtitles keyed by slug. These are deliberately plain
@@ -87,11 +169,12 @@ export const TITLES: Record<string, [string, string]> = {
   audit: ['Attendance audit', 'Who edited attendance & why'],
   leave: ['Leave balances', 'Entitlement, adjustments & encashment'],
   exits: ['Exits', 'Clearance, settlement & documents'],
+  onboarding: ['Onboarding', 'Joiner checklists by owner'],
   payroll: ['Payroll', 'Salary runs & payslips'],
   reimbursements: ['Reimbursements', 'Expense claims · approve & pay'],
   employees: ['Employees', 'Staff directory'],
-  assets: ['Asset Management', 'Company IT assets'],
-  items: ['Material / Tools', 'Inventory & assignments'],
+  assets: ['Asset management', 'Company IT assets'],
+  items: ['Inventory management', 'Stock, tools & assignments'],
   policies: ['Company policies', 'Published to employee dashboards'],
   approvals: ['Approvals', 'Leave & duty requests'],
   holidays: ['Holidays', 'Holiday calendar'],
@@ -99,6 +182,8 @@ export const TITLES: Record<string, [string, string]> = {
   helpdesk: ['Helpdesk', 'Employee tickets'],
   settings: ['Settings', 'Rules & thresholds'],
   users: ['Users', 'Login accounts & roles'],
+  // Was missing entirely, so the Import page rendered a blank header.
+  import: ['Import', 'Bulk upload employees & attendance'],
   account: ['My account', 'Your profile & password'],
 };
 

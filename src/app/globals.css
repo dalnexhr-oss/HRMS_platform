@@ -63,9 +63,19 @@ a{color:inherit;text-decoration:none}
 .brand .eyebrow{font:600 10px/1 var(--mono);letter-spacing:.18em;color:#7FA3A9;text-transform:uppercase}
 .brand h1{margin:6px 0 0;font:600 22px/1 var(--display);color:#fff;letter-spacing:.01em}
 .brand h1 span{color:#00B8D4}
-.nav{padding:14px 10px;overflow:auto;flex:1}
-.nav .group{font:600 10px/1 var(--mono);letter-spacing:.16em;color:#8FCBD9;text-transform:uppercase;padding:16px 12px 8px}
-.nav a{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 12px;border-radius:8px;color:var(--spine-text);font-weight:500;transition:all .2s ease}
+/* Vertical rhythm is tuned so all 19 rows across 6 headers clear the fold on a
+   1080p laptop. The old 9px row / 16px header padding totalled ~1078px of nav
+   against a 100vh column — on Windows at 125% display scaling that buried
+   everything from Policies down behind a scrollbar, and the sidebar read as if
+   it had lost its bottom half. */
+.nav{padding:10px 10px;overflow-y:auto;overflow-x:hidden;flex:1;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.32) transparent}
+.nav::-webkit-scrollbar{width:6px}
+.nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.28);border-radius:99px}
+.nav::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.44)}
+.nav .group{font:600 10px/1 var(--mono);letter-spacing:.16em;color:#8FCBD9;text-transform:uppercase;padding:14px 12px 5px}
+/* The first header already has the nav's own top padding above it. */
+.nav>div:first-child .group{padding-top:4px}
+.nav a{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:7px 12px;border-radius:8px;color:var(--spine-text);font-weight:500;font-size:13.5px;line-height:1.25;transition:all .2s ease}
 .nav a:hover{background:rgba(255,255,255,.1);color:#fff}
 .nav a[aria-current="true"]{background:rgba(255,255,255,.15);color:#fff;position:relative}
 .nav a[aria-current="true"]::before{content:"";position:absolute;left:-10px;top:8px;bottom:8px;width:3px;border-radius:2px;background:#00B8D4}
@@ -428,3 +438,4 @@ tbody tr:hover{background:var(--card-2)}
   .brand .eyebrow{writing-mode:vertical-rl;letter-spacing:.3em}
   .nav a{justify-content:center;padding:11px 0}
 }
+

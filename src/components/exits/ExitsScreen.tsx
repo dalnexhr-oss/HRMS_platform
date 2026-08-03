@@ -15,10 +15,23 @@ import {
   setFullAndFinalStatus,
   generateExitDocument,
   fetchClearanceItems,
+  ensureExitInterview,
+  saveExitInterview,
+  fetchExitInterview,
+  addKtItem,
+  setKtStatus,
+  deleteKtItem,
+  fetchKtItems,
 } from '@/lib/actions/exit';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
-import type { ExitCaseRow, ClearanceItemRow, EmployeeOption } from '@/lib/queries';
+import type {
+  ExitCaseRow,
+  ClearanceItemRow,
+  EmployeeOption,
+  ExitInterviewRow,
+  KtItemRow,
+} from '@/lib/queries';
 
 const STAGE_ORDER: ExitCaseRow['stage'][] = ['initiated', 'clearance', 'settlement', 'completed'];
 
@@ -232,6 +245,7 @@ export function ExitsScreen({
       {openCase && (
         <ClearanceDrawer
           exitCase={openCase}
+          employees={employees}
           onClose={() => setOpenCase(null)}
           toast={toast}
           onChanged={() => router.refresh()}
@@ -277,11 +291,13 @@ function DocMenu({
 /** The per-case clearance checklist, loaded on open. */
 function ClearanceDrawer({
   exitCase,
+  employees,
   onClose,
   toast,
   onChanged,
 }: {
   exitCase: ExitCaseRow;
+  employees: EmployeeOption[];
   onClose: () => void;
   toast: (m: string, k?: 'info' | 'error' | 'success') => void;
   onChanged: () => void;
@@ -358,11 +374,230 @@ function ClearanceDrawer({
               </label>
             ))
           )}
+
+          <InterviewSection exitCaseId={exitCase.id} toast={toast} />
+          <KtSection exitCaseId={exitCase.id} employees={employees} toast={toast} />
         </div>
         <div className="dft">
           <button type="button" className="btn" onClick={onClose}>Close</button>
         </div>
       </aside>
+    </>
+  );
+}
+
+/**
+ * Exit interview. The questions are ROWS (written once when the interview is
+ * opened), so editing the questionnaire later never rewrites what a past leaver
+ * was actually asked — only the answers are editable here.
+ */
+function InterviewSection({
+  exitCaseId,
+  toast,
+}: {
+  exitCaseId: string;
+  toast: (m: string, k?: 'info' | 'error' | 'success') => void;
+}) {
+  const [rows, setRows] = useState<ExitInterviewRow[] | null>(null);
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    setRows(null);
+    fetchExitInterview(exitCaseId).then((r) => {
+      if (!live) return;
+      setRows(r);
+      setDraft(Object.fromEntries(r.map((x) => [x.id, x.answer ?? ''])));
+    });
+    return () => {
+      live = false;
+    };
+  }, [exitCaseId]);
+
+  const answered = (rows ?? []).filter((r) => r.answer).length;
+
+  return (
+    <>
+      <div className="fold">
+        Exit interview{rows && rows.length > 0 ? ` · ${answered}/${rows.length} answered` : ''}
+      </div>
+      {rows === null ? (
+        <p className="muted">Loading…</p>
+      ) : rows.length === 0 ? (
+        <>
+          <p className="muted" style={{ fontSize: 13 }}>
+            No interview started for this exit yet.
+          </p>
+          <button
+            className="btn quiet"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              const res = await ensureExitInterview(exitCaseId);
+              if (res.ok) setRows(await fetchExitInterview(exitCaseId));
+              else toast(res.error ?? 'Could not open the interview.', 'error');
+              setBusy(false);
+            }}
+          >
+            {busy ? 'Opening…' : 'Start exit interview'}
+          </button>
+        </>
+      ) : (
+        <>
+          {rows.map((r) => (
+            <div className="f" key={r.id}>
+              <label>{r.question}</label>
+              <textarea
+                rows={2}
+                value={draft[r.id] ?? ''}
+                onChange={(e) => setDraft((d) => ({ ...d, [r.id]: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  border: '1px solid var(--line-2)',
+                  borderRadius: 8,
+                  font: 'inherit',
+                  background: '#fff',
+                  resize: 'vertical',
+                }}
+              />
+            </div>
+          ))}
+          <button
+            className="btn primary"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              const res = await saveExitInterview(
+                rows.map((r) => ({ id: r.id, answer: draft[r.id] ?? '' })),
+              );
+              setBusy(false);
+              if (!res.ok) toast(res.error ?? 'Could not save the interview.', 'error');
+              else {
+                toast('Interview saved.', 'success');
+                setRows(await fetchExitInterview(exitCaseId));
+              }
+            }}
+          >
+            {busy ? 'Saving…' : 'Save answers'}
+          </button>
+        </>
+      )}
+    </>
+  );
+}
+
+/** Knowledge-transfer checklist: what is handed over, to whom, and how far along. */
+function KtSection({
+  exitCaseId,
+  employees,
+  toast,
+}: {
+  exitCaseId: string;
+  employees: EmployeeOption[];
+  toast: (m: string, k?: 'info' | 'error' | 'success') => void;
+}) {
+  const [rows, setRows] = useState<KtItemRow[] | null>(null);
+  
+  const [handoverTo, setHandoverTo] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const reload = async () => setRows(await fetchKtItems(exitCaseId));
+
+  useEffect(() => {
+    let live = true;
+    setRows(null);
+    fetchKtItems(exitCaseId).then((r) => {
+      if (live) setRows(r);
+    });
+    return () => {
+      live = false;
+    };
+  }, [exitCaseId]);
+
+  const NEXT: Record<string, string> = { pending: 'in_progress', in_progress: 'done', done: 'pending' };
+
+  return (
+    <>
+      <div className="fold">
+        Knowledge transfer
+        {rows && rows.length > 0 ? ` · ${rows.filter((r) => r.status === 'done').length}/${rows.length} done` : ''}
+      </div>
+
+      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 10 }}>
+        
+        <div className="f" style={{ flex: '1 1 130px', marginBottom: 0 }}>
+          <label>Handover to</label>
+          <select value={handoverTo} onChange={(e) => setHandoverTo(e.target.value)}>
+            <option value="">Unassigned</option>
+            {employees.map((e) => (
+              <option key={e.id} value={e.id}>{e.code} — {e.name}</option>
+            ))}
+          </select>
+        </div>
+        
+      </div>
+
+      {rows === null ? (
+        <p className="muted">Loading…</p>
+      ) : rows.length === 0 ? (
+        <p className="muted" style={{ fontSize: 13 }}>Nothing recorded for handover yet.</p>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Task</th>
+                <th>To</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.task}</td>
+                  <td>{r.handoverName ?? <span className="muted">—</span>}</td>
+                  <td>
+                    {/* One button cycles pending → in_progress → done → pending;
+                        the status set matches the 0037 CHECK constraint exactly. */}
+                    <button
+                      className="btn quiet"
+                      disabled={busy}
+                      onClick={async () => {
+                        setBusy(true);
+                        const res = await setKtStatus(r.id, NEXT[r.status]);
+                        setBusy(false);
+                        if (!res.ok) toast(res.error ?? 'Could not update the item.', 'error');
+                        else await reload();
+                      }}
+                      title="Click to advance"
+                    >
+                      {r.status.replace('_', ' ')}
+                    </button>
+                  </td>
+                  <td>
+                    <button
+                      className="btn quiet"
+                      disabled={busy}
+                      onClick={async () => {
+                        setBusy(true);
+                        const res = await deleteKtItem(r.id);
+                        setBusy(false);
+                        if (!res.ok) toast(res.error ?? 'Could not remove the item.', 'error');
+                        else await reload();
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </>
   );
 }

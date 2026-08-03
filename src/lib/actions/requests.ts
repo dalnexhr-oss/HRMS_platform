@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { isSupabaseConfigured } from '@/lib/queries';
+import { isSupabaseConfigured, getWeekOffPolicy, getHolidays } from '@/lib/queries';
+import { countLeaveDays } from '@/lib/week-off';
 import { getSession } from '@/lib/auth';
 import { requireStaff } from '@/lib/actions/_guard';
 import { releaseCompOff, settleApprovedCompOff } from '@/lib/compoff-settle';
@@ -35,11 +36,123 @@ function inclusiveDays(start: Date, end: Date): number {
   return Math.round((end.getTime() - start.getTime()) / MS_PER_DAY) + 1;
 }
 
+/**
+ * How many days a LEAVE request actually costs.
+ *
+ * A raw calendar span over-charges (a Fri–Mon leave is 2 working days, not 4)
+ * and, with the sandwich policy on, under-charges the bridged weekend. Both are
+ * decided by `countLeaveDays`; this just loads the policy + holidays it needs.
+ *
+ * Non-leave request types (site visit, outdoor duty, WFH) keep the plain calendar
+ * span — they are not drawn from a balance, so bridging would be meaningless.
+ *
+ * Falls back to the calendar span if the settings/holidays reads fail: a request
+ * that cannot be filed at all is worse than one costed slightly generously.
+ */
+async function leaveDayCount(startISO: string, endISO: string, start: Date, end: Date): Promise<number> {
+  try {
+    const [policy, holidays, sandwich] = await Promise.all([
+      getWeekOffPolicy(),
+      getHolidays(),
+      getSandwichPolicy(),
+    ]);
+    const holidaySet = new Set(holidays.map((h) => h.date));
+    const days = countLeaveDays(startISO, endISO, { policy, holidays: holidaySet, sandwich });
+    // A span of only non-working days costs nothing to take, but a zero-day
+    // request is not a thing the rest of the system can reason about — reject it
+    // in the caller rather than storing 0.
+    return days;
+  } catch {
+    return inclusiveDays(start, end);
+  }
+}
+
+/** The configurable sandwich-leave toggle (settings key seeded by 0036). */
+async function getSandwichPolicy(): Promise<boolean> {
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'leave_sandwich_policy')
+      .maybeSingle<{ value: unknown }>();
+    return data?.value === true || data?.value === 'true';
+  } catch {
+    return false;
+  }
+}
+
 /** Revalidate both surfaces a request appears on: the employee's own dashboard
  *  and the staff approvals queue. */
 function revalidateRequestViews(): void {
   revalidatePath('/me');
   revalidatePath('/approvals');
+}
+
+type ChainOutcome =
+  | { ok: true; stage: 'none' }
+  | { ok: true; stage: 'final'; decidedStep?: number }
+  | { ok: true; stage: 'intermediate'; decidedStep: number; nextStep: number }
+  | { ok: false; error: string };
+
+/**
+ * Decide the current step of a request's approval chain.
+ *
+ * Returns 'none' when the request has no chain (nothing to do — the caller keeps
+ * its original one-shot behaviour), 'intermediate' when more approvals remain,
+ * and 'final' when this decision should carry the whole request.
+ *
+ * The step UPDATE is predicated on `status = 'pending'`, so two approvers racing
+ * on the same step cannot both claim it — the loser is told, exactly as the
+ * request-level guard does.
+ */
+async function decideApprovalStep(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  requestId: string,
+  decision: 'approved' | 'rejected',
+  profileId: string,
+): Promise<ChainOutcome> {
+  const { data: steps, error } = await supabase
+    .from('approval_steps')
+    .select('id, step_no, status')
+    .eq('request_id', requestId)
+    .order('step_no', { ascending: true });
+
+  // No chain table (0036 unapplied) or no rows for this request: original path.
+  if (error) {
+    if (error.code === '42P01' || error.code === 'PGRST205') return { ok: true, stage: 'none' };
+    return { ok: false, error: error.message };
+  }
+  if (!steps || steps.length === 0) return { ok: true, stage: 'none' };
+
+  const rows = steps as { id: string; step_no: number; status: string }[];
+  const current = rows.find((s) => s.status === 'pending');
+  if (!current) {
+    // Every step already decided — the request should not still be pending.
+    return { ok: true, stage: 'final' };
+  }
+
+  const { data: claimed, error: claimErr } = await supabase
+    .from('approval_steps')
+    .update({ status: decision, approver_id: profileId, decided_at: new Date().toISOString() })
+    .eq('id', current.id)
+    .eq('status', 'pending')
+    .select('id');
+  if (claimErr) return { ok: false, error: claimErr.message };
+  if (!claimed || claimed.length === 0) {
+    return {
+      ok: false,
+      error: 'That approval step was just decided by someone else. Reload the queue.',
+    };
+  }
+
+  // A rejection at ANY level ends the chain — the request is rejected outright.
+  if (decision === 'rejected') return { ok: true, stage: 'final', decidedStep: current.step_no };
+
+  const next = rows.find((s) => s.step_no > current.step_no && s.status === 'pending');
+  return next
+    ? { ok: true, stage: 'intermediate', decidedStep: current.step_no, nextStep: next.step_no }
+    : { ok: true, stage: 'final', decidedStep: current.step_no };
 }
 
 /**
@@ -60,6 +173,32 @@ export async function reviewRequest(
   if (!gate.ok) return gate;
 
   const supabase = await createClient();
+
+  // --- approval chain (0036) ------------------------------------------------
+  // A request may carry an ordered chain of approval_steps. Decide the LOWEST
+  // pending step; the request itself only moves when that step is the last one
+  // (or on any rejection, which ends the chain immediately).
+  //
+  // A request with NO steps — anything filed before 0036, or with the levels
+  // setting at 1 and the seed skipped — falls straight through to the original
+  // one-shot path, so in-flight approvals cannot break.
+  const chain = await decideApprovalStep(supabase, id, decision, gate.profileId);
+  if (!chain.ok) return { ok: false, error: chain.error };
+  if (chain.stage === 'intermediate') {
+    // More approvals to go: the request stays pending on purpose.
+    await notifyApprovers(
+      {
+        kind: 'approval',
+        title: `A request needs approval step ${chain.nextStep}`,
+        body: `Step ${chain.decidedStep} approved. Awaiting the next approver.`,
+        link: '/approvals',
+      },
+      gate.profileId,
+    );
+    revalidateRequestViews();
+    return { ok: true };
+  }
+
   const { data, error } = await supabase
     .from('requests')
     .update({ status: decision, reviewed_at: new Date().toISOString() })
@@ -198,7 +337,17 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
     return { ok: false, error: 'The end date cannot be before the start date.' };
   }
 
-  const days = inclusiveDays(start, end);
+  // Leave is costed against the week-off/holiday calendar (and the sandwich
+  // policy); other request types keep the plain calendar span.
+  const days =
+    type === 'leave' ? await leaveDayCount(startRaw, endRaw, start, end) : inclusiveDays(start, end);
+
+  if (type === 'leave' && days <= 0) {
+    return {
+      ok: false,
+      error: 'Those dates are all week-offs or holidays, so there is no working day to take leave on.',
+    };
+  }
   // requests.days is numeric(4,1) — cap the range rather than let Postgres
   // reject it with an opaque overflow error.
   if (days > 999) {
@@ -225,17 +374,31 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from('requests').insert({
-    employee_id: employeeId,
-    type,
-    leave_kind: leaveKind,
-    start_date: startRaw,
-    end_date: endRaw,
-    days,
-    reason,
-    status: 'pending',
-  });
+  const { data: inserted, error } = await supabase
+    .from('requests')
+    .insert({
+      employee_id: employeeId,
+      type,
+      leave_kind: leaveKind,
+      start_date: startRaw,
+      end_date: endRaw,
+      days,
+      reason,
+      status: 'pending',
+    })
+    .select('id');
   if (error) return { ok: false, error: error.message };
+
+  // Seed the approval chain (0036). BEST-EFFORT: with the levels setting at 1 —
+  // or the function absent — this is a no-op and reviewRequest falls back to the
+  // original single-step path, so a failure here never blocks a filed request.
+  const newId = (inserted?.[0] as { id: string } | undefined)?.id;
+  if (newId) {
+    const { error: chainErr } = await supabase.rpc('fn_init_approval_steps', { p_request_id: newId });
+    if (chainErr && chainErr.code !== 'PGRST202' && chainErr.code !== '42883') {
+      console.warn('[dalnex-hrms] approval chain seed failed:', chainErr.message);
+    }
+  }
 
   // Put it in front of the approvers rather than waiting for them to check.
   const who = profile?.full_name ?? 'An employee';

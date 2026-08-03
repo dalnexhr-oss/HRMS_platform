@@ -44,3 +44,4 @@ supabase/APPLY_*.sql
 templates.ts
 database.ts
 src/types
+project_code.txt

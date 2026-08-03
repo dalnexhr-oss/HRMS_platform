@@ -321,6 +321,200 @@ export async function getLeaveRegisterMismatches(
   return out;
 }
 
+// --------------------------------------------------------- e-signatures ---
+export interface AcknowledgementRow {
+  id: string;
+  documentKind: string;
+  documentId: string | null;
+  signedName: string;
+  signedAt: string;
+}
+
+/**
+ * One employee's e-signatures (migration 0037 §4).
+ *
+ * Distinct from `policy_acknowledgements` (0004), which is a lightweight
+ * read-receipt: these carry a typed name, a server-clock timestamp and the
+ * request's IP, and are append-only evidence.
+ */
+export async function getMyAcknowledgements(employeeId: string): Promise<AcknowledgementRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('acknowledgements')
+    .select('id, document_kind, document_id, signed_name, signed_at')
+    .eq('employee_id', employeeId)
+    .order('signed_at', { ascending: false });
+  if (error) {
+    if (isMissingTable(error)) return [];
+    fail('getMyAcknowledgements: could not load signatures', error);
+  }
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    documentKind: r.document_kind,
+    documentId: r.document_id,
+    signedName: r.signed_name,
+    signedAt: r.signed_at,
+  }));
+}
+
+// -------------------------------------------------------------- documents ---
+export interface EmployeeDocumentRow {
+  id: string;
+  employeeId: string;
+  code: string;
+  name: string;
+  category: string | null;
+  title: string | null;
+  uploadedAt: string;
+  verifiedAt: string | null;
+  verifyRemark: string | null;
+}
+
+const DOCUMENT_FIELDS =
+  'id, employee_id, category, title, uploaded_at, verified_at, verify_remark, employees(code, full_name)';
+
+function mapDocument(r: any): EmployeeDocumentRow {
+  return {
+    id: r.id,
+    employeeId: r.employee_id,
+    code: r.employees?.code ?? '',
+    name: r.employees?.full_name ?? '',
+    category: r.category,
+    title: r.title,
+    uploadedAt: r.uploaded_at,
+    verifiedAt: r.verified_at,
+    verifyRemark: r.verify_remark,
+  };
+}
+
+/** One employee's filed documents, newest first. Never returns storage paths. */
+export async function getEmployeeDocuments(employeeId: string): Promise<EmployeeDocumentRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('employee_documents')
+    .select(DOCUMENT_FIELDS)
+    .eq('employee_id', employeeId)
+    .order('uploaded_at', { ascending: false });
+  if (error) {
+    if (isMissingTable(error)) return [];
+    fail('getEmployeeDocuments: could not load documents', error);
+  }
+  return (data ?? []).map(mapDocument);
+}
+
+/** Documents awaiting HR verification, across everyone — the review queue. */
+export async function getUnverifiedDocuments(): Promise<EmployeeDocumentRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('employee_documents')
+    .select(DOCUMENT_FIELDS)
+    .is('verified_at', null)
+    .order('uploaded_at', { ascending: true });
+  if (error) {
+    if (isMissingTable(error)) return [];
+    fail('getUnverifiedDocuments: could not load the verification queue', error);
+  }
+  return (data ?? []).map(mapDocument);
+}
+
+// ------------------------------------------------------------- onboarding ---
+export interface OnboardingTaskRow {
+  id: string;
+  employeeId: string;
+  code: string;
+  name: string;
+  title: string;
+  assigneeRole: string | null;
+  status: 'pending' | 'done' | 'blocked';
+  dueDate: string | null;
+}
+
+export interface OnboardingTemplateRow {
+  id: string;
+  name: string;
+  active: boolean;
+  /** How many steps the template fans out into. */
+  steps: number;
+}
+
+const ONBOARDING_TASK_FIELDS =
+  'id, employee_id, title, assignee_role, status, due_date, employees(code, full_name)';
+
+function mapOnboardingTask(r: any): OnboardingTaskRow {
+  return {
+    id: r.id,
+    employeeId: r.employee_id,
+    code: r.employees?.code ?? '',
+    name: r.employees?.full_name ?? '',
+    title: r.title,
+    assigneeRole: r.assignee_role,
+    status: r.status,
+    dueDate: r.due_date,
+  };
+}
+
+/**
+ * Every joiner's onboarding tasks — the HR board.
+ *
+ * Ordered by due date so the most overdue work sorts to the top; nulls last,
+ * because a task with no date is the one nobody has committed to yet and should
+ * not outrank a step that is actually late.
+ */
+export async function getOnboardingBoard(): Promise<OnboardingTaskRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('onboarding_tasks')
+    .select(ONBOARDING_TASK_FIELDS)
+    .order('due_date', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: true });
+  if (error) {
+    if (isMissingTable(error)) return [];
+    fail('getOnboardingBoard: could not load onboarding tasks', error);
+  }
+  return (data ?? []).map(mapOnboardingTask);
+}
+
+/** One employee's own checklist — the read-only card on /me. */
+export async function getMyOnboardingTasks(employeeId: string): Promise<OnboardingTaskRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('onboarding_tasks')
+    .select(ONBOARDING_TASK_FIELDS)
+    .eq('employee_id', employeeId)
+    .order('due_date', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: true });
+  if (error) {
+    if (isMissingTable(error)) return [];
+    fail('getMyOnboardingTasks: could not load your onboarding checklist', error);
+  }
+  return (data ?? []).map(mapOnboardingTask);
+}
+
+/**
+ * The reusable checklists, with their step count.
+ *
+ * `steps` comes from an embedded count rather than a second round-trip; a
+ * template whose items are missing reads as 0 steps, which is exactly what the
+ * "(0 steps)" label in the picker should say.
+ */
+export async function getOnboardingTemplates(): Promise<OnboardingTemplateRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('onboarding_templates')
+    .select('id, name, active, onboarding_template_items(count)')
+    .order('name');
+  if (error) {
+    if (isMissingTable(error)) return [];
+    fail('getOnboardingTemplates: could not load onboarding templates', error);
+  }
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    name: r.name,
+    active: Boolean(r.active),
+    steps: Number(r.onboarding_template_items?.[0]?.count ?? 0),
+  }));
+}
+
 // ------------------------------------------------------------------ exits ---
 export interface ExitCaseRow {
   id: string;
@@ -388,6 +582,71 @@ export async function getExitCases(): Promise<ExitCaseRow[]> {
       fnfNetPayable: f ? Number(f.net_payable ?? 0) : null,
     };
   });
+}
+
+export interface ExitInterviewRow {
+  id: string;
+  question: string;
+  answer: string | null;
+  submittedAt: string | null;
+}
+
+/**
+ * One exit case's interview.
+ *
+ * Ordered by created_at because the questions were inserted as rows in
+ * questionnaire order (0037 stores them per-case so editing the questionnaire
+ * never rewrites what a past leaver was asked) — that insert order IS the
+ * intended sequence.
+ */
+export async function getExitInterview(exitCaseId: string): Promise<ExitInterviewRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('exit_interviews')
+    .select('id, question, answer, submitted_at, created_at')
+    .eq('exit_case_id', exitCaseId)
+    .order('created_at', { ascending: true });
+  if (error) {
+    if (isMissingTable(error)) return [];
+    fail('getExitInterview: could not load the exit interview', error);
+  }
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    question: r.question,
+    answer: r.answer,
+    submittedAt: r.submitted_at,
+  }));
+}
+
+export interface KtItemRow {
+  id: string;
+  task: string;
+  handoverTo: string | null;
+  handoverName: string | null;
+  status: 'pending' | 'in_progress' | 'done';
+  notes: string | null;
+}
+
+/** One exit case's knowledge-transfer items. */
+export async function getKtItems(exitCaseId: string): Promise<KtItemRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('knowledge_transfer_items')
+    .select('id, task, handover_to, status, notes, created_at, employees(full_name)')
+    .eq('exit_case_id', exitCaseId)
+    .order('created_at', { ascending: true });
+  if (error) {
+    if (isMissingTable(error)) return [];
+    fail('getKtItems: could not load handover items', error);
+  }
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    task: r.task,
+    handoverTo: r.handover_to,
+    handoverName: r.employees?.full_name ?? null,
+    status: r.status,
+    notes: r.notes,
+  }));
 }
 
 export interface ClearanceItemRow {

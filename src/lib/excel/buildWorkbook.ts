@@ -535,9 +535,21 @@ export async function reimbursementsWorkbook(
     { header: 'Mode of payment', key: 'mode', width: 16 },
     { header: 'Amount', key: 'amount', width: 12 },
     { header: 'Remarks', key: 'remarks', width: 30 },
-    { header: 'Status', key: 'status', width: 11 },
+    { header: 'Status', key: 'status', width: 13 },
+    // Review/payment trail: without these the export could not answer "why was
+    // this rejected?" or "when was it actually paid?", which is the whole point
+    // of an audit export. All are populated from migration 0020/0035 columns and
+    // fall back to blank on a database where those are not applied yet.
+    { header: 'Review remark', key: 'reviewRemark', width: 32 },
+    { header: 'Receipt', key: 'receipt', width: 10 },
+    { header: 'Finance reviewed', key: 'financeReviewed', width: 18 },
+    { header: 'Paid on', key: 'paidAt', width: 14 },
+    { header: 'Payment ref', key: 'paymentRef', width: 20 },
   ];
   styleHeader(ws.getRow(1));
+
+  /** '2026-07-27T10:20:00Z' -> '2026-07-27'; blank when absent. */
+  const day = (iso: string | null | undefined) => (iso ? String(iso).slice(0, 10) : '');
 
   claims.forEach((c, ix) => {
     ws.addRow({
@@ -553,6 +565,13 @@ export async function reimbursementsWorkbook(
       amount: c.amount,
       remarks: safeText(c.remarks ?? ''),
       status: c.status,
+      reviewRemark: safeText(c.reviewRemark ?? ''),
+      // The path itself is an internal storage key and useless in a sheet — what
+      // an auditor needs to know is whether a receipt exists at all.
+      receipt: c.receiptPath ? 'Yes' : '',
+      financeReviewed: day(c.financeReviewedAt),
+      paidAt: day(c.paidAt),
+      paymentRef: safeText(c.paymentRef ?? ''),
     });
   });
 

@@ -84,6 +84,61 @@ export function isScheduledWeekOff(
   return true;
 }
 
+/**
+ * Count the leave days in an inclusive span, honouring the sandwich policy.
+ *
+ * WITHOUT the policy (the default), a week-off or holiday inside the span is not
+ * leave: Friday + Monday off across a weekend costs 2 days.
+ *
+ * WITH the policy on, non-working days that fall BETWEEN two leave days are
+ * bridged and counted: the same Friday–Monday costs 4. That is the point of the
+ * rule — otherwise an employee splits leave around every weekend and the bridged
+ * days are free, which is a real cost leak.
+ *
+ * Both modes only ever count days INSIDE the span, and a leading/trailing
+ * non-working day is never charged (taking "leave" on a Sunday costs nothing),
+ * because bridging requires a leave day on both sides.
+ *
+ * `holidays` is a set of 'YYYY-MM-DD' strings. Pure function — the caller loads
+ * the policy and holiday list.
+ */
+export function countLeaveDays(
+  startISO: string,
+  endISO: string,
+  opts: {
+    policy?: WeekOffPolicy;
+    holidays?: ReadonlySet<string>;
+    sandwich?: boolean;
+  } = {},
+): number {
+  const { policy = DEFAULT_WEEK_OFF_POLICY, holidays = new Set<string>(), sandwich = false } = opts;
+
+  const start = utcDate(startISO);
+  const end = utcDate(endISO);
+  if (!start || !end || end.getTime() < start.getTime()) return 0;
+
+  // Enumerate the span, flagging which days are non-working.
+  const days: { iso: string; off: boolean }[] = [];
+  const cursor = new Date(start.getTime());
+  while (cursor.getTime() <= end.getTime()) {
+    const iso = cursor.toISOString().slice(0, 10);
+    days.push({ iso, off: isScheduledWeekOff(iso, policy) || holidays.has(iso) });
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  const workingCount = days.filter((d) => !d.off).length;
+  if (!sandwich) return workingCount;
+
+  // Sandwich: charge every day from the FIRST to the LAST working day inclusive,
+  // so interior non-working days are bridged and the edges are still free. When
+  // the span contains no working day at all there is nothing to bridge.
+  const first = days.findIndex((d) => !d.off);
+  if (first === -1) return 0;
+  let last = days.length - 1;
+  while (last > first && days[last].off) last -= 1;
+  return last - first + 1;
+}
+
 /** Days-of-month that are scheduled week-offs for a 'YYYY-MM-01' period. */
 export function weekOffDaysInMonth(
   periodMonth: string,

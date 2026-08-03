@@ -16,6 +16,9 @@ import {
   getReimbursementRate,
   getMyAssets,
   getMyItems,
+  getEmployeeDocuments,
+  getMyOnboardingTasks,
+  getMyAcknowledgements,
   getPayrollRun,
   getHolidays,
   getNotices,
@@ -32,6 +35,9 @@ import {
   type TicketView,
   type MyAssetRow,
   type MyItemRow,
+  type EmployeeDocumentRow,
+  type OnboardingTaskRow,
+  type AcknowledgementRow,
 } from '@/lib/queries';
 import { PolicyList } from '@/components/policies/PolicyList';
 import { EmployeeNotices } from '@/components/employee/EmployeeNotices';
@@ -44,6 +50,8 @@ import { MyCompOffs } from '@/components/employee/MyCompOffs';
 import { MyReimbursements } from '@/components/employee/MyReimbursements';
 import { MyAssets } from '@/components/employee/MyAssets';
 import { MyItems } from '@/components/employee/MyItems';
+import { MyDocuments } from '@/components/employee/MyDocuments';
+import { MyOnboarding } from '@/components/employee/MyOnboarding';
 import { inr } from '@/lib/format';
 import type { DayCell, PayslipRow } from '@/types/domain';
 
@@ -73,6 +81,9 @@ export default async function MePage() {
     notices,
     weekOffPolicy,
     readNoticeIds,
+    myDocuments,
+    mySignatures,
+    myOnboarding,
   ] = await Promise.all([
       getEmployeeOverview(employeeId, profile?.full_name, DEFAULT_PERIOD_MONTH),
       getEmployeePolicies(employeeId),
@@ -95,6 +106,9 @@ export default async function MePage() {
       getNotices(),
       getWeekOffPolicy(),
       employeeId ? getReadNoticeIds(employeeId) : Promise.resolve<string[]>([]),
+      employeeId ? getEmployeeDocuments(employeeId) : Promise.resolve<EmployeeDocumentRow[]>([]),
+      employeeId ? getMyAcknowledgements(employeeId) : Promise.resolve<AcknowledgementRow[]>([]),
+      employeeId ? getMyOnboardingTasks(employeeId) : Promise.resolve<OnboardingTaskRow[]>([]),
     ]);
 
   // Notices are company announcements — every employee sees all PUBLISHED ones
@@ -243,6 +257,12 @@ export default async function MePage() {
         </div>
       </div>
 
+      {/* joiner checklist — read-only; ticking a step is a staff action */}
+      <MyOnboarding tasks={myOnboarding} />
+
+      {/* own document locker — upload what HR asked for, track verification */}
+      <MyDocuments documents={myDocuments} />
+
       {/* own month strip */}
       <MyAttendance days={attendance} periodMonth={DEFAULT_PERIOD_MONTH} />
 
@@ -287,7 +307,7 @@ export default async function MePage() {
           <span className="folio">Please read &amp; acknowledge</span>
         </div>
         <div className="bd">
-          <PolicyList policies={policies} />
+          <PolicyList policies={policies} signatures={mySignatures} />
         </div>
       </div>
 

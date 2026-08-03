@@ -8,6 +8,7 @@ import { requireStaff, wroteNothing } from '@/lib/actions/_guard';
 import { getEmployeeForEdit, type EmployeeEditRow } from '@/lib/queries';
 import { sendEmail, isEmailConfigured } from '@/lib/email';
 import { buildWelcomeEmail } from '@/lib/documents/templates';
+import { startOnboarding } from '@/lib/actions/onboarding';
 
 // Ban duration handed to Supabase's admin API to block sign-in. ~100 years is
 // "indefinite" in practice; 'none' lifts the ban. Existing access tokens are
@@ -351,6 +352,12 @@ export async function createEmployee(formData: FormData) {
   if (wroteNothing(data)) {
     return { ok: false, error: 'The employee was not added — your account may not have permission.' };
   }
+
+  // Kick off the onboarding checklist from the newest active template. BEST-EFFORT:
+  // a template that does not exist yet (or migration 0037 unapplied) must not fail
+  // a saved employee — HR can start it by hand from /onboarding.
+  const newEmployeeId = (data![0] as { id: string }).id;
+  await startOnboarding(newEmployeeId).catch(() => undefined);
 
   // Welcome email — BEST-EFFORT and last: it is sent through our own SMTP
   // (src/lib/email.ts) and a mail failure must never undo a saved employee. When

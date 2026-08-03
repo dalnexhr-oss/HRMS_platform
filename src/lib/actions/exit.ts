@@ -18,7 +18,12 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth';
 import { requireRoles, wroteNothing } from '@/lib/actions/_guard';
-import { getClearanceItems as readClearanceItems } from '@/lib/queries';
+import {
+  getClearanceItems as readClearanceItems,
+  getExitInterview as readExitInterview,
+  getKtItems as readKtItems,
+  type ExitInterviewRow,
+} from '@/lib/queries';
 import { notifyEmployee } from '@/lib/notify';
 import { deactivateEmployee } from '@/lib/actions/employees';
 import { uploadFileService } from '@/lib/storage';
@@ -167,6 +172,185 @@ async function seedClearance(
 /** Client-callable clearance-checklist fetch (queries.ts is server-only). */
 export async function fetchClearanceItems(exitCaseId: string) {
   return readClearanceItems(exitCaseId);
+}
+
+// ------------------------------------------------------- exit interview ---
+
+/** The standard exit-interview questionnaire, seeded on first open. */
+const INTERVIEW_QUESTIONS: readonly string[] = [
+  'What prompted your decision to leave?',
+  'What did you most enjoy about working here?',
+  'What would you change about the role or the team?',
+  'Did you feel supported by your reporting manager?',
+  'How would you rate the tools and equipment provided?',
+  'Would you consider returning in future? Why or why not?',
+  'Anything else you would like to tell us?',
+];
+
+/**
+ * Open the interview for a case: write the question set if it is not there yet.
+ *
+ * Questions are stored as ROWS rather than rendered from a constant so a later
+ * edit to the questionnaire cannot retroactively change what a past leaver was
+ * actually asked — the 0037 table comment makes the same point.
+ */
+export async function ensureExitInterview(exitCaseId: string): Promise<ActionResult> {
+  const gate = await requireRoles(EXIT_ROLES, 'Opening the exit interview');
+  if (!gate.ok) return gate;
+
+  const supabase = await createClient();
+  const { count, error: countErr } = await supabase
+    .from('exit_interviews')
+    .select('id', { count: 'exact', head: true })
+    .eq('exit_case_id', exitCaseId);
+  if (countErr) {
+    if (countErr.code === '42P01' || countErr.code === 'PGRST205') {
+      return { ok: false, error: 'The exit workflow is not set up on the database yet — apply migration 0037.' };
+    }
+    return { ok: false, error: countErr.message };
+  }
+  if ((count ?? 0) > 0) return { ok: true }; // already open
+
+  const rows = INTERVIEW_QUESTIONS.map((question) => ({
+    exit_case_id: exitCaseId,
+    question,
+    interviewer_id: gate.profileId,
+  }));
+  const { error } = await supabase.from('exit_interviews').insert(rows);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/exits');
+  return { ok: true };
+}
+
+/**
+ * Record answers. Only the ANSWER is writable — the question text and the
+ * exit_case_id are never taken from the client, so a respondent cannot rewrite
+ * the question they were asked.
+ */
+export async function saveExitInterview(
+  answers: { id: string; answer: string }[],
+): Promise<ActionResult> {
+  const gate = await requireRoles(EXIT_ROLES, 'Saving the exit interview');
+  if (!gate.ok) return gate;
+
+  const clean = (Array.isArray(answers) ? answers : []).filter((a) => UUID_RE.test(String(a?.id ?? '')));
+  if (clean.length === 0) return { ok: false, error: 'Nothing to save.' };
+
+  const supabase = await createClient();
+  const now = new Date().toISOString();
+  // Per-row updates: an upsert would need the full row and could overwrite the
+  // question text, which is exactly what must stay immutable here.
+  for (const a of clean) {
+    const answer = String(a.answer ?? '').trim();
+    const { error } = await supabase
+      .from('exit_interviews')
+      .update({
+        answer: answer || null,
+        submitted_at: answer ? now : null,
+        interviewer_id: gate.profileId,
+      })
+      .eq('id', a.id);
+    if (error) return { ok: false, error: error.message };
+  }
+
+  revalidatePath('/exits');
+  return { ok: true };
+}
+
+/**
+ * Client-callable interview fetch.
+ *
+ * The return type is explicit on purpose: without it, a resolution failure in
+ * the underlying query degrades this to `any` and the error surfaces far away,
+ * as an implicit-any on the caller's `.map()` callback rather than here.
+ */
+export async function fetchExitInterview(exitCaseId: string): Promise<ExitInterviewRow[]> {
+  return readExitInterview(exitCaseId);
+}
+
+// ---------------------------------------------------- knowledge transfer ---
+
+/** Add a handover item, optionally naming who is taking it over. */
+export async function addKtItem(input: {
+  exitCaseId: string;
+  task: string;
+  handoverTo?: string | null;
+  notes?: string;
+}): Promise<ActionResult> {
+  const gate = await requireRoles(EXIT_ROLES, 'Adding a handover item');
+  if (!gate.ok) return gate;
+
+  const task = String(input.task ?? '').trim();
+  if (!UUID_RE.test(String(input.exitCaseId ?? ''))) return { ok: false, error: 'Unknown exit case.' };
+  if (!task) return { ok: false, error: 'Describe what needs handing over.' };
+
+  const handoverTo = input.handoverTo && UUID_RE.test(input.handoverTo) ? input.handoverTo : null;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('knowledge_transfer_items')
+    .insert({
+      exit_case_id: input.exitCaseId,
+      task,
+      handover_to: handoverTo,
+      notes: String(input.notes ?? '').trim() || null,
+    })
+    .select('id');
+  if (error) {
+    if (error.code === '42P01' || error.code === 'PGRST205') {
+      return { ok: false, error: 'The exit workflow is not set up on the database yet — apply migration 0037.' };
+    }
+    return { ok: false, error: error.message };
+  }
+  if (wroteNothing(data)) return { ok: false, error: 'The item was not added — your role may lack permission.' };
+
+  revalidatePath('/exits');
+  return { ok: true };
+}
+
+/** Advance a handover item. Status set matches the 0037 CHECK constraint. */
+export async function setKtStatus(id: string, status: string): Promise<ActionResult> {
+  const gate = await requireRoles(EXIT_ROLES, 'Updating a handover item');
+  if (!gate.ok) return gate;
+  if (!['pending', 'in_progress', 'done'].includes(status)) {
+    return { ok: false, error: `Invalid status: ${status || '(missing)'}` };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('knowledge_transfer_items')
+    .update({ status })
+    .eq('id', id)
+    .select('id');
+  if (error) return { ok: false, error: error.message };
+  if (wroteNothing(data)) return { ok: false, error: 'That handover item no longer exists.' };
+
+  revalidatePath('/exits');
+  return { ok: true };
+}
+
+/** Remove a handover item. */
+export async function deleteKtItem(id: string): Promise<ActionResult> {
+  const gate = await requireRoles(EXIT_ROLES, 'Deleting a handover item');
+  if (!gate.ok) return gate;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('knowledge_transfer_items')
+    .delete()
+    .eq('id', id)
+    .select('id');
+  if (error) return { ok: false, error: error.message };
+  if (wroteNothing(data)) return { ok: false, error: 'That handover item no longer exists.' };
+
+  revalidatePath('/exits');
+  return { ok: true };
+}
+
+/** Client-callable handover-list fetch. */
+export async function fetchKtItems(exitCaseId: string) {
+  return readKtItems(exitCaseId);
 }
 
 /** Re-scan the asset/item registers for this exit (HR hits this after returns). */

@@ -113,11 +113,10 @@ export async function grantCompOff(employeeId: string, earnedDate: string): Prom
  * be spent twice while the request is pending.
  */
 export async function applyCompOff(formData: FormData): Promise<ActionResult> {
-  const compOffId = String(formData.get('comp_off_id') ?? '').trim();
+  const requestedId = String(formData.get('comp_off_id') ?? '').trim();
   const takeDate = String(formData.get('take_date') ?? '').trim();
   const reason = String(formData.get('reason') ?? '').trim() || null;
 
-  if (!compOffId) return { ok: false, error: 'Choose which comp off to use.' };
   if (!ISO_DATE.test(takeDate)) return { ok: false, error: 'Choose a valid date to take off.' };
 
   const db = requireDb('Applying for a comp off');
@@ -130,6 +129,42 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
   }
 
   const supabase = await createClient();
+
+  // FIFO (0036): with no explicit credit chosen, spend the one that expires
+  // SOONEST — oldest expiry first, then oldest earned. Letting the employee
+  // always pick freely means the near-expiry credits quietly lapse while newer
+  // ones get used, which is the whole reason expiry dates exist.
+  let compOffId = requestedId;
+  if (!compOffId) {
+    const { data: oldest, error: fifoErr } = await supabase
+      .from('comp_offs')
+      .select('id')
+      .eq('employee_id', employeeId)
+      .eq('status', 'available')
+      // nullsFirst:false so dated credits are consumed before undated ones —
+      // an undated credit cannot lapse, so it can safely wait.
+      .order('expires_on', { ascending: true, nullsFirst: false })
+      .order('earned_date', { ascending: true })
+      .limit(1)
+      .maybeSingle<{ id: string }>();
+    // A missing expires_on column (0036 unapplied) still sorts by earned_date.
+    if (fifoErr && fifoErr.code === '42703') {
+      const { data: fallback } = await supabase
+        .from('comp_offs')
+        .select('id')
+        .eq('employee_id', employeeId)
+        .eq('status', 'available')
+        .order('earned_date', { ascending: true })
+        .limit(1)
+        .maybeSingle<{ id: string }>();
+      compOffId = fallback?.id ?? '';
+    } else if (fifoErr) {
+      return { ok: false, error: fifoErr.message };
+    } else {
+      compOffId = oldest?.id ?? '';
+    }
+    if (!compOffId) return { ok: false, error: 'You have no comp off available to apply for.' };
+  }
 
   // Claim the credit first: the status predicate means two concurrent
   // applications for the same credit cannot both succeed.

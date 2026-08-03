@@ -83,7 +83,10 @@ function ApplyForm({ available }: { available: CompOffRow[] }) {
     },
     {},
   );
-  const [compOffId, setCompOffId] = useState(available[0]?.id ?? '');
+  // Empty = let the server pick FIFO (the credit expiring soonest). That is the
+  // default so near-expiry credits get spent before they lapse; picking a
+  // specific one stays available for the cases where it matters.
+  const [compOffId, setCompOffId] = useState('');
 
   return (
     <form action={action} style={{ borderTop: '1px dashed var(--line)', paddingTop: 14 }}>
@@ -91,6 +94,7 @@ function ApplyForm({ available }: { available: CompOffRow[] }) {
         <div className="f">
           <label>Use the comp off earned on</label>
           <select name="comp_off_id" value={compOffId} onChange={(e) => setCompOffId(e.target.value)}>
+            <option value="">Earliest to expire (recommended)</option>
             {available.map((c) => (
               <option key={c.id} value={c.id}>
                 {formatDate(c.earnedDate)}
