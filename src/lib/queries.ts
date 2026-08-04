@@ -111,13 +111,21 @@ function clockTime(ts: string): string {
   }).format(new Date(ts));
 }
 
-const PAYSLIP_FIELDS = `payable_days, earned_gross, shortfall_amount, per_day_rate,
+// `id` is the payslip's own uuid and must stay selected: it keys the adjustments
+// lookup and is the value posted back by saveAdjustments. It was missing here,
+// which left mapPayslip's `?? p.id` fallback permanently undefined.
+const PAYSLIP_FIELDS = `id, payable_days, earned_gross, shortfall_amount, per_day_rate,
   basic_earned, hra_earned, special_earned, pf_employee, pf_employer, esic_employee,
   esic_employer, professional_tax, net_payable, shortfall_minutes`;
 
 function mapPayslip(p: any): PayslipRow {
   return {
-    id: p.employees?.code ?? p.id,
+    // The payslip uuid — NOT employees.code, which is what `code` below is for.
+    // Handing back the code sent employee codes into `payslip_adjustments.id`
+    // (a uuid column), so the payroll page died on 22P02 as soon as a run had
+    // payslips; it also collided React keys on /me, where every row of one
+    // employee's payslip history shares the same code.
+    id: p.id,
     code: p.employees?.code ?? '',
     name: p.employees?.full_name ?? '',
     branch: p.employees?.branches?.name ?? '',

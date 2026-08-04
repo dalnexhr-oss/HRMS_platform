@@ -65,9 +65,7 @@ export function MyPayslips({ payslips }: { payslips: PayslipRow[] }) {
             </thead>
             <tbody>
               {payslips.map((p, ix) => (
-                // `PayslipRow.id` is the employee code — identical on every row
-                // here — so the stable index is the only usable key.
-                <Fragment key={ix}>
+                <Fragment key={p.id}>
                   <tr
                     style={{ cursor: 'pointer' }}
                     onClick={() => setOpen((o) => (o === ix ? null : ix))}

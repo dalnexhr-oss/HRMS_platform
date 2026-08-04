@@ -4,8 +4,9 @@
 // Builds a self-contained, print-styled HTML payslip from a PayslipRow already
 // on the page and opens it in a new window for printing. The browser's print
 // dialog offers "Save as PDF", so this is the payslip PDF/download for both the
-// staff payroll table and the employee self-service dashboard — no server route,
-// no fetch-by-id (PayslipRow.id is the employee code, not the payslip UUID).
+// staff payroll table and the employee self-service dashboard — no server route
+// and no fetch-by-id, because the row it is handed already carries every figure
+// it prints.
 // ============================================================================
 import { inr } from '@/lib/format';
 import type { PayslipRow } from '@/types/domain';
