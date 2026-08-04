@@ -307,7 +307,7 @@ export default async function MePage() {
           <span className="folio">Please read &amp; acknowledge</span>
         </div>
         <div className="bd">
-          <PolicyList policies={policies} signatures={mySignatures} />
+          <PolicyList policies={policies} />
         </div>
       </div>
 
