@@ -24,6 +24,9 @@ import type { PayslipRow, RegisterEmployee, DayCell } from '@/types/domain';
 // Type-only import: erased at compile time, so this file stays free of the
 // server-only modules queries.ts pulls in.
 import type { ReimbursementView } from '@/lib/queries';
+import type { LeaveSalaryViewRow } from '@/lib/leave-salary-view';
+// Pure module (no server deps) — safe here for the same reason inr/minutesToHHMM are.
+import { effectiveFigures } from '@/lib/leave-salary';
 
 /** 'YYYY-MM-01' -> 'June 2026'. */
 export function monthTitle(periodMonth: string): string {
@@ -658,6 +661,93 @@ export async function payrollWorkbook(
   if (register.length > 0) {
     writeDailyPunchSheet(wb.addWorksheet('Daily punches'), register, periodMonth);
   }
+
+  return toBytes(wb);
+}
+
+// ------------------------------------------------------------- leave salary ---
+
+const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * The annual leave-salary working, one row per employee — the owner's sheet
+ * shape, widened from one employee to the roster. Finalized/paid rows carry
+ * their frozen snapshot, drafts the live figures (effectiveFigures — the same
+ * rule the page table renders by, so the sheet always equals the screen).
+ */
+export async function leaveSalaryWorkbook(
+  rows: LeaveSalaryViewRow[],
+  year: number,
+): Promise<Uint8Array> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Dalnex HRMS';
+  const ws = wb.addWorksheet(`Leave salary ${year}`);
+
+  ws.columns = [
+    { header: 'Code', key: 'code', width: 10 },
+    { header: 'Name', key: 'name', width: 24 },
+    { header: 'Salary before', key: 'salaryBefore', width: 13 },
+    { header: 'Salary after', key: 'salaryAfter', width: 13 },
+    { header: 'Increment from', key: 'incrementFrom', width: 14 },
+    { header: 'Months (before)', key: 'monthsP1', width: 14 },
+    { header: 'Days (before)', key: 'daysP1', width: 12 },
+    { header: 'Present (before)', key: 'presentP1', width: 14 },
+    { header: 'Entitled (before)', key: 'entitledP1', width: 14 },
+    { header: 'Payable (before)', key: 'payableP1', width: 14 },
+    { header: 'Months (after)', key: 'monthsP2', width: 13 },
+    { header: 'Days (after)', key: 'daysP2', width: 11 },
+    { header: 'Present (after)', key: 'presentP2', width: 13 },
+    { header: 'Entitled (after)', key: 'entitledP2', width: 13 },
+    { header: 'Payable (after)', key: 'payableP2', width: 13 },
+    { header: 'Total leave salary', key: 'total', width: 16 },
+    { header: 'Status', key: 'status', width: 10 },
+    { header: 'Remarks', key: 'remarks', width: 30 },
+  ];
+  styleHeader(ws.getRow(1));
+
+  for (const r of rows) {
+    const fig = effectiveFigures(r.working, r.live);
+    const monthsP1 = r.incrementMonth - 1;
+    const monthsP2 = 12 - monthsP1;
+    ws.addRow({
+      code: safeText(r.code),
+      name: safeText(r.name),
+      salaryBefore: r.salaryBefore,
+      salaryAfter: r.salaryAfter,
+      incrementFrom: `${MONTH_SHORT[r.incrementMonth - 1]} ${year}`,
+      monthsP1,
+      daysP1: fig.calendarDaysP1,
+      presentP1: fig.presentP1,
+      // Entitled is deterministic from salary and months — (salary/2) × m/12 —
+      // so it is derived here rather than stored, exactly the owner's B5/B6.
+      entitledP1: Math.round((r.salaryBefore / 2) * (monthsP1 / 12) * 100) / 100,
+      payableP1: fig.amountP1,
+      monthsP2,
+      daysP2: fig.calendarDaysP2,
+      presentP2: fig.presentP2,
+      entitledP2: Math.round((r.salaryAfter / 2) * (monthsP2 / 12) * 100) / 100,
+      payableP2: fig.amountP2,
+      total: fig.total,
+      status: r.working ? r.working.status : 'draft',
+      remarks: safeText(r.remarks),
+    });
+  }
+
+  const sum = (pick: (r: LeaveSalaryViewRow) => number) =>
+    Math.round(rows.reduce((a, r) => a + pick(r), 0) * 100) / 100;
+  const totals = ws.addRow({
+    name: `TOTAL · ${rows.length} employee${rows.length === 1 ? '' : 's'}`,
+    payableP1: sum((r) => effectiveFigures(r.working, r.live).amountP1),
+    payableP2: sum((r) => effectiveFigures(r.working, r.live).amountP2),
+    total: sum((r) => effectiveFigures(r.working, r.live).total),
+  });
+  totals.font = { bold: true };
+
+  // Money columns; presence keeps one decimal for half-days.
+  for (const key of ['salaryBefore', 'salaryAfter', 'entitledP1', 'payableP1', 'entitledP2', 'payableP2', 'total']) {
+    ws.getColumn(key).numFmt = '#,##0.00';
+  }
+  for (const key of ['presentP1', 'presentP2']) ws.getColumn(key).numFmt = '#,##0.0';
 
   return toBytes(wb);
 }

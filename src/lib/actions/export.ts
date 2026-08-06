@@ -10,18 +10,20 @@ import { getSession } from '@/lib/auth';
 import type { AppRole } from '@/types/database';
 import {
   attendanceTemplateWorkbook,
+  leaveSalaryWorkbook,
   payrollWorkbook,
   registerWorkbook,
   registerImportTemplateWorkbook,
   reimbursementsWorkbook,
 } from '@/lib/excel/buildWorkbook';
+import { buildLeaveSalaryView } from '@/lib/leave-salary-view';
 import {
   getStatutoryRows,
   buildPfEcr,
   buildEsicXlsx,
   buildPtXlsx,
 } from '@/lib/statutory/statutory';
-import { requireStaff } from '@/lib/actions/_guard';
+import { requireRoles, requireStaff } from '@/lib/actions/_guard';
 
 export type ExportResult =
   | { ok: true; filename: string; base64: string; mime?: string }
@@ -135,6 +137,27 @@ export async function exportReimbursementsXlsx(): Promise<ExportResult> {
     if (claims.length === 0) return { ok: false, error: 'There are no claims to export.' };
     const bytes = await reimbursementsWorkbook(claims);
     return { ok: true, filename: 'reimbursement-claims.xlsx', base64: b64(bytes) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Export failed.' };
+  }
+}
+
+/**
+ * The annual leave-salary working as a sheet. Gated admin/hr — the same gate
+ * as the /leave page itself, and deliberately narrower than requireStaff:
+ * this file carries every employee's salary.
+ */
+export async function exportLeaveSalaryXlsx(year: number): Promise<ExportResult> {
+  const gate = await requireRoles(['admin', 'hr'], 'Exporting the leave-salary working');
+  if (!gate.ok) return gate;
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+    return { ok: false, error: 'Enter a valid year.' };
+  }
+  try {
+    const view = await buildLeaveSalaryView(year);
+    if (view.rows.length === 0) return { ok: false, error: 'There are no employees to export.' };
+    const bytes = await leaveSalaryWorkbook(view.rows, year);
+    return { ok: true, filename: `leave-salary-${year}.xlsx`, base64: b64(bytes) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Export failed.' };
   }

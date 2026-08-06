@@ -18,6 +18,9 @@ const TYPE_LABEL: Record<RequestType, string> = {
 // against a specific earned credit, which the CompOffs card handles.
 const TYPE_OPTIONS: RequestType[] = ['leave', 'site_visit', 'outdoor_duty', 'wfh'];
 
+// All four keys stay: historic requests still render their CL/SL tag. Only
+// LEAVE_KIND_OPTIONS below decides what a NEW request may carry — one paid
+// pool + leave-without-pay since the leave-salary policy (migration 0038).
 const LEAVE_KIND_LABEL: Record<LeaveBalanceRow['type'], string> = {
   PL: 'Paid leave',
   CL: 'Casual leave',
@@ -25,7 +28,7 @@ const LEAVE_KIND_LABEL: Record<LeaveBalanceRow['type'], string> = {
   LWP: 'Leave without pay',
 };
 
-const LEAVE_KIND_OPTIONS: LeaveBalanceRow['type'][] = ['PL', 'CL', 'SL', 'LWP'];
+const LEAVE_KIND_OPTIONS: LeaveBalanceRow['type'][] = ['PL', 'LWP'];
 
 const STATUS_LABEL: Record<RequestView['status'], string> = {
   pending: 'Pending',

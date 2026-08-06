@@ -16,7 +16,9 @@ export interface ActionResult {
 }
 
 const REQUEST_TYPES: readonly RequestType[] = ['leave', 'site_visit', 'outdoor_duty', 'wfh'];
-const LEAVE_KINDS: readonly LeaveType[] = ['PL', 'CL', 'SL', 'LWP'];
+// One paid-leave pool since the leave-salary policy (0038). CL/SL stay in the
+// enum for historic rows but a new request may no longer carry them.
+const LEAVE_KINDS: readonly LeaveType[] = ['PL', 'LWP'];
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -266,7 +268,7 @@ export async function reviewRequest(
         // silent — an overdrawn balance is a payroll problem later.
         warning =
           `Approved, but this takes ${reviewed.leave_kind} to ${next} day(s) — the balance is now overdrawn. ` +
-          `Correct it from Leave balances, or convert the excess to LWP.`;
+          `Correct it from the Leave salary page, or convert the excess to LWP.`;
       }
     } else {
       // No balance row for this kind/year. Before migration 0036 this drew down
@@ -275,7 +277,7 @@ export async function reviewRequest(
       // says so loudly and points at the fix.
       warning =
         `Approved, but ${reviewed.leave_kind} has no balance on record for ${year}, so nothing was deducted. ` +
-        `Provision the leave year from Leave balances so entitlements are tracked.`;
+        `Provision the leave year from the Leave salary page so entitlements are tracked.`;
     }
   }
 
@@ -322,7 +324,7 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
   if (type === 'leave') {
     const raw = String(formData.get('leave_kind') ?? '').trim() as LeaveType;
     if (!LEAVE_KINDS.includes(raw)) {
-      return { ok: false, error: 'Pick a leave type (PL / CL / SL / LWP).' };
+      return { ok: false, error: 'Pick a leave type (Paid leave / Leave without pay).' };
     }
     leaveKind = raw;
   }

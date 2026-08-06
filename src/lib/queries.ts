@@ -20,6 +20,7 @@ import {
   policyFromSettings,
   type WeekOffPolicy,
 } from '@/lib/week-off';
+import { PRESENT_CREDIT } from '@/lib/leave-salary';
 import type { TopbarStats } from '@/lib/constants';
 import type {
   RegisterEmployee, PayslipRow, DayCell, TodayKpis, Celebration, PunchLogRow,
@@ -679,7 +680,11 @@ export async function getClearanceItems(exitCaseId: string): Promise<ClearanceIt
   return (data ?? []) as unknown as ClearanceItemRow[];
 }
 
-// ------------------------------------------------------------ leave admin ---
+// ----------------------------------------------------------- leave salary ---
+// The /leave page model (migration 0038): one paid-leave pool of 15 days plus
+// an annual leave-salary working per employee. The old encashment/adjustment
+// list queries died with the PL/CL/SL screen; the tables themselves remain.
+
 export interface LeaveBalanceAdminRow {
   employeeId: string;
   code: string;
@@ -689,13 +694,15 @@ export interface LeaveBalanceAdminRow {
   balance: number;
 }
 
-/** Every employee's leave balances for a year — the HR balances screen. */
+/** Every employee's PAID-LEAVE pool for a year — the pool card on /leave. */
 export async function getLeaveBalancesForYear(year: number): Promise<LeaveBalanceAdminRow[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('leave_balances')
     .select('employee_id, year, type, balance, employees(code, full_name)')
-    .eq('year', year);
+    .eq('year', year)
+    // One pool now. Historic CL/SL rows stay in the table but not on screen.
+    .eq('type', 'PL');
   if (error) {
     if (isMissingTable(error)) return [];
     fail('getLeaveBalancesForYear: could not load balances', error);
@@ -709,82 +716,164 @@ export async function getLeaveBalancesForYear(year: number): Promise<LeaveBalanc
       type: r.type,
       balance: Number(r.balance ?? 0),
     }))
-    .sort((a, b) => a.code.localeCompare(b.code) || a.type.localeCompare(b.type));
+    .sort((a, b) => a.code.localeCompare(b.code));
 }
 
-export interface LeaveEncashmentRow {
+export interface LeaveSalaryWorkingRow {
   id: string;
   employeeId: string;
-  code: string;
-  name: string;
   year: number;
-  type: string;
-  days: number;
-  amount: number;
-  status: 'requested' | 'approved' | 'paid';
-  requestedAt: string;
+  salaryBefore: number;
+  salaryAfter: number;
+  /** 'YYYY-MM-01' — first day of the post-appraisal salary. */
+  incrementEffective: string;
+  presentP1: number;
+  presentP2: number;
+  calendarDaysP1: number;
+  calendarDaysP2: number;
+  amountP1: number;
+  amountP2: number;
+  totalAmount: number;
+  status: 'draft' | 'finalized' | 'paid';
   remarks: string | null;
+  paidAt: string | null;
+  updatedAt: string;
 }
 
-/** Encashment requests, newest first. */
-export async function getLeaveEncashments(): Promise<LeaveEncashmentRow[]> {
+/**
+ * Saved leave-salary workings for a year.
+ *
+ * Returns NULL — not [] — when the table is missing, so the page can tell
+ * "migration 0038 not applied" apart from "no rows saved yet"; the two demand
+ * different messages and only one of them is fixable from the UI.
+ */
+export async function getLeaveSalaryWorkings(
+  year: number,
+): Promise<LeaveSalaryWorkingRow[] | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from('leave_encashment')
-    .select('id, employee_id, year, type, days, amount, status, requested_at, remarks, employees(code, full_name)')
-    .order('requested_at', { ascending: false });
+    .from('leave_salary_workings')
+    .select(
+      `id, employee_id, year, salary_before, salary_after, increment_effective,
+       present_p1, present_p2, calendar_days_p1, calendar_days_p2,
+       amount_p1, amount_p2, total_amount, status, remarks, paid_at, updated_at`,
+    )
+    .eq('year', year);
   if (error) {
-    if (isMissingTable(error)) return [];
-    fail('getLeaveEncashments: could not load encashments', error);
+    if (isMissingTable(error)) return null;
+    fail('getLeaveSalaryWorkings: could not load workings', error);
   }
   return (data ?? []).map((r: any) => ({
     id: r.id,
     employeeId: r.employee_id,
-    code: r.employees?.code ?? '',
-    name: r.employees?.full_name ?? '',
     year: Number(r.year),
-    type: r.type,
-    days: Number(r.days ?? 0),
-    amount: Number(r.amount ?? 0),
+    salaryBefore: Number(r.salary_before ?? 0),
+    salaryAfter: Number(r.salary_after ?? 0),
+    incrementEffective: String(r.increment_effective).slice(0, 10),
+    presentP1: Number(r.present_p1 ?? 0),
+    presentP2: Number(r.present_p2 ?? 0),
+    calendarDaysP1: Number(r.calendar_days_p1 ?? 0),
+    calendarDaysP2: Number(r.calendar_days_p2 ?? 0),
+    amountP1: Number(r.amount_p1 ?? 0),
+    amountP2: Number(r.amount_p2 ?? 0),
+    totalAmount: Number(r.total_amount ?? 0),
     status: r.status,
-    requestedAt: r.requested_at,
     remarks: r.remarks,
+    paidAt: r.paid_at,
+    updatedAt: r.updated_at,
   }));
 }
 
-export interface LeaveAdjustmentRow {
+export interface LeaveSalaryEmployee {
   id: string;
   code: string;
   name: string;
-  year: number;
-  type: string;
-  delta: number;
-  reason: string;
-  createdAt: string;
+  grossMonthly: number;
+  dateOfJoining: string | null;
+  status: string;
 }
 
-/** Recent manual balance adjustments — the "why did this change?" trail. */
-export async function getLeaveAdjustments(limit = 100): Promise<LeaveAdjustmentRow[]> {
+/**
+ * Who belongs on the year's leave-salary sheet: everyone still on the roster,
+ * PLUS anyone off it who already has a saved working for the year — a mid-year
+ * leaver's payout row must not vanish the day HR marks them inactive.
+ */
+export async function getLeaveSalaryRoster(year: number): Promise<LeaveSalaryEmployee[]> {
   const supabase = await createClient();
+
   const { data, error } = await supabase
-    .from('leave_balance_adjustments')
-    .select('id, year, type, delta, reason, created_at, employees(code, full_name)')
-    .order('created_at', { ascending: false })
-    .limit(limit);
-  if (error) {
-    if (isMissingTable(error)) return [];
-    fail('getLeaveAdjustments: could not load adjustments', error);
+    .from('employees')
+    .select('id, code, full_name, gross_monthly, date_of_joining, status')
+    .in('status', ['active', 'on_notice'])
+    .order('code');
+  if (error) fail('getLeaveSalaryRoster: could not load employees', error);
+
+  const rows = new Map<string, any>((data ?? []).map((e: any) => [e.id, e]));
+
+  // Inactive employees with a saved working for this year still belong.
+  const { data: saved, error: savedError } = await supabase
+    .from('leave_salary_workings')
+    .select('employee_id, employees(id, code, full_name, gross_monthly, date_of_joining, status)')
+    .eq('year', year);
+  if (savedError) {
+    // Table missing = 0038 not applied; the roster is still useful without it.
+    if (!isMissingTable(savedError)) {
+      fail('getLeaveSalaryRoster: could not load saved workings', savedError);
+    }
+  } else {
+    for (const r of (saved ?? []) as any[]) {
+      if (r.employees && !rows.has(r.employees.id)) rows.set(r.employees.id, r.employees);
+    }
   }
-  return (data ?? []).map((r: any) => ({
-    id: r.id,
-    code: r.employees?.code ?? '',
-    name: r.employees?.full_name ?? '',
-    year: Number(r.year),
-    type: r.type,
-    delta: Number(r.delta ?? 0),
-    reason: r.reason,
-    createdAt: r.created_at,
-  }));
+
+  return [...rows.values()]
+    .map((e: any) => ({
+      id: e.id,
+      code: e.code ?? '',
+      name: e.full_name ?? '',
+      grossMonthly: Number(e.gross_monthly ?? 0),
+      dateOfJoining: e.date_of_joining ?? null,
+      status: e.status ?? '',
+    }))
+    .sort((a, b) => a.code.localeCompare(b.code));
+}
+
+/**
+ * Credit-weighted presence per employee per month for a whole year, in ONE
+ * paged sweep of attendance_days. A full roster-year (~210 × 365 ≈ 77k rows)
+ * far exceeds PostgREST's page cap, so this pages exactly like the importer:
+ * ordered by the unique key — without an ORDER BY, .range() may repeat and
+ * omit rows between pages, silently corrupting the presence sums.
+ */
+export async function getLeaveSalaryPresence(
+  year: number,
+): Promise<Record<string, number[]>> {
+  const supabase = await createClient();
+  const PAGE = 1000;
+  const byEmployee: Record<string, number[]> = {};
+
+  for (let offset = 0; ; offset += PAGE) {
+    const { data, error } = await supabase
+      .from('attendance_days')
+      .select('employee_id, work_date, status')
+      .gte('work_date', `${year}-01-01`)
+      .lte('work_date', `${year}-12-31`)
+      .order('employee_id', { ascending: true })
+      .order('work_date', { ascending: true })
+      .range(offset, offset + PAGE - 1);
+    if (error) fail('getLeaveSalaryPresence: could not load attendance', error);
+
+    const page = (data ?? []) as { employee_id: string; work_date: string; status: string }[];
+    for (const r of page) {
+      const months = (byEmployee[r.employee_id] ??= new Array(12).fill(0));
+      const month = Number(String(r.work_date).slice(5, 7));
+      if (month >= 1 && month <= 12) {
+        months[month - 1] += PRESENT_CREDIT[r.status as keyof typeof PRESENT_CREDIT] ?? 0;
+      }
+    }
+    if (page.length < PAGE) break;
+  }
+  return byEmployee;
 }
 
 // ------------------------------------------------------- attendance audit ---
@@ -1128,7 +1217,11 @@ export interface LeaveBalanceRow {
   balance: number;
 }
 
-/** An employee's leave balances for the current year. */
+/**
+ * An employee's PAID-LEAVE balance for the current year. PL-only since the
+ * leave-salary policy: historic CL/SL rows survive in the table but would
+ * render retired pills on the dashboard.
+ */
 export async function getLeaveBalances(employeeId: string): Promise<LeaveBalanceRow[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -1136,7 +1229,7 @@ export async function getLeaveBalances(employeeId: string): Promise<LeaveBalance
     .select('type, balance')
     .eq('employee_id', employeeId)
     .eq('year', Number(todayISO().slice(0, 4)))
-    .order('type');
+    .eq('type', 'PL');
   if (error) fail('getLeaveBalances: could not load leave balances', error);
   return (data ?? []).map((b: any) => ({ type: b.type, balance: Number(b.balance) }));
 }

@@ -121,7 +121,7 @@ export const NAV: NavItem[] = [
   { slug: 'onboarding', label: 'Onboarding', group: GROUPS.WORKFORCE },
   { slug: 'exits', label: 'Exits', group: GROUPS.WORKFORCE },
 
-  { slug: 'leave', label: 'Leave balances', group: GROUPS.HR },
+  { slug: 'leave', label: 'Leave salary', group: GROUPS.HR },
   { slug: 'payroll', label: 'Payroll', group: GROUPS.HR },
   { slug: 'reimbursements', label: 'Reimbursements', group: GROUPS.HR },
 
@@ -167,7 +167,7 @@ export const TITLES: Record<string, [string, string]> = {
   today: ['Today', 'Live attendance · IST'],
   register: ['Monthly register', 'Attendance by month'],
   audit: ['Attendance audit', 'Who edited attendance & why'],
-  leave: ['Leave balances', 'Entitlement, adjustments & encashment'],
+  leave: ['Leave salary', '15-day paid leave & annual payout'],
   exits: ['Exits', 'Clearance, settlement & documents'],
   onboarding: ['Onboarding', 'Joiner checklists by owner'],
   payroll: ['Payroll', 'Salary runs & payslips'],
