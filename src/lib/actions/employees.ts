@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient, createServiceClient, isServiceRoleConfigured } from '@/lib/supabase/server';
 import { requireStaff, wroteNothing } from '@/lib/actions/_guard';
 import { getEmployeeForEdit, type EmployeeEditRow } from '@/lib/queries';
+import { INDIAN_STATES } from '@/lib/constants';
 import { sendEmail, isEmailConfigured } from '@/lib/email';
 import { buildWelcomeEmail } from '@/lib/documents/templates';
 import { startOnboarding } from '@/lib/actions/onboarding';
@@ -247,13 +248,6 @@ type DbClient = Awaited<ReturnType<typeof createClient>>;
  */
 const NEW_BRANCH = '__new__';
 
-/**
- * The only states a branch may live in — mirrors the indian_state enum (0001).
- * This is NOT an arbitrary list: professional tax is computed from pt_slabs per
- * state, so admitting a state with no slabs would silently produce wrong
- * payroll. Extending it means a migration (enum value + pt_slabs rows) first.
- */
-const BRANCH_STATES = ['Maharashtra', 'Gujarat'] as const;
 
 /**
  * Resolve the drawer's branch selection to a branch id, creating the branch
@@ -283,8 +277,10 @@ async function resolveBranch(
   const name = String(formData.get('branch_new_name') ?? '').trim();
   const state = String(formData.get('branch_new_state') ?? '').trim();
   if (!name) return { ok: false, error: 'Enter the new branch name.' };
-  if (!(BRANCH_STATES as readonly string[]).includes(state)) {
-    return { ok: false, error: 'Pick the new branch state (Maharashtra or Gujarat).' };
+  // INDIAN_STATES mirrors the indian_state enum (0001 + 0040); the enum itself
+  // still has the final word — an unapplied 0040 surfaces as a DB error below.
+  if (!(INDIAN_STATES as readonly string[]).includes(state)) {
+    return { ok: false, error: 'Pick the new branch state or union territory.' };
   }
 
   // Case-insensitive match first so 'pune'/'Pune' can't spawn duplicates
@@ -311,6 +307,14 @@ async function resolveBranch(
         .ilike('name', name)
         .maybeSingle();
       if (raced) return { ok: true, id: raced.id };
+    }
+    // invalid enum input: the database's indian_state enum doesn't know this
+    // state yet — the full list arrived in migration 0040.
+    if (error.code === '22P02') {
+      return {
+        ok: false,
+        error: `The database does not accept '${state}' as a state yet — apply migration 0040.`,
+      };
     }
     return { ok: false, error: `Could not create the branch: ${error.message}` };
   }

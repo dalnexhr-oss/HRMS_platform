@@ -53,6 +53,58 @@ export const DOCUMENT_CATEGORIES = [
   'other',
 ] as const;
 
+/**
+ * Every Indian state and union territory a branch may be registered in.
+ * Must stay in lockstep with the `indian_state` enum (0001, extended in 0040) —
+ * the branch form offers these and resolveBranch validates against them, but the
+ * database enum has the final word.
+ *
+ * Note on payroll: professional tax comes from pt_slabs, which only seeds
+ * Maharashtra and Gujarat. fn_professional_tax returns 0 when a state has no
+ * slab rows, so a branch in any other state computes PT as nil until its slabs
+ * are added.
+ */
+export const INDIAN_STATES = [
+  // States (28)
+  'Andhra Pradesh',
+  'Arunachal Pradesh',
+  'Assam',
+  'Bihar',
+  'Chhattisgarh',
+  'Goa',
+  'Gujarat',
+  'Haryana',
+  'Himachal Pradesh',
+  'Jharkhand',
+  'Karnataka',
+  'Kerala',
+  'Madhya Pradesh',
+  'Maharashtra',
+  'Manipur',
+  'Meghalaya',
+  'Mizoram',
+  'Nagaland',
+  'Odisha',
+  'Punjab',
+  'Rajasthan',
+  'Sikkim',
+  'Tamil Nadu',
+  'Telangana',
+  'Tripura',
+  'Uttar Pradesh',
+  'Uttarakhand',
+  'West Bengal',
+  // Union territories (8)
+  'Andaman and Nicobar Islands',
+  'Chandigarh',
+  'Dadra and Nagar Haveli and Daman and Diu',
+  'Delhi',
+  'Jammu and Kashmir',
+  'Ladakh',
+  'Lakshadweep',
+  'Puducherry',
+] as const;
+
 // ---------------------------------------------------------------------------
 // Portal navigation model
 // ---------------------------------------------------------------------------

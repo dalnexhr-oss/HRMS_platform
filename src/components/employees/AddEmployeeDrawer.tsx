@@ -6,6 +6,7 @@
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createEmployee, updateEmployee } from '@/lib/actions/employees';
+import { INDIAN_STATES } from '@/lib/constants';
 import type { EmployeeEditRow, BranchRow } from '@/lib/queries';
 
 export function AddEmployeeDrawer({
@@ -263,16 +264,13 @@ function BranchPicker({
             <Field name="branch_new_name" label="New branch name" placeholder="e.g. Nashik" />
             <SelectField
               name="branch_new_state"
-              label="Branch state"
-              options={[
-                { value: 'Maharashtra', label: 'Maharashtra' },
-                { value: 'Gujarat', label: 'Gujarat' },
-              ]}
+              label="State / union territory"
+              options={INDIAN_STATES.map((s) => ({ value: s, label: s }))}
             />
           </div>
           <div className="hint">
-            Only Maharashtra and Gujarat are available: professional tax is computed from per-state
-            slabs, so a new state needs a migration (enum value + PT slabs) before it can be offered.
+            Professional tax slabs are configured for Maharashtra and Gujarat; a branch in any other
+            state computes PT as nil until its slabs are added in the database.
           </div>
         </>
       )}
