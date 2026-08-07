@@ -58,9 +58,47 @@ export async function acknowledgePolicy(policyId: string) {
     return { ok: false, error: 'The policy was not marked as read — nothing was saved. Reload and try again.' };
   }
 
+  await clearPolicyNag(supabase, policyId);
+
+  // 'layout' scope, not just '/me': the notification bell is rendered by the
+  // route-group LAYOUT, so revalidating only the page would leave the nag we
+  // just cleared still sitting in the bell until the next full navigation.
+  revalidatePath('/', 'layout');
   revalidatePath('/me');
   revalidatePath('/policies'); // HR's read counts
   return { ok: true };
+}
+
+/**
+ * Mark the "New policy to read: …" notification read once its policy has been
+ * acknowledged, so the bell stops nagging about something already done.
+ *
+ * notifications (0012) carries no entity_id — only free text — so the one handle
+ * on "the nag for THIS policy" is the exact title notifyEveryone wrote (see
+ * createPolicy / setPolicyPublished below). Renaming a policy after publishing
+ * orphans its nag; that is the cost of not having an entity id, and it fails
+ * safe (a stale nag, never a wrongly-cleared one). RLS scopes the UPDATE to the
+ * caller's own rows, so this cannot touch anyone else's notifications.
+ *
+ * Best-effort: a failure here must not fail the acknowledgement itself.
+ */
+async function clearPolicyNag(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  policyId: string,
+): Promise<void> {
+  const { data: policy } = await supabase
+    .from('policies')
+    .select('title')
+    .eq('id', policyId)
+    .maybeSingle<{ title: string }>();
+  if (!policy?.title) return;
+
+  await supabase
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('kind', 'policy')
+    .eq('title', `New policy to read: ${policy.title}`)
+    .is('read_at', null);
 }
 
 /** Staff creates a company policy (published immediately unless left as draft). */

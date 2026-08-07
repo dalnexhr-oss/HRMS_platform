@@ -29,31 +29,27 @@ export function PolicyList({ policies }: { policies: PolicyView[] }) {
 
 function PolicyRow({ policy }: { policy: PolicyView }) {
   const router = useRouter();
-  const [acked, setAcked] = useState(policy.acknowledged);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  // The tick is optimistic, but the SERVER is the source of truth. Rows are keyed
-  // by id, so React reconciles this component across a revalidation and would
-  // otherwise keep a stale local `true` — the badge survived a failed write until
-  // a hard reload. Adopting the incoming prop is what makes the button honest.
-  const [seen, setSeen] = useState(policy.acknowledged);
-  if (seen !== policy.acknowledged) {
-    setSeen(policy.acknowledged);
-    setAcked(policy.acknowledged);
-  }
+  // NO local "acked" state, deliberately. The badge is driven purely by what the
+  // server returned. An optimistic tick here is worse than useless: it flips the
+  // row green whether or not the receipt actually landed, and because the rows
+  // are keyed by id React preserves that local value across the refresh — so a
+  // write that never persisted still looked successful until a hard reload.
+  // router.refresh() runs inside the transition, so the button stays "Saving…"
+  // until the fresh server value arrives and the row flips on its own.
+  const acked = policy.acknowledged;
 
   const onAck = () => {
     setError(null);
     startTransition(async () => {
       const res = await acknowledgePolicy(policy.id);
-      if (res.ok) {
-        setAcked(true);
-        router.refresh(); // pull the true value straight back down
-      } else {
-        setAcked(false);
+      if (!res.ok) {
         setError(res.error ?? 'Could not mark the policy as read.');
+        return;
       }
+      router.refresh();
     });
   };
 
