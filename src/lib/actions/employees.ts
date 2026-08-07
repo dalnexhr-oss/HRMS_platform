@@ -344,6 +344,25 @@ async function resolveDepartmentId(
   return created!.id;
 }
 
+/**
+ * Give a brand-new (or rehired) employee their paid-leave row for the CURRENT
+ * year immediately, instead of waiting for January's cron or someone pressing
+ * "Open leave year". BEST-EFFORT like startOnboarding: the RPC is idempotent
+ * (`on conflict do nothing`), touches only MISSING rows — nobody is credited
+ * twice — and skips joiners dated beyond the year, whom the annual cron will
+ * pick up. A failure (e.g. migration 0036 unapplied) must never undo a saved
+ * employee; the /leave pool card still shows the gap and its button closes it.
+ */
+async function provisionCurrentLeaveYear(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<void> {
+  // Business year in IST, matching the provisioning cron — not the server TZ.
+  const year = Number(
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric' }).format(new Date()),
+  );
+  await supabase.rpc('fn_provision_leave_balances', { p_year: year });
+}
+
 export async function createEmployee(formData: FormData) {
   const gate = await requireStaff('Adding an employee');
   if (!gate.ok) return gate;
@@ -432,6 +451,10 @@ export async function createEmployee(formData: FormData) {
   const newEmployeeId = (data![0] as { id: string }).id;
   await startOnboarding(newEmployeeId).catch(() => undefined);
 
+  // Their 15-day paid-leave pool, so approving their first leave deducts from a
+  // real balance instead of warning "no balance on record".
+  await provisionCurrentLeaveYear(supabase).catch(() => undefined);
+
   // Welcome email — BEST-EFFORT and last: it is sent through our own SMTP
   // (src/lib/email.ts) and a mail failure must never undo a saved employee. When
   // SMTP is unconfigured this no-ops with a console warning, exactly like
@@ -454,6 +477,7 @@ export async function createEmployee(formData: FormData) {
   }
 
   revalidatePath('/employees');
+  revalidatePath('/leave');
   return { ok: true };
 }
 
@@ -613,6 +637,11 @@ export async function reactivateEmployee(code: string) {
     };
   }
 
+  // A rehire was invisible to provisioning while inactive — fill the missing
+  // paid-leave row for the current year. Idempotent and best-effort (above).
+  await provisionCurrentLeaveYear(supabase).catch(() => undefined);
+
   revalidatePath('/employees');
+  revalidatePath('/leave');
   return { ok: true };
 }
