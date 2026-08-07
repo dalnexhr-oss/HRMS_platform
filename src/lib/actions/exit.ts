@@ -684,19 +684,40 @@ export async function generateExitDocument(
   const up = await uploadFileService('generated-documents', kase.employee_id, filename, bytes, 'application/pdf');
   if (!up.ok) return { ok: false, error: up.error ?? 'The document could not be stored.' };
 
-  await supabase.from('employee_documents').insert({
-    employee_id: kase.employee_id,
-    category: kind === 'fnf' ? 'settlement' : kind,
-    title: filename,
-    storage_path: up.path,
-    uploaded_by: gate.profileId,
-  });
+  // The PDF went to generated-documents, NOT the employee-documents bucket the
+  // register historically assumed. Recording the bucket is what lets
+  // getDocumentUrl sign it against the right one (0039).
+  const { data: docRow, error: docErr } = await supabase
+    .from('employee_documents')
+    .insert({
+      employee_id: kase.employee_id,
+      bucket: 'generated-documents',
+      category: kind === 'fnf' ? 'settlement' : kind,
+      title: filename,
+      storage_path: up.path,
+      uploaded_by: gate.profileId,
+      // An HR-issued letter is authoritative the moment it is produced. Stamping
+      // it here keeps it out of getUnverifiedDocuments, which is HR's "an
+      // employee filed something, please check it" queue — not a self-review one.
+      verified_by: gate.profileId,
+      verified_at: new Date().toISOString(),
+    })
+    .select('id');
+  if (docErr) {
+    return {
+      ok: false,
+      error: `The PDF was stored but could not be filed against the employee: ${docErr.message}`,
+    };
+  }
+  if (wroteNothing(docRow)) {
+    return { ok: false, error: 'The document was not filed against the employee.' };
+  }
 
   await notifyEmployee(kase.employee_id, {
     kind: 'system',
     title: 'A document was issued to you',
     body: filename,
-    link: '/me',
+    link: '/me#documents',
   });
 
   revalidatePath('/exits');

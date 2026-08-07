@@ -9,11 +9,11 @@ function heldPill(returned: boolean): React.CSSProperties {
     : { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
 }
 
-export function MyItems({ items }: { items: MyItemRow[] }) {
+export function MyItems({ items, id }: { items: MyItemRow[]; id?: string }) {
   const held = items.filter((i) => !i.returned).length;
 
   return (
-    <div className="card">
+    <div className="card" id={id}>
       <div className="hd">
         <h3>My materials &amp; tools</h3>
         <span className="folio">

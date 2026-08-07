@@ -19,6 +19,9 @@ const CATEGORY_LABEL: Record<string, string> = {
   experience: 'Experience',
   bank: 'Bank details',
   other: 'Other',
+  // Issued by HR via generateExitDocument — display only, never uploadable.
+  relieving: 'Relieving letter',
+  settlement: 'Full & final statement',
 };
 
 export function DocumentQueue({ documents }: { documents: EmployeeDocumentRow[] }) {
@@ -55,12 +58,16 @@ export function DocumentQueue({ documents }: { documents: EmployeeDocumentRow[] 
   }
 
   async function open(id: string) {
+    // Claim the tab INSIDE the click gesture — see MyDocuments.open().
+    const win = window.open('', '_blank', 'noopener,noreferrer');
     const res = await getDocumentUrl(id);
     if (!res.ok || !res.url) {
+      win?.close();
       toast(res.error ?? 'Could not open the document.', 'error');
       return;
     }
-    window.open(res.url, '_blank', 'noopener,noreferrer');
+    if (win) win.location.href = res.url;
+    else window.location.href = res.url;
   }
 
   return (

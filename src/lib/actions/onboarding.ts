@@ -119,7 +119,7 @@ export async function startOnboarding(
     kind: 'system',
     title: 'Your onboarding checklist is ready',
     body: `${made!.length} step(s) to complete with HR and IT.`,
-    link: '/me',
+    link: '/me#onboarding',
   });
 
   revalidatePath('/onboarding');

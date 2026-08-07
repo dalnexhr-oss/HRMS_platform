@@ -142,10 +142,17 @@ export function Sidebar({ name, role }: { name?: string | null; role?: string | 
           return (
             <div key={group}>
               <div className="group">{group}</div>
+              {/* prefetch={false}: every nav target is fully dynamic and
+                  auth-gated, so a prefetched payload is barely reusable — but
+                  all ~19 links sit in the viewport at once, so prefetching them
+                  fires 19 full layout renders against a free-tier pooler and
+                  starves the click the user actually made. staleTimes in
+                  next.config.mjs is what keeps revisits feeling instant. */}
               {rows.map((item) => (
                 <Link
                   key={item.slug}
                   href={`/${item.slug}` as Route}
+                  prefetch={false}
                   aria-current={active === item.slug}
                 >
                   {iconFor(item.slug)}

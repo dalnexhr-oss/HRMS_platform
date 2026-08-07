@@ -187,7 +187,7 @@ async function notifyPayslipsReady(runId: string): Promise<void> {
         kind: 'payroll',
         title: `Your ${month} payslip is ready`,
         body: 'Open your dashboard to view or download it.',
-        link: '/me',
+        link: '/me#payslips',
       });
     }
   } catch {

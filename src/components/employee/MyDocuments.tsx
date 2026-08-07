@@ -21,9 +21,14 @@ const CATEGORY_LABEL: Record<string, string> = {
   experience: 'Experience letter',
   bank: 'Bank details',
   other: 'Other',
+  // Issued BY HR (generateExitDocument) — display only. These are deliberately
+  // absent from DOCUMENT_CATEGORIES so they never appear in the upload dropdown:
+  // an employee must not be able to file their own relieving letter.
+  relieving: 'Relieving letter',
+  settlement: 'Full & final statement',
 };
 
-export function MyDocuments({ documents }: { documents: EmployeeDocumentRow[] }) {
+export function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?: string }) {
   const router = useRouter();
   const [category, setCategory] = useState<string>('id_proof');
   const [busy, setBusy] = useState(false);
@@ -31,18 +36,24 @@ export function MyDocuments({ documents }: { documents: EmployeeDocumentRow[] })
   const { toast, toastNode } = useToast();
 
   async function open(id: string) {
+    // Claim the tab INSIDE the click gesture. Signing needs a server round trip,
+    // and a window.open() after that await has lost its user activation — browsers
+    // then swallow it silently, so the button looks dead.
+    const win = window.open('', '_blank', 'noopener,noreferrer');
     const res = await getDocumentUrl(id);
     if (!res.ok || !res.url) {
+      win?.close();
       toast(res.error ?? 'Could not open the document.', 'error');
       return;
     }
-    window.open(res.url, '_blank', 'noopener,noreferrer');
+    if (win) win.location.href = res.url;
+    else window.location.href = res.url; // popup blocked outright — navigate in place
   }
 
   const verified = documents.filter((d) => d.verifiedAt).length;
 
   return (
-    <div className="card">
+    <div className="card" id={id}>
       {toastNode}
       <div className="hd">
         <h3>My documents</h3>

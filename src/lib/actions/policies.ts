@@ -15,18 +15,51 @@ export async function acknowledgePolicy(policyId: string) {
   if (!db.ok) return db;
 
   const { profile } = await getSession();
-  if (!profile?.employee_id) return { ok: false, error: 'No employee linked to this account.' };
+  if (!profile?.employee_id) {
+    // Not a transient failure: the RLS insert policy pins employee_id to
+    // current_employee_id(), so an account with no linked employee record has no
+    // way to file a receipt at all. Say so rather than failing vaguely.
+    return {
+      ok: false,
+      error: 'Your login is not linked to an employee record, so the receipt could not be filed. Ask HR to link it.',
+    };
+  }
 
   const supabase = await createClient();
-  const { error } = await supabase
+  // .select('id') is what makes a silent no-op detectable — without it a write
+  // that inserted nothing is indistinguishable from one that worked. Reading the
+  // row back is permitted: acks_portal_read allows employee_id = current_employee_id().
+  const { data, error } = await supabase
     .from('policy_acknowledgements')
-    .insert({ policy_id: policyId, employee_id: profile.employee_id });
+    .insert({ policy_id: policyId, employee_id: profile.employee_id })
+    .select('id');
 
-  // A duplicate ack (already read) is a unique-violation — benign. Detect it by
-  // SQL error CODE, not by substring-matching the English word 'duplicate',
-  // which breaks on any wording/locale change.
-  if (error && error.code !== UNIQUE_VIOLATION) return { ok: false, error: error.message };
+  if (error) {
+    // A duplicate ack (already read) is a unique-violation — benign. Detect it by
+    // SQL error CODE, not by substring-matching the English word 'duplicate',
+    // which breaks on any wording/locale change.
+    if (error.code === UNIQUE_VIOLATION) {
+      revalidatePath('/me');
+      revalidatePath('/policies');
+      return { ok: true };
+    }
+    if (error.code === '42P01' || error.code === 'PGRST205') {
+      return { ok: false, error: 'Company policies are not set up on the database yet — apply migration 0004.' };
+    }
+    if (error.code === '42501') {
+      return {
+        ok: false,
+        error: 'The database refused the receipt. Your login may not be linked to the right employee record.',
+      };
+    }
+    return { ok: false, error: error.message };
+  }
+  if (wroteNothing(data)) {
+    return { ok: false, error: 'The policy was not marked as read — nothing was saved. Reload and try again.' };
+  }
+
   revalidatePath('/me');
+  revalidatePath('/policies'); // HR's read counts
   return { ok: true };
 }
 
@@ -64,7 +97,7 @@ export async function createPolicy(formData: FormData) {
         kind: 'policy',
         title: `New policy to read: ${title}`,
         body: 'Please open it on your dashboard and mark it as read.',
-        link: '/me',
+        link: '/me#policies',
       },
       gate.profileId,
     );
@@ -107,7 +140,7 @@ export async function setPolicyPublished(policyId: string, published: boolean) {
         kind: 'policy',
         title: `New policy to read: ${policy?.title ?? 'Company policy'}`,
         body: 'Please open it on your dashboard and mark it as read.',
-        link: '/me',
+        link: '/me#policies',
       },
       gate.profileId,
     );

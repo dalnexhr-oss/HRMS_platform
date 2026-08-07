@@ -3,9 +3,9 @@
 import { formatDate } from '@/lib/format';
 import type { MyAssetRow } from '@/lib/queries';
 
-export function MyAssets({ assets }: { assets: MyAssetRow[] }) {
+export function MyAssets({ assets, id }: { assets: MyAssetRow[]; id?: string }) {
   return (
-    <div className="card">
+    <div className="card" id={id}>
       <div className="hd">
         <h3>My assets</h3>
         <span className="folio">

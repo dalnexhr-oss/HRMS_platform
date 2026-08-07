@@ -2,15 +2,16 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { supabaseUrl, supabaseKey } from '@/lib/supabase/env';
 
-// 'viewer' is an intentional read-only PORTAL role, but it must never be handed
-// out automatically: profiles.role now defaults to 'employee' (migration 0008)
-// and a missing profile is treated as no-access below, so a user only becomes
-// staff when an admin deliberately assigns a staff role.
-const STAFF_ROLES = ['admin', 'hr', 'manager', 'viewer'];
-
-// Refreshes the Supabase auth session on every request and gates the portal
-// vs. the employee area by role. Supabase is required: with missing env we
-// hard-fail (503) rather than serving anything.
+// Refreshes the Supabase auth session on every request and enforces "signed in
+// or go to /login". Supabase is required: with missing env we hard-fail (503)
+// rather than serving anything.
+//
+// ROLE routing (portal vs. employee area) used to happen here too, at the cost
+// of a `profiles` SELECT on EVERY request. It now lives in the two route-group
+// layouts, which already load the profile through the request-memoized
+// getSession() — so the same gate costs nothing. This is not a weakening:
+// middleware was never the security boundary (RLS is, on every table), it was
+// doing UX routing, and a layout redirect() aborts the render just as hard.
 export async function updateSession(request: NextRequest) {
   const url = supabaseUrl();
   const key = supabaseKey();
@@ -34,6 +35,19 @@ export async function updateSession(request: NextRequest) {
   // branch below redirects away from public routes) would abort the exchange.
   if (isAuthRoute) return response;
 
+  // A prefetch is speculative and must never spend a round trip to Mumbai. The
+  // sidebar holds ~19 links, all in the viewport at once, so one page load used
+  // to fire 19 prefetches — each running the auth pair here AND re-rendering the
+  // whole portal layout. That saturates a free-tier pooler and starves the
+  // navigation the user actually clicked. Access is still enforced: the layouts
+  // redirect, and RLS backs every table.
+  if (
+    request.headers.get('next-router-prefetch') === '1' ||
+    request.headers.get('purpose') === 'prefetch'
+  ) {
+    return response;
+  }
+
   const supabase = createServerClient(url, key, {
     cookies: {
       getAll() {
@@ -49,63 +63,29 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  // IMPORTANT: keep getUser() so the session token is refreshed.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims() still calls getSession() internally, so the token is refreshed
+  // exactly as getUser() did. The difference: on a project using asymmetric JWT
+  // signing keys it verifies the token LOCALLY against a cached JWKS instead of
+  // making a network call. On the legacy HS256 shared secret it transparently
+  // falls back to getUser(), i.e. no worse than before either way.
+  const { data: claims } = await supabase.auth.getClaims();
+  const userId = claims?.claims?.sub ?? null;
 
   // Not signed in → only the login page is allowed.
-  if (!user) {
+  if (!userId) {
     if (isLogin) return response;
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // Signed in: resolve role to route between the portal and the employee area.
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  // A failed profile lookup is a real failure (e.g. schema not applied). Never
-  // guess a role from it — send the user to /login with the actual reason rather
-  // than silently routing them into an area they may not belong in.
-  if (profileError) {
-    if (isLogin) return response; // already there — let the page render the error
-    const to = new URL('/login', request.url);
-    to.searchParams.set('error', `Could not load your profile: ${profileError.message}`);
-    return NextResponse.redirect(to);
-  }
-
-  // No profile row at all is a fail-closed condition: never assume a role. A
-  // signed-in user whose profile row is missing (trigger not run, deleted, or
-  // an unprovisioned account) is sent back to /login with an explanation rather
-  // than being routed into any area. This is the last line of defence behind the
-  // 'employee' default (migration 0008) — a missing profile must not read as staff.
-  if (!profile) {
-    if (isLogin) return response;
-    const to = new URL('/login', request.url);
-    to.searchParams.set(
-      'error',
-      'Your account is not provisioned yet. Ask HR to set up your access.',
-    );
-    return NextResponse.redirect(to);
-  }
-
-  const role = profile.role;
-  const isStaff = STAFF_ROLES.includes(role);
-  const home = isStaff ? '/today' : '/me';
-
-  // Already signed in but on the login page → send home.
-  if (isLogin) return NextResponse.redirect(new URL(home, request.url));
-
-  // Employees may only use the employee area; staff may not.
-  const inEmployeeArea = path === '/me' || path.startsWith('/me/');
-  if (!isStaff && !inEmployeeArea) {
-    return NextResponse.redirect(new URL('/me', request.url));
-  }
-  if (isStaff && inEmployeeArea) {
-    return NextResponse.redirect(new URL('/today', request.url));
+  if (isLogin) {
+    // An ?error= on /login means something upstream (the auth callback, or a
+    // layout that found no profile row) deliberately sent the user here to read
+    // it. Bouncing them off would loop: /login → / → layout → /login → …
+    if (request.nextUrl.searchParams.has('error')) return response;
+    // Otherwise: signed in and idly on /login → send to '/', which resolves the
+    // right home per role. Resolving it here would cost the profiles query this
+    // whole change exists to remove.
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
   return response;

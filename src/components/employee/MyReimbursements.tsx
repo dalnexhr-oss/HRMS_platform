@@ -49,11 +49,13 @@ export function MyReimbursements({
   ratePerKm,
   canClaim,
   blockedReason,
+  id,
 }: {
   claims: ReimbursementView[];
   ratePerKm: number;
   canClaim: boolean;
   blockedReason: string;
+  id?: string;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<ReimbursementView | null>(null);
@@ -94,7 +96,7 @@ export function MyReimbursements({
   }
 
   return (
-    <div className="two-col">
+    <div className="two-col" id={id}>
       {confirmDialog}
       {toastNode}
       <div className="card">

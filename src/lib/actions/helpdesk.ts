@@ -94,7 +94,7 @@ export async function setTicketStatus(id: string, status: TicketStatus, note?: s
     kind: 'ticket',
     title: `Your ticket is now ${status.replace('_', ' ')}`,
     body: reply ? `${row.subject} — ${reply}` : row.subject,
-    link: '/me',
+    link: '/me#tickets',
   });
 
   revalidatePath('/helpdesk');
@@ -189,7 +189,7 @@ export async function addTicketComment(ticketId: string, body: string) {
       kind: 'ticket',
       title: `New reply on your ticket: ${subject}`,
       body: text,
-      link: '/me',
+      link: '/me#tickets',
     });
   } else {
     await notifyApprovers(

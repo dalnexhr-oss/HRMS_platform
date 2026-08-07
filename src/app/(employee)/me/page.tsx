@@ -18,7 +18,6 @@ import {
   getMyItems,
   getEmployeeDocuments,
   getMyOnboardingTasks,
-  getMyAcknowledgements,
   getPayrollRun,
   getHolidays,
   getNotices,
@@ -37,7 +36,6 @@ import {
   type MyItemRow,
   type EmployeeDocumentRow,
   type OnboardingTaskRow,
-  type AcknowledgementRow,
 } from '@/lib/queries';
 import { PolicyList } from '@/components/policies/PolicyList';
 import { EmployeeNotices } from '@/components/employee/EmployeeNotices';
@@ -82,7 +80,6 @@ export default async function MePage() {
     weekOffPolicy,
     readNoticeIds,
     myDocuments,
-    mySignatures,
     myOnboarding,
   ] = await Promise.all([
       getEmployeeOverview(employeeId, profile?.full_name, DEFAULT_PERIOD_MONTH),
@@ -107,7 +104,6 @@ export default async function MePage() {
       getWeekOffPolicy(),
       employeeId ? getReadNoticeIds(employeeId) : Promise.resolve<string[]>([]),
       employeeId ? getEmployeeDocuments(employeeId) : Promise.resolve<EmployeeDocumentRow[]>([]),
-      employeeId ? getMyAcknowledgements(employeeId) : Promise.resolve<AcknowledgementRow[]>([]),
       employeeId ? getMyOnboardingTasks(employeeId) : Promise.resolve<OnboardingTaskRow[]>([]),
     ]);
 
@@ -226,8 +222,9 @@ export default async function MePage() {
         </div>
       </div>
 
-      {/* company notices */}
-      <div className="card">
+      {/* company notices — the ids on these sections are notification targets
+          ('/me#notices' etc); NotificationBell scrolls to them on click. */}
+      <div className="card" id="notices">
         <div className="hd">
           <h3>Notices</h3>
           <span className="folio">
@@ -245,7 +242,7 @@ export default async function MePage() {
       </div>
 
       {/* holiday calendar */}
-      <div className="card">
+      <div className="card" id="holidays">
         <div className="hd">
           <h3>Holiday calendar</h3>
           <span className="folio">
@@ -258,26 +255,27 @@ export default async function MePage() {
       </div>
 
       {/* joiner checklist — read-only; ticking a step is a staff action */}
-      <MyOnboarding tasks={myOnboarding} />
+      <MyOnboarding tasks={myOnboarding} id="onboarding" />
 
       {/* own document locker — upload what HR asked for, track verification */}
-      <MyDocuments documents={myDocuments} />
+      <MyDocuments documents={myDocuments} id="documents" />
 
       {/* own month strip */}
-      <MyAttendance days={attendance} periodMonth={DEFAULT_PERIOD_MONTH} />
+      <MyAttendance days={attendance} periodMonth={DEFAULT_PERIOD_MONTH} id="attendance" />
 
       {/* leave / duty requests + balances */}
-      <ApplyLeave requests={requests} balances={balances} canApply={!!employeeId} />
+      <ApplyLeave requests={requests} balances={balances} canApply={!!employeeId} id="leave" />
 
       {/* comp offs earned by working an off day */}
       <MyCompOffs
         compOffs={compOffs}
         canApply={canRaiseTicket}
         blockedReason={ticketBlockedReason}
+        id="comp-offs"
       />
 
       {/* payslips */}
-      <MyPayslips payslips={payslips} />
+      <MyPayslips payslips={payslips} id="payslips" />
 
       {/* expense claims */}
       <MyReimbursements
@@ -285,11 +283,12 @@ export default async function MePage() {
         ratePerKm={ratePerKm}
         canClaim={canRaiseTicket}
         blockedReason={ticketBlockedReason}
+        id="reimbursements"
       />
 
       {/* equipment assigned to me */}
-      <MyAssets assets={myAssets} />
-      <MyItems items={myItems} />
+      <MyAssets assets={myAssets} id="assets" />
+      <MyItems items={myItems} id="items" />
 
       {/* helpdesk */}
       <MyTickets
@@ -298,10 +297,11 @@ export default async function MePage() {
         selfId={profile?.id ?? null}
         canRaise={canRaiseTicket}
         blockedReason={ticketBlockedReason}
+        id="tickets"
       />
 
       {/* company policies */}
-      <div className="card">
+      <div className="card" id="policies">
         <div className="hd">
           <h3>Company policies</h3>
           <span className="folio">Please read &amp; acknowledge</span>

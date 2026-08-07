@@ -15,7 +15,7 @@ const OWNER_LABEL: Record<string, string> = {
   employee: 'You',
 };
 
-export function MyOnboarding({ tasks }: { tasks: OnboardingTaskRow[] }) {
+export function MyOnboarding({ tasks, id }: { tasks: OnboardingTaskRow[]; id?: string }) {
   if (tasks.length === 0) return null; // nothing in flight — don't show an empty card
 
   const open = tasks.filter((t) => t.status !== 'done');
@@ -23,7 +23,7 @@ export function MyOnboarding({ tasks }: { tasks: OnboardingTaskRow[] }) {
   const mine = open.filter((t) => t.assigneeRole === 'employee');
 
   return (
-    <div className="card">
+    <div className="card" id={id}>
       <div className="hd">
         <h3>Your onboarding</h3>
         <span className="folio">

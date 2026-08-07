@@ -341,7 +341,7 @@ export async function reviewReimbursement(
           ? `₹${finalAmount.toFixed(2)} — approved by HR, awaiting the Finance check.`
           : `₹${finalAmount.toFixed(2)} — it will be paid with your salary.`
         : `₹${finalAmount.toFixed(2)} — ${cleanRemark}`,
-    link: '/me',
+    link: '/me#reimbursements',
   });
 
   // Payroll is credited only on FINAL approval. With the Finance stage on, that
@@ -433,7 +433,7 @@ export async function financeReviewReimbursement(
       decision === 'approved'
         ? `₹${amount.toFixed(2)} — it will be paid with your salary.`
         : `₹${amount.toFixed(2)} — ${cleanRemark}`,
-    link: '/me',
+    link: '/me#reimbursements',
   });
 
   if (decision === 'approved') {
@@ -637,7 +637,7 @@ export async function markReimbursementPaid(id: string, paymentRef?: string): Pr
     kind: 'reimbursement',
     title: 'Your reimbursement was paid',
     body: `₹${Number(row.amount).toFixed(2)}${ref ? ` · ref ${ref}` : ''}`,
-    link: '/me',
+    link: '/me#reimbursements',
   });
 
   revalidatePath('/reimbursements');

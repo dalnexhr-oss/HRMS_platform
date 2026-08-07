@@ -92,7 +92,7 @@ export async function createNotice(formData: FormData) {
         kind: 'notice',
         title: `New notice: ${title}`,
         body: body || null,
-        link: '/me',
+        link: '/me#notices',
       },
       gate.profileId,
     );
@@ -163,7 +163,7 @@ export async function setNoticePublished(id: string, published: boolean) {
     if (!wroteNothing(data)) {
       const title = (data as { title: string }[])[0]?.title ?? 'A notice';
       await notifyEveryone(
-        { kind: 'notice', title: `New notice: ${title}`, body: null, link: '/me' },
+        { kind: 'notice', title: `New notice: ${title}`, body: null, link: '/me#notices' },
         gate.profileId,
       );
     }

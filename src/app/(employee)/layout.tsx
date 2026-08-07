@@ -1,4 +1,5 @@
-import { getSession } from '@/lib/auth';
+import { redirect } from 'next/navigation';
+import { getSession, isStaffRole } from '@/lib/auth';
 import { SignOutButton } from '@/components/auth/SignOutButton';
 import { NotificationBell } from '@/components/shell/NotificationBell';
 import { ProfileMenu } from '@/components/shell/ProfileMenu';
@@ -12,7 +13,15 @@ export default async function EmployeeLayout({ children }: { children: React.Rea
     getMyNotifications(),
     getUnreadNotificationCount(),
   ]);
-  const name = profile?.full_name ?? 'Employee';
+
+  // Role gate — see the portal layout. Staff belong in the portal; a signed-in
+  // user with no profile row belongs nowhere until HR provisions them.
+  if (!profile) {
+    redirect('/login?error=Your+account+is+not+provisioned+yet.+Ask+HR+to+set+up+your+access.');
+  }
+  if (isStaffRole(profile.role)) redirect('/today');
+
+  const name = profile.full_name ?? 'Employee';
 
   return (
     <div className="main">

@@ -46,9 +46,11 @@ function monthLabel(periodMonth: string): string {
 export function MyAttendance({
   days,
   periodMonth,
+  id,
 }: {
   days: DayCell[];
   periodMonth: string;
+  id?: string;
 }) {
   const [showPunches, setShowPunches] = useState(true);
 
@@ -63,7 +65,7 @@ export function MyAttendance({
   const markedDays = days.filter((d) => PRESENT_LIKE.has(d.status)).length;
 
   return (
-    <div className="card register">
+    <div className="card register" id={id}>
       <div className="hd">
         <h3>My attendance — {monthLabel(periodMonth)}</h3>
         <span className="folio">

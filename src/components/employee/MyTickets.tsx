@@ -31,17 +31,19 @@ export function MyTickets({
   selfId = null,
   canRaise,
   blockedReason,
+  id,
 }: {
   tickets: TicketView[];
   comments?: Record<string, TicketComment[]>;
   selfId?: string | null;
   canRaise: boolean;
   blockedReason: string;
+  id?: string;
 }) {
   const [chat, setChat] = useState<TicketView | null>(null);
 
   return (
-    <div className="two-col">
+    <div className="two-col" id={id}>
       <div className="card">
         <div className="hd">
           <h3>My tickets</h3>

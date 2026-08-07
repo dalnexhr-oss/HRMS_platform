@@ -31,7 +31,12 @@ export interface NotifyInput {
   kind: NotificationKind;
   title: string;
   body?: string | null;
-  /** In-app relative path, e.g. '/approvals'. */
+  /**
+   * In-app relative path, e.g. '/approvals'. A fragment is supported and is how
+   * employee notifications target a section of the dashboard ('/me#payslips') —
+   * NotificationBell scrolls to it itself, because the reader is usually already
+   * on that route and a same-URL navigation is a no-op.
+   */
   link?: string | null;
 }
 

@@ -289,7 +289,9 @@ export async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
     kind: 'payroll',
     title: 'Your leave salary was paid',
     body: `${inr(total)} for ${row.year}`,
-    link: '/me',
+    // /me has no leave-salary section of its own yet; payslips is the nearest
+    // truthful destination for a payout notification.
+    link: '/me#payslips',
   });
   await supabase.from('activity_log').insert({
     actor_id: gate.profileId,

@@ -5,9 +5,8 @@
 // notification body can quote user-supplied content — a ticket subject, a claim
 // description — which would otherwise be stored XSS.
 import { useEffect, useRef, useState, useTransition } from 'react';
-import Link from 'next/link';
 import type { Route } from 'next';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { markNotificationRead, markAllNotificationsRead } from '@/lib/actions/notifications';
 import type { NotificationRow } from '@/lib/queries';
 
@@ -25,6 +24,32 @@ const KIND_ICON: Record<string, string> = {
   warranty: '🛡️',
   system: '⚙️',
 };
+
+/**
+ * Split a stored link into path + hash, rejecting anything that isn't a relative
+ * in-app path so a stored value can never become an external redirect.
+ */
+function splitLink(link: string | null): { path: string; hash: string | null } | null {
+  if (!link || !link.startsWith('/') || link.startsWith('//')) return null;
+  const i = link.indexOf('#');
+  if (i === -1) return { path: link, hash: null };
+  return { path: link.slice(0, i) || '/', hash: link.slice(i + 1) || null };
+}
+
+/**
+ * Scroll a dashboard section into view and flash it.
+ *
+ * No-ops when the section isn't on the page — several /me cards render
+ * conditionally (MyOnboarding disappears once the checklist is done), and a
+ * missing target should still leave the notification marked read.
+ */
+function scrollToSection(id: string): void {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  el.classList.add('jump-flash');
+  window.setTimeout(() => el.classList.remove('jump-flash'), 1600);
+}
 
 /** '2026-07-21T10:20:00Z' -> '3h ago' / '2d ago'. */
 function ago(iso: string): string {
@@ -46,6 +71,7 @@ export function NotificationBell({
   unread: number;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -69,24 +95,43 @@ export function NotificationBell({
     };
   }, [open]);
 
+  // Navigation is done here rather than by a <Link>, because most of these
+  // notifications point at a section of the page the reader is ALREADY on: every
+  // employee link is '/me#…' and the employee area has no other route. A same-URL
+  // <Link> push produces no navigation event at all — so clicking did nothing,
+  // and clicking the same notification twice did nothing twice. Doing it by hand
+  // also fixes the ordering: the old code raced router.refresh() against the
+  // Link's navigation.
   const onOpenItem = (n: NotificationRow) => {
-    if (!n.readAt) {
-      setError(null);
-      startTransition(async () => {
+    setError(null);
+    const target = splitLink(n.link);
+    const samePage = target !== null && target.path === pathname;
+
+    startTransition(async () => {
+      if (!n.readAt) {
         const res = await markNotificationRead(n.id);
         if (!res.ok) {
-          // Keep the dropdown open so the error is visible. (A linked item
-          // navigates away on click regardless, so this only shows for the
-          // plain-button, non-link case.)
+          // Keep the dropdown open so the error is visible.
           setError(res.error ?? 'Could not mark the notification read.');
           return;
         }
-        setOpen(false);
-        router.refresh();
-      });
-    } else {
+      }
       setOpen(false);
-    }
+      if (!target) return;
+
+      if (samePage) {
+        // Scroll BEFORE refreshing: router.refresh() re-renders in place and
+        // preserves scroll position, whereas scrolling afterwards would race the
+        // commit. replaceState (not push) keeps the back stack clean.
+        if (target.hash) {
+          window.history.replaceState(null, '', `${target.path}#${target.hash}`);
+          scrollToSection(target.hash);
+        }
+        router.refresh();
+      } else {
+        router.push(`${target.path}${target.hash ? `#${target.hash}` : ''}` as Route);
+      }
+    });
   };
 
   const onMarkAll = () => {
@@ -231,15 +276,9 @@ export function NotificationBell({
                 cursor: 'pointer',
               };
 
-              // Only relative in-app paths are ever linked; anything else renders
-              // as a plain button so a stored value can't become an external link.
-              const safeLink = n.link && n.link.startsWith('/') && !n.link.startsWith('//') ? n.link : null;
-
-              return safeLink ? (
-                <Link key={n.id} href={safeLink as Route} style={style} onClick={() => onOpenItem(n)}>
-                  {inner}
-                </Link>
-              ) : (
+              // Always a button: onOpenItem owns the navigation (see above), so
+              // there is one code path and no race with the read-marking.
+              return (
                 <button key={n.id} type="button" style={style} onClick={() => onOpenItem(n)}>
                   {inner}
                 </button>

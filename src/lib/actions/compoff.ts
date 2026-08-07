@@ -99,7 +99,7 @@ export async function grantCompOff(employeeId: string, earnedDate: string): Prom
     kind: 'comp_off',
     title: 'You earned a comp off',
     body: `For working on ${earnedDate}. Apply for a day off from your dashboard.`,
-    link: '/me',
+    link: '/me#comp-offs',
   });
 
   revalidatePath('/register');

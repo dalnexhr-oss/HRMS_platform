@@ -61,13 +61,15 @@ export function ApplyLeave({
   requests,
   balances,
   canApply,
+  id,
 }: {
   requests: RequestView[];
   balances: LeaveBalanceRow[];
   canApply: boolean;
+  id?: string;
 }) {
   return (
-    <div className="two-col">
+    <div className="two-col" id={id}>
       <div className="card">
         <div className="hd">
           <h3>Apply for leave or duty</h3>

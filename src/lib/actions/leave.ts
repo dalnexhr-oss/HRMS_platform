@@ -139,7 +139,7 @@ export async function adjustLeaveBalance(input: {
     kind: 'request',
     title: `Your paid-leave balance was ${delta > 0 ? 'credited' : 'debited'}`,
     body: `${delta > 0 ? '+' : ''}${delta} day(s) for ${year} — ${reason}`,
-    link: '/me',
+    link: '/me#leave',
   });
 
   revalidatePath('/leave');

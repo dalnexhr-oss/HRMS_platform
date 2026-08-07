@@ -297,7 +297,7 @@ export async function reviewRequest(
       kind: 'approval',
       title: `Your ${owner.type.replace('_', ' ')} request was ${decision}`,
       body: span,
-      link: '/me',
+      link: '/me#leave',
     });
   }
 

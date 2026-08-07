@@ -26,15 +26,17 @@ export function MyCompOffs({
   compOffs,
   canApply,
   blockedReason,
+  id,
 }: {
   compOffs: CompOffRow[];
   canApply: boolean;
   blockedReason: string;
+  id?: string;
 }) {
   const available = compOffs.filter((c) => c.status === 'available');
 
   return (
-    <div className="card">
+    <div className="card" id={id}>
       <div className="hd">
         <h3>Comp offs</h3>
         <span className="folio">

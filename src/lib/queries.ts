@@ -2055,6 +2055,42 @@ export async function getEmployeePolicies(employeeId: string | null): Promise<Po
   return (data ?? []).map((p: any) => ({ ...p, acknowledged: acked.has(p.id) }));
 }
 
+/**
+ * policy_id -> how many employees have filed a read receipt.
+ *
+ * Staff-only in practice: acks_portal_read (0004) lets staff see every row, an
+ * employee only their own. Until this existed nothing in the app ever read
+ * policy_acknowledgements except the employee's own dashboard, so HR had no way
+ * to see the receipts the policies screen promises are being recorded.
+ */
+export async function getPolicyAckCounts(): Promise<Record<string, number>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from('policy_acknowledgements').select('policy_id');
+  if (error) {
+    if (isMissingTable(error)) {
+      warnNotMigrated('getPolicyAckCounts', '0004_auth_policies.sql');
+      return {};
+    }
+    fail('getPolicyAckCounts: could not load acknowledgements', error);
+  }
+  const out: Record<string, number> = {};
+  for (const row of (data ?? []) as { policy_id: string }[]) {
+    out[row.policy_id] = (out[row.policy_id] ?? 0) + 1;
+  }
+  return out;
+}
+
+/** Active headcount — the denominator for "n/N read". */
+export async function getActiveEmployeeCount(): Promise<number> {
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from('employees')
+    .select('code', { count: 'exact', head: true })
+    .eq('status', 'active');
+  if (error) return 0;
+  return count ?? 0;
+}
+
 /** All policies for the admin management screen. */
 export async function getAllPolicies(): Promise<Policy[]> {
   const supabase = await createClient();

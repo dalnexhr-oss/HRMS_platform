@@ -33,7 +33,9 @@ export interface ActionResult {
 }
 
 const VERIFY_ROLES: AppRole[] = ['admin', 'hr'];
-const BUCKET: StorageBucket = 'employee-documents';
+// Where UPLOADS go. Reads must not assume it — HR-issued letters live in
+// generated-documents and the row's `bucket` column (0039) says which is which.
+const UPLOAD_BUCKET: StorageBucket = 'employee-documents';
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB — certificates scan large
 
 // DOCUMENT_CATEGORIES used to live here, but this is a 'use server' module and
@@ -79,7 +81,7 @@ export async function uploadEmployeeDocument(formData: FormData): Promise<Action
   const supabase = await createClient();
   const up = await uploadFile(
     supabase,
-    BUCKET,
+    UPLOAD_BUCKET,
     employeeId,
     file.name,
     await file.arrayBuffer(),
@@ -171,7 +173,7 @@ export async function verifyEmployeeDocument(
     body: verified
       ? `${row.title ?? 'Your document'} has been verified by HR.`
       : `${row.title ?? 'Your document'} — ${cleanRemark}`,
-    link: '/me',
+    link: '/me#documents',
   });
 
   revalidatePath('/me');
@@ -213,13 +215,18 @@ export async function getDocumentUrl(
   // cannot see the row gets nothing to sign.
   const { data, error } = await supabase
     .from('employee_documents')
-    .select('storage_path')
+    .select('storage_path, bucket')
     .eq('id', id)
-    .maybeSingle<{ storage_path: string }>();
+    .maybeSingle<{ storage_path: string; bucket: string | null }>();
   if (error) return { ok: false, error: error.message };
   if (!data?.storage_path) return { ok: false, error: 'That document is not available to you.' };
 
-  const signed = await signedUrl(supabase, BUCKET, data.storage_path);
+  // Documents arrive from two buckets — uploads land in employee-documents,
+  // HR-issued letters in generated-documents. Signing every path against the
+  // former is what made every issued letter "Object not found". `bucket` arrived
+  // in 0039; anything written before it is an upload.
+  const bucket = (data.bucket ?? UPLOAD_BUCKET) as StorageBucket;
+  const signed = await signedUrl(supabase, bucket, data.storage_path);
   return signed.ok ? { ok: true, url: signed.url } : { ok: false, error: signed.error };
 }
 

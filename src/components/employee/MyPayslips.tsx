@@ -32,11 +32,11 @@ const POPUP_BLOCKED = 'Your browser blocked the payslip window. Allow pop-ups fo
  * NOTE: `PayslipRow` carries no period month, so rows are labelled by their
  * position in that ordering rather than by a month we would have to invent.
  */
-export function MyPayslips({ payslips }: { payslips: PayslipRow[] }) {
+export function MyPayslips({ payslips, id }: { payslips: PayslipRow[]; id?: string }) {
   const [open, setOpen] = useState<number | null>(null);
 
   return (
-    <div className="card">
+    <div className="card" id={id}>
       <div className="hd">
         <h3>My payslips</h3>
         <span className="folio">

@@ -7,7 +7,17 @@ import { useToast, type ToastKind } from '@/components/ui/Toast';
 import { formatDate } from '@/lib/format';
 import type { Policy } from '@/types/database';
 
-export function PolicyAdmin({ policies }: { policies: Policy[] }) {
+export function PolicyAdmin({
+  policies,
+  ackCounts = {},
+  headcount = 0,
+}: {
+  policies: Policy[];
+  /** policy_id -> employees who have filed a read receipt. */
+  ackCounts?: Record<string, number>;
+  /** Active headcount — the denominator for "n/N read". */
+  headcount?: number;
+}) {
   const [editing, setEditing] = useState<Policy | null>(null);
   // Shared confirm modal + toast stack for every row and the form.
   const { confirm, confirmDialog } = useConfirm();
@@ -25,7 +35,15 @@ export function PolicyAdmin({ policies }: { policies: Policy[] }) {
         <div className="bd">
           {policies.length === 0 && <p className="muted">No policies yet — create one on the right.</p>}
           {policies.map((p) => (
-            <PolicyItem key={p.id} policy={p} onEdit={() => setEditing(p)} confirm={confirm} toast={toast} />
+            <PolicyItem
+              key={p.id}
+              policy={p}
+              ackCount={ackCounts[p.id] ?? 0}
+              headcount={headcount}
+              onEdit={() => setEditing(p)}
+              confirm={confirm}
+              toast={toast}
+            />
           ))}
         </div>
       </div>
@@ -44,11 +62,15 @@ export function PolicyAdmin({ policies }: { policies: Policy[] }) {
 
 function PolicyItem({
   policy,
+  ackCount,
+  headcount,
   onEdit,
   confirm,
   toast,
 }: {
   policy: Policy;
+  ackCount: number;
+  headcount: number;
   onEdit: () => void;
   confirm: (opts: { title?: string; message: string; confirmLabel?: string; danger?: boolean }) => Promise<boolean>;
   toast: (message: string, kind?: ToastKind) => void;
@@ -88,6 +110,20 @@ function PolicyItem({
           {policy.effective_date ? ` · from ${formatDate(policy.effective_date)}` : ''}
         </span>
         <span style={{ flex: 1 }} />
+        {/* Read receipts only mean anything once a policy is published. */}
+        {policy.published && (
+          <span
+            className="pill"
+            style={
+              headcount > 0 && ackCount >= headcount
+                ? { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' }
+                : { borderColor: 'var(--line-2)', color: 'var(--hd)' }
+            }
+            title="Employees who have marked this policy as read"
+          >
+            {headcount > 0 ? `${ackCount}/${headcount} read` : `${ackCount} read`}
+          </span>
+        )}
         <span
           className="pill"
           style={
