@@ -241,6 +241,82 @@ type DbClient = Awaited<ReturnType<typeof createClient>>;
  * creating the department if it doesn't exist yet. Empty name → null (optional field).
  * Matches case-insensitively first so 'sales'/'Sales' don't spawn duplicates.
  */
+/**
+ * Sentinel the drawer's branch <select> submits when "+ Add new branch…" is
+ * chosen. Kept out of any real branch's namespace by the leading underscores.
+ */
+const NEW_BRANCH = '__new__';
+
+/**
+ * The only states a branch may live in — mirrors the indian_state enum (0001).
+ * This is NOT an arbitrary list: professional tax is computed from pt_slabs per
+ * state, so admitting a state with no slabs would silently produce wrong
+ * payroll. Extending it means a migration (enum value + pt_slabs rows) first.
+ */
+const BRANCH_STATES = ['Maharashtra', 'Gujarat'] as const;
+
+/**
+ * Resolve the drawer's branch selection to a branch id, creating the branch
+ * when "+ Add new branch…" was chosen — the same pick-or-create shape as
+ * resolveDepartmentId, except creation is an explicit option rather than
+ * free text, because a branch also needs a state and mistyping a name must
+ * not silently spawn a new branch.
+ */
+async function resolveBranch(
+  supabase: DbClient,
+  formData: FormData,
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const selected = String(formData.get('branch') ?? '').trim();
+
+  if (selected !== NEW_BRANCH) {
+    if (!selected) return { ok: false, error: 'Pick a branch.' };
+    const { data, error } = await supabase
+      .from('branches')
+      .select('id')
+      .eq('name', selected)
+      .maybeSingle();
+    if (error) return { ok: false, error: error.message };
+    if (!data) return { ok: false, error: `Unknown branch: ${selected}` };
+    return { ok: true, id: data.id };
+  }
+
+  const name = String(formData.get('branch_new_name') ?? '').trim();
+  const state = String(formData.get('branch_new_state') ?? '').trim();
+  if (!name) return { ok: false, error: 'Enter the new branch name.' };
+  if (!(BRANCH_STATES as readonly string[]).includes(state)) {
+    return { ok: false, error: 'Pick the new branch state (Maharashtra or Gujarat).' };
+  }
+
+  // Case-insensitive match first so 'pune'/'Pune' can't spawn duplicates
+  // (branches.name is unique, but only case-sensitively).
+  const { data: found, error: findError } = await supabase
+    .from('branches')
+    .select('id')
+    .ilike('name', name)
+    .maybeSingle();
+  if (findError) return { ok: false, error: findError.message };
+  if (found) return { ok: true, id: found.id };
+
+  const { data: created, error } = await supabase
+    .from('branches')
+    .insert({ name, state })
+    .select('id')
+    .single();
+  if (error) {
+    // Unique race: someone created it between our lookup and insert — use theirs.
+    if (error.code === '23505') {
+      const { data: raced } = await supabase
+        .from('branches')
+        .select('id')
+        .ilike('name', name)
+        .maybeSingle();
+      if (raced) return { ok: true, id: raced.id };
+    }
+    return { ok: false, error: `Could not create the branch: ${error.message}` };
+  }
+  return { ok: true, id: created!.id };
+}
+
 async function resolveDepartmentId(
   supabase: DbClient,
   name: string,
@@ -287,17 +363,10 @@ export async function createEmployee(formData: FormData) {
 
   const supabase = await createClient();
 
-  // The branch field arrives as a NAME ('Pune' | 'Vadodara'); resolve to id.
-  const branchName = String(formData.get('branch') ?? '').trim();
-  const { data: branch, error: branchError } = await supabase
-    .from('branches')
-    .select('id')
-    .eq('name', branchName)
-    .single();
-
-  if (branchError || !branch) {
-    return { ok: false, error: branchError?.message ?? `Unknown branch: ${branchName}` };
-  }
+  // The branch arrives as a NAME (or the add-new sentinel); resolve to an id,
+  // creating the branch when that was explicitly requested.
+  const branch = await resolveBranch(supabase, formData);
+  if (!branch.ok) return branch;
 
   let departmentId: string | null;
   try {
@@ -410,15 +479,8 @@ export async function updateEmployee(formData: FormData) {
 
   const supabase = await createClient();
 
-  const branchName = String(formData.get('branch') ?? '').trim();
-  const { data: branch, error: branchError } = await supabase
-    .from('branches')
-    .select('id')
-    .eq('name', branchName)
-    .single();
-  if (branchError || !branch) {
-    return { ok: false, error: branchError?.message ?? `Unknown branch: ${branchName}` };
-  }
+  const branch = await resolveBranch(supabase, formData);
+  if (!branch.ok) return branch;
 
   let departmentId: string | null;
   try {

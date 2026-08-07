@@ -109,24 +109,11 @@ export function AddEmployeeDrawer({
                 readOnly={editing}
               />
             </div>
-            <div className="f-row">
-              <SelectField
-                name="branch"
-                label="Branch"
-                defaultValue={employee?.branch}
-                options={branchOptions}
-              />
-              <SelectField
-                name="gender"
-                label="Gender"
-                defaultValue={employee?.gender}
-                options={[
-                  { value: 'Male', label: 'Male' },
-                  { value: 'Female', label: 'Female' },
-                  { value: 'Other', label: 'Other' },
-                ]}
-              />
-            </div>
+            <BranchPicker
+              options={branchOptions}
+              branchDefault={employee?.branch}
+              genderDefault={employee?.gender}
+            />
             <div className="f-row">
               <ComboField
                 name="department"
@@ -218,6 +205,79 @@ export function AddEmployeeDrawer({
 /** number -> '30,000' string for a form default; falls back to a placeholder default. */
 function fmt(n: number | undefined, fallback: string): string {
   return n != null ? n.toLocaleString('en-IN') : fallback;
+}
+
+/** Sentinel understood by resolveBranch in the employees actions. */
+const NEW_BRANCH = '__new__';
+
+/**
+ * Branch + gender row, plus the fields for creating a branch inline when
+ * "+ Add new branch…" is picked. Unlike departments (a free-text combobox),
+ * creating a branch is an explicit choice: it also needs a STATE, because
+ * professional tax slabs are defined per state — and a typo must not be able
+ * to silently spawn a branch.
+ *
+ * Lives INSIDE the keyed <form>, so its selection state resets on every open.
+ */
+function BranchPicker({
+  options,
+  branchDefault,
+  genderDefault,
+}: {
+  options: { value: string; label: string }[];
+  branchDefault?: string;
+  genderDefault?: string;
+}) {
+  // No branches at all (first run) → jump straight to the add-new fields.
+  const [sel, setSel] = useState(branchDefault || options[0]?.value || NEW_BRANCH);
+  const adding = sel === NEW_BRANCH;
+
+  return (
+    <>
+      <div className="f-row">
+        <div className="f">
+          <label>Branch</label>
+          <select name="branch" value={sel} onChange={(e) => setSel(e.target.value)}>
+            {options.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+            <option value={NEW_BRANCH}>+ Add new branch…</option>
+          </select>
+        </div>
+        <SelectField
+          name="gender"
+          label="Gender"
+          defaultValue={genderDefault}
+          options={[
+            { value: 'Male', label: 'Male' },
+            { value: 'Female', label: 'Female' },
+            { value: 'Other', label: 'Other' },
+          ]}
+        />
+      </div>
+      {adding && (
+        <>
+          <div className="f-row">
+            <Field name="branch_new_name" label="New branch name" placeholder="e.g. Nashik" />
+            <SelectField
+              name="branch_new_state"
+              label="Branch state"
+              options={[
+                { value: 'Maharashtra', label: 'Maharashtra' },
+                { value: 'Gujarat', label: 'Gujarat' },
+              ]}
+            />
+          </div>
+          <div className="hint">
+            Only Maharashtra and Gujarat are available: professional tax is computed from per-state
+            slabs, so a new state needs a migration (enum value + PT slabs) before it can be offered.
+          </div>
+        </>
+      )}
+    </>
+  );
 }
 
 function Field({

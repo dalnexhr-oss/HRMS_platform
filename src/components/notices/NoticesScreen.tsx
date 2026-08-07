@@ -13,7 +13,14 @@ const CHANNEL_LABEL: Record<NoticeView['channel'], string> = {
   both: 'Both',
 };
 
-export function NoticesScreen({ notices }: { notices: NoticeView[] }) {
+export function NoticesScreen({
+  notices,
+  branchNames = [],
+}: {
+  notices: NoticeView[];
+  /** Real branch names from the DB — was a hardcoded Pune/Vadodara pair. */
+  branchNames?: string[];
+}) {
   const [editing, setEditing] = useState<NoticeView | null>(null);
   // Confirm + toast are hoisted so every row shares one modal / toast stack.
   const { confirm, confirmDialog } = useConfirm();
@@ -48,6 +55,7 @@ export function NoticesScreen({ notices }: { notices: NoticeView[] }) {
             editing={editing}
             onDone={() => setEditing(null)}
             toast={toast}
+            branchNames={branchNames}
           />
         </div>
       </div>
@@ -124,10 +132,12 @@ function NoticeForm({
   editing,
   onDone,
   toast,
+  branchNames = [],
 }: {
   editing: NoticeView | null;
   onDone: () => void;
   toast: (message: string, kind?: ToastKind) => void;
+  branchNames?: string[];
 }) {
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
     async (_prev, formData) => {
@@ -177,8 +187,11 @@ function NoticeForm({
           <label>Branch</label>
           <select name="branch" defaultValue={editing?.branch ?? ''}>
             <option value="">All branches</option>
-            <option value="Pune">Pune</option>
-            <option value="Vadodara">Vadodara</option>
+            {branchNames.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
           </select>
         </div>
       </div>

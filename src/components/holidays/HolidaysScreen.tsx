@@ -12,11 +12,14 @@ export function HolidaysScreen({
   holidays,
   year,
   weekOffSummary,
+  branchNames = [],
 }: {
   holidays: HolidayView[];
   year: number;
   /** e.g. "Sun off · Sat off except 2nd, 4th" — the scheduled week-off rule. */
   weekOffSummary: string;
+  /** Real branch names from the DB — was a hardcoded Pune/Vadodara pair. */
+  branchNames?: string[];
 }) {
   // One shared confirm modal + toast stack for the whole screen.
   const { confirm, confirmDialog } = useConfirm();
@@ -73,7 +76,7 @@ export function HolidaysScreen({
               <h3>Add holiday</h3>
             </div>
             <div className="bd">
-              <AddHolidayForm toast={toast} />
+              <AddHolidayForm toast={toast} branchNames={branchNames} />
             </div>
           </div>
         </div>
@@ -208,7 +211,13 @@ function HolidayRow({
   );
 }
 
-function AddHolidayForm({ toast }: { toast: (message: string, kind?: ToastKind) => void }) {
+function AddHolidayForm({
+  toast,
+  branchNames = [],
+}: {
+  toast: (message: string, kind?: ToastKind) => void;
+  branchNames?: string[];
+}) {
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
     async (_prev, formData) => {
       const res = await addHoliday(formData);
@@ -232,8 +241,11 @@ function AddHolidayForm({ toast }: { toast: (message: string, kind?: ToastKind) 
         <label>Branch</label>
         <select name="branch" defaultValue="">
           <option value="">All branches</option>
-          <option value="Pune">Pune</option>
-          <option value="Vadodara">Vadodara</option>
+          {branchNames.map((b) => (
+            <option key={b} value={b}>
+              {b}
+            </option>
+          ))}
         </select>
       </div>
 

@@ -34,6 +34,17 @@ export function EmployeesScreen({
   const { confirm, confirmDialog } = useConfirm();
   const { toast, toastNode } = useToast();
 
+  // Same palette-cycling scheme as TodayBoard's split bar, keyed by the branch's
+  // position in the (alphabetical) branches list — so any number of branches gets
+  // a stable colour. Was `branch === 'Pune' ? brand : brass`, which rendered
+  // every branch beyond the second identically.
+  const branchColor = useMemo(() => {
+    const palette = ['var(--brand)', 'var(--brass)', 'var(--od)', 'var(--lv)', 'var(--oh)', 'var(--p)'];
+    const map = new Map<string, string>();
+    branches.forEach((b, i) => map.set(b.name, palette[i % palette.length]));
+    return (name: string) => map.get(name) ?? 'var(--brass)';
+  }, [branches]);
+
   const activeCount = useMemo(() => rows.filter((e) => e.active).length, [rows]);
   const inactiveCount = rows.length - activeCount;
 
@@ -173,8 +184,8 @@ export function EmployeesScreen({
                     <span
                       className="pill"
                       style={{
-                        borderColor: e.branch === 'Pune' ? 'var(--brand)' : 'var(--brass)',
-                        color: e.branch === 'Pune' ? 'var(--brand)' : 'var(--brass)',
+                        borderColor: branchColor(e.branch),
+                        color: branchColor(e.branch),
                       }}
                     >
                       {e.branch}
