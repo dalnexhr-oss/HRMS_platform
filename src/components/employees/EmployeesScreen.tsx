@@ -7,14 +7,17 @@ import { AddEmployeeDrawer } from './AddEmployeeDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import { fetchEmployeeForEdit, deactivateEmployee, reactivateEmployee } from '@/lib/actions/employees';
-import type { EmployeeListRow, EmployeeEditRow } from '@/lib/queries';
+import type { EmployeeListRow, EmployeeEditRow, BranchRow } from '@/lib/queries';
 
 export function EmployeesScreen({
   rows,
   departments,
+  branches = [],
 }: {
   rows: EmployeeListRow[];
   departments: string[];
+  /** Real branches from the DB — the only values updateEmployee can resolve. */
+  branches?: BranchRow[];
 }) {
   const router = useRouter();
   const [q, setQ] = useState('');
@@ -253,6 +256,7 @@ export function EmployeesScreen({
         open={drawer}
         employee={editing}
         departments={departments}
+        branches={branches}
         formSeq={openSeq}
         onClose={() => setDrawer(false)}
       />

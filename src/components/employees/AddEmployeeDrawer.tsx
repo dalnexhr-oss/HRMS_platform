@@ -3,18 +3,17 @@
 // Slide-in drawer for adding OR editing an employee. In create mode it submits to
 // createEmployee; when an `employee` is passed it prefills the fields and submits
 // to updateEmployee (keyed by the immutable original code). On success it closes.
-import { useActionState, useEffect, useRef } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createEmployee, updateEmployee } from '@/lib/actions/employees';
-import type { EmployeeEditRow } from '@/lib/queries';
-
-type State = { ok?: boolean; error?: string };
+import type { EmployeeEditRow, BranchRow } from '@/lib/queries';
 
 export function AddEmployeeDrawer({
   open,
   onClose,
   employee = null,
   departments = [],
+  branches = [],
   formSeq = 0,
 }: {
   open: boolean;
@@ -23,6 +22,12 @@ export function AddEmployeeDrawer({
   employee?: EmployeeEditRow | null;
   /** Existing department names, shown as combobox suggestions (pick or type new). */
   departments?: string[];
+  /**
+   * Real branches from the DB. Previously this list was hardcoded to Pune and
+   * Vadodara, so the form could offer a branch that no longer existed in the
+   * table — updateEmployee then failed its name lookup, and the save was lost.
+   */
+  branches?: BranchRow[];
   /**
    * Bumped by the parent on every open. Part of the form key, so each open
    * remounts from freshly loaded values — and, crucially, CLOSING never changes
@@ -35,22 +40,42 @@ export function AddEmployeeDrawer({
   const router = useRouter();
   const editing = employee !== null;
 
-  const [state, formAction, pending] = useActionState<State, FormData>(
-    async (_prev, formData) => (editing ? updateEmployee(formData) : createEmployee(formData)),
-    {},
-  );
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
-  // Close + refresh once per successful submit. Keyed on the `state` object
-  // identity (fresh per dispatch) with onClose read from a ref, so a reopened
-  // drawer isn't snapped shut by a stale state.ok that never resets.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
-  useEffect(() => {
-    if (state.ok) {
+
+  // The branch list is data, not a constant. Falling back to the employee's own
+  // branch keeps an edit round-trippable even if the branches query returned
+  // nothing, rather than submitting an empty value that can never resolve.
+  const branchOptions =
+    branches.length > 0
+      ? branches.map((b) => ({ value: b.name, label: b.state ? `${b.name} (${b.state})` : b.name }))
+      : employee?.branch
+        ? [{ value: employee.branch, label: employee.branch }]
+        : [];
+
+  // Submitted by hand rather than through <form action={…}> / useActionState.
+  // React 19 automatically RESETS an uncontrolled form once its action settles —
+  // including when the action fails. That wiped every field back to its
+  // defaultValue on a failed save, so a rejected branch change looked exactly
+  // like the server had silently reverted it to the stored value. Handling
+  // submit ourselves keeps the typed values on screen next to the error.
+  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    setError(null);
+    startTransition(async () => {
+      const res = editing ? await updateEmployee(formData) : await createEmployee(formData);
+      if (!res.ok) {
+        setError(res.error ?? 'Could not save the employee.');
+        return;
+      }
       onCloseRef.current();
       router.refresh();
-    }
-  }, [state, router]);
+    });
+  };
 
   return (
     <>
@@ -61,7 +86,7 @@ export function AddEmployeeDrawer({
             prefilled defaults refresh instead of sticking. */}
         <form
           key={`${employee?.code ?? 'new'}:${formSeq}`}
-          action={formAction}
+          onSubmit={onSubmit}
           style={{ display: 'contents' }}
         >
           {editing && <input type="hidden" name="original_code" value={employee!.code} />}
@@ -89,10 +114,7 @@ export function AddEmployeeDrawer({
                 name="branch"
                 label="Branch"
                 defaultValue={employee?.branch}
-                options={[
-                  { value: 'Pune', label: 'Pune (Maharashtra)' },
-                  { value: 'Vadodara', label: 'Vadodara (Gujarat)' },
-                ]}
+                options={branchOptions}
               />
               <SelectField
                 name="gender"
@@ -173,7 +195,11 @@ export function AddEmployeeDrawer({
               Special allowance is derived as gross − (Basic + DA) − HRA so the components always sum
               to gross (a database rule). PT applies by branch state.
             </div>
-            {state.error && <div className="login-error">{state.error}</div>}
+            {error && (
+              <div className="login-error" role="alert">
+                {error}
+              </div>
+            )}
           </div>
           <div className="dft">
             <button type="button" className="btn" onClick={onClose}>
