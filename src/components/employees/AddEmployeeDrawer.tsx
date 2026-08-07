@@ -15,6 +15,7 @@ export function AddEmployeeDrawer({
   onClose,
   employee = null,
   departments = [],
+  formSeq = 0,
 }: {
   open: boolean;
   onClose: () => void;
@@ -22,6 +23,14 @@ export function AddEmployeeDrawer({
   employee?: EmployeeEditRow | null;
   /** Existing department names, shown as combobox suggestions (pick or type new). */
   departments?: string[];
+  /**
+   * Bumped by the parent on every open. Part of the form key, so each open
+   * remounts from freshly loaded values — and, crucially, CLOSING never changes
+   * the key. Re-keying on close remounted the form mid-animation and visibly
+   * reset every uncontrolled field (the branch select snapped to its first
+   * option, Pune) on a record the user had just saved.
+   */
+  formSeq?: number;
 }) {
   const router = useRouter();
   const editing = employee !== null;
@@ -47,9 +56,14 @@ export function AddEmployeeDrawer({
     <>
       <div className={`overlay${open ? ' on' : ''}`} onClick={onClose} />
       <aside className={`drawer${open ? ' on' : ''}`} aria-label={editing ? 'Edit employee' : 'Add employee'}>
-        {/* key remounts the form when switching between add and a specific
-            employee, so the prefilled defaults refresh instead of sticking. */}
-        <form key={employee?.code ?? 'new'} action={formAction} style={{ display: 'contents' }}>
+        {/* key remounts the form on each open — switching between add and a
+            specific employee, and reopening the same employee — so the
+            prefilled defaults refresh instead of sticking. */}
+        <form
+          key={`${employee?.code ?? 'new'}:${formSeq}`}
+          action={formAction}
+          style={{ display: 'contents' }}
+        >
           {editing && <input type="hidden" name="original_code" value={employee!.code} />}
           <div className="dhd">
             <h3>{editing ? `Edit ${employee!.code}` : 'Add employee'}</h3>

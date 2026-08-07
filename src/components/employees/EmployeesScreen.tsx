@@ -21,6 +21,11 @@ export function EmployeesScreen({
   const [showInactive, setShowInactive] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const [editing, setEditing] = useState<EmployeeEditRow | null>(null);
+  // Bumped on every open. The drawer keys its form on this, so each open starts
+  // from the freshly loaded values — without it, reopening the SAME employee
+  // would reuse the mounted form and show whatever was typed and abandoned last
+  // time. It also means closing the drawer never re-keys the form (see below).
+  const [openSeq, setOpenSeq] = useState(0);
   const [busyCode, setBusyCode] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const { confirm, confirmDialog } = useConfirm();
@@ -44,6 +49,7 @@ export function EmployeesScreen({
 
   function openAdd() {
     setEditing(null);
+    setOpenSeq((s) => s + 1);
     setDrawer(true);
   }
 
@@ -57,6 +63,7 @@ export function EmployeesScreen({
         return;
       }
       setEditing(data);
+      setOpenSeq((s) => s + 1);
       setDrawer(true);
     });
   }
@@ -235,14 +242,19 @@ export function EmployeesScreen({
         </div>
       </div>
 
+      {/* onClose deliberately does NOT clear `editing`. The drawer's form is
+          keyed on employee?.code ?? 'new', so nulling it here swapped the key
+          mid-close and remounted the form — every uncontrolled field snapped
+          back to its blank default, and the branch <select> fell to its first
+          option (Pune). Since the drawer is still animating out, you watched a
+          just-saved employee visibly "revert" to Pune. openAdd() clears it
+          instead, which is the only place a blank form is actually wanted. */}
       <AddEmployeeDrawer
         open={drawer}
         employee={editing}
         departments={departments}
-        onClose={() => {
-          setDrawer(false);
-          setEditing(null);
-        }}
+        formSeq={openSeq}
+        onClose={() => setDrawer(false)}
       />
       {confirmDialog}
     </div>
