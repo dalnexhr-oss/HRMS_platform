@@ -1,6 +1,8 @@
+import type { Route } from 'next';
+import Link from 'next/link';
 import { PayrollTable, RunActions } from '@/components/payroll/PayrollTable';
 import type { PayslipAdjustments } from '@/components/payroll/PayrollTable';
-import { getPayrollRun, getPayslips, DEFAULT_PERIOD_MONTH } from '@/lib/queries';
+import { getPayrollRun, getPayslips, currentPeriodMonth } from '@/lib/queries';
 import type { PayrollRunView } from '@/lib/queries';
 import { createClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/supabase/env';
@@ -39,6 +41,21 @@ function monthLabel(periodMonth: string): string {
   const d = new Date(periodMonth + 'T00:00:00Z');
   if (Number.isNaN(d.getTime())) return periodMonth;
   return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+}
+
+const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/** '?m=2026-05' -> '2026-05-01'. Anything unparseable falls back to the current month (IST). */
+function periodFromParam(m: string | undefined): string {
+  return m && MONTH_RE.test(m) ? `${m}-01` : currentPeriodMonth();
+}
+
+/** Shift a 'YYYY-MM-01' by ±n months, returning the '?m=' param form 'YYYY-MM'. */
+function shiftMonthParam(periodMonth: string, delta: number): string {
+  const year = Number(periodMonth.slice(0, 4));
+  const month = Number(periodMonth.slice(5, 7));
+  const d = new Date(Date.UTC(year, month - 1 + delta, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
 /** 'YYYY-MM-DD' -> '1 Jul'. Null for a null/unparseable date column. */
@@ -129,8 +146,16 @@ async function loadAdjustments(payslipIds: string[]): Promise<Record<string, Pay
   return map;
 }
 
-export default async function PayrollPage() {
-  const periodMonth = DEFAULT_PERIOD_MONTH;
+export default async function PayrollPage({
+  searchParams,
+}: {
+  // Next 15: searchParams is a Promise.
+  searchParams: Promise<{ m?: string }>;
+}) {
+  const { m } = await searchParams;
+  const periodMonth = periodFromParam(m);
+  const prev = shiftMonthParam(periodMonth, -1);
+  const next = shiftMonthParam(periodMonth, 1);
 
   const [run, payslips] = await Promise.all([getPayrollRun(periodMonth), getPayslips(periodMonth)]);
   const [adjustments, adjWindow] = await Promise.all([
@@ -171,6 +196,18 @@ export default async function PayrollPage() {
 
   return (
     <div className="wrap">
+      <div className="reg-head">
+        <div className="month-nav">
+          <Link href={`/payroll?m=${prev}` as Route} aria-label="Previous month" role="button">
+            ‹
+          </Link>
+          <span className="cur">{label.toUpperCase()}</span>
+          <Link href={`/payroll?m=${next}` as Route} aria-label="Next month" role="button">
+            ›
+          </Link>
+        </div>
+      </div>
+
       <div className="run-banner">
         <span className="state">{statusLabel.toUpperCase()}</span>
         <div className="tl">

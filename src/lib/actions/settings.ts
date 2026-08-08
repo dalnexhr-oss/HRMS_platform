@@ -2,15 +2,18 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requireStaff, wroteNothing } from '@/lib/actions/_guard';
+import { requireRoles, wroteNothing } from '@/lib/actions/_guard';
 
 /**
  * Updates (or inserts) a settings row. The value is stored as jsonb — it is
  * passed through untouched, so numbers persist as numbers and time strings
  * ('HH:MM') persist as strings.
+ *
+ * Admin/HR only, matching the /settings page guard: these keys drive payroll,
+ * the week-off schedule and the reimbursement rate.
  */
 export async function updateSetting(key: string, value: unknown) {
-  const gate = await requireStaff('Changing a setting');
+  const gate = await requireRoles(['admin', 'hr'], 'Changing a setting');
   if (!gate.ok) return gate;
 
   const supabase = await createClient();

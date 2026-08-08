@@ -27,6 +27,53 @@ function safeName(filename: string): string {
   return base.replace(/[^\w.\-]+/g, '_').slice(0, 120) || 'file';
 }
 
+// ---------------------------------------------------------------------------
+// Upload-type whitelist. The browser's file.type is attacker-controlled: an
+// HTML file uploaded with type text/html would be SERVED as a rendered page
+// from the signed URL (stored XSS on the storage origin, reachable by HR via
+// the verification queue). So the stored contentType is derived from the file
+// EXTENSION against this whitelist, and file.type is never trusted.
+// ---------------------------------------------------------------------------
+const EXTENSION_TYPES: Record<string, string> = {
+  pdf: 'application/pdf',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  webp: 'image/webp',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+};
+
+const UPLOAD_KIND_EXTS = {
+  /** Certificates, ID proofs, offer letters… */
+  document: ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'doc', 'docx', 'xls', 'xlsx'],
+  /** Receipts are photos or PDFs. */
+  receipt: ['pdf', 'png', 'jpg', 'jpeg', 'webp'],
+} as const;
+
+export type UploadKind = keyof typeof UPLOAD_KIND_EXTS;
+
+/**
+ * Validate a user upload's filename against the whitelist for its kind and
+ * return the contentType to store. Refuses unknown/missing extensions.
+ */
+export function resolveUploadType(
+  filename: string,
+  kind: UploadKind,
+): { ok: true; contentType: string } | { ok: false; error: string } {
+  const allowed = UPLOAD_KIND_EXTS[kind];
+  const ext = (safeName(filename).split('.').pop() ?? '').toLowerCase();
+  if (!(allowed as readonly string[]).includes(ext) || !EXTENSION_TYPES[ext]) {
+    return {
+      ok: false,
+      error: `That file type is not accepted. Use one of: ${allowed.join(', ')}.`,
+    };
+  }
+  return { ok: true, contentType: EXTENSION_TYPES[ext] };
+}
+
 /** `<employeeId>/<uuid>-<safe filename>` — the RLS-checked object key. */
 export function objectPath(employeeId: string, filename: string): string {
   return `${employeeId}/${crypto.randomUUID()}-${safeName(filename)}`;

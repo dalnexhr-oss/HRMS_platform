@@ -33,8 +33,16 @@ export { isSupabaseConfigured };
 
 // ------------------------------------------------------------------ utils ---
 
-/** The month the ported prototype data describes; the default period everywhere. */
-export const DEFAULT_PERIOD_MONTH = '2026-06-01';
+/**
+ * First day of the CURRENT month in IST — the default period everywhere.
+ * Evaluated at call time (it is used as a default parameter below), so a
+ * long-running server crosses month boundaries correctly. Replaces the
+ * prototype-era hardcoded '2026-06-01', which pinned /payroll, /today and
+ * /me to June 2026 forever.
+ */
+export function currentPeriodMonth(): string {
+  return todayISO().slice(0, 8) + '01';
+}
 
 interface QueryError {
   message: string;
@@ -151,7 +159,7 @@ function mapPayslip(p: any): PayslipRow {
 
 // --------------------------------------------------------------- register ---
 export async function getRegister(
-  periodMonth: string = DEFAULT_PERIOD_MONTH,
+  periodMonth: string = currentPeriodMonth(),
   branch?: string | null,
 ): Promise<RegisterEmployee[]> {
   const { start, end } = monthRange(periodMonth);
@@ -277,7 +285,7 @@ function isoDaysInRange(start: string, end: string, clampStart: string, clampEnd
  * CO / a present-style code) are NOT flagged — only genuine gaps ('AB' or no row).
  */
 export async function getLeaveRegisterMismatches(
-  periodMonth: string = DEFAULT_PERIOD_MONTH,
+  periodMonth: string = currentPeriodMonth(),
   branch?: string | null,
 ): Promise<LeaveRegisterMismatch[]> {
   const { start, end } = monthRange(periodMonth);
@@ -912,7 +920,7 @@ export async function getAttendanceAudit(limit = 200): Promise<AuditEntry[]> {
 
 // --------------------------------------------------------------- payroll ---
 export async function getPayslips(
-  periodMonth: string = DEFAULT_PERIOD_MONTH,
+  periodMonth: string = currentPeriodMonth(),
 ): Promise<PayslipRow[]> {
   const { start } = monthRange(periodMonth);
   const supabase = await createClient();
@@ -1129,7 +1137,7 @@ export async function getActivityFeed(limit = 20): Promise<ActivityRow[]> {
 /** One employee's day strip for a month. */
 export async function getMyAttendance(
   employeeId: string,
-  periodMonth: string = DEFAULT_PERIOD_MONTH,
+  periodMonth: string = currentPeriodMonth(),
 ): Promise<DayCell[]> {
   const { start, end } = monthRange(periodMonth);
   const supabase = await createClient();
@@ -1548,7 +1556,7 @@ export interface CompOffRow {
  * Keyed by `${employeeId}|${earnedDate}` at the callsite.
  */
 export async function getCompOffsForMonth(
-  periodMonth: string = DEFAULT_PERIOD_MONTH,
+  periodMonth: string = currentPeriodMonth(),
 ): Promise<CompOffRow[]> {
   const { start, end } = monthRange(periodMonth);
   const supabase = await createClient();
@@ -1970,7 +1978,7 @@ export interface EmployeeOverview {
 export async function getEmployeeOverview(
   employeeId: string | null,
   fallbackName?: string | null,
-  periodMonth: string = DEFAULT_PERIOD_MONTH,
+  periodMonth: string = currentPeriodMonth(),
 ): Promise<EmployeeOverview> {
   // No linked employee record is a real state (e.g. a staff login), not an error.
   if (!employeeId) {

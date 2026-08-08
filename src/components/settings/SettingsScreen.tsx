@@ -160,9 +160,88 @@ function BranchManageRow({
   );
 }
 
+// Settings are jsonb — the stored TYPE must survive the round trip. Saving
+// week_off_weekdays ([0,6]) back as the string "0,6" breaks numberList() in
+// week-off.ts and silently reverts the whole week-off schedule to defaults,
+// so each row edits in the shape it was stored in.
+type SettingKind = 'number' | 'boolean' | 'number-list' | 'json' | 'text';
+
+/**
+ * Kinds for the keys the app actually reads, so a value that was corrupted to
+ * the wrong type (e.g. an array saved as "0,6" by the old editor) can still be
+ * repaired — inferring from the stored value alone would lock in the bad type.
+ */
+const KNOWN_KINDS: Record<string, SettingKind> = {
+  week_off_weekdays: 'number-list',
+  working_saturdays: 'number-list',
+  leave_sandwich_policy: 'boolean',
+  reimbursement_finance_stage: 'boolean',
+  exit_auto_deactivate: 'boolean',
+  full_day_minutes: 'number',
+  esic_gross_cap: 'number',
+  mark_threshold: 'number',
+  comp_off_validity_days: 'number',
+  leave_annual_pl: 'number',
+  leave_carry_forward_cap: 'number',
+  leave_approval_levels: 'number',
+  reimbursement_rate_per_km: 'number',
+  default_notice_period_days: 'number',
+  auto_punch_out_time: 'text',
+  night_sweep_time: 'text',
+};
+
+function kindOf(value: unknown): SettingKind {
+  if (typeof value === 'number') return 'number';
+  if (typeof value === 'boolean') return 'boolean';
+  if (Array.isArray(value) && value.every((v) => typeof v === 'number')) return 'number-list';
+  if (value !== null && typeof value === 'object') return 'json';
+  return 'text';
+}
+
+function displayValue(value: unknown, kind: SettingKind): string {
+  // A known-kind override may disagree with a corrupted stored value — render
+  // what is there and let parseBack() coerce it right on the next save.
+  if (kind === 'number-list' && Array.isArray(value)) return value.join(', ');
+  if (kind === 'json' && value !== null && typeof value === 'object') return JSON.stringify(value);
+  return String(value ?? '');
+}
+
+function parseBack(
+  raw: string,
+  kind: SettingKind,
+): { ok: true; value: unknown } | { ok: false; error: string } {
+  const trimmed = raw.trim();
+  switch (kind) {
+    case 'number': {
+      const n = Number(trimmed);
+      if (trimmed === '' || !Number.isFinite(n)) return { ok: false, error: 'Enter a number.' };
+      return { ok: true, value: n };
+    }
+    case 'boolean':
+      return { ok: true, value: trimmed === 'true' };
+    case 'number-list': {
+      if (trimmed === '') return { ok: true, value: [] };
+      const parts = trimmed.split(',').map((p) => Number(p.trim()));
+      if (parts.some((n) => !Number.isInteger(n))) {
+        return { ok: false, error: 'Enter whole numbers separated by commas, e.g. 0, 6.' };
+      }
+      return { ok: true, value: parts };
+    }
+    case 'json': {
+      try {
+        return { ok: true, value: JSON.parse(trimmed) };
+      } catch {
+        return { ok: false, error: 'Enter valid JSON.' };
+      }
+    }
+    default:
+      return { ok: true, value: raw };
+  }
+}
+
 function SettingRow({ setting, toast }: { setting: SettingView; toast: (message: string, kind?: ToastKind) => void }) {
-  const isNumber = typeof setting.value === 'number';
-  const [value, setValue] = useState(String(setting.value ?? ''));
+  const kind = KNOWN_KINDS[setting.key] ?? kindOf(setting.value);
+  const [value, setValue] = useState(displayValue(setting.value, kind));
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -170,9 +249,14 @@ function SettingRow({ setting, toast }: { setting: SettingView; toast: (message:
   const save = () => {
     setSaved(false);
     setError(null);
-    const parsed: unknown = isNumber ? Number(value) : value;
+    const parsed = parseBack(value, kind);
+    if (!parsed.ok) {
+      setError(parsed.error);
+      toast(parsed.error, 'error');
+      return;
+    }
     startTransition(async () => {
-      const res = await updateSetting(setting.key, parsed);
+      const res = await updateSetting(setting.key, parsed.value);
       if (res.ok) {
         setSaved(true);
         toast(`Saved “${setting.label ?? setting.key}”.`, 'success');
@@ -209,16 +293,33 @@ function SettingRow({ setting, toast }: { setting: SettingView; toast: (message:
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <input
-          className="mono"
-          type={isNumber ? 'number' : 'text'}
-          value={value}
-          onChange={(e) => {
-            setValue(e.target.value);
-            setSaved(false);
-          }}
-          style={{ width: 110, textAlign: 'right' }}
-        />
+        {kind === 'boolean' ? (
+          <select
+            className="mono"
+            value={value}
+            onChange={(e) => {
+              setValue(e.target.value);
+              setSaved(false);
+            }}
+            style={{ width: 110 }}
+            aria-label={setting.label ?? setting.key}
+          >
+            <option value="true">On</option>
+            <option value="false">Off</option>
+          </select>
+        ) : (
+          <input
+            className="mono"
+            type={kind === 'number' ? 'number' : 'text'}
+            value={value}
+            onChange={(e) => {
+              setValue(e.target.value);
+              setSaved(false);
+            }}
+            style={{ width: kind === 'number-list' || kind === 'json' ? 160 : 110, textAlign: 'right' }}
+            aria-label={setting.label ?? setting.key}
+          />
+        )}
         <button className="btn primary" onClick={save} disabled={pending}>
           {pending ? '…' : 'Save'}
         </button>

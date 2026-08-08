@@ -27,6 +27,7 @@ import {
 import { notifyEmployee } from '@/lib/notify';
 import { deactivateEmployee } from '@/lib/actions/employees';
 import { uploadFileService } from '@/lib/storage';
+import { todayIST } from '@/lib/format';
 import { renderLetterPdf } from '@/lib/documents/letters';
 import {
   buildRelievingLetter,
@@ -38,14 +39,18 @@ import type { AppRole } from '@/types/database';
 export interface ActionResult {
   ok: boolean;
   error?: string;
+  /** The action SUCCEEDED but a follow-up needs attention. ok stays true. */
+  warning?: string;
 }
 
 const EXIT_ROLES: AppRole[] = ['admin', 'hr'];
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// IST, not the host clock: a letter issued between 00:00 and 05:30 IST used
+// to be dated the previous day (new Date().toISOString() is UTC).
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayIST();
 }
 
 /**
@@ -98,11 +103,13 @@ export async function initiateExit(input: {
   if (wroteNothing(data)) return { ok: false, error: 'The exit was not started — your role may lack permission.' };
 
   // Mirror the dates onto the employee and mark them on notice. The login stays
-  // ACTIVE — see the file header.
+  // ACTIVE — see the file header. A failure here is a WARNING, not a rollback:
+  // the case exists, but the roster would silently keep showing "active", so it
+  // must never be swallowed.
   const noticeDays = Math.round(
     (Date.parse(`${input.lastWorkingDay}T00:00:00Z`) - Date.parse(`${input.resignationDate}T00:00:00Z`)) / 86_400_000,
   );
-  await supabase
+  const { data: mirrored, error: mirrorErr } = await supabase
     .from('employees')
     .update({
       status: 'on_notice',
@@ -111,14 +118,23 @@ export async function initiateExit(input: {
       notice_period_days: Number.isFinite(noticeDays) ? noticeDays : null,
       exit_reason: String(input.reason ?? '').trim() || null,
     })
-    .eq('id', input.employeeId);
+    .eq('id', input.employeeId)
+    .select('id');
+  const mirrorProblem = mirrorErr
+    ? `the employee could not be marked on notice: ${mirrorErr.message}`
+    : wroteNothing(mirrored)
+      ? 'the employee could not be marked on notice (no row was updated)'
+      : null;
 
   const caseId = (data![0] as { id: string }).id;
-  await seedClearance(supabase, caseId, input.employeeId);
+  const seedProblem = await seedClearance(supabase, caseId, input.employeeId);
 
   revalidatePath('/exits');
   revalidatePath('/employees');
-  return { ok: true };
+  const problems = [mirrorProblem, seedProblem].filter(Boolean);
+  return problems.length > 0
+    ? { ok: true, warning: `The exit was started, but ${problems.join('; ')}.` }
+    : { ok: true };
 }
 
 /**
@@ -131,13 +147,16 @@ async function seedClearance(
   supabase: Awaited<ReturnType<typeof createClient>>,
   exitCaseId: string,
   employeeId: string,
-): Promise<void> {
+): Promise<string | null> {
   const rows: Record<string, unknown>[] = [];
 
-  const { data: assets } = await supabase
+  // A failed read must NOT seed an empty checklist — an empty checklist reads
+  // as "clearance complete" and lets the exit advance with assets outstanding.
+  const { data: assets, error: assetErr } = await supabase
     .from('assets')
     .select('id, desktop_name')
     .eq('assigned_employee_id', employeeId);
+  if (assetErr) return `the asset register could not be read for clearance: ${assetErr.message}`;
   for (const a of (assets ?? []) as any[]) {
     rows.push({
       exit_case_id: exitCaseId,
@@ -147,11 +166,12 @@ async function seedClearance(
     });
   }
 
-  const { data: items } = await supabase
+  const { data: items, error: itemErr } = await supabase
     .from('item_assignments')
     .select('id, quantity, items(item_name)')
     .eq('employee_id', employeeId)
     .eq('returned', false);
+  if (itemErr) return `the item register could not be read for clearance: ${itemErr.message}`;
   for (const i of (items ?? []) as any[]) {
     rows.push({
       exit_case_id: exitCaseId,
@@ -161,12 +181,14 @@ async function seedClearance(
     });
   }
 
-  if (rows.length === 0) return;
+  if (rows.length === 0) return null;
   // Ignore duplicate-key noise: re-seeding is the expected workflow.
-  await supabase.from('exit_clearance_items').upsert(rows, {
+  const { error: seedErr } = await supabase.from('exit_clearance_items').upsert(rows, {
     onConflict: 'exit_case_id,area,reference_id',
     ignoreDuplicates: true,
   });
+  if (seedErr) return `the clearance checklist could not be written: ${seedErr.message}`;
+  return null;
 }
 
 /** Client-callable clearance-checklist fetch (queries.ts is server-only). */
@@ -366,7 +388,8 @@ export async function refreshExitClearance(exitCaseId: string): Promise<ActionRe
     .maybeSingle<{ id: string; employee_id: string }>();
   if (!kase) return { ok: false, error: 'That exit case no longer exists.' };
 
-  await seedClearance(supabase, kase.id, kase.employee_id);
+  const seedProblem = await seedClearance(supabase, kase.id, kase.employee_id);
+  if (seedProblem) return { ok: false, error: `Clearance could not be refreshed — ${seedProblem}.` };
   revalidatePath('/exits');
   return { ok: true };
 }
@@ -403,9 +426,13 @@ export async function setExitStage(
 
   const supabase = await createClient();
 
-  // Guard the two transitions that must not be taken on trust.
+  // Guard the two transitions that must not be taken on trust. FAIL CLOSED:
+  // the view (0037 §7) emits a row for EVERY exit case, so a missing row means
+  // the case is gone, RLS filtered it, or the read failed — never "all clear".
+  // The old check only blocked when a row said not-complete, which let an exit
+  // advance past an unreturned laptop whenever the read came back empty.
   if (stage === 'settlement' || stage === 'completed') {
-    const { data: pending } = await supabase
+    const { data: pending, error: pendingErr } = await supabase
       .from('v_exit_clearance_pending')
       .select('assets_outstanding, items_outstanding, clearance_items_open, clearance_complete')
       .eq('exit_case_id', exitCaseId)
@@ -415,7 +442,17 @@ export async function setExitStage(
         clearance_items_open: number;
         clearance_complete: boolean;
       }>();
-    if (pending && !pending.clearance_complete) {
+    if (pendingErr) {
+      return { ok: false, error: `Clearance could not be verified: ${pendingErr.message}` };
+    }
+    if (!pending) {
+      return {
+        ok: false,
+        error:
+          'Clearance could not be verified for this exit case (no clearance record was readable), so the stage was not changed.',
+      };
+    }
+    if (!pending.clearance_complete) {
       return {
         ok: false,
         error:
@@ -446,24 +483,38 @@ export async function setExitStage(
   if (wroteNothing(data)) return { ok: false, error: 'That exit case no longer exists.' };
 
   // THE LAST STEP: only once everything is settled does the login go away.
+  // The exit_auto_deactivate setting (0037) can switch this off for companies
+  // that keep alumni logins alive; anything but an explicit false deactivates.
+  let warning: string | undefined;
   if (stage === 'completed') {
-    const { employee_id } = data![0] as { employee_id: string };
-    const { data: emp } = await supabase
-      .from('employees')
-      .select('code')
-      .eq('id', employee_id)
-      .maybeSingle<{ code: string }>();
-    if (emp?.code) {
-      const res = await deactivateEmployee(emp.code);
-      if (!res.ok) {
-        return { ok: false, error: `Exit completed, but the login could not be disabled: ${res.error}` };
+    const { data: autoSetting } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'exit_auto_deactivate')
+      .maybeSingle<{ value: unknown }>();
+    const autoDeactivate = !(autoSetting?.value === false || autoSetting?.value === 'false');
+
+    if (autoDeactivate) {
+      const { employee_id } = data![0] as { employee_id: string };
+      const { data: emp } = await supabase
+        .from('employees')
+        .select('code')
+        .eq('id', employee_id)
+        .maybeSingle<{ code: string }>();
+      if (emp?.code) {
+        const res = await deactivateEmployee(emp.code);
+        if (!res.ok) {
+          // The exit IS completed (the stage row is written) — a failed ban is
+          // a warning to act on, not a failure to render.
+          warning = `Exit completed, but the login could not be disabled: ${res.error}`;
+        }
       }
     }
   }
 
   revalidatePath('/exits');
   revalidatePath('/employees');
-  return { ok: true };
+  return warning ? { ok: true, warning } : { ok: true };
 }
 
 /**

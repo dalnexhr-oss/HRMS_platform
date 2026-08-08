@@ -23,6 +23,9 @@ import type { AppRole, AttendanceStatus } from '@/types/database';
 export interface CorrectionState {
   ok?: boolean;
   error?: string;
+  /** The write SUCCEEDED but a follow-up needs attention (e.g. the audit-log
+   *  entry failed). ok stays true — see requests.ts. */
+  warning?: string;
 }
 
 /**
@@ -175,23 +178,12 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
   }
 
   // A locked/paid run means payslips are final; editing the attendance behind
-  // them would silently desync pay from the register (0005 blocks the
-  // recompute, so the numbers would simply never catch up).
-  const periodMonth = `${workDate.slice(0, 7)}-01`;
-  const { data: run, error: runError } = await supabase
-    .from('payroll_runs')
-    .select('status')
-    .eq('period_month', periodMonth)
-    .maybeSingle();
-  if (runError) {
-    return { ok: false, error: `Could not check the payroll run: ${runError.message}` };
-  }
-  if (run && (run.status === 'locked' || run.status === 'paid')) {
-    return {
-      ok: false,
-      error: `Payroll for this month is ${run.status}. Attendance can no longer be corrected — raise an adjustment instead.`,
-    };
-  }
+  // them would silently desync pay from the register. requireOpenPayrollMonth
+  // also honours month_closed_at — the attendance seal the auto-close cron
+  // (0033) stamps. The old inline check here read only `status`, so a sealed
+  // month refused by the BULK path was still editable one cell at a time.
+  const open = await requireOpenPayrollMonth(supabase, workDate);
+  if (!open.ok) return open;
 
   // --------------------------------------------------------------- write ---
   const { data: saved, error: saveError } = await supabase
@@ -245,17 +237,15 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
   });
 
   // The attendance row is already committed (PostgREST gives us no transaction
-  // across the two writes). Surface the audit failure rather than let the
-  // footer's "written to the audit log" promise quietly become false again.
+  // across the two writes). Surface the audit failure as a WARNING on a
+  // success — the correction itself is saved, and screens must show it as such.
+  revalidatePath('/register');
   if (logError) {
-    revalidatePath('/register');
     return {
-      ok: false,
-      error: `Attendance was updated, but the audit-log entry failed: ${logError.message}`,
+      ok: true,
+      warning: `Attendance was updated, but the audit-log entry failed: ${logError.message}`,
     };
   }
-
-  revalidatePath('/register');
   return { ok: true };
 }
 
@@ -299,10 +289,12 @@ export async function correctAttendanceBulk(input: {
 
   const supabase = await createClient();
 
-  // Refuse the whole batch if ANY touched month is locked/paid/closed.
-  const months = [...new Set(targets.map((t) => t.workDate))];
-  for (const d of months) {
-    const open = await requireOpenPayrollMonth(supabase, d);
+  // Refuse the whole batch if ANY touched month is locked/paid/closed. One
+  // check per MONTH, not per date — a 31-day sweep used to issue 31 identical
+  // payroll_runs queries before writing a single row.
+  const months = [...new Set(targets.map((t) => t.workDate.slice(0, 7)))];
+  for (const month of months) {
+    const open = await requireOpenPayrollMonth(supabase, `${month}-01`);
     if (!open.ok) return open;
   }
 
@@ -336,11 +328,9 @@ export async function correctAttendanceBulk(input: {
     message: `${actor} bulk-set ${saved.length} day(s) to ${status} — ${reason}`,
     metadata: { status, reason, count: saved.length, bulk: true },
   });
-  if (logError) {
-    revalidatePath('/register');
-    return { ok: false, error: `Corrections saved, but the audit-log entry failed: ${logError.message}` };
-  }
-
   revalidatePath('/register');
+  if (logError) {
+    return { ok: true, warning: `Corrections saved, but the audit-log entry failed: ${logError.message}` };
+  }
   return { ok: true };
 }

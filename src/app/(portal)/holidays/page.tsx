@@ -1,7 +1,7 @@
 import { getHolidays, getWeekOffPolicy, getBranches } from '@/lib/queries';
 import { HolidaysScreen } from '@/components/holidays/HolidaysScreen';
 import { describePolicy } from '@/lib/week-off';
-import { DEFAULT_PERIOD_MONTH } from '@/lib/queries';
+import { currentPeriodMonth } from '@/lib/queries';
 
 export default async function HolidaysPage() {
   const [holidays, policy, branches] = await Promise.all([
@@ -10,8 +10,8 @@ export default async function HolidaysPage() {
     getBranches(),
   ]);
 
-  // The calendar year the register is working in, not the host clock's year.
-  const year = Number(DEFAULT_PERIOD_MONTH.slice(0, 4));
+  // The calendar year the register is working in (IST), not the host clock's year.
+  const year = Number(currentPeriodMonth().slice(0, 4));
 
   return (
     <HolidaysScreen

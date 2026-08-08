@@ -421,7 +421,7 @@ function ReceiptUpload({
     <>
       <input
         type="file"
-        accept="image/*,application/pdf"
+        accept=".pdf,.png,.jpg,.jpeg,.webp"
         disabled={busy}
         onChange={async (e) => {
           const file = e.target.files?.[0];

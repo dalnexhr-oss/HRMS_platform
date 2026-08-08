@@ -1,6 +1,6 @@
 import { TodayBoard, type Loaded } from '@/components/today/TodayBoard';
 import {
-  DEFAULT_PERIOD_MONTH,
+  currentPeriodMonth,
   getActivityFeed,
   getCelebrationsToday,
   getPayrollRun,
@@ -81,13 +81,14 @@ function marksWatchFrom(register: RegisterEmployee[], threshold: number): MarkWa
 
 // Today — the operational dashboard. Same markup as the prototype; live data behind it.
 export default async function TodayPage() {
+  const periodMonth = currentPeriodMonth();
   const [board, punchLog, celebrations, activity, run, register, settings] = await Promise.all([
     load(getTodayBoard()),
     load(getPunchLogToday()),
     load(getCelebrationsToday()),
     load(getActivityFeed(6)),
-    load(getPayrollRun(DEFAULT_PERIOD_MONTH)),
-    load(getRegister(DEFAULT_PERIOD_MONTH)),
+    load(getPayrollRun(periodMonth)),
+    load(getRegister(periodMonth)),
     load(getSettings()),
   ]);
 
@@ -107,7 +108,7 @@ export default async function TodayPage() {
       markThreshold={threshold}
       today={todayISO()}
       todayLabel={todayLabel()}
-      periodMonthLabel={monthLabelOf(DEFAULT_PERIOD_MONTH)}
+      periodMonthLabel={monthLabelOf(periodMonth)}
     />
   );
 }

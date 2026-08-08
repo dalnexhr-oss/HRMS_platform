@@ -13,7 +13,7 @@
 // ============================================================================
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requireStaff, wroteNothing } from '@/lib/actions/_guard';
+import { requireRoles, wroteNothing } from '@/lib/actions/_guard';
 import { INDIAN_STATES } from '@/lib/constants';
 
 export interface ActionResult {
@@ -30,9 +30,9 @@ function revalidateBranchSurfaces(): void {
   revalidatePath('/today');
 }
 
-/** Rename a branch and/or move it to another state. */
+/** Rename a branch and/or move it to another state. Admin/HR, like /settings itself. */
 export async function updateBranch(id: string, formData: FormData): Promise<ActionResult> {
-  const gate = await requireStaff('Updating a branch');
+  const gate = await requireRoles(['admin', 'hr'], 'Updating a branch');
   if (!gate.ok) return gate;
 
   const name = String(formData.get('name') ?? '').trim();
@@ -76,7 +76,7 @@ export async function updateBranch(id: string, formData: FormData): Promise<Acti
  * or was created by mistake.
  */
 export async function deleteBranch(id: string): Promise<ActionResult> {
-  const gate = await requireStaff('Deleting a branch');
+  const gate = await requireRoles(['admin', 'hr'], 'Deleting a branch');
   if (!gate.ok) return gate;
   if (!id) return { ok: false, error: 'Which branch to delete is missing.' };
 

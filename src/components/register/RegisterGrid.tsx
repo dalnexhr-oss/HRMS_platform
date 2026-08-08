@@ -163,7 +163,8 @@ export function RegisterGrid({
             const res = await correctAttendanceBulk({ targets, status, reason });
             if (!res.ok) toast(res.error ?? 'The bulk correction failed.', 'error');
             else {
-              toast(`Corrected ${targets.length} day(s).`, 'success');
+              if (res.warning) toast(res.warning, 'info');
+              else toast(`Corrected ${targets.length} day(s).`, 'success');
               exitBulk();
               router.refresh();
             }
@@ -357,6 +358,7 @@ export function RegisterGrid({
                 key={`${target.employeeId}-${target.workDate}-${target.seq}`}
                 target={target}
                 onClose={() => setDrawerOpen(false)}
+                onWarning={(w) => toast(w, 'info')}
               />
             )}
           </aside>
@@ -366,15 +368,28 @@ export function RegisterGrid({
   );
 }
 
-function CorrectionForm({ target, onClose }: { target: Target; onClose: () => void }) {
+function CorrectionForm({
+  target,
+  onClose,
+  onWarning,
+}: {
+  target: Target;
+  onClose: () => void;
+  onWarning?: (message: string) => void;
+}) {
   const [state, formAction, pending] = useActionState<CorrectionState, FormData>(
     async (_prev, formData) => correctAttendance(formData),
     {},
   );
 
   useEffect(() => {
-    if (state.ok) onClose();
-  }, [state.ok, onClose]);
+    if (state.ok) {
+      // Saved-with-a-caveat (e.g. the audit-log write failed) still closes the
+      // drawer — the correction is committed — but the caveat is surfaced.
+      if (state.warning) onWarning?.(state.warning);
+      onClose();
+    }
+  }, [state.ok, state.warning, onClose, onWarning]);
 
   const { cell } = target;
 

@@ -75,7 +75,7 @@ export function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[
             <label>File</label>
             <input
               type="file"
-              accept="image/*,application/pdf"
+              accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"
               disabled={busy}
               onChange={async (e) => {
                 const file = e.target.files?.[0];

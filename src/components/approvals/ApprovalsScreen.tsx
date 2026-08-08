@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Stamp } from '@/components/ui/Stamp';
 import { reviewRequest } from '@/lib/actions/requests';
+import { useToast } from '@/components/ui/Toast';
 import type { RequestView } from '@/lib/queries';
 
 // Map a request type to the register stamp it corresponds to.
@@ -43,6 +44,7 @@ function dateRange(startIso: string, endIso: string): string {
 }
 
 export function ApprovalsScreen({ requests }: { requests: RequestView[] }) {
+  const { toast, toastNode } = useToast();
   // Start with just the pending requests; reviewed cards drop out optimistically.
   const initialPending = useMemo(
     () => requests.filter((r) => r.status === 'pending'),
@@ -50,8 +52,16 @@ export function ApprovalsScreen({ requests }: { requests: RequestView[] }) {
   );
   const [pending, setPending] = useState<RequestView[]>(initialPending);
 
+  // Requests filed while this page is mounted arrive via revalidatePath — the
+  // state used to be captured once on mount, so the queue never grew. Keep the
+  // optimistic removals: only re-sync when the server list actually changes.
+  useEffect(() => {
+    setPending(initialPending);
+  }, [initialPending]);
+
   return (
     <div className="wrap grid">
+      {toastNode}
       {pending.length > 0 && (
         <div className="appr">
           {pending.map((req) => (
@@ -59,6 +69,7 @@ export function ApprovalsScreen({ requests }: { requests: RequestView[] }) {
               key={req.id}
               request={req}
               onReviewed={(id) => setPending((rows) => rows.filter((r) => r.id !== id))}
+              toast={toast}
             />
           ))}
         </div>
@@ -81,16 +92,26 @@ export function ApprovalsScreen({ requests }: { requests: RequestView[] }) {
 function RequestCard({
   request,
   onReviewed,
+  toast,
 }: {
   request: RequestView;
   onReviewed: (id: string) => void;
+  toast: (message: string, kind?: 'success' | 'error' | 'info') => void;
 }) {
   const [busy, startTransition] = useTransition();
 
   const decide = (decision: 'approved' | 'rejected') => {
     startTransition(async () => {
       const res = await reviewRequest(request.id, decision);
-      if (res.ok) onReviewed(request.id);
+      if (res.ok) {
+        onReviewed(request.id);
+        // A warning means the decision stood but a side-effect needs a human
+        // (balance missing, register locked, …) — show it, loudly.
+        if (res.warning) toast(res.warning, 'info');
+        else toast(`Request ${decision}.`, 'success');
+      } else {
+        toast(res.error ?? 'The request could not be reviewed.', 'error');
+      }
     });
   };
 
@@ -160,8 +181,7 @@ function requestSentence(r: RequestView) {
     return (
       <>
         <b>Site visit · {range}</b>
-        {reason && <> — {reason}</>} Approving lets punches outside the office geofence for these
-        dates.
+        {reason && <> — {reason}</>} Approving records these dates as sanctioned off-site work.
       </>
     );
   }
@@ -170,8 +190,7 @@ function requestSentence(r: RequestView) {
     return (
       <>
         <b>Outdoor duty · {range}</b>
-        {reason && <> — {reason}</>} Approving lets punches outside the office geofence for these
-        dates.
+        {reason && <> — {reason}</>} Approving records these dates as sanctioned off-site work.
       </>
     );
   }

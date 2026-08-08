@@ -227,11 +227,14 @@ function parseSalary(
 }
 
 /**
- * Load one employee's full editable fields for the edit drawer. This is a READ —
- * RLS (portal roles read all employees) is the boundary — so it isn't
- * staff-gated; the WRITE (updateEmployee) is.
+ * Load one employee's full editable fields for the edit drawer. Although this
+ * is a read, it returns Aadhaar, PAN, bank details and salary — so it is gated
+ * like the write that follows it, not left to RLS alone (which lets every
+ * portal role, including viewer, read all employees).
  */
 export async function fetchEmployeeForEdit(code: string): Promise<EmployeeEditRow | null> {
+  const gate = await requireStaff('Loading an employee for editing');
+  if (!gate.ok) return null;
   return getEmployeeForEdit(code);
 }
 

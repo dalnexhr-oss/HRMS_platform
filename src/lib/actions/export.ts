@@ -5,7 +5,7 @@
 // server-only) and return the bytes as base64 for the client to download. Both
 // exports carry payroll/attendance data, so they are staff-gated.
 // ============================================================================
-import { getPayslips, getRegister, getReimbursements } from '@/lib/queries';
+import { getPayslips, getRegister, getReimbursements, currentPeriodMonth } from '@/lib/queries';
 import { getSession } from '@/lib/auth';
 import type { AppRole } from '@/types/database';
 import {
@@ -90,13 +90,7 @@ export async function exportAttendanceTemplateXlsx(periodMonth: string): Promise
 }
 
 /** Roles that may import the register — mirrors IMPORT_ROLES in actions/import. */
-const IMPORT_ROLES: AppRole[] = ['admin', 'hr'];
-
-/** First-of-current-month as 'YYYY-MM-01'. */
-function currentPeriodMonth(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-}
+const IMPORT_ROLES: AppRole[] = ['admin', 'hr', 'manager'];
 
 /**
  * A blank register-import template for HR/Admin to fill in and upload.
@@ -111,7 +105,7 @@ export async function exportRegisterImportTemplateXlsx(): Promise<ExportResult> 
   if (!role || !IMPORT_ROLES.includes(role)) {
     return {
       ok: false,
-      error: `Downloading the import template needs an admin or HR account${
+      error: `Downloading the import template needs an admin, HR or manager account${
         role ? ` — yours is "${role}".` : '.'
       }`,
     };

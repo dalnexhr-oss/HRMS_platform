@@ -4,7 +4,7 @@ import { RegisterGrid } from '@/components/register/RegisterGrid';
 import { Stamp } from '@/components/ui/Stamp';
 import { REGISTER_LEGEND } from '@/lib/constants';
 import {
-  DEFAULT_PERIOD_MONTH,
+  currentPeriodMonth,
   getBranches,
   getCompOffsForMonth,
   getLeaveRegisterMismatches,
@@ -30,9 +30,9 @@ const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
  */
 const CORRECTION_ROLES: AppRole[] = ['admin', 'hr', 'manager'];
 
-/** '?m=2026-05' -> '2026-05-01'. Anything unparseable falls back to the default. */
+/** '?m=2026-05' -> '2026-05-01'. Anything unparseable falls back to the current month (IST). */
 function periodFromParam(m: string | undefined): string {
-  return m && MONTH_RE.test(m) ? `${m}-01` : DEFAULT_PERIOD_MONTH;
+  return m && MONTH_RE.test(m) ? `${m}-01` : currentPeriodMonth();
 }
 
 /** '2026-06-01' -> 'JUNE 2026'. */

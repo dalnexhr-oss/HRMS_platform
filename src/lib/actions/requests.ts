@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured, getWeekOffPolicy, getHolidays } from '@/lib/queries';
-import { countLeaveDays } from '@/lib/week-off';
+import { countLeaveDays, isScheduledWeekOff } from '@/lib/week-off';
 import { getSession } from '@/lib/auth';
 import { requireStaff } from '@/lib/actions/_guard';
 import { releaseCompOff, settleApprovedCompOff } from '@/lib/compoff-settle';
@@ -13,6 +13,13 @@ import type { LeaveType, RequestType } from '@/types/database';
 export interface ActionResult {
   ok: boolean;
   error?: string;
+  /**
+   * The decision SUCCEEDED but a side-effect needs attention (balance not
+   * found, register not stamped, …). Callers must treat ok:true+warning as a
+   * success with a message — the old shape returned ok:false for these, which
+   * made screens render a completed approval as if it had failed.
+   */
+  warning?: string;
 }
 
 const REQUEST_TYPES: readonly RequestType[] = ['leave', 'site_visit', 'outdoor_duty', 'wfh'];
@@ -89,6 +96,135 @@ async function getSandwichPolicy(): Promise<boolean> {
 function revalidateRequestViews(): void {
   revalidatePath('/me');
   revalidatePath('/approvals');
+}
+
+/** Every 'YYYY-MM-DD' in an inclusive span (small spans only — capped upstream). */
+function enumerateDays(startISO: string, endISO: string): string[] {
+  const out: string[] = [];
+  const cursor = new Date(`${startISO}T00:00:00Z`);
+  const end = new Date(`${endISO}T00:00:00Z`);
+  if (Number.isNaN(cursor.getTime()) || Number.isNaN(end.getTime())) return out;
+  while (cursor.getTime() <= end.getTime() && out.length < 1000) {
+    out.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return out;
+}
+
+/**
+ * Stamp an approved leave onto the register as 'L'.
+ *
+ * Fills ONLY genuine gaps — days with no attendance row, or rows marked 'AB' —
+ * exactly the days getLeaveRegisterMismatches flags. A day the register already
+ * covers (WO/OH/CO/L) or shows real presence (P/HD/LM/S/T) is never overwritten:
+ * an approved leave must not erase evidence that someone actually worked.
+ * Scheduled week-offs and holidays inside the span are skipped when they have
+ * no row, so a Sunday never becomes 'L'.
+ *
+ * Locked/paid months are refused day-by-day (the leave may straddle a month
+ * boundary); refused days come back as a warning, never an error — the approval
+ * itself already stands.
+ */
+async function stampLeaveOnRegister(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  employeeId: string,
+  startISO: string,
+  endISO: string,
+): Promise<string | null> {
+  const days = enumerateDays(startISO, endISO);
+  if (days.length === 0) return null;
+
+  let policy: Awaited<ReturnType<typeof getWeekOffPolicy>>;
+  let holidaySet: Set<string>;
+  try {
+    const [p, holidays] = await Promise.all([getWeekOffPolicy(), getHolidays()]);
+    policy = p;
+    holidaySet = new Set(holidays.map((h) => h.date));
+  } catch (e) {
+    return `Approved, but the register could not be stamped (week-off policy unreadable: ${
+      e instanceof Error ? e.message : String(e)
+    }). Mark the day(s) L from the register.`;
+  }
+
+  const { data: existing, error: readErr } = await supabase
+    .from('attendance_days')
+    .select('work_date, status')
+    .eq('employee_id', employeeId)
+    .gte('work_date', days[0])
+    .lte('work_date', days[days.length - 1]);
+  if (readErr) {
+    return `Approved, but the register could not be read to stamp the leave: ${readErr.message}. Mark the day(s) L from the register.`;
+  }
+  const statusByDate = new Map<string, string>();
+  for (const row of (existing ?? []) as { work_date: string; status: string }[]) {
+    statusByDate.set(row.work_date, row.status);
+  }
+
+  // Check each involved month's payroll state once, not per day.
+  const lockedMonths = new Set<string>();
+  for (const month of new Set(days.map((d) => d.slice(0, 7)))) {
+    const gate = await requireOpenPayrollMonthShim(supabase, `${month}-01`);
+    if (!gate.ok) lockedMonths.add(month);
+  }
+
+  const toUpdate: string[] = []; // existing 'AB' rows
+  const toInsert: string[] = []; // no row at all
+  const skippedLocked: string[] = [];
+  for (const day of days) {
+    if (lockedMonths.has(day.slice(0, 7))) {
+      skippedLocked.push(day);
+      continue;
+    }
+    const status = statusByDate.get(day);
+    if (status === 'AB') toUpdate.push(day);
+    else if (status == null && !isScheduledWeekOff(day, policy) && !holidaySet.has(day)) {
+      toInsert.push(day);
+    }
+  }
+
+  const problems: string[] = [];
+  if (toUpdate.length > 0) {
+    const { error } = await supabase
+      .from('attendance_days')
+      .update({ status: 'L' })
+      .eq('employee_id', employeeId)
+      .eq('status', 'AB')
+      .in('work_date', toUpdate);
+    if (error) problems.push(`could not restamp AB day(s): ${error.message}`);
+  }
+  if (toInsert.length > 0) {
+    const { error } = await supabase
+      .from('attendance_days')
+      .insert(toInsert.map((work_date) => ({ employee_id: employeeId, work_date, status: 'L' })));
+    // 23505 = someone stamped the day concurrently — that is fine, not a problem.
+    if (error && error.code !== '23505') {
+      problems.push(`could not add L day(s): ${error.message}`);
+    }
+  }
+  if (skippedLocked.length > 0) {
+    problems.push(
+      `payroll for ${[...lockedMonths].join(', ')} is closed, so ${skippedLocked.length} day(s) were not stamped`,
+    );
+  }
+  return problems.length > 0
+    ? `Approved, but the register was only partially stamped: ${problems.join('; ')}.`
+    : null;
+}
+
+/** Local month gate — mirrors requireOpenPayrollMonth but never throws. */
+async function requireOpenPayrollMonthShim(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  periodMonth: string,
+): Promise<{ ok: boolean }> {
+  const { data, error } = await supabase
+    .from('payroll_runs')
+    .select('status, month_closed_at')
+    .eq('period_month', periodMonth)
+    .maybeSingle<{ status: string; month_closed_at: string | null }>();
+  if (error) return { ok: false }; // fail closed — don't stamp a month we can't check
+  if (data?.status === 'locked' || data?.status === 'paid') return { ok: false };
+  if (data?.month_closed_at) return { ok: false };
+  return { ok: true };
 }
 
 type ChainOutcome =
@@ -206,7 +342,7 @@ export async function reviewRequest(
     .update({ status: decision, reviewed_at: new Date().toISOString() })
     .eq('id', id)
     .eq('status', 'pending')
-    .select('id, type, leave_kind, days, employee_id, start_date');
+    .select('id, type, leave_kind, days, employee_id, start_date, end_date');
   if (error) return { ok: false, error: error.message };
 
   if (!data || data.length === 0) {
@@ -223,6 +359,7 @@ export async function reviewRequest(
     days: number;
     employee_id: string;
     start_date: string;
+    end_date: string;
   };
 
   // Side-effects run after the decision is committed. A side-effect failure is
@@ -248,37 +385,67 @@ export async function reviewRequest(
     reviewed.leave_kind !== 'LWP'
   ) {
     const year = Number(reviewed.start_date.slice(0, 4));
-    const { data: bal } = await supabase
-      .from('leave_balances')
-      .select('id, balance')
-      .eq('employee_id', reviewed.employee_id)
-      .eq('year', year)
-      .eq('type', reviewed.leave_kind)
-      .maybeSingle<{ id: string; balance: number }>();
-    if (bal) {
+    // Compare-and-swap drawdown: the UPDATE is predicated on the balance we
+    // read, so two approvals racing on the same employee cannot both apply
+    // against the same starting balance — the loser re-reads and retries.
+    // (A plain read-modify-write silently lost one deduction.)
+    let deducted = false;
+    for (let attempt = 0; attempt < 3 && !deducted; attempt++) {
+      const { data: bal, error: balReadErr } = await supabase
+        .from('leave_balances')
+        .select('id, balance')
+        .eq('employee_id', reviewed.employee_id)
+        .eq('year', year)
+        .eq('type', reviewed.leave_kind)
+        .maybeSingle<{ id: string; balance: number }>();
+      if (balReadErr) {
+        warning = `Approved, but the ${reviewed.leave_kind} balance could not be read: ${balReadErr.message}`;
+        break;
+      }
+      if (!bal) {
+        // No balance row for this kind/year. The approval still stands
+        // (refusing it would strand HR mid-flow), but say so loudly.
+        warning =
+          `Approved, but ${reviewed.leave_kind} has no balance on record for ${year}, so nothing was deducted. ` +
+          `Provision the leave year from the Leave salary page so entitlements are tracked.`;
+        break;
+      }
       const next = Number(bal.balance) - Number(reviewed.days ?? 0);
-      const { error: balErr } = await supabase
+      const { data: casRows, error: balErr } = await supabase
         .from('leave_balances')
         .update({ balance: next })
-        .eq('id', bal.id);
+        .eq('id', bal.id)
+        .eq('balance', bal.balance)
+        .select('id');
       if (balErr) {
         warning = `Approved, but the ${reviewed.leave_kind} balance could not be updated: ${balErr.message}`;
-      } else if (next < 0) {
-        // Approving past zero is allowed (HR sometimes must), but it is never
-        // silent — an overdrawn balance is a payroll problem later.
-        warning =
-          `Approved, but this takes ${reviewed.leave_kind} to ${next} day(s) — the balance is now overdrawn. ` +
-          `Correct it from the Leave salary page, or convert the excess to LWP.`;
+        break;
       }
-    } else {
-      // No balance row for this kind/year. Before migration 0036 this drew down
-      // NOTHING and said nothing, so leave was effectively unlimited. The
-      // approval still stands (refusing it would strand HR mid-flow), but it now
-      // says so loudly and points at the fix.
-      warning =
-        `Approved, but ${reviewed.leave_kind} has no balance on record for ${year}, so nothing was deducted. ` +
-        `Provision the leave year from the Leave salary page so entitlements are tracked.`;
+      if (casRows && casRows.length > 0) {
+        deducted = true;
+        if (next < 0) {
+          // Approving past zero is allowed (HR sometimes must), but it is never
+          // silent — an overdrawn balance is a payroll problem later.
+          warning =
+            `Approved, but this takes ${reviewed.leave_kind} to ${next} day(s) — the balance is now overdrawn. ` +
+            `Correct it from the Leave salary page, or convert the excess to LWP.`;
+        }
+      } else if (attempt === 2) {
+        warning = `Approved, but the ${reviewed.leave_kind} balance was contended and could not be updated. Adjust it from the Leave salary page.`;
+      }
     }
+  }
+
+  // Stamp the register so the approved leave and the attendance sheet cannot
+  // silently diverge (the /register mismatch card exists because they used to).
+  if (reviewed.type === 'leave' && decision === 'approved') {
+    const stampWarning = await stampLeaveOnRegister(
+      supabase,
+      reviewed.employee_id,
+      reviewed.start_date,
+      reviewed.end_date ?? reviewed.start_date,
+    );
+    if (stampWarning) warning = warning ? `${warning} ${stampWarning}` : stampWarning;
   }
 
   // Tell the employee the outcome. Look the owner up rather than trusting the
@@ -302,7 +469,15 @@ export async function reviewRequest(
   }
 
   revalidateRequestViews();
-  return warning ? { ok: false, error: warning } : { ok: true };
+  if (decision === 'approved') {
+    // An approval also changes the register (stamping / comp-off settle) and
+    // the leave balances shown on /leave.
+    revalidatePath('/register');
+    revalidatePath('/leave');
+  }
+  // The decision itself succeeded — a side-effect problem is a WARNING on a
+  // success, never an ok:false (which screens render as "nothing happened").
+  return warning ? { ok: true, warning } : { ok: true };
 }
 
 /**

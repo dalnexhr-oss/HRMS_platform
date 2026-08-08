@@ -1,5 +1,19 @@
 // Formatting helpers ported from the prototype's inline script.
 
+/**
+ * Today's date 'YYYY-MM-DD' in the business timezone (IST) — NOT the host
+ * clock. new Date().toISOString() is UTC, which is *yesterday* between
+ * 00:00 and 05:30 IST; every business-date default must go through this.
+ */
+export function todayIST(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+}
+
+/** The current calendar year in IST. */
+export function currentYearIST(): number {
+  return Number(todayIST().slice(0, 4));
+}
+
 /** ₹1,23,456 — Indian-grouped rupees, rounded. */
 export function inr(n: number): string {
   return '₹' + Math.round(n).toLocaleString('en-IN');

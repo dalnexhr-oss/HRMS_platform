@@ -7,8 +7,9 @@ import { exportRegisterImportTemplateXlsx } from '@/lib/actions/export';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import type { AppRole } from '@/types/database';
 
-/** Staff roles allowed to import — and so to download the blank template. */
-const IMPORT_ROLES: AppRole[] = ['admin', 'hr'];
+/** Staff roles allowed to import — and so to download the blank template.
+ *  Mirrors IMPORT_ROLES in actions/import.ts (commitImport). */
+const IMPORT_ROLES: AppRole[] = ['admin', 'hr', 'manager'];
 
 /** '2026-06-01' -> 'June 2026'. */
 function monthLabel(periodMonth: string): string {

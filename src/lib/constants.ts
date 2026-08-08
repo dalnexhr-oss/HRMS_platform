@@ -206,8 +206,12 @@ export const NAV_ROLE_GATED: Record<string, readonly string[]> = {
   assets: ['admin', 'hr'],
   items: ['admin', 'hr'],
   users: ['admin', 'hr'],
-  import: ['admin', 'hr'],
-  settings: ['admin'],
+  // Mirrors IMPORT_ROLES in actions/import.ts (commitImport) — the widest
+  // real write path. The nav used to say admin/hr while the action allowed
+  // managers, so a manager could import by URL but saw no link.
+  import: ['admin', 'hr', 'manager'],
+  // Mirrors the /settings page guard and updateSetting/updateBranch.
+  settings: ['admin', 'hr'],
 };
 
 // Page titles + FALLBACK subtitles keyed by slug. These are deliberately plain

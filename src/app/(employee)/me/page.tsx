@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { getSession } from '@/lib/auth';
 import { AvatarMenu } from '@/components/shell/AvatarMenu';
 import {
-  DEFAULT_PERIOD_MONTH,
+  currentPeriodMonth,
   getEmployeeOverview,
   getEmployeePolicies,
   getLeaveBalances,
@@ -58,6 +58,7 @@ import type { DayCell, PayslipRow } from '@/types/domain';
 export default async function MePage() {
   const { profile, email } = await getSession();
   const employeeId = profile?.employee_id ?? null;
+  const periodMonth = currentPeriodMonth();
 
   // Only the per-employee queries need a linked employee record; the overview
   // and policy list already handle a null id themselves.
@@ -82,18 +83,18 @@ export default async function MePage() {
     myDocuments,
     myOnboarding,
   ] = await Promise.all([
-      getEmployeeOverview(employeeId, profile?.full_name, DEFAULT_PERIOD_MONTH),
+      getEmployeeOverview(employeeId, profile?.full_name, periodMonth),
       getEmployeePolicies(employeeId),
       employeeId ? getLeaveBalances(employeeId) : Promise.resolve<LeaveBalanceRow[]>([]),
       employeeId
-        ? getMyAttendance(employeeId, DEFAULT_PERIOD_MONTH)
+        ? getMyAttendance(employeeId, periodMonth)
         : Promise.resolve<DayCell[]>([]),
       employeeId ? getMyPayslips(employeeId) : Promise.resolve<PayslipRow[]>([]),
       employeeId ? getMyRequests(employeeId) : Promise.resolve<RequestView[]>([]),
       employeeId ? getMyTickets(employeeId) : Promise.resolve<TicketView[]>([]),
       // The run's real status — the net-pay KPI used to hard-code "draft", which
       // would misreport a locked or already-paid month as unfinished.
-      getPayrollRun(DEFAULT_PERIOD_MONTH),
+      getPayrollRun(periodMonth),
       employeeId ? getMyCompOffs(employeeId) : Promise.resolve<CompOffRow[]>([]),
       employeeId ? getMyReimbursements(employeeId) : Promise.resolve<ReimbursementView[]>([]),
       getReimbursementRate(),
@@ -175,7 +176,7 @@ export default async function MePage() {
       {/* personal snapshot */}
       <div className="kpis">
         <div className="card kpi">
-          <div className="lab">Present · {monthName(DEFAULT_PERIOD_MONTH)}</div>
+          <div className="lab">Present · {monthName(periodMonth)}</div>
           <div className="val" style={{ color: 'var(--p)' }}>
             {overview.present}
           </div>
@@ -184,18 +185,18 @@ export default async function MePage() {
           </div>
         </div>
         <div className="card kpi">
-          <div className="lab">Hours worked · {monthName(DEFAULT_PERIOD_MONTH)}</div>
+          <div className="lab">Hours worked · {monthName(periodMonth)}</div>
           <div className="val mono" style={{ fontSize: 26, paddingTop: 8 }}>
             {overview.workedHours}
           </div>
         </div>
         <div className="card kpi">
-          <div className="lab">Net pay · {monthName(DEFAULT_PERIOD_MONTH)}</div>
+          <div className="lab">Net pay · {monthName(periodMonth)}</div>
           <div className="val" style={{ fontSize: 26, paddingTop: 8, color: 'var(--brand-deep)' }}>
             {overview.netPay != null ? inr(overview.netPay) : '—'}
           </div>
           <div className="note">
-            {monthYear(DEFAULT_PERIOD_MONTH)} ·{' '}
+            {monthYear(periodMonth)} ·{' '}
             {run ? RUN_STATUS_LABEL[run.status] : 'not computed yet'}
           </div>
         </div>
@@ -261,7 +262,7 @@ export default async function MePage() {
       <MyDocuments documents={myDocuments} id="documents" />
 
       {/* own month strip */}
-      <MyAttendance days={attendance} periodMonth={DEFAULT_PERIOD_MONTH} id="attendance" />
+      <MyAttendance days={attendance} periodMonth={periodMonth} id="attendance" />
 
       {/* leave / duty requests + balances */}
       <ApplyLeave requests={requests} balances={balances} canApply={!!employeeId} id="leave" />

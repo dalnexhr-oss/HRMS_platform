@@ -22,7 +22,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth';
 import { requireDb, requireRoles, wroteNothing } from '@/lib/actions/_guard';
-import { uploadFile, signedUrl, type StorageBucket } from '@/lib/storage';
+import { uploadFile, signedUrl, resolveUploadType, type StorageBucket } from '@/lib/storage';
 import { notifyEmployee, notifyApprovers } from '@/lib/notify';
 import { getEmployeeDocuments as readEmployeeDocuments } from '@/lib/queries';
 import type { AppRole } from '@/types/database';
@@ -58,6 +58,8 @@ export async function uploadEmployeeDocument(formData: FormData): Promise<Action
   const file = formData.get('file');
   if (!(file instanceof File) || file.size === 0) return { ok: false, error: 'Choose a file to upload.' };
   if (file.size > MAX_BYTES) return { ok: false, error: 'Documents must be 10 MB or smaller.' };
+  const fileType = resolveUploadType(file.name, 'document');
+  if (!fileType.ok) return fileType;
 
   const category = String(formData.get('category') ?? '').trim() || 'other';
   const title = String(formData.get('title') ?? '').trim() || file.name;
@@ -85,7 +87,7 @@ export async function uploadEmployeeDocument(formData: FormData): Promise<Action
     employeeId,
     file.name,
     await file.arrayBuffer(),
-    file.type || undefined,
+    fileType.contentType,
   );
   if (!up.ok) return { ok: false, error: up.error ?? 'The document could not be uploaded.' };
 

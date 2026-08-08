@@ -15,7 +15,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth';
 import { getReimbursementRate, getReimbursementEvents } from '@/lib/queries';
-import { uploadFile, signedUrl } from '@/lib/storage';
+import { uploadFile, signedUrl, resolveUploadType } from '@/lib/storage';
 import { requireDb, requireRoles, requireStaff, wroteNothing } from '@/lib/actions/_guard';
 import { notifyApprovers, notifyEmployee } from '@/lib/notify';
 import type { ReimbursementPurpose } from '@/types/database';
@@ -23,6 +23,9 @@ import type { ReimbursementPurpose } from '@/types/database';
 export interface ActionResult {
   ok: boolean;
   error?: string;
+  /** The action SUCCEEDED but a side-effect needs attention (payroll run
+   *  locked, payslip missing, …). ok stays true — see requests.ts. */
+  warning?: string;
 }
 
 const PURPOSES: readonly ReimbursementPurpose[] = ['travel', 'material_purchase', 'other'];
@@ -212,21 +215,51 @@ async function addToPayroll(
     return 'Approved. This employee has no payslip in that run yet — recompute drafts, then it can be added.';
   }
 
-  // Read-modify-write the existing bonus so multiple approved claims accumulate.
-  const { data: existing, error: adjErr } = await supabase
-    .from('payslip_adjustments')
-    .select('reimbursement_bonus')
-    .eq('id', payslip.id)
-    .maybeSingle<{ reimbursement_bonus: number | string | null }>();
-  if (adjErr) return `Approved, but the current adjustments could not be read: ${adjErr.message}`;
+  // Accumulate the bonus with a compare-and-swap: the UPDATE is predicated on
+  // the value we read, so two claims approved concurrently for the same
+  // employee/month cannot both apply against the same starting bonus (a plain
+  // read-modify-write silently dropped one claim's amount). The loser re-reads
+  // and retries.
+  let applied = false;
+  for (let attempt = 0; attempt < 3 && !applied; attempt++) {
+    const { data: existing, error: adjErr } = await supabase
+      .from('payslip_adjustments')
+      .select('id, reimbursement_bonus')
+      .eq('id', payslip.id)
+      .maybeSingle<{ id: string; reimbursement_bonus: number | string | null }>();
+    if (adjErr) return `Approved, but the current adjustments could not be read: ${adjErr.message}`;
 
-  const current = Number(existing?.reimbursement_bonus ?? 0) || 0;
-  const next = Math.round((current + amount) * 100) / 100;
+    const current = Number(existing?.reimbursement_bonus ?? 0) || 0;
+    const next = Math.round((current + amount) * 100) / 100;
 
-  const { error: upErr } = await supabase
-    .from('payslip_adjustments')
-    .upsert({ id: payslip.id, reimbursement_bonus: next, updated_at: new Date().toISOString() }, { onConflict: 'id' });
-  if (upErr) return `Approved, but the payslip adjustment failed: ${upErr.message}`;
+    if (!existing) {
+      // No adjustments row yet — insert it; a 23505 means someone else just
+      // created it, so loop and retry as an update.
+      const { error: insErr } = await supabase
+        .from('payslip_adjustments')
+        .insert({ id: payslip.id, reimbursement_bonus: next, updated_at: new Date().toISOString() });
+      if (insErr && insErr.code !== '23505') {
+        return `Approved, but the payslip adjustment failed: ${insErr.message}`;
+      }
+      applied = !insErr;
+      continue;
+    }
+
+    const casQuery = supabase
+      .from('payslip_adjustments')
+      .update({ reimbursement_bonus: next, updated_at: new Date().toISOString() })
+      .eq('id', payslip.id);
+    // Null needs `is`, a number needs `eq` — PostgREST distinguishes them.
+    const { data: casRows, error: upErr } = await (existing.reimbursement_bonus == null
+      ? casQuery.is('reimbursement_bonus', null)
+      : casQuery.eq('reimbursement_bonus', existing.reimbursement_bonus)
+    ).select('id');
+    if (upErr) return `Approved, but the payslip adjustment failed: ${upErr.message}`;
+    applied = !!casRows && casRows.length > 0;
+  }
+  if (!applied) {
+    return 'Approved, but the payslip adjustment was contended and could not be applied. Add it manually from the payroll page.';
+  }
 
   const { error: recomputeErr } = await supabase.rpc('fn_compute_payslip', {
     p_employee_id: employeeId,
@@ -345,7 +378,8 @@ export async function reviewReimbursement(
   });
 
   // Payroll is credited only on FINAL approval. With the Finance stage on, that
-  // is financeReviewReimbursement, not here.
+  // is financeReviewReimbursement, not here. A payroll problem is a WARNING on
+  // a success — the claim IS approved either way.
   if (decision === 'approved' && !twoStage) {
     const warning = await addToPayroll(
       supabase,
@@ -353,7 +387,7 @@ export async function reviewReimbursement(
       String(row.claim_date).slice(0, 10),
       finalAmount,
     );
-    if (warning) return { ok: false, error: warning };
+    if (warning) return { ok: true, warning };
   }
 
   if (twoStage) {
@@ -438,7 +472,7 @@ export async function financeReviewReimbursement(
 
   if (decision === 'approved') {
     const warning = await addToPayroll(supabase, row.employee_id, String(row.claim_date).slice(0, 10), amount);
-    if (warning) return { ok: false, error: warning };
+    if (warning) return { ok: true, warning };
   }
 
   return { ok: true };
@@ -657,19 +691,40 @@ export async function uploadReimbursementReceipt(id: string, formData: FormData)
   const file = formData.get('receipt');
   if (!(file instanceof File) || file.size === 0) return { ok: false, error: 'Choose a receipt file.' };
   if (file.size > 5 * 1024 * 1024) return { ok: false, error: 'Receipts must be 5 MB or smaller.' };
+  const fileType = resolveUploadType(file.name, 'receipt');
+  if (!fileType.ok) return fileType;
 
   const { profile } = await getSession();
   const employeeId = profile?.employee_id ?? null;
   if (!employeeId) return { ok: false, error: 'Your login is not linked to an employee record.' };
 
+  // Verify the claim BEFORE uploading — uploading first orphans an object in
+  // the bucket whenever the attach is then refused. Only a pending claim can
+  // take a receipt (the storage-era RLS agrees: reviewed claims are frozen);
+  // a rejected claim must be edited first, which resets it to pending.
   const supabase = await createClient();
+  const { data: claim, error: claimError } = await supabase
+    .from('reimbursement_claims')
+    .select('id, status')
+    .eq('id', id)
+    .eq('employee_id', employeeId)
+    .maybeSingle<{ id: string; status: string }>();
+  if (claimError) return { ok: false, error: claimError.message };
+  if (!claim) return { ok: false, error: 'This claim could not be found.' };
+  if (claim.status !== 'pending') {
+    return {
+      ok: false,
+      error: 'Receipts can only be attached while a claim is pending. Edit the claim to resubmit it first.',
+    };
+  }
+
   const up = await uploadFile(
     supabase,
     'reimbursement-receipts',
     employeeId,
     file.name,
     await file.arrayBuffer(),
-    file.type || undefined,
+    fileType.contentType,
   );
   if (!up.ok) return { ok: false, error: up.error ?? 'The receipt could not be uploaded.' };
 
@@ -677,7 +732,7 @@ export async function uploadReimbursementReceipt(id: string, formData: FormData)
     .from('reimbursement_claims')
     .update({ receipt_path: up.path })
     .eq('id', id)
-    .in('status', ['pending', 'rejected'])
+    .eq('status', 'pending')
     .select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {

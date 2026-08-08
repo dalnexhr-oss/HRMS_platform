@@ -70,14 +70,21 @@ export function ReimbursementsScreen({
     .filter((c) => c.status === 'approved')
     .reduce((a, c) => a + c.amount, 0);
 
-  function run(id: string, fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) {
+  function run(
+    id: string,
+    fn: () => Promise<{ ok: boolean; error?: string; warning?: string }>,
+    okMsg: string,
+  ) {
     setBusy(id);
     startTransition(async () => {
       const res = await fn();
       setBusy(null);
       if (!res.ok) toast(res.error ?? 'The action failed.', 'error');
       else {
-        toast(okMsg, 'success');
+        // A warning means the decision stood but payroll needs a human — the
+        // row must still refresh (it DID change status).
+        if (res.warning) toast(res.warning, 'info');
+        else toast(okMsg, 'success');
         router.refresh();
       }
     });
