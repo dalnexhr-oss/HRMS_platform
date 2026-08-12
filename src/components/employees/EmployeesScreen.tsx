@@ -7,6 +7,7 @@ import { AddEmployeeDrawer } from './AddEmployeeDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import { fetchEmployeeForEdit, deactivateEmployee, reactivateEmployee } from '@/lib/actions/employees';
+import { branchColorAt } from '@/lib/constants';
 import type { EmployeeListRow, EmployeeEditRow, BranchRow } from '@/lib/queries';
 
 export function EmployeesScreen({
@@ -34,14 +35,12 @@ export function EmployeesScreen({
   const { confirm, confirmDialog } = useConfirm();
   const { toast, toastNode } = useToast();
 
-  // Same palette-cycling scheme as TodayBoard's split bar, keyed by the branch's
-  // position in the (alphabetical) branches list — so any number of branches gets
-  // a stable colour. Was `branch === 'Pune' ? brand : brass`, which rendered
-  // every branch beyond the second identically.
+  // Same 20-slot palette as TodayBoard's split bar (BRANCH_PALETTE), keyed by
+  // the branch's position in the (alphabetical) branches list — so a branch
+  // wears one stable colour on /today and /employees alike.
   const branchColor = useMemo(() => {
-    const palette = ['var(--brand)', 'var(--brass)', 'var(--od)', 'var(--lv)', 'var(--oh)', 'var(--p)'];
     const map = new Map<string, string>();
-    branches.forEach((b, i) => map.set(b.name, palette[i % palette.length]));
+    branches.forEach((b, i) => map.set(b.name, branchColorAt(i)));
     return (name: string) => map.get(name) ?? 'var(--brass)';
   }, [branches]);
 

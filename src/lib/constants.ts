@@ -37,6 +37,50 @@ export const REGISTER_LEGEND: [AttendanceStatus, string][] = [
 export const DOW = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
 /**
+ * Categorical palette for branch identity — the split bar and legend on /today
+ * and the branch chips on /employees. 20 fixed slots assigned by the branch's
+ * position in the (alphabetical) branch list, so a branch keeps its colour
+ * across both screens.
+ *
+ * The ORDER is deliberate, not cosmetic: it interleaves warm/cool hues so
+ * adjacent slots (which sit next to each other in the split bar) stay apart
+ * under colour-vision deficiency. Validated with the dataviz palette checker
+ * against the white card surface: lightness band, chroma floor and 3:1
+ * contrast all pass; the one warn-band CVD pair (slots 6–7, mint↔red, deutan
+ * ΔE 6.2) is covered by secondary encoding — every legend row carries the
+ * branch name, and the split bar keeps 2px surface gaps between segments.
+ * Slot 1 stays in the Dalnex brand family. Don't re-order casually; re-run the
+ * validator if you do.
+ */
+export const BRANCH_PALETTE = [
+  '#06809C', // 1  teal 
+  '#EB6834', // 2  orange
+  '#2A78D6', // 3  blue
+  '#C98500', // 4  gold
+  '#6B21A8', // 5  purple
+  '#109566', // 6  mint
+  '#D03B3B', // 7  red
+  '#4A3AA7', // 8  indigo
+  '#6B8E23', // 9  olive
+  '#D55181', // 10 pink
+  '#008300', // 11 green
+  '#0277BD', // 12 deep sky
+  '#8C2F39', // 13 maroon
+  '#5C6BC0', // 14 slate blue
+  '#84831C', // 15 lime olive
+  '#C2185B', // 16 magenta
+  '#1F4E9E', // 17 navy
+  '#C75B41', // 18 terracotta
+  '#7E57C2', // 19 lavender
+  '#2E7D52', // 20 forest
+] as const;
+
+/** Colour for the i-th branch (alphabetical index). Wraps past 20 branches. */
+export function branchColorAt(i: number): string {
+  return BRANCH_PALETTE[i % BRANCH_PALETTE.length];
+}
+
+/**
  * Document types offered when an employee files paperwork. Free text in the DB;
  * this just keeps the drop-down tidy.
  *

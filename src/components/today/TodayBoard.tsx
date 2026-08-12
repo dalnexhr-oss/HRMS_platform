@@ -2,6 +2,10 @@ import Link from 'next/link';
 import { Stamp } from '@/components/ui/Stamp';
 import { ExportButton } from '@/components/today/ExportButton';
 import { NightSweepButton } from '@/components/today/NightSweepButton';
+// 20 distinct branch colours (shared with /employees), assigned by list position.
+// Replaces the old 6-var cycle where --brand and --od were near-identical teals,
+// so branches 1 and 3 looked like the same colour repeating.
+import { branchColorAt } from '@/lib/constants';
 import type { ActivityRow, PayrollRunView } from '@/lib/queries';
 import type { Celebration, MarkWatch, PunchLogRow, TodayKpis } from '@/types/domain';
 
@@ -32,10 +36,6 @@ export interface TodayBoardProps {
   /** The period the register/payroll cards describe, e.g. 'June'. */
   periodMonthLabel: string;
 }
-
-// The split bar cycles the palette already defined in globals.css, so any number of
-// branches renders without new CSS. Pune/Vadodara keep their original brand/brass.
-const BRANCH_COLORS = ['var(--brand)', 'var(--brass)', 'var(--od)', 'var(--lv)', 'var(--oh)', 'var(--p)'];
 
 const RUN_STATUS_LABEL: Record<PayrollRunView['status'], string> = {
   draft: 'Draft',
@@ -163,9 +163,10 @@ export function TodayBoard({
                 {branches.map((b, i) => (
                   <i
                     key={b.branch}
+                    title={`${b.branch} · ${b.count}`}
                     style={{
                       width: `${(b.count / branchTotal) * 100}%`,
-                      background: BRANCH_COLORS[i % BRANCH_COLORS.length],
+                      background: branchColorAt(i),
                     }}
                   />
                 ))}
@@ -182,7 +183,7 @@ export function TodayBoard({
                     <span>
                       <span
                         className="dot"
-                        style={{ background: BRANCH_COLORS[i % BRANCH_COLORS.length] }}
+                        style={{ background: branchColorAt(i) }}
                       />
                       {b.branch}
                     </span>

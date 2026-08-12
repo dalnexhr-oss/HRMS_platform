@@ -192,14 +192,17 @@ tbody tr:hover{background:var(--card-2)}
 .kpi .val{font:600 34px/1.05 var(--display);margin-top:6px;color:var(--ink)}
 .kpi .note{margin-top:6px;font-size:12px;color:var(--ink-2)}
 .kpi .val small{font:600 15px var(--sans);color:var(--ink-3)}
-.split{display:flex;height:10px;border-radius:6px;overflow:hidden;margin-top:12px;border:1px solid var(--line)}
-.split i{display:block}
+/* 2px gaps between segments: reads as a segmented meter, and keeps adjacent
+   branch colours apart for colour-vision-deficient readers (the palette's one
+   warn-band pair relies on this + the named legend rows). */
+.split{display:flex;gap:2px;height:10px;border-radius:6px;overflow:hidden;margin-top:12px;border:1px solid var(--line)}
+.split i{display:block;min-width:2px}
 /* Branch legend under the headcount split bar: one row per branch (name left,
    count right), same dashed-row idiom as .watch below. The CARD never grows
    with the roster: the list is hard-capped at ~2 rows (plus a sliver of the
    3rd, which signals there is more) and everything beyond scrolls INSIDE the
-   list. This cap is what lets the KPI band stretch all four cards to one
-   uniform height — the tallest card can no longer run away from the rest. */
+   list. The band is .no-stretch, so the sibling KPI cards are independent of
+   this card's height either way. */
 .branch-list{margin-top:8px;font:500 11.5px var(--mono);color:var(--ink-2);max-height:58px;overflow-y:auto;overscroll-behavior:contain}
 .branch-list .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed var(--line)}
 .branch-list .row:last-child{border-bottom:0}
