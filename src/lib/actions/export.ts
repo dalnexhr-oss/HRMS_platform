@@ -113,14 +113,48 @@ export async function exportAttendanceTemplateXlsx(periodMonth: string): Promise
 /** Roles that may import the register — mirrors IMPORT_ROLES in actions/import. */
 const IMPORT_ROLES: AppRole[] = ['admin', 'hr', 'manager'];
 
+/** 'YYYY-MM' — the same shape /register and /payroll accept in their ?m= param. */
+const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/**
+ * Normalise a caller-supplied period month to 'YYYY-MM-01', or explain why it
+ * cannot be used. Accepts 'YYYY-MM' and 'YYYY-MM-01' alike.
+ *
+ * This value now arrives from a client component, i.e. across the network, so it
+ * is untrusted input to a Server Action — validate rather than interpolate it
+ * straight into a Date. Returns {ok:false} instead of throwing, matching
+ * exportLeaveSalaryXlsx's year check below.
+ */
+function normalisePeriodMonth(
+  input: string,
+): { ok: true; periodMonth: string } | { ok: false; error: string } {
+  const ym = input.slice(0, 7);
+  if (!MONTH_RE.test(ym)) {
+    return { ok: false, error: `“${input}” is not a valid month. Expected YYYY-MM.` };
+  }
+  const year = Number(ym.slice(0, 4));
+  if (year < 2000 || year > 2100) {
+    return { ok: false, error: `${year} is outside the supported range (2000–2100).` };
+  }
+  return { ok: true, periodMonth: `${ym}-01` };
+}
+
 /**
  * A blank register-import template for HR/Admin to fill in and upload.
  *
  * Unlike the other exports this reads NO employee data — the workbook is blank —
  * so it is gated on role via getSession() rather than requireStaff(), and
  * exposes nothing sensitive by design.
+ *
+ * `periodMonth` ('YYYY-MM' or 'YYYY-MM-01') stamps cell B2, which is the ONLY
+ * thing that decides where a later upload lands — parseRegister's readPeriod()
+ * reads it back and commitImport builds every work_date from it. Omitted, it
+ * falls back to the current month, which is what the button did before the
+ * month picker existed.
  */
-export async function exportRegisterImportTemplateXlsx(): Promise<ExportResult> {
+export async function exportRegisterImportTemplateXlsx(
+  periodMonth?: string,
+): Promise<ExportResult> {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
   if (!role || !IMPORT_ROLES.includes(role)) {
@@ -131,12 +165,21 @@ export async function exportRegisterImportTemplateXlsx(): Promise<ExportResult> 
       }`,
     };
   }
+
+  let month: string;
+  if (periodMonth === undefined) {
+    month = currentPeriodMonth();
+  } else {
+    const parsed = normalisePeriodMonth(periodMonth);
+    if (!parsed.ok) return parsed;
+    month = parsed.periodMonth;
+  }
+
   try {
-    const periodMonth = currentPeriodMonth();
-    const bytes = await registerImportTemplateWorkbook(periodMonth);
+    const bytes = await registerImportTemplateWorkbook(month);
     return {
       ok: true,
-      filename: `register-import-template-${periodMonth.slice(0, 7)}.xlsx`,
+      filename: `register-import-template-${month.slice(0, 7)}.xlsx`,
       base64: b64(bytes),
     };
   } catch (e) {

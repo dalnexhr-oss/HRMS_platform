@@ -5,18 +5,16 @@ import { previewImport, commitImport } from '@/lib/actions/import';
 import type { CommitResult, ImportPreview, PreviewResult } from '@/lib/actions/import';
 import { exportRegisterImportTemplateXlsx } from '@/lib/actions/export';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
+import { monthLabelUTC, monthOptionsAround } from '@/lib/format';
 import type { AppRole } from '@/types/database';
 
 /** Staff roles allowed to import — and so to download the blank template.
  *  Mirrors IMPORT_ROLES in actions/import.ts (commitImport). */
 const IMPORT_ROLES: AppRole[] = ['admin', 'hr', 'manager'];
 
-/** '2026-06-01' -> 'June 2026'. */
-function monthLabel(periodMonth: string): string {
-  const d = new Date(`${periodMonth}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return periodMonth;
-  return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-}
+/** How far the "Other month" list reaches: next month down to 12 months back. */
+const MONTHS_BACK = 12;
+const MONTHS_AHEAD = 1;
 
 const AMBER = '#9a6b00';
 const AMBER_LINE = '#e6c877';
@@ -25,14 +23,30 @@ const AMBER_BG = '#fdf6e3';
 export function ImportScreen({
   canImport,
   role,
+  currentMonth,
 }: {
   canImport: boolean;
   role: AppRole | null;
+  /** First day of the current month in IST, resolved on the server. */
+  currentMonth: string;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   // The blank template is data-free, so it is offered to any staff role; the
   // server action re-checks the role before building it.
   const canDownloadTemplate = !!role && IMPORT_ROLES.includes(role);
+
+  // Which month the downloaded template is stamped with (cell B2). Defaults to
+  // the current month — the overwhelmingly common case — with the dropdown there
+  // for back-filling a month that was missed.
+  const [monthMode, setMonthMode] = useState<'current' | 'other'>('current');
+  const monthChoices = monthOptionsAround(currentMonth, MONTHS_BACK, MONTHS_AHEAD);
+  // Pre-select the PREVIOUS month: catching up on a month that has ended is the
+  // reason to reach for this control at all.
+  const [otherMonth, setOtherMonth] = useState(
+    () => monthOptionsAround(currentMonth, 1, 0)[1],
+  );
+  const templateMonth = monthMode === 'current' ? currentMonth : otherMonth;
+
   const [file, setFile] = useState<File | null>(null);
   const [cancelled, setCancelled] = useState(false);
   const [result, setResult] = useState<CommitResult | null>(null);
@@ -111,8 +125,10 @@ export function ImportScreen({
             <span className="folio">.xlsx · from the attendance sheet</span>
             <span style={{ flex: 1 }} />
             {canDownloadTemplate && (
+              // An arrow closure, not .bind — it is recreated on every render, so
+              // the click always sends the month currently selected below.
               <XlsxExportButton
-                action={exportRegisterImportTemplateXlsx}
+                action={() => exportRegisterImportTemplateXlsx(templateMonth)}
                 label="Download template"
                 className="btn"
               />
@@ -120,11 +136,59 @@ export function ImportScreen({
           </div>
           <div className="bd">
             {canDownloadTemplate && (
-              <p className="hint" style={{ marginTop: 0, marginBottom: 14 }}>
-                New to this? <b>Download template</b> gives you a blank register in the exact upload
-                format — the right columns and a status-code legend. Fill it in and upload it back
-                here.
-              </p>
+              <>
+                <fieldset
+                  style={{
+                    border: `1px solid var(--line, ${AMBER_LINE})`,
+                    borderRadius: 8,
+                    padding: '10px 14px 12px',
+                    margin: '0 0 14px',
+                  }}
+                >
+                  <legend className="muted" style={{ fontSize: 12, padding: '0 6px' }}>
+                    Template month
+                  </legend>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 18 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      <input
+                        type="radio"
+                        name="template-month-mode"
+                        value="current"
+                        checked={monthMode === 'current'}
+                        onChange={() => setMonthMode('current')}
+                      />
+                      <span>Current month — {monthLabelUTC(currentMonth)}</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      <input
+                        type="radio"
+                        name="template-month-mode"
+                        value="other"
+                        checked={monthMode === 'other'}
+                        onChange={() => setMonthMode('other')}
+                      />
+                      <span>Other month</span>
+                    </label>
+                    {/* Disabled rather than hidden, so the row does not reflow on toggle. */}
+                    <select
+                      value={otherMonth}
+                      disabled={monthMode !== 'other'}
+                      onChange={(e) => setOtherMonth(e.target.value)}
+                      aria-label="Month to stamp the template with"
+                    >
+                      {monthChoices.map((m) => (
+                        <option key={m} value={m}>
+                          {monthLabelUTC(m)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </fieldset>
+                <p className="hint" style={{ marginTop: 0, marginBottom: 14 }}>
+                  New to this? <b>Download template</b> Gives you a blank register in the exact
+                  upload format. It arrives already stamped with the month you selected above, so you can fill it in and upload it straight away.
+                </p>
+              </>
             )}
             <form
               ref={formRef}
@@ -172,7 +236,7 @@ export function ImportScreen({
         <>
           <div className="card">
             <div className="hd">
-              <h3>{monthLabel(preview.periodMonth)}</h3>
+              <h3>{monthLabelUTC(preview.periodMonth)}</h3>
               <span className="folio">
                 {preview.daysInMonth} days · {preview.matched.length} employee
                 {preview.matched.length === 1 ? '' : 's'} matched · {preview.totalRows} row
@@ -264,7 +328,7 @@ export function ImportScreen({
                       ? `Importing ${preview.totalRows} rows…`
                       : `Import ${preview.matched.length} employee${
                           preview.matched.length === 1 ? '' : 's'
-                        } → ${monthLabel(preview.periodMonth)}`}
+                        } → ${monthLabelUTC(preview.periodMonth)}`}
                   </button>
                 );
               })()}
@@ -286,7 +350,7 @@ export function ImportScreen({
         <div className="card">
           <div className="hd">
             <h3>{result.ok ? 'Import complete' : 'Import failed'}</h3>
-            {preview && <span className="folio">{monthLabel(preview.periodMonth)}</span>}
+            {preview && <span className="folio">{monthLabelUTC(preview.periodMonth)}</span>}
           </div>
           <div className="bd">
             {result.ok ? (

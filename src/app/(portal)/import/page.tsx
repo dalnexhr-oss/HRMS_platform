@@ -1,5 +1,6 @@
 import { ImportScreen } from '@/components/import/ImportScreen';
 import { getSession } from '@/lib/auth';
+import { currentPeriodMonth } from '@/lib/queries';
 import type { AppRole } from '@/types/database';
 
 /**
@@ -17,6 +18,14 @@ export default async function ImportPage() {
   const role = profile?.role ?? null;
 
   return (
-    <ImportScreen canImport={!!role && IMPORT_ROLES.includes(role)} role={role} />
+    <ImportScreen
+      canImport={!!role && IMPORT_ROLES.includes(role)}
+      role={role}
+      // Resolved on the SERVER: currentPeriodMonth() reads the clock in IST, the
+      // business timezone every other monthly view uses. Recomputing it in the
+      // browser would give a user abroad a different "current month" than the
+      // register and payroll pages show.
+      currentMonth={currentPeriodMonth()}
+    />
   );
 }
