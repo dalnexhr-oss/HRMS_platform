@@ -1,10 +1,12 @@
 'use client';
 
-import { useCallback, useState } from 'react';
 import type { PunchLogRow } from '@/types/domain';
-import { statusMeta } from '@/lib/constants';
+import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
+import { exportPunchLogXlsx } from '@/lib/actions/export';
 
 interface ExportButtonProps {
+  /** Only used to disable the button before the server round-trip — the export
+   *  itself re-queries on the server (punchLogWorkbook), like every other export. */
   rows: PunchLogRow[];
   /** The punch log's business date (Asia/Kolkata, 'YYYY-MM-DD'). Passed from the
    *  server so the filename matches the data, not the viewer's local clock. */
@@ -14,87 +16,28 @@ interface ExportButtonProps {
   disabledReason?: string | null;
 }
 
-const HEADERS = ['Emp', 'Name', 'Branch', 'In', 'Out', 'Active', 'Status'] as const;
-
 /**
- * RFC 4180 quoting, plus formula-injection neutralisation.
- *
- * Excel/Sheets execute any cell whose text starts with = + - @ (or a leading
- * tab/CR), so an employee named `=HYPERLINK("http://evil","payslip")` would
- * become a live formula for whoever opens the export. Prefixing a single quote
- * forces literal text. RFC quoting alone does NOT prevent this — a quoted
- * "=cmd" is still evaluated.
- */
-function csvCell(value: string | null): string {
-  let v = value ?? '';
-  if (/^[=+\-@\t\r]/.test(v)) v = `'${v}`;
-  return /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-}
-
-function toCsv(rows: PunchLogRow[]): string {
-  const lines = [HEADERS.join(',')];
-  for (const r of rows) {
-    // statusMeta gives the same label the <Stamp> shows, so the CSV reads like the table.
-    const [label] = statusMeta(r.status);
-    lines.push(
-      [r.code, r.name, r.branch, r.in, r.out, r.active, label].map(csvCell).join(','),
-    );
-  }
-  // CRLF + a UTF-8 BOM keep Excel happy with the ₹/·/— characters elsewhere in the app.
-  return '﻿' + lines.join('\r\n') + '\r\n';
-}
-
-/**
- * Client-side CSV export of the punch log. No server round-trip and no new deps:
- * the rows are already on the page, so we just re-serialise what is rendered.
+ * Punch-log export. Was a client-built CSV; now a branded .xlsx via the same
+ * Server Action + XlsxExportButton path every other export uses, so the file
+ * carries the Dalnex letterhead.
  */
 export function ExportButton({ rows, date, disabledReason = null }: ExportButtonProps) {
-  const [error, setError] = useState<string | null>(null);
   const disabled = disabledReason !== null || rows.length === 0;
   const reason = disabledReason ?? (rows.length === 0 ? 'Nothing to export yet' : null);
 
-  const onExport = useCallback(() => {
-    setError(null);
-    let url: string | null = null;
-    try {
-      const blob = new Blob([toCsv(rows)], { type: 'text/csv;charset=utf-8;' });
-      url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `punch-log-${date}.csv`;
-      a.rel = 'noopener';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Export failed.');
-    } finally {
-      // Revoke on the next tick — revoking synchronously can cancel the download in
-      // some browsers before it has read the blob.
-      if (url) {
-        const toRevoke = url;
-        setTimeout(() => URL.revokeObjectURL(toRevoke), 0);
-      }
-    }
-  }, [rows, date]);
-
-  return (
-    <>
+  if (disabled) {
+    return (
       <button
         type="button"
         className="btn"
-        onClick={onExport}
-        disabled={disabled}
-        title={reason ?? `Download ${rows.length} rows as CSV`}
-        style={disabled ? { opacity: 0.5, cursor: 'default' } : undefined}
+        disabled
+        title={reason ?? undefined}
+        style={{ opacity: 0.5, cursor: 'default' }}
       >
         Export
       </button>
-      {error ? (
-        <span className="muted" style={{ fontSize: 12, color: 'var(--ab)' }}>
-          {error}
-        </span>
-      ) : null}
-    </>
-  );
+    );
+  }
+
+  return <XlsxExportButton action={() => exportPunchLogXlsx(date)} label="Export" />;
 }

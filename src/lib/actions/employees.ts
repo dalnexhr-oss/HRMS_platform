@@ -476,6 +476,8 @@ export async function createEmployee(formData: FormData) {
       subject: mail.subject,
       text: mail.text,
       html: mail.html,
+      // The inline Dalnex logo the HTML references via cid:dalnex-logo.
+      attachments: mail.attachments,
     });
   }
 

@@ -10,8 +10,7 @@
 // ============================================================================
 import { inr } from '@/lib/format';
 import type { PayslipRow } from '@/types/domain';
-
-const COMPANY = 'Dalnex LLP';
+import { COMPANY } from '@/lib/brand/company';
 
 /** 'YYYY-MM-01' -> 'June 2026'; falls back gracefully. */
 function monthLabel(periodMonth: string | null): string {
@@ -41,7 +40,7 @@ function row(label: string, value: string, opts: { total?: boolean; neg?: boolea
   </tr>`;
 }
 
-function payslipHtml(p: PayslipRow): string {
+function payslipHtml(p: PayslipRow, logoUrl: string): string {
   const period = monthLabel(p.periodMonth);
   const ded = totalDeductions(p);
   return `<!doctype html>
@@ -64,12 +63,15 @@ function payslipHtml(p: PayslipRow): string {
   .net { margin-top: 20px; padding: 12px 16px; background: #f3f7f4; border: 1px solid #cfe3d6;
          border-radius: 8px; display: flex; justify-content: space-between; font-size: 16px; font-weight: 700; }
   .foot { margin-top: 26px; font-size: 11px; color: #888; border-top: 1px solid #e5e3dd; padding-top: 10px; }
-  @media print { body { padding: 0; } .noprint { display: none; } }
+  @media print { body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                 .noprint { display: none; } }
 </style></head>
 <body>
   <div class="doc">
     <div class="hd">
       <div>
+        <img src="${esc(logoUrl)}" alt="Dalnex" width="99" height="34"
+          style="display:block;margin-bottom:8px" />
         <h1>Payslip</h1>
         <div class="co">${esc(COMPANY)} · ${esc(period)}</div>
       </div>
@@ -135,7 +137,10 @@ function payslipHtml(p: PayslipRow): string {
 export function printPayslip(p: PayslipRow): boolean {
   const w = window.open('', '_blank', 'width=820,height=1000');
   if (!w) return false;
-  w.document.write(payslipHtml(p));
+  // The popup is about:blank, so a relative /logo.png would not resolve —
+  // hand it an absolute URL. The full-size artwork keeps print output crisp.
+  const logoUrl = new URL('/logo.png', window.location.origin).href;
+  w.document.write(payslipHtml(p, logoUrl));
   w.document.close();
   w.focus();
   return true;

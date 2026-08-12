@@ -20,7 +20,10 @@ import {
   TIME_FORMAT,
   clockToExcelTime,
 } from '@/lib/excel/registerStyle';
-import type { PayslipRow, RegisterEmployee, DayCell } from '@/types/domain';
+import { writeBrandHeader, writeBrandOverlay } from '@/lib/excel/brand';
+// Pure module — same label the Today board's <Stamp> renders.
+import { statusMeta } from '@/lib/constants';
+import type { PayslipRow, PunchLogRow, RegisterEmployee, DayCell } from '@/types/domain';
 // Type-only import: erased at compile time, so this file stays free of the
 // server-only modules queries.ts pulls in.
 import type { ReimbursementView } from '@/lib/queries';
@@ -224,11 +227,13 @@ function writeReferenceSheet(
 }
 
 function writeFlatSummarySheet(
+  wb: ExcelJS.Workbook,
   ws: ExcelJS.Worksheet,
   employees: RegisterEmployee[],
   days: number[],
+  periodMonth: string,
 ): void {
-  const fixed = [
+  const columns = [
     { header: 'Code', key: 'code', width: 10 },
     { header: 'Name', key: 'name', width: 22 },
     { header: 'Branch', key: 'branch', width: 11 },
@@ -241,9 +246,17 @@ function writeFlatSummarySheet(
     { header: 'Payable', key: 'payable', width: 8 },
     { header: 'Worked hrs', key: 'worked', width: 10 },
     { header: 'Target hrs', key: 'target', width: 10 },
+    ...days.map((d) => ({ header: String(d), key: `d${d}`, width: 4 })),
   ];
-  ws.columns = [...fixed, ...days.map((d) => ({ header: String(d), key: `d${d}`, width: 4 }))];
-  styleHeader(ws.getRow(1));
+  // key+width only — a `header` here would land in row 1, over the brand band.
+  ws.columns = columns.map(({ key, width }) => ({ key, width }));
+  const headerRow = writeBrandHeader(wb, ws, {
+    title: `Attendance summary — ${monthTitle(periodMonth)}`,
+  });
+  const hr = ws.getRow(headerRow);
+  hr.values = columns.map((c) => c.header);
+  styleHeader(hr);
+  ws.views = [{ state: 'frozen', ySplit: headerRow }];
 
   for (const e of employees) {
     const byDay = new Map(e.days.map((c) => [c.day, c.status]));
@@ -268,11 +281,12 @@ function writeFlatSummarySheet(
 
 /** Per-employee-per-day punch detail: date, status, in, out, total. */
 export function writeDailyPunchSheet(
+  wb: ExcelJS.Workbook,
   ws: ExcelJS.Worksheet,
   employees: RegisterEmployee[],
   periodMonth: string,
 ): void {
-  ws.columns = [
+  const columns = [
     { header: 'Code', key: 'code', width: 10 },
     { header: 'Name', key: 'name', width: 22 },
     { header: 'Branch', key: 'branch', width: 11 },
@@ -283,7 +297,14 @@ export function writeDailyPunchSheet(
     { header: 'Punch out', key: 'out', width: 10 },
     { header: 'Total hrs', key: 'hours', width: 10 },
   ];
-  styleHeader(ws.getRow(1));
+  ws.columns = columns.map(({ key, width }) => ({ key, width }));
+  const headerRow = writeBrandHeader(wb, ws, {
+    title: `Daily punches — ${monthTitle(periodMonth)}`,
+  });
+  const hr = ws.getRow(headerRow);
+  hr.values = columns.map((c) => c.header);
+  styleHeader(hr);
+  ws.views = [{ state: 'frozen', ySplit: headerRow }];
 
   const ym = periodMonth.slice(0, 7);
   for (const e of employees) {
@@ -304,6 +325,20 @@ export function writeDailyPunchSheet(
 }
 
 /**
+ * Float the logo over the reference sheet WITHOUT moving anything. The layout
+ * is parsed back by parseRegister.ts (B1 year, B2 month, row 4 day numbers,
+ * blocks from row 6), so no row may be inserted and no cell written. A floating
+ * drawing lives in the sheet's drawing part, not sheetData, and row heights are
+ * cosmetic — the parser reads neither.
+ */
+function brandReferenceSheet(wb: ExcelJS.Workbook, ws: ExcelJS.Worksheet): void {
+  ws.getRow(ROW_YEAR).height = 22;
+  ws.getRow(ROW_MONTH).height = 22;
+  // Column C onward, rows 1–2: empty in both the export and the blank template.
+  writeBrandOverlay(wb, ws, { col: COL_FIRST_DAY - 1, row: 0, height: 44 });
+}
+
+/**
  * The register export: the company's own layout first (re-importable), then a
  * flat one-row-per-employee summary, then per-day punch detail.
  */
@@ -315,9 +350,11 @@ export async function registerWorkbook(
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Dalnex HRMS';
 
-  writeReferenceSheet(wb.addWorksheet('Register'), employees, days, periodMonth);
-  writeFlatSummarySheet(wb.addWorksheet('Summary'), employees, days);
-  writeDailyPunchSheet(wb.addWorksheet('Daily punches'), employees, periodMonth);
+  const ref = wb.addWorksheet('Register');
+  writeReferenceSheet(ref, employees, days, periodMonth);
+  brandReferenceSheet(wb, ref);
+  writeFlatSummarySheet(wb, wb.addWorksheet('Summary'), employees, days, periodMonth);
+  writeDailyPunchSheet(wb, wb.addWorksheet('Daily punches'), employees, periodMonth);
 
   return toBytes(wb);
 }
@@ -381,20 +418,27 @@ export async function registerImportTemplateWorkbook(
   const days = daysOfMonth(periodMonth);
   const employees: RegisterEmployee[] = Array.from({ length: blankBlocks }, (_, i) => blankBlock(i));
 
-  writeReferenceSheet(wb.addWorksheet('Register'), employees, days, periodMonth);
-  writeTemplateGuideSheet(wb.addWorksheet('How to fill this in'), periodMonth);
+  const ref = wb.addWorksheet('Register');
+  writeReferenceSheet(ref, employees, days, periodMonth);
+  brandReferenceSheet(wb, ref);
+  writeTemplateGuideSheet(wb, wb.addWorksheet('How to fill this in'), periodMonth);
 
   return toBytes(wb);
 }
 
 /** The instruction + legend sheet that accompanies the blank register. */
-function writeTemplateGuideSheet(ws: ExcelJS.Worksheet, periodMonth: string): void {
+function writeTemplateGuideSheet(
+  wb: ExcelJS.Workbook,
+  ws: ExcelJS.Worksheet,
+  periodMonth: string,
+): void {
   ws.getColumn(1).width = 22;
   ws.getColumn(2).width = 68;
 
-  const title = ws.getCell('A1');
-  title.value = `Monthly register import template — ${monthTitle(periodMonth)}`;
-  title.font = { bold: true, size: 13 };
+  // The old A1 title is folded into the band; addRow then appends from row 4.
+  writeBrandHeader(wb, ws, {
+    title: `Register import template — ${monthTitle(periodMonth)}`,
+  });
 
   const lines: [string, string][] = [
     ['', ''],
@@ -450,27 +494,30 @@ export async function attendanceTemplateWorkbook(
   const title = monthTitle(periodMonth);
 
   // exceljs writes an invalid file with zero worksheets — guard the empty case.
-  if (employees.length === 0) wb.addWorksheet('Attendance');
+  if (employees.length === 0) {
+    writeBrandHeader(wb, wb.addWorksheet('Attendance'), {
+      title: `Monthly attendance · ${title}`,
+    });
+  }
 
   employees.forEach((e, ix) => {
     const ws = wb.addWorksheet(safeSheetName(e.code || e.name, `Employee ${ix + 1}`));
 
-    ws.mergeCells('A1:F1');
-    const heading = ws.getCell('A1');
-    heading.value = `Monthly attendance · ${title}`;
-    heading.font = { bold: true, size: 13 };
+    // Rows 1–3 are the brand band (which carries the old A1 heading); the
+    // employee meta block sits below it at rows 5–6.
+    writeBrandHeader(wb, ws, { title: `Monthly attendance · ${title}` });
 
-    ws.getCell('A2').value = 'Name';
-    ws.getCell('B2').value = safeText(e.name);
-    ws.getCell('D2').value = 'Branch';
-    ws.getCell('E2').value = safeText(e.branch);
-    ws.getCell('A3').value = 'Code';
-    ws.getCell('B3').value = safeText(e.code);
-    ws.getCell('D3').value = 'Month';
-    ws.getCell('E3').value = title;
-    for (const addr of ['A2', 'D2', 'A3', 'D3']) ws.getCell(addr).font = { bold: true };
+    ws.getCell('A5').value = 'Name';
+    ws.getCell('B5').value = safeText(e.name);
+    ws.getCell('D5').value = 'Branch';
+    ws.getCell('E5').value = safeText(e.branch);
+    ws.getCell('A6').value = 'Code';
+    ws.getCell('B6').value = safeText(e.code);
+    ws.getCell('D6').value = 'Month';
+    ws.getCell('E6').value = title;
+    for (const addr of ['A5', 'D5', 'A6', 'D6']) ws.getCell(addr).font = { bold: true };
 
-    const headerRowIx = 5;
+    const headerRowIx = 8;
     const header = ws.getRow(headerRowIx);
     header.values = ['Date', 'Day', 'Status', 'In', 'Out', 'Hours'];
     styleHeader(header);
@@ -526,7 +573,7 @@ export async function reimbursementsWorkbook(
   wb.creator = 'Dalnex HRMS';
   const ws = wb.addWorksheet('Reimbursement claims');
 
-  ws.columns = [
+  const columns = [
     { header: 'Sr. No.', key: 'sr', width: 7 },
     { header: 'Employee', key: 'employee', width: 22 },
     { header: 'Code', key: 'code', width: 9 },
@@ -549,7 +596,12 @@ export async function reimbursementsWorkbook(
     { header: 'Paid on', key: 'paidAt', width: 14 },
     { header: 'Payment ref', key: 'paymentRef', width: 20 },
   ];
-  styleHeader(ws.getRow(1));
+  ws.columns = columns.map(({ key, width }) => ({ key, width }));
+  const headerRow = writeBrandHeader(wb, ws, { title: 'Reimbursement claims' });
+  const hr = ws.getRow(headerRow);
+  hr.values = columns.map((c) => c.header);
+  styleHeader(hr);
+  ws.views = [{ state: 'frozen', ySplit: headerRow }];
 
   /** '2026-07-27T10:20:00Z' -> '2026-07-27'; blank when absent. */
   const day = (iso: string | null | undefined) => (iso ? String(iso).slice(0, 10) : '');
@@ -598,7 +650,7 @@ export async function payrollWorkbook(
   wb.creator = 'Dalnex HRMS';
   const ws = wb.addWorksheet(`Payroll ${monthTitle(periodMonth)}`);
 
-  ws.columns = [
+  const columns = [
     { header: 'Code', key: 'code', width: 10 },
     { header: 'Name', key: 'name', width: 24 },
     { header: 'Branch', key: 'branch', width: 12 },
@@ -616,7 +668,14 @@ export async function payrollWorkbook(
     { header: 'Prof. tax', key: 'professionalTax', width: 10 },
     { header: 'Net payable', key: 'netPayable', width: 13 },
   ];
-  styleHeader(ws.getRow(1));
+  ws.columns = columns.map(({ key, width }) => ({ key, width }));
+  const headerRow = writeBrandHeader(wb, ws, {
+    title: `Payroll — ${monthTitle(periodMonth)}`,
+  });
+  const hr = ws.getRow(headerRow);
+  hr.values = columns.map((c) => c.header);
+  styleHeader(hr);
+  ws.views = [{ state: 'frozen', ySplit: headerRow }];
 
   for (const p of payslips) {
     ws.addRow({
@@ -659,7 +718,7 @@ export async function payrollWorkbook(
 
   // Each day's login/logout alongside the payroll figures, for verification.
   if (register.length > 0) {
-    writeDailyPunchSheet(wb.addWorksheet('Daily punches'), register, periodMonth);
+    writeDailyPunchSheet(wb, wb.addWorksheet('Daily punches'), register, periodMonth);
   }
 
   return toBytes(wb);
@@ -683,7 +742,7 @@ export async function leaveSalaryWorkbook(
   wb.creator = 'Dalnex HRMS';
   const ws = wb.addWorksheet(`Leave salary ${year}`);
 
-  ws.columns = [
+  const columns = [
     { header: 'Code', key: 'code', width: 10 },
     { header: 'Name', key: 'name', width: 24 },
     { header: 'Salary before', key: 'salaryBefore', width: 13 },
@@ -703,7 +762,12 @@ export async function leaveSalaryWorkbook(
     { header: 'Status', key: 'status', width: 10 },
     { header: 'Remarks', key: 'remarks', width: 30 },
   ];
-  styleHeader(ws.getRow(1));
+  ws.columns = columns.map(({ key, width }) => ({ key, width }));
+  const headerRow = writeBrandHeader(wb, ws, { title: `Leave salary — ${year}` });
+  const hr = ws.getRow(headerRow);
+  hr.values = columns.map((c) => c.header);
+  styleHeader(hr);
+  ws.views = [{ state: 'frozen', ySplit: headerRow }];
 
   for (const r of rows) {
     const fig = effectiveFigures(r.working, r.live);
@@ -748,6 +812,53 @@ export async function leaveSalaryWorkbook(
     ws.getColumn(key).numFmt = '#,##0.00';
   }
   for (const key of ['presentP1', 'presentP2']) ws.getColumn(key).numFmt = '#,##0.0';
+
+  return toBytes(wb);
+}
+
+// ---------------------------------------------------------------- punch log ---
+
+/**
+ * The Today board's punch log — same columns the on-screen table (and the old
+ * CSV export) shows, statusMeta giving the same label the <Stamp> renders.
+ */
+export async function punchLogWorkbook(
+  rows: PunchLogRow[],
+  /** The log's business date (Asia/Kolkata, 'YYYY-MM-DD'). */
+  date: string,
+): Promise<Uint8Array> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Dalnex HRMS';
+  const ws = wb.addWorksheet('Punch log');
+
+  const columns = [
+    { header: 'Emp', key: 'code', width: 10 },
+    { header: 'Name', key: 'name', width: 24 },
+    { header: 'Branch', key: 'branch', width: 12 },
+    { header: 'In', key: 'in', width: 10 },
+    { header: 'Out', key: 'out', width: 10 },
+    { header: 'Active', key: 'active', width: 10 },
+    { header: 'Status', key: 'status', width: 14 },
+  ];
+  ws.columns = columns.map(({ key, width }) => ({ key, width }));
+  const headerRow = writeBrandHeader(wb, ws, { title: `Punch log — ${date}` });
+  const hr = ws.getRow(headerRow);
+  hr.values = columns.map((c) => c.header);
+  styleHeader(hr);
+  ws.views = [{ state: 'frozen', ySplit: headerRow }];
+
+  for (const r of rows) {
+    const [label] = statusMeta(r.status);
+    ws.addRow({
+      code: safeText(r.code),
+      name: safeText(r.name),
+      branch: safeText(r.branch),
+      in: r.in ?? '',
+      out: r.out ?? '',
+      active: r.active ?? '',
+      status: label,
+    });
+  }
 
   return toBytes(wb);
 }

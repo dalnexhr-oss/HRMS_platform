@@ -27,8 +27,15 @@ export interface SendEmailInput {
   text: string;
   /** Optional HTML body; falls back to `text` when omitted. */
   html?: string;
-  /** Optional file attachments. */
-  attachments?: { filename: string; content: Uint8Array | Buffer }[];
+  /** Optional file attachments. A `cid` makes the attachment inline-embeddable
+   *  from the HTML body via `<img src="cid:...">` (works in clients that block
+   *  remote images, no public URL needed). */
+  attachments?: {
+    filename: string;
+    content: Uint8Array | Buffer;
+    cid?: string;
+    contentType?: string;
+  }[];
 }
 
 interface SmtpConfig {
@@ -103,6 +110,8 @@ export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
       attachments: input.attachments?.map((a) => ({
         filename: a.filename,
         content: Buffer.from(a.content),
+        cid: a.cid,
+        contentType: a.contentType,
       })),
     });
     return { ok: true, id: info.messageId };

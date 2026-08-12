@@ -30,9 +30,9 @@
 //    back and that carry real legal weight for the firm.
 // ============================================================================
 import type { LetterSpec } from './letters';
-
-/** Legal entity name used across every generated document. */
-const COMPANY = 'Dalnex LLP';
+// Legal entity name used across every generated document.
+import { COMPANY } from '@/lib/brand/company';
+import { logoPngBytes } from '@/lib/brand/logo';
 
 /** Rendered under "For Dalnex LLP" in the signatory block of every letter. */
 const SIGNATORY_NAME = 'Authorised Signatory';
@@ -407,6 +407,9 @@ export interface WelcomeEmail {
   subject: string;
   text: string;
   html: string;
+  /** The inline logo the HTML references via cid: — pass straight to sendEmail().
+   *  A CID attachment renders even in clients that block remote images. */
+  attachments: { filename: string; content: Uint8Array; cid: string; contentType: string }[];
 }
 
 /**
@@ -470,8 +473,8 @@ export function buildWelcomeEmail(input: WelcomeEmailInput): WelcomeEmail {
   const html =
     `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;` +
     `font-size:15px;line-height:1.6;color:#111827;max-width:560px;margin:0 auto;padding:24px">` +
-    `<p style="margin:0 0 8px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;` +
-    `color:#6b7280">${escapeHtml(COMPANY)}</p>` +
+    `<img src="cid:dalnex-logo" width="132" alt="${escapeHtml(COMPANY)}" ` +
+    `style="display:block;border:0;height:auto;margin:0 0 16px" />` +
     `<h1 style="margin:0 0 20px;font-size:22px;font-weight:700">Welcome aboard, ${eName}</h1>` +
     `<p style="margin:0 0 16px">We are glad to have you with us. Your employee record has ` +
     `been created and your first working day is <strong>${eStart}</strong>.</p>` +
@@ -489,5 +492,17 @@ export function buildWelcomeEmail(input: WelcomeEmailInput): WelcomeEmail {
     `${escapeHtml(COMPANY)}</p>` +
     `</div>`;
 
-  return { subject, text, html };
+  return {
+    subject,
+    text,
+    html,
+    attachments: [
+      {
+        filename: 'dalnex-logo.png',
+        content: logoPngBytes(),
+        cid: 'dalnex-logo',
+        contentType: 'image/png',
+      },
+    ],
+  };
 }

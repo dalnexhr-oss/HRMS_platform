@@ -5,13 +5,20 @@
 // server-only) and return the bytes as base64 for the client to download. Both
 // exports carry payroll/attendance data, so they are staff-gated.
 // ============================================================================
-import { getPayslips, getRegister, getReimbursements, currentPeriodMonth } from '@/lib/queries';
+import {
+  getPayslips,
+  getPunchLogToday,
+  getRegister,
+  getReimbursements,
+  currentPeriodMonth,
+} from '@/lib/queries';
 import { getSession } from '@/lib/auth';
 import type { AppRole } from '@/types/database';
 import {
   attendanceTemplateWorkbook,
   leaveSalaryWorkbook,
   payrollWorkbook,
+  punchLogWorkbook,
   registerWorkbook,
   registerImportTemplateWorkbook,
   reimbursementsWorkbook,
@@ -57,6 +64,20 @@ export async function exportPayrollXlsx(periodMonth: string): Promise<ExportResu
     if (payslips.length === 0) return { ok: false, error: 'No payslips to export for this month.' };
     const bytes = await payrollWorkbook(payslips, periodMonth, register);
     return { ok: true, filename: `payroll-${periodMonth.slice(0, 7)}.xlsx`, base64: b64(bytes) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Export failed.' };
+  }
+}
+
+/** Today's punch log as a branded .xlsx — replaces the old client-side CSV. */
+export async function exportPunchLogXlsx(date: string): Promise<ExportResult> {
+  const gate = await requireStaff('Exporting the punch log');
+  if (!gate.ok) return gate;
+  try {
+    const rows = await getPunchLogToday();
+    if (rows.length === 0) return { ok: false, error: 'Nothing to export yet.' };
+    const bytes = await punchLogWorkbook(rows, date);
+    return { ok: true, filename: `punch-log-${date}.xlsx`, base64: b64(bytes) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Export failed.' };
   }

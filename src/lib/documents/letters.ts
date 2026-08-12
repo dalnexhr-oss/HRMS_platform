@@ -12,6 +12,7 @@
 // can grow here without changing callers.
 // ============================================================================
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import { LOGO_ASPECT, logoPngBytes } from '@/lib/brand/logo';
 
 export interface LetterSpec {
   /** Heading, e.g. "Relieving Letter" or "Full & Final Settlement". */
@@ -59,8 +60,10 @@ export async function renderLetterPdf(spec: LetterSpec): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const logo = await doc.embedPng(logoPngBytes());
   const ink = rgb(0.1, 0.1, 0.12);
   const muted = rgb(0.4, 0.4, 0.45);
+  const teal = rgb(0.055, 0.478, 0.561); // --brand #0E7A8F
 
   let page: PDFPage = doc.addPage([A4.width, A4.height]);
   let y = A4.height - MARGIN;
@@ -83,8 +86,18 @@ export async function renderLetterPdf(spec: LetterSpec): Promise<Uint8Array> {
     y -= 8; // paragraph spacing
   };
 
-  // Header
-  drawLine('DALNEX LLP', bold, 16);
+  // Header — the Dalnex logo as letterhead, with a brand-teal rule under it.
+  const logoW = 132;
+  const logoH = logoW / LOGO_ASPECT; // ≈45pt
+  page.drawImage(logo, { x: MARGIN, y: y - logoH, width: logoW, height: logoH });
+  y -= logoH + 14;
+  page.drawLine({
+    start: { x: MARGIN, y },
+    end: { x: A4.width - MARGIN, y },
+    thickness: 1,
+    color: teal,
+  });
+  y -= 22;
   drawLine(spec.title, bold, 13, ink, 6);
   if (spec.reference) drawLine(spec.reference, font, 9, muted, 12);
   y -= 6;
@@ -118,6 +131,19 @@ export async function renderLetterPdf(spec: LetterSpec): Promise<Uint8Array> {
     drawLine(spec.signatoryName, bold, 11, ink, 2);
     if (spec.signatoryTitle) drawLine(spec.signatoryTitle, font, 9, muted, 2);
   }
+
+  // Footer on every page — a multi-page F&F would otherwise have bare pages.
+  const pages = doc.getPages();
+  pages.forEach((p, ix) => {
+    const label = `Dalnex LLP · Computer-generated document · Page ${ix + 1} of ${pages.length}`;
+    p.drawText(label, {
+      x: (A4.width - font.widthOfTextAtSize(label, 8)) / 2,
+      y: MARGIN / 2,
+      size: 8,
+      font,
+      color: muted,
+    });
+  });
 
   return doc.save();
 }
