@@ -97,6 +97,7 @@ export function RegisterGrid({
   // --- bulk correction: select many cells, apply one status + reason at once ---
   const [bulkMode, setBulkMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [applying, startApply] = useTransition();
   const { confirm, confirmDialog } = useConfirm();
   const { toast, toastNode } = useToast();
 
@@ -145,6 +146,7 @@ export function RegisterGrid({
         <BulkBar
           bulkMode={bulkMode}
           count={selected.size}
+          pending={applying}
           onEnter={() => setBulkMode(true)}
           onExit={exitBulk}
           onClear={() => setSelected(new Set())}
@@ -153,6 +155,13 @@ export function RegisterGrid({
               const i = k.indexOf('|');
               return { employeeId: k.slice(0, i), workDate: k.slice(i + 1) };
             });
+            // The confirm MUST stay outside the transition. This whole handler
+            // used to run inside BulkBar's startTransition, which deadlocked the
+            // button: confirm() shows its dialog via a state update, React defers
+            // state updates made inside a pending async transition until the
+            // action finishes — and the action was awaiting the dialog. Result:
+            // no dialog, "Applying…" forever. Same split as SettingsScreen's
+            // remove(): dialog first, then only the server call in a transition.
             const ok = await confirm({
               title: 'Apply bulk correction',
               message: `Set ${targets.length} day(s) to “${status}”? Each is stamped as a correction against your name and written to the audit log.`,
@@ -160,14 +169,16 @@ export function RegisterGrid({
               danger: true,
             });
             if (!ok) return;
-            const res = await correctAttendanceBulk({ targets, status, reason });
-            if (!res.ok) toast(res.error ?? 'The bulk correction failed.', 'error');
-            else {
-              if (res.warning) toast(res.warning, 'info');
-              else toast(`Corrected ${targets.length} day(s).`, 'success');
-              exitBulk();
-              router.refresh();
-            }
+            startApply(async () => {
+              const res = await correctAttendanceBulk({ targets, status, reason });
+              if (!res.ok) toast(res.error ?? 'The bulk correction failed.', 'error');
+              else {
+                if (res.warning) toast(res.warning, 'info');
+                else toast(`Corrected ${targets.length} day(s).`, 'success');
+                exitBulk();
+                router.refresh();
+              }
+            });
           }}
         />
       )}
@@ -569,6 +580,7 @@ function CompOffPanel({ target }: { target: Target }) {
 function BulkBar({
   bulkMode,
   count,
+  pending,
   onEnter,
   onExit,
   onClear,
@@ -576,14 +588,18 @@ function BulkBar({
 }: {
   bulkMode: boolean;
   count: number;
+  /** True while the parent's apply transition is in flight. The transition lives
+   *  in RegisterGrid, NOT here — wrapping onApply in a transition from this side
+   *  would put the confirm dialog's state update inside it and deadlock the
+   *  whole flow (see the onApply call site). */
+  pending: boolean;
   onEnter: () => void;
   onExit: () => void;
   onClear: () => void;
-  onApply: (status: string, reason: string) => Promise<void>;
+  onApply: (status: string, reason: string) => void;
 }) {
   const [status, setStatus] = useState('L');
   const [reason, setReason] = useState('');
-  const [pending, startTransition] = useTransition();
 
   if (!bulkMode) {
     return (
@@ -631,7 +647,7 @@ function BulkBar({
         className="btn primary"
         disabled={!canApply}
         title={count === 0 ? 'Select at least one cell' : !reason.trim() ? 'Enter a reason' : undefined}
-        onClick={() => startTransition(async () => onApply(status, reason.trim()))}
+        onClick={() => onApply(status, reason.trim())}
       >
         {pending ? 'Applying…' : `Apply to ${count}`}
       </button>

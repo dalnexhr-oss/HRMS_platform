@@ -53,18 +53,18 @@ export const DOW = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
  * validator if you do.
  */
 export const BRANCH_PALETTE = [
-  '#06809C', // 1  teal 
-  '#EB6834', // 2  orange
-  '#2A78D6', // 3  blue
-  '#C98500', // 4  gold
-  '#6B21A8', // 5  purple
+  '#2A78D6', // 1  blue
+  '#06809C', // 2  teal 
+  '#EB6834', // 3  orange
+  '#0277BD', // 4 deep sky
+  '#C98500', // 5  gold
   '#109566', // 6  mint
   '#D03B3B', // 7  red
   '#4A3AA7', // 8  indigo
-  '#6B8E23', // 9  olive
-  '#D55181', // 10 pink
-  '#008300', // 11 green
-  '#0277BD', // 12 deep sky
+  '#6B21A8', // 9  purple
+  '#6B8E23', // 10  olive
+  '#D55181', // 11 pink
+  '#008300', // 12 green
   '#8C2F39', // 13 maroon
   '#5C6BC0', // 14 slate blue
   '#84831C', // 15 lime olive
