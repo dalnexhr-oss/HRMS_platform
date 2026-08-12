@@ -121,7 +121,9 @@ export function TodayBoard({
 
   return (
     <div className="wrap grid">
-      {/* KPIs */}
+      {/* KPIs. The band relies on the grid's default stretch for uniform card
+          heights — safe because the branch card is hard-capped (.branch-list
+          max-height), so no roster size can inflate the row. */}
       <div className="kpis">
         <div className="card kpi">
           <div className="lab">Present today</div>
@@ -168,15 +170,24 @@ export function TodayBoard({
                   />
                 ))}
               </div>
-              <div className="legend-line">
+              {/* Stacked, not inline: branch names side by side stop fitting past
+                  ~4 branches, and branches are user-creatable so that is a real
+                  case. One row per branch. The list shows ~2 rows and scrolls
+                  for the rest (.branch-list max-height), so this card — and with
+                  it the whole equal-height KPI band — stays the same size no
+                  matter how many branches exist. */}
+              <div className="branch-list">
                 {branches.map((b, i) => (
-                  <span key={b.branch}>
-                    <span
-                      className="dot"
-                      style={{ background: BRANCH_COLORS[i % BRANCH_COLORS.length] }}
-                    />
-                    {b.branch} {b.count}
-                  </span>
+                  <div className="row" key={b.branch}>
+                    <span>
+                      <span
+                        className="dot"
+                        style={{ background: BRANCH_COLORS[i % BRANCH_COLORS.length] }}
+                      />
+                      {b.branch}
+                    </span>
+                    <span>{b.count}</span>
+                  </div>
                 ))}
               </div>
             </>
