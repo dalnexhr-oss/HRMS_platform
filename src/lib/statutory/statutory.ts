@@ -7,6 +7,7 @@
 import ExcelJS from 'exceljs';
 import { createClient } from '@/lib/supabase/server';
 import { monthTitle } from '@/lib/excel/buildWorkbook';
+import { writeBrandHeader } from '@/lib/excel/brand';
 
 export interface StatutoryRow {
   code: string;
@@ -158,7 +159,7 @@ export async function buildEsicXlsx(rows: StatutoryRow[], periodMonth: string): 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Dalnex HRMS';
   const ws = wb.addWorksheet(`ESIC ${monthTitle(periodMonth)}`);
-  ws.columns = [
+  const columns = [
     { header: 'IP Number', key: 'ip', width: 16 },
     { header: 'IP Name', key: 'name', width: 24 },
     { header: 'No. of Days', key: 'days', width: 12 },
@@ -166,7 +167,15 @@ export async function buildEsicXlsx(rows: StatutoryRow[], periodMonth: string): 
     { header: 'IP Contribution (0.75%)', key: 'ipc', width: 20 },
     { header: 'Employer Contribution (3.25%)', key: 'erc', width: 24 },
   ];
-  header(ws.getRow(1));
+  // key+width only — a `header` here would land in row 1, over the brand band.
+  ws.columns = columns.map(({ key, width }) => ({ key, width }));
+  const headerRow = writeBrandHeader(wb, ws, {
+    title: `ESIC contribution — ${monthTitle(periodMonth)}`,
+  });
+  const hr = ws.getRow(headerRow);
+  hr.values = columns.map((c) => c.header);
+  header(hr);
+  ws.views = [{ state: 'frozen', ySplit: headerRow }];
   for (const r of rows) {
     if (r.esicEmployee <= 0) continue;
     ws.addRow({
@@ -189,13 +198,21 @@ export async function buildPtXlsx(rows: StatutoryRow[], periodMonth: string): Pr
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Dalnex HRMS';
   const ws = wb.addWorksheet(`PT ${monthTitle(periodMonth)}`);
-  ws.columns = [
+  const columns = [
     { header: 'State', key: 'state', width: 14 },
     { header: 'Code', key: 'code', width: 10 },
     { header: 'Name', key: 'name', width: 24 },
     { header: 'Professional Tax', key: 'pt', width: 16 },
   ];
-  header(ws.getRow(1));
+  // key+width only — a `header` here would land in row 1, over the brand band.
+  ws.columns = columns.map(({ key, width }) => ({ key, width }));
+  const headerRow = writeBrandHeader(wb, ws, {
+    title: `Professional tax — ${monthTitle(periodMonth)}`,
+  });
+  const hr = ws.getRow(headerRow);
+  hr.values = columns.map((c) => c.header);
+  header(hr);
+  ws.views = [{ state: 'frozen', ySplit: headerRow }];
 
   const byState = new Map<string, StatutoryRow[]>();
   for (const r of rows) {
