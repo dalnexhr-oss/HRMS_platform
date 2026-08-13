@@ -64,6 +64,8 @@ export interface PayslipRow {
   /** ± carry-over: positive is an addition, negative a deduction. */
   lastMonthBalance: number;
   reimbursementBonus: number;
+  /** Dedicated bonus payout (0042) — separate from reimbursement. */
+  bonus: number;
 }
 
 export interface TodayKpis {

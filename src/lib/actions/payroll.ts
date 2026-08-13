@@ -204,6 +204,7 @@ export async function markRunPaid(runId: string): Promise<{ ok: boolean; error?:
 
 const MONEY_FIELDS = [
   'advance_recovery',
+  'bonus',
   'loss_damage',
   'other_deductions',
   'last_month_balance',
@@ -214,10 +215,11 @@ type MoneyField = (typeof MONEY_FIELDS)[number];
 
 const MONEY_LABEL: Record<MoneyField, string> = {
   advance_recovery: 'Advance recovery',
+  bonus: 'Bonus',
   loss_damage: 'Late marks / Loss & damage',
   other_deductions: 'Other deductions',
   last_month_balance: 'Last month balance',
-  reimbursement_bonus: 'Reimbursement / bonus',
+  reimbursement_bonus: 'Reimbursement',
 };
 
 /**
@@ -325,11 +327,11 @@ export async function saveAdjustments(
       { onConflict: 'id' },
     );
     if (upsertError) {
-      // PGRST204/42703 = other_deductions doesn't exist yet (0041 pending).
+      // PGRST204/42703 = an adjustments column is missing (0041/0042 pending).
       if (upsertError.code === 'PGRST204' || upsertError.code === '42703') {
         return {
           ok: false,
-          error: `${context}: the database is missing the other_deductions column — apply migration 0041_payslip_compoff_leave.sql.`,
+          error: `${context}: the database is missing an adjustments column — apply migrations 0041 and 0042.`,
         };
       }
       return { ok: false, error: `${context}: ${pgMessage(upsertError)}` };

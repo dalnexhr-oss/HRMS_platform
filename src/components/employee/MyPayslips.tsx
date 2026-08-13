@@ -144,8 +144,9 @@ function PayslipBreakdown({ p }: { p: PayslipRow }) {
                 value={(p.lastMonthBalance > 0 ? '+' : '-') + inr(Math.abs(p.lastMonthBalance))}
               />
             )}
+            {p.bonus !== 0 && <Kv label="Bonus" value={'+' + inr(p.bonus)} />}
             {p.reimbursementBonus !== 0 && (
-              <Kv label="Reimbursement / bonus" value={'+' + inr(p.reimbursementBonus)} />
+              <Kv label="Reimbursement" value={'+' + inr(p.reimbursementBonus)} />
             )}
             <Kv label="Total deductions" value={totalDeductions(p) ? '-' + inr(totalDeductions(p)) : '—'} />
             <Kv label="Net payable" value={inr(p.netPayable)} total />

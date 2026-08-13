@@ -101,6 +101,7 @@ async function loadAdjustmentWindow(
 interface AdjustmentRow {
   id: string;
   advance_recovery: number | string | null;
+  bonus?: number | string | null;
   loss_damage: number | string | null;
   other_deductions?: number | string | null;
   last_month_balance: number | string | null;
@@ -122,32 +123,26 @@ async function loadAdjustments(payslipIds: string[]): Promise<Record<string, Pay
   if (!isSupabaseConfigured() || payslipIds.length === 0) return {};
 
   const supabase = await createClient();
-  let res = await supabase
+  // `*` on purpose: other_deductions (0041) and bonus (0042) may not exist yet
+  // on this database, and naming them would 42703 the whole page. Missing
+  // columns simply read as 0 below.
+  const { data, error } = await supabase
     .from('payslip_adjustments')
-    .select(
-      'id, advance_recovery, loss_damage, other_deductions, last_month_balance, reimbursement_bonus, remarks',
-    )
+    .select('*')
     .in('id', payslipIds);
-  // other_deductions arrives with migration 0041 — retry without it so the page
-  // stays usable (the field just reads 0) until the migration is applied.
-  if (res.error?.code === '42703') {
-    res = (await supabase
-      .from('payslip_adjustments')
-      .select('id, advance_recovery, loss_damage, last_month_balance, reimbursement_bonus, remarks')
-      .in('id', payslipIds)) as typeof res;
-  }
 
-  if (res.error) {
+  if (error) {
     throw new Error(
-      `PayrollPage: could not load payslip adjustments: ${res.error.message}` +
-        (res.error.code ? ` (${res.error.code})` : ''),
+      `PayrollPage: could not load payslip adjustments: ${error.message}` +
+        (error.code ? ` (${error.code})` : ''),
     );
   }
 
   const map: Record<string, PayslipAdjustments> = {};
-  for (const row of (res.data ?? []) as AdjustmentRow[]) {
+  for (const row of (data ?? []) as AdjustmentRow[]) {
     map[row.id] = {
       advanceRecovery: Number(row.advance_recovery ?? 0),
+      bonus: Number(row.bonus ?? 0),
       lossDamage: Number(row.loss_damage ?? 0),
       otherDeductions: Number(row.other_deductions ?? 0),
       lastMonthBalance: Number(row.last_month_balance ?? 0),

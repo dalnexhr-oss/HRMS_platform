@@ -131,14 +131,14 @@ export function AssignAssetDrawer({
               <form action={formAction} style={{ display: 'contents' }}>
                 <input type="hidden" name="asset_id" value={asset.id} />
                 <div className="f">
-                  <label>Assign to</label>
+                  <label>Employee name</label>
                   <select name="employee_id" defaultValue="">
                     <option value="" disabled>
                       Select an employee…
                     </option>
                     {employees.map((e) => (
                       <option key={e.id} value={e.id}>
-                        {e.code} — {e.name}
+                        {e.name} ({e.code})
                       </option>
                     ))}
                   </select>

@@ -45,6 +45,19 @@ function statusPillStyle(status: RequestView['status']): React.CSSProperties {
   return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
 }
 
+/** ISO timestamp -> '12 Aug 2026'; null-safe. */
+function stampDate(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'Asia/Kolkata',
+  });
+}
+
 /** '2026-07-16' -> '16 Jul'; collapses a same-day range. */
 function dateRange(startIso: string, endIso: string): string {
   const fmt = (iso: string) =>
@@ -72,7 +85,8 @@ export function ApplyLeave({
     <div className="two-col" id={id}>
       <div className="card">
         <div className="hd">
-          <h3>Apply for leave or duty</h3>
+          <h3>Leave management</h3>
+          <span className="folio">apply for leave or duty</span>
         </div>
         <div className="bd">
           {balances.length > 0 && (
@@ -121,13 +135,16 @@ export function ApplyLeave({
 
       <div className="card">
         <div className="hd">
-          <h3>My requests</h3>
-          <span className="folio">{requests.length} total</span>
+          <h3>Request history &amp; status</h3>
+          <span className="folio">
+            {requests.filter((r) => r.status === 'pending').length} pending · {requests.length} total
+          </span>
         </div>
         <div className="bd">
           {requests.length === 0 ? (
             <p className="muted" style={{ fontSize: 13 }}>
-              No requests yet — apply on the left.
+              No requests yet — apply on the left. Every request you submit stays listed here with
+              its current status, from submission through approval or rejection.
             </p>
           ) : (
             requests.map((r) => <RequestItem key={r.id} request={r} />)
@@ -172,6 +189,16 @@ function RequestItem({ request }: { request: RequestView }) {
           </button>
         )}
       </div>
+      <p className="muted" style={{ fontSize: 11, margin: '2px 0 0' }}>
+        Submitted {stampDate(request.createdAt) ?? '—'}
+        {request.status === 'pending'
+          ? ' · awaiting review'
+          : request.reviewedAt
+            ? ` · ${STATUS_LABEL[request.status].toLowerCase()} ${stampDate(request.reviewedAt)}`
+            : request.status === 'cancelled'
+              ? ' · withdrawn by you'
+              : ''}
+      </p>
       {request.reason && <p className="body">{request.reason}</p>}
       {request.reviewRemark && (request.status === 'approved' || request.status === 'rejected') && (
         <p className="body" style={{ color: request.status === 'rejected' ? 'var(--hd)' : 'var(--p)' }}>

@@ -168,6 +168,7 @@ function mapPayslip(p: any): PayslipRow {
     otherDeductions: Number(adj?.other_deductions ?? 0),
     lastMonthBalance: Number(adj?.last_month_balance ?? 0),
     reimbursementBonus: Number(adj?.reimbursement_bonus ?? 0),
+    bonus: Number(adj?.bonus ?? 0),
   };
 }
 
@@ -2285,6 +2286,8 @@ export interface NoticeView {
   published: boolean;
   publishedAt: string | null;
   createdAt: string;
+  /** Storage path of the attached PDF (notice-attachments bucket), if any. */
+  pdfPath: string | null;
 }
 
 /** Notices, newest first. */
@@ -2292,7 +2295,7 @@ export async function getNotices(): Promise<NoticeView[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('notices')
-    .select('id, title, body, channel, published_at, created_at, branches(name)')
+    .select('id, title, body, channel, pdf_url, published_at, created_at, branches(name)')
     .order('created_at', { ascending: false });
   if (error) fail('getNotices: could not load notices', error);
   return (data ?? []).map((n: any) => ({
@@ -2304,6 +2307,7 @@ export async function getNotices(): Promise<NoticeView[]> {
     published: n.published_at != null,
     publishedAt: n.published_at,
     createdAt: n.created_at,
+    pdfPath: n.pdf_url ?? null,
   }));
 }
 
@@ -2578,6 +2582,10 @@ export interface RequestView {
   balanceAfter: number | null;
   /** The approver's reason for the decision (0041), shown to the employee. */
   reviewRemark: string | null;
+  /** When the request was submitted (ISO timestamp). */
+  createdAt: string;
+  /** When it was decided; null while pending/cancelled-unreviewed. */
+  reviewedAt: string | null;
 }
 
 function mapRequest(r: any): RequestView {
@@ -2595,14 +2603,16 @@ function mapRequest(r: any): RequestView {
     status: r.status,
     balanceAfter: r.balance_after != null ? Number(r.balance_after) : null,
     reviewRemark: r.review_remark ?? null,
+    createdAt: r.created_at ?? '',
+    reviewedAt: r.reviewed_at ?? null,
   };
 }
 
 // review_remark arrives with 0041 — every request select retries without it.
 const REQUEST_FIELDS = `id, type, leave_kind, start_date, end_date, days, reason, status,
-  balance_after, review_remark, created_at, employees(code, full_name, branches(name))`;
+  balance_after, review_remark, created_at, reviewed_at, employees(code, full_name, branches(name))`;
 const REQUEST_FIELDS_LEGACY = `id, type, leave_kind, start_date, end_date, days, reason, status,
-  balance_after, created_at, employees(code, full_name, branches(name))`;
+  balance_after, created_at, reviewed_at, employees(code, full_name, branches(name))`;
 
 /** Leave / duty requests, pending first then reviewed. */
 export async function getRequests(): Promise<RequestView[]> {

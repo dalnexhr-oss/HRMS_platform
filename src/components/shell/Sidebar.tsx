@@ -39,6 +39,15 @@ const EXTRA_ICONS: Record<string, React.ReactNode> = {
       <path d="M15 9l3 3-3 3" />
     </svg>
   ),
+  // Two people over a dashboard line — the HR overview.
+  hr: (
+    <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <circle cx="9" cy="7" r="3" />
+      <path d="M3 19a6 6 0 0112 0" />
+      <path d="M16.5 4.5a3 3 0 010 5.5" />
+      <path d="M17 13.5a6 6 0 014 5.5" />
+    </svg>
+  ),
   // Hourglass — entitlement running down.
   leave: (
     <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>

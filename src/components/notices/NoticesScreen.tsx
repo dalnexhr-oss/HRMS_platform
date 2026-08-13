@@ -2,6 +2,7 @@
 
 import { useActionState, useState, useTransition } from 'react';
 import { createNotice, updateNotice, deleteNotice, setNoticePublished } from '@/lib/actions/notices';
+import { openNoticePdf } from '@/components/notices/open-pdf';
 import { formatDate } from '@/lib/format';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast, type ToastKind } from '@/components/ui/Toast';
@@ -113,6 +114,15 @@ function NoticeItem({
             Draft
           </span>
         )}
+        {notice.pdfPath && (
+          <button
+            className="btn quiet"
+            onClick={() => openNoticePdf(notice.id, (m) => toast(m, 'error'))}
+            title="Open the attached PDF"
+          >
+            📎 PDF
+          </button>
+        )}
         <button className="btn quiet" onClick={onEdit} disabled={pending}>
           Edit
         </button>
@@ -194,6 +204,15 @@ function NoticeForm({
             ))}
           </select>
         </div>
+      </div>
+      <div className="f">
+        <label>PDF attachment {editing?.pdfPath ? '(choosing a file replaces the current one)' : '(optional)'}</label>
+        <input type="file" name="pdf" accept=".pdf,application/pdf" />
+        {editing?.pdfPath && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginTop: 6 }}>
+            <input type="checkbox" name="remove_pdf" /> Remove the current PDF
+          </label>
+        )}
       </div>
       {!editing && (
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 14 }}>

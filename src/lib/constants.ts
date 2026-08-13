@@ -217,6 +217,7 @@ export const NAV: NavItem[] = [
   { slug: 'onboarding', label: 'Onboarding', group: GROUPS.WORKFORCE },
   { slug: 'exits', label: 'Exits', group: GROUPS.WORKFORCE },
 
+  { slug: 'leaves', label: 'Leave Management', group: GROUPS.HR },
   { slug: 'leave', label: 'Leave salary', group: GROUPS.HR },
   { slug: 'payroll', label: 'Payroll', group: GROUPS.HR },
   { slug: 'reimbursements', label: 'Reimbursements', group: GROUPS.HR },
@@ -246,6 +247,7 @@ export const NAV_ROLE_GATED: Record<string, readonly string[]> = {
   audit: ['admin', 'hr', 'manager'],
   onboarding: ['admin', 'hr'],
   exits: ['admin', 'hr'],
+  hr: ['admin', 'hr'],
   leave: ['admin', 'hr'],
   assets: ['admin', 'hr'],
   items: ['admin', 'hr'],
@@ -267,6 +269,7 @@ export const TITLES: Record<string, [string, string]> = {
   today: ['Today', 'Live attendance · IST'],
   register: ['Monthly register', 'Attendance by month'],
   audit: ['Attendance audit', 'Who edited attendance & why'],
+  hr: ['Leave Management', 'Manage employee leave requests'],
   leave: ['Leave salary', '15-day paid leave & annual payout'],
   exits: ['Exits', 'Clearance, settlement & documents'],
   onboarding: ['Onboarding', 'Joiner checklists by owner'],

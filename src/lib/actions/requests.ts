@@ -91,11 +91,12 @@ async function getSandwichPolicy(): Promise<boolean> {
   }
 }
 
-/** Revalidate both surfaces a request appears on: the employee's own dashboard
- *  and the staff approvals queue. */
+/** Revalidate every surface a request appears on: the employee's own dashboard,
+ *  the staff approvals queue, and the HR dashboard's leave history. */
 function revalidateRequestViews(): void {
   revalidatePath('/me');
   revalidatePath('/approvals');
+  revalidatePath('/leaves');
 }
 
 /** Every 'YYYY-MM-DD' in an inclusive span (small spans only — capped upstream). */

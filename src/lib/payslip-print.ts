@@ -34,9 +34,9 @@ function totalDeductions(p: PayslipRow): number {
   );
 }
 
-/** Additions on top of earned gross: bonus and a positive carry-over. */
+/** Additions on top of earned gross: bonus, reimbursement, positive carry-over. */
 function totalAdditions(p: PayslipRow): number {
-  return p.reimbursementBonus + Math.max(0, p.lastMonthBalance);
+  return p.bonus + p.reimbursementBonus + Math.max(0, p.lastMonthBalance);
 }
 
 /** Escape user-supplied text before injecting into the print document. */
@@ -115,7 +115,8 @@ function payslipHtml(p: PayslipRow, logoUrl: string): string {
           ${row('HRA (earned)', inr(p.hraEarned))}
           ${row('Special allowance (earned)', inr(p.specialEarned))}
           ${row('Earned gross', inr(p.earnedGross), { total: true })}
-          ${add ? row('Reimbursement / bonus', p.reimbursementBonus ? '+' + inr(p.reimbursementBonus) : '—') : ''}
+          ${add ? row('Bonus', p.bonus ? '+' + inr(p.bonus) : '—') : ''}
+          ${add ? row('Reimbursement', p.reimbursementBonus ? '+' + inr(p.reimbursementBonus) : '—') : ''}
           ${add && lmbAdd ? row('Last month balance (b/f)', '+' + inr(lmbAdd)) : ''}
           ${add ? row('Total earnings', inr(p.earnedGross + add), { total: true }) : ''}
         </table>
@@ -124,10 +125,10 @@ function payslipHtml(p: PayslipRow, logoUrl: string): string {
         <h2>Deductions</h2>
         <table>
           ${row(`Hours shortfall (${p.shortfallMinutes} min)`, p.shortfallAmount ? '-' + inr(p.shortfallAmount) : '—', { neg: !!p.shortfallAmount })}
-          ${row('PF · 12% of Basic+DA', p.pfEmployee ? '-' + inr(p.pfEmployee) : '—', { neg: !!p.pfEmployee })}
-          ${row(`ESIC · 0.75%${p.esicEmployee ? '' : ' (above ₹21k cap)'}`, p.esicEmployee ? '-' + inr(p.esicEmployee) : '—', { neg: !!p.esicEmployee })}
-          ${row(`Professional tax · ${p.state}`, p.professionalTax ? '-' + inr(p.professionalTax) : '—', { neg: !!p.professionalTax })}
-          ${row('Advance recovery', p.advanceRecovery ? '-' + inr(p.advanceRecovery) : '—', { neg: !!p.advanceRecovery })}
+          ${row('PF ', p.pfEmployee ? '-' + inr(p.pfEmployee) : '—', { neg: !!p.pfEmployee })}
+          ${row(`ESIC `, p.esicEmployee ? '-' + inr(p.esicEmployee) : '—', { neg: !!p.esicEmployee })}
+          ${row(`Professional tax `, p.professionalTax ? '-' + inr(p.professionalTax) : '—', { neg: !!p.professionalTax })}
+          ${row('Advance', p.advanceRecovery ? '-' + inr(p.advanceRecovery) : '—', { neg: !!p.advanceRecovery })}
           ${row('Other deductions', p.otherDeductions ? '-' + inr(p.otherDeductions) : '—', { neg: !!p.otherDeductions })}
           ${row('Late marks / Loss & damage', p.lossDamage ? '-' + inr(p.lossDamage) : '—', { neg: !!p.lossDamage })}
           ${lmbDed ? row('Last month balance (recovered)', '-' + inr(lmbDed), { neg: true }) : ''}
@@ -143,13 +144,12 @@ function payslipHtml(p: PayslipRow, logoUrl: string): string {
 
     <h2>Employer contributions (not deducted from pay)</h2>
     <table>
-      ${row('PF · 12%', p.pfEmployer ? inr(p.pfEmployer) : '—')}
-      ${row('ESIC · 3.25%', p.esicEmployer ? inr(p.esicEmployer) : '—')}
+      ${row('PF ', p.pfEmployer ? inr(p.pfEmployer) : '—')}
+      ${row('ESIC ', p.esicEmployer ? inr(p.esicEmployer) : '—')}
     </table>
 
     <div class="foot">
-      Computer-generated payslip — no signature required. Statutory deductions follow PF (12% of
-      earned Basic+DA), ESIC (0.75% below the ₹21,000 gross cap) and Professional Tax by branch state.
+      Computer-generated payslip — no signature required.
     </div>
   </div>
 </body></html>`;

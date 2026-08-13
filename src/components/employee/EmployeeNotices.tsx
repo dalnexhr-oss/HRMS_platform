@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { formatDate } from '@/lib/format';
 import { markNoticeRead } from '@/lib/actions/notices';
+import { openNoticePdf } from '@/components/notices/open-pdf';
 import type { NoticeView } from '@/lib/queries';
 
 // Read-only company notices for the employee dashboard. Full title + body, the
@@ -74,6 +75,16 @@ function NoticeItem({
           <span className="ver">{formatDate(notice.publishedAt.slice(0, 10))}</span>
         )}
         <span style={{ flex: 1 }} />
+        {notice.pdfPath && (
+          <button
+            type="button"
+            className="btn quiet"
+            onClick={() => openNoticePdf(notice.id, setError)}
+            title="Open the attached PDF"
+          >
+            📎 View PDF
+          </button>
+        )}
         {read ? (
           <span className="ack">✓ Read</span>
         ) : (

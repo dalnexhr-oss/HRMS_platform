@@ -19,7 +19,8 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 export type StorageBucket =
   | 'employee-documents'
   | 'reimbursement-receipts'
-  | 'generated-documents';
+  | 'generated-documents'
+  | 'notice-attachments';
 
 /** Strip path separators and odd characters from a user-supplied filename. */
 function safeName(filename: string): string {
@@ -99,6 +100,28 @@ export async function uploadFile(
   contentType?: string,
 ): Promise<UploadResult> {
   const path = objectPath(employeeId, filename);
+  const { error } = await supabase.storage.from(bucket).upload(path, body, {
+    contentType,
+    upsert: false,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, path };
+}
+
+/**
+ * Upload under a fixed shared folder rather than an employee's own — used for
+ * company-wide files (notice attachments), where the bucket's RLS is
+ * staff-write / everyone-read instead of folder-scoped.
+ */
+export async function uploadSharedFile(
+  supabase: SupabaseServerClient,
+  bucket: StorageBucket,
+  folder: string,
+  filename: string,
+  body: ArrayBuffer | Uint8Array | Blob,
+  contentType?: string,
+): Promise<UploadResult> {
+  const path = `${folder}/${crypto.randomUUID()}-${safeName(filename)}`;
   const { error } = await supabase.storage.from(bucket).upload(path, body, {
     contentType,
     upsert: false,

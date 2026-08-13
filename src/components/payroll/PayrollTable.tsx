@@ -15,6 +15,7 @@ type ActionResult = { ok: boolean; error?: string };
 /** One payslip's manual adjustments, as loaded by the page. */
 export interface PayslipAdjustments {
   advanceRecovery: number;
+  bonus: number;
   lossDamage: number;
   otherDeductions: number;
   lastMonthBalance: number;
@@ -24,6 +25,7 @@ export interface PayslipAdjustments {
 
 export const EMPTY_ADJUSTMENTS: PayslipAdjustments = {
   advanceRecovery: 0,
+  bonus: 0,
   lossDamage: 0,
   otherDeductions: 0,
   lastMonthBalance: 0,
@@ -352,6 +354,7 @@ function PayExpand({
             />
             <Kv label={`Professional tax · ${p.state}`} value={inr(p.professionalTax)} />
             <Kv label="Advance recovery" value={p.advanceRecovery ? inr(p.advanceRecovery) : '—'} />
+            <Kv label="Bonus (added)" value={p.bonus ? '+' + inr(p.bonus) : '—'} />
             <Kv label="Other deductions" value={p.otherDeductions ? inr(p.otherDeductions) : '—'} />
             <Kv label="Late marks / Loss & damage" value={p.lossDamage ? inr(p.lossDamage) : '—'} />
             <Kv label="Net payable" value={inr(p.netPayable)} total />
@@ -385,6 +388,7 @@ function AdjForm({
 }) {
   const [form, setForm] = useState({
     advance_recovery: String(adj.advanceRecovery),
+    bonus: String(adj.bonus),
     loss_damage: String(adj.lossDamage),
     other_deductions: String(adj.otherDeductions),
     last_month_balance: String(adj.lastMonthBalance),
@@ -421,6 +425,13 @@ function AdjForm({
         readOnly={frozen}
       />
       <AdjRow
+        label="Bonus"
+        name="bonus"
+        value={form.bonus}
+        onChange={set('bonus')}
+        readOnly={frozen}
+      />
+      <AdjRow
         label="Late marks / Loss & damage"
         name="loss_damage"
         value={form.loss_damage}
@@ -442,7 +453,7 @@ function AdjForm({
         readOnly={frozen}
       />
       <AdjRow
-        label="Reimbursement / bonus"
+        label="Reimbursement"
         name="reimbursement_bonus"
         value={form.reimbursement_bonus}
         onChange={set('reimbursement_bonus')}

@@ -6,9 +6,56 @@ import { getSession } from '@/lib/auth';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/_guard';
 import { notifyEveryone } from '@/lib/notify';
 import { purgeExpiredNotices } from '@/lib/queries';
+import { uploadSharedFile, signedUrl } from '@/lib/storage';
 
 /** Postgres unique_violation. */
 const UNIQUE_VIOLATION = '23505';
+
+/** Notice attachments are PDFs only, capped like employee documents. */
+const PDF_MAX_BYTES = 10 * 1024 * 1024;
+
+type PdfParse =
+  | { ok: true; file: File | null } // null = no file chosen
+  | { ok: false; error: string };
+
+/** The optional `pdf` form field: absent/empty is fine; anything non-PDF is not. */
+function pdfField(formData: FormData): PdfParse {
+  const file = formData.get('pdf');
+  if (!(file instanceof File) || file.size === 0) return { ok: true, file: null };
+  if (!/\.pdf$/i.test(file.name)) {
+    return { ok: false, error: 'Notice attachments must be PDF files.' };
+  }
+  if (file.size > PDF_MAX_BYTES) {
+    return { ok: false, error: 'The PDF must be 10 MB or smaller.' };
+  }
+  return { ok: true, file };
+}
+
+/** Upload a notice PDF and return its storage path. */
+async function uploadNoticePdf(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  file: File,
+): Promise<{ ok: true; path: string } | { ok: false; error: string }> {
+  const up = await uploadSharedFile(
+    supabase,
+    'notice-attachments',
+    'notices',
+    file.name,
+    await file.arrayBuffer(),
+    'application/pdf',
+  );
+  if (!up.ok || !up.path) {
+    // "Bucket not found" = migration 0042 hasn't been applied yet.
+    const reason = up.error ?? 'unknown error';
+    return {
+      ok: false,
+      error: /bucket/i.test(reason)
+        ? 'The notice-attachments bucket is missing — apply migration 0042, then try again.'
+        : `The PDF could not be uploaded: ${reason}`,
+    };
+  }
+  return { ok: true, path: up.path };
+}
 
 /** Employee marks a notice as read on their dashboard. Idempotent. */
 export async function markNoticeRead(noticeId: string) {
@@ -65,10 +112,23 @@ export async function createNotice(formData: FormData) {
   const channel: 'app' | 'whatsapp' | 'both' =
     channelRaw === 'whatsapp' || channelRaw === 'both' ? channelRaw : 'app';
 
+  const pdf = pdfField(formData);
+  if (!pdf.ok) return pdf;
+
   const gate = await requireStaff('Publishing a notice');
   if (!gate.ok) return gate;
 
   const supabase = await createClient();
+
+  // Upload before the insert so a failed upload never leaves a notice whose
+  // promised attachment does not exist.
+  let pdfPath: string | null = null;
+  if (pdf.file) {
+    const up = await uploadNoticePdf(supabase, pdf.file);
+    if (!up.ok) return up;
+    pdfPath = up.path;
+  }
+
   const branch_id = await resolveBranchId(supabase, branch);
   const { data, error } = await supabase
     .from('notices')
@@ -77,6 +137,7 @@ export async function createNotice(formData: FormData) {
       body: body || null,
       channel,
       branch_id,
+      pdf_url: pdfPath,
       published_at: publish ? new Date().toISOString() : null,
     })
     .select('id');
@@ -106,26 +167,46 @@ export async function createNotice(formData: FormData) {
   return { ok: true };
 }
 
-/** Edit an existing notice's content (title/body/channel/branch). Staff-only.
- *  Does not change its published state — that's the Publish/Unpublish toggle. */
+/** Edit an existing notice's content (title/body/channel/branch/PDF). Staff-only.
+ *  Does not change its published state — that's the Publish/Unpublish toggle.
+ *  A newly chosen PDF replaces the old one; the "remove_pdf" checkbox clears it. */
 export async function updateNotice(id: string, formData: FormData) {
   const title = String(formData.get('title') ?? '').trim();
   const body = String(formData.get('body') ?? '').trim();
   const channelRaw = String(formData.get('channel') ?? 'app').trim();
   const branch = String(formData.get('branch') ?? '').trim();
+  const removePdf = formData.get('remove_pdf') === 'on';
   if (!title) return { ok: false, error: 'Please enter a title.' };
 
   const channel: 'app' | 'whatsapp' | 'both' =
     channelRaw === 'whatsapp' || channelRaw === 'both' ? channelRaw : 'app';
 
+  const pdf = pdfField(formData);
+  if (!pdf.ok) return pdf;
+
   const gate = await requireStaff('Editing a notice');
   if (!gate.ok) return gate;
 
   const supabase = await createClient();
+
+  // Only touch pdf_url when the user acted: a fresh file replaces, the remove
+  // checkbox clears, otherwise the existing attachment is left alone. The old
+  // object is deliberately left in storage (same rule as employee documents):
+  // the bucket is private and orphans are harmless.
+  const patch: Record<string, unknown> = { title, body: body || null, channel };
+  if (pdf.file) {
+    const up = await uploadNoticePdf(supabase, pdf.file);
+    if (!up.ok) return up;
+    patch.pdf_url = up.path;
+  } else if (removePdf) {
+    patch.pdf_url = null;
+  }
+
   const branch_id = await resolveBranchId(supabase, branch);
+  patch.branch_id = branch_id;
   const { data, error } = await supabase
     .from('notices')
-    .update({ title, body: body || null, channel, branch_id })
+    .update(patch)
     .eq('id', id)
     .select('id');
   if (error) return { ok: false, error: error.message };
@@ -182,6 +263,30 @@ export async function setNoticePublished(id: string, published: boolean) {
   revalidatePath('/notices');
   revalidatePath('/me');
   return { ok: true };
+}
+
+/**
+ * Mint a short-lived signed URL for a notice's PDF. Open to every signed-in
+ * user — a published notice is company-wide, and the storage read policy
+ * (0042) grants the same audience.
+ */
+export async function getNoticePdfUrl(
+  id: string,
+): Promise<{ ok: boolean; url?: string; error?: string }> {
+  const db = requireDb('Opening a notice PDF');
+  if (!db.ok) return db;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('notices')
+    .select('pdf_url')
+    .eq('id', id)
+    .maybeSingle<{ pdf_url: string | null }>();
+  if (error) return { ok: false, error: error.message };
+  if (!data?.pdf_url) return { ok: false, error: 'This notice has no PDF attached.' };
+
+  const signed = await signedUrl(supabase, 'notice-attachments', data.pdf_url);
+  return signed.ok ? { ok: true, url: signed.url } : { ok: false, error: signed.error };
 }
 
 /** Delete a notice by id. */
