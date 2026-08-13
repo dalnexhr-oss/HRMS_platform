@@ -173,6 +173,12 @@ function RequestItem({ request }: { request: RequestView }) {
         )}
       </div>
       {request.reason && <p className="body">{request.reason}</p>}
+      {request.reviewRemark && (request.status === 'approved' || request.status === 'rejected') && (
+        <p className="body" style={{ color: request.status === 'rejected' ? 'var(--hd)' : 'var(--p)' }}>
+          <b>{request.status === 'approved' ? 'Approved' : 'Rejected'} with note:</b>{' '}
+          {request.reviewRemark}
+        </p>
+      )}
       {error && <div className="login-error">{error}</div>}
     </div>
   );

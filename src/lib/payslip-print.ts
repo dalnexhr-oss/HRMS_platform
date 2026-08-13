@@ -21,7 +21,22 @@ function monthLabel(periodMonth: string | null): string {
 }
 
 function totalDeductions(p: PayslipRow): number {
-  return p.shortfallAmount + p.pfEmployee + p.esicEmployee + p.professionalTax;
+  return (
+    p.shortfallAmount +
+    p.pfEmployee +
+    p.esicEmployee +
+    p.professionalTax +
+    p.advanceRecovery +
+    p.otherDeductions +
+    p.lossDamage +
+    // A negative carry-over is money withheld this month.
+    Math.max(0, -p.lastMonthBalance)
+  );
+}
+
+/** Additions on top of earned gross: bonus and a positive carry-over. */
+function totalAdditions(p: PayslipRow): number {
+  return p.reimbursementBonus + Math.max(0, p.lastMonthBalance);
 }
 
 /** Escape user-supplied text before injecting into the print document. */
@@ -43,6 +58,9 @@ function row(label: string, value: string, opts: { total?: boolean; neg?: boolea
 function payslipHtml(p: PayslipRow, logoUrl: string): string {
   const period = monthLabel(p.periodMonth);
   const ded = totalDeductions(p);
+  const add = totalAdditions(p);
+  const lmbDed = Math.max(0, -p.lastMonthBalance); // negative carry-over → deduction line
+  const lmbAdd = Math.max(0, p.lastMonthBalance); //  positive carry-over → earnings line
   return `<!doctype html>
 <html><head><meta charset="utf-8" />
 <title>Payslip — ${esc(p.name)} — ${esc(period)}</title>
@@ -97,6 +115,9 @@ function payslipHtml(p: PayslipRow, logoUrl: string): string {
           ${row('HRA (earned)', inr(p.hraEarned))}
           ${row('Special allowance (earned)', inr(p.specialEarned))}
           ${row('Earned gross', inr(p.earnedGross), { total: true })}
+          ${add ? row('Reimbursement / bonus', p.reimbursementBonus ? '+' + inr(p.reimbursementBonus) : '—') : ''}
+          ${add && lmbAdd ? row('Last month balance (b/f)', '+' + inr(lmbAdd)) : ''}
+          ${add ? row('Total earnings', inr(p.earnedGross + add), { total: true }) : ''}
         </table>
       </div>
       <div>
@@ -106,6 +127,10 @@ function payslipHtml(p: PayslipRow, logoUrl: string): string {
           ${row('PF · 12% of Basic+DA', p.pfEmployee ? '-' + inr(p.pfEmployee) : '—', { neg: !!p.pfEmployee })}
           ${row(`ESIC · 0.75%${p.esicEmployee ? '' : ' (above ₹21k cap)'}`, p.esicEmployee ? '-' + inr(p.esicEmployee) : '—', { neg: !!p.esicEmployee })}
           ${row(`Professional tax · ${p.state}`, p.professionalTax ? '-' + inr(p.professionalTax) : '—', { neg: !!p.professionalTax })}
+          ${row('Advance recovery', p.advanceRecovery ? '-' + inr(p.advanceRecovery) : '—', { neg: !!p.advanceRecovery })}
+          ${row('Other deductions', p.otherDeductions ? '-' + inr(p.otherDeductions) : '—', { neg: !!p.otherDeductions })}
+          ${row('Late marks / Loss & damage', p.lossDamage ? '-' + inr(p.lossDamage) : '—', { neg: !!p.lossDamage })}
+          ${lmbDed ? row('Last month balance (recovered)', '-' + inr(lmbDed), { neg: true }) : ''}
           ${row('Total deductions', ded ? '-' + inr(ded) : '—', { total: true, neg: !!ded })}
         </table>
       </div>

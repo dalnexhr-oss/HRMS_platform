@@ -65,6 +65,14 @@ export interface LeaveSalaryInput {
   incrementMonth: number;
   /** presenceByMonth() output — credit-weighted days, index 0 = January. */
   monthlyPresence: number[];
+  /**
+   * HR-entered calendar-day DENOMINATORS (migration 0041): payable =
+   * entitled × present ÷ days, and these replace `days`. null/undefined =
+   * real calendar arithmetic, the pre-0041 behaviour. The attendance-derived
+   * present-day numerator is never overridden.
+   */
+  calendarDaysP1Override?: number | null;
+  calendarDaysP2Override?: number | null;
 }
 
 export interface PeriodFigures {
@@ -123,14 +131,33 @@ function periodFigures(
  * has no earlier attendance) self-pro-rate the payout, because the denominator
  * stays the full period while the numerator only holds real days.
  */
+/**
+ * Replace the calendar-day denominator with an HR-typed one (0041). A zero,
+ * negative or non-finite override is ignored rather than dividing by it.
+ * Skipped entirely for an empty period (incrementMonth = 1 ⇒ p1 has 0 months)
+ * — there is nothing to pro-rate.
+ */
+function withCalendarOverride(f: PeriodFigures, override: number | null | undefined): PeriodFigures {
+  if (override == null || !Number.isFinite(override) || override <= 0) return f;
+  if (f.months === 0) return f;
+  const days = Math.round(override);
+  return { ...f, calendarDays: days, payable: round2(f.entitled * (f.presentDays / days)) };
+}
+
 export function computeLeaveSalary(input: LeaveSalaryInput): LeaveSalaryResult {
   const { year, salaryBefore, salaryAfter, monthlyPresence } = input;
   // An out-of-range increment month would silently misshape both periods;
   // clamp to [1, 12] so p1 is at most Jan–Nov and p2 at least December.
   const inc = Math.min(12, Math.max(1, Math.trunc(input.incrementMonth)));
 
-  const p1 = periodFigures(salaryBefore, year, 1, inc - 1, monthlyPresence);
-  const p2 = periodFigures(salaryAfter, year, inc, 12, monthlyPresence);
+  const p1 = withCalendarOverride(
+    periodFigures(salaryBefore, year, 1, inc - 1, monthlyPresence),
+    input.calendarDaysP1Override,
+  );
+  const p2 = withCalendarOverride(
+    periodFigures(salaryAfter, year, inc, 12, monthlyPresence),
+    input.calendarDaysP2Override,
+  );
   return { p1, p2, total: round2(p1.payable + p2.payable) };
 }
 

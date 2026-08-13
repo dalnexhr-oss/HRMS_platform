@@ -39,7 +39,11 @@ export function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[
     // Claim the tab INSIDE the click gesture. Signing needs a server round trip,
     // and a window.open() after that await has lost its user activation — browsers
     // then swallow it silently, so the button looks dead.
-    const win = window.open('', '_blank', 'noopener,noreferrer');
+    // No 'noopener' in the features string: with it, window.open() returns null
+    // by spec, so every successful open fell through to the else branch and
+    // navigated THIS tab away to the signed URL. Sever the opener link by hand.
+    const win = window.open('about:blank', '_blank');
+    if (win) win.opener = null;
     const res = await getDocumentUrl(id);
     if (!res.ok || !res.url) {
       win?.close();

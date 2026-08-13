@@ -215,11 +215,23 @@ export async function getDocumentUrl(
   const supabase = await createClient();
   // The SELECT is RLS-scoped (staff, or the owning employee), so a caller who
   // cannot see the row gets nothing to sign.
-  const { data, error } = await supabase
+  let res = await supabase
     .from('employee_documents')
     .select('storage_path, bucket')
     .eq('id', id)
     .maybeSingle<{ storage_path: string; bucket: string | null }>();
+  // `bucket` arrived with migration 0039. On a database still waiting for it,
+  // the select above 42703s and EVERY document open fails — so retry with just
+  // the path. Everything written before 0039 is an upload, so the upload
+  // bucket is the correct default.
+  if (res.error?.code === '42703') {
+    res = (await supabase
+      .from('employee_documents')
+      .select('storage_path')
+      .eq('id', id)
+      .maybeSingle<{ storage_path: string; bucket?: string | null }>()) as typeof res;
+  }
+  const { data, error } = res;
   if (error) return { ok: false, error: error.message };
   if (!data?.storage_path) return { ok: false, error: 'That document is not available to you.' };
 

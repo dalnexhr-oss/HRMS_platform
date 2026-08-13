@@ -32,6 +32,9 @@ export interface LeaveSalaryViewRow {
   remarks: string;
   /** Credit-weighted presence per month (index 0 = Jan), from attendance. */
   monthlyPresence: number[];
+  /** HR-typed denominators from the saved working (0041); null = automatic. */
+  calendarDaysP1Override: number | null;
+  calendarDaysP2Override: number | null;
   /** Computed from CURRENT attendance + the inputs above. */
   live: LeaveSalaryResult;
   /** The saved row, when one exists. Authoritative once status ≠ draft. */
@@ -72,12 +75,19 @@ export async function buildLeaveSalaryView(year: number): Promise<LeaveSalaryVie
       ? Number(working.incrementEffective.slice(5, 7)) || DEFAULT_INCREMENT_MONTH
       : DEFAULT_INCREMENT_MONTH;
 
+    const calendarDaysP1Override = working?.calendarDaysP1Override ?? null;
+    const calendarDaysP2Override = working?.calendarDaysP2Override ?? null;
+
+    // Live honours the saved overrides, so "drift" keeps meaning "attendance
+    // moved under a locked snapshot" — an overridden denominator can't drift.
     const live = computeLeaveSalary({
       year,
       salaryBefore,
       salaryAfter,
       incrementMonth,
       monthlyPresence,
+      calendarDaysP1Override,
+      calendarDaysP2Override,
     });
 
     // Money compares within a paisa; presence within a half-day step.
@@ -98,6 +108,8 @@ export async function buildLeaveSalaryView(year: number): Promise<LeaveSalaryVie
       incrementMonth,
       remarks: working?.remarks ?? '',
       monthlyPresence,
+      calendarDaysP1Override,
+      calendarDaysP2Override,
       live,
       working,
       drift,

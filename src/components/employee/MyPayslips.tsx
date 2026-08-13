@@ -8,7 +8,16 @@ import type { PayslipRow } from '@/types/domain';
 
 /** Everything withheld from the earned gross to reach net payable. */
 function totalDeductions(p: PayslipRow): number {
-  return p.shortfallAmount + p.pfEmployee + p.esicEmployee + p.professionalTax;
+  return (
+    p.shortfallAmount +
+    p.pfEmployee +
+    p.esicEmployee +
+    p.professionalTax +
+    p.advanceRecovery +
+    p.otherDeductions +
+    p.lossDamage +
+    Math.max(0, -p.lastMonthBalance)
+  );
 }
 
 /** 'YYYY-MM-01' -> 'June 2026'. */
@@ -126,6 +135,18 @@ function PayslipBreakdown({ p }: { p: PayslipRow }) {
               label={`Professional tax · ${p.state}`}
               value={p.professionalTax ? '-' + inr(p.professionalTax) : '—'}
             />
+            <Kv label="Advance recovery" value={p.advanceRecovery ? '-' + inr(p.advanceRecovery) : '—'} />
+            <Kv label="Other deductions" value={p.otherDeductions ? '-' + inr(p.otherDeductions) : '—'} />
+            <Kv label="Late marks / Loss & damage" value={p.lossDamage ? '-' + inr(p.lossDamage) : '—'} />
+            {p.lastMonthBalance !== 0 && (
+              <Kv
+                label="Last month balance (±)"
+                value={(p.lastMonthBalance > 0 ? '+' : '-') + inr(Math.abs(p.lastMonthBalance))}
+              />
+            )}
+            {p.reimbursementBonus !== 0 && (
+              <Kv label="Reimbursement / bonus" value={'+' + inr(p.reimbursementBonus)} />
+            )}
             <Kv label="Total deductions" value={totalDeductions(p) ? '-' + inr(totalDeductions(p)) : '—'} />
             <Kv label="Net payable" value={inr(p.netPayable)} total />
           </div>

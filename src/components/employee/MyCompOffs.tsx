@@ -16,10 +16,20 @@ const STATUS_LABEL: Record<CompOffRow['status'], string> = {
   expired: 'Expired',
 };
 
-function pillStyle(status: CompOffRow['status']): React.CSSProperties {
-  if (status === 'available') return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
-  if (status === 'applied') return { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' };
+function pillStyle(c: CompOffRow): React.CSSProperties {
+  // A credit staff put on hold renders muted even though its status is
+  // 'available' — the employee cannot use it until HR switches it back.
+  if (c.status === 'available' && !c.isApplicable) {
+    return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
+  }
+  if (c.status === 'available') return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
+  if (c.status === 'applied') return { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' };
   return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
+}
+
+function pillLabel(c: CompOffRow): string {
+  if (c.status === 'available' && !c.isApplicable) return 'Not applicable (on hold by HR)';
+  return STATUS_LABEL[c.status];
 }
 
 export function MyCompOffs({
@@ -33,14 +43,15 @@ export function MyCompOffs({
   blockedReason: string;
   id?: string;
 }) {
-  const available = compOffs.filter((c) => c.status === 'available');
+  // The balance: available AND applicable. Credits HR put on hold don't count.
+  const usable = compOffs.filter((c) => c.status === 'available' && c.isApplicable);
 
   return (
     <div className="card" id={id}>
       <div className="hd">
         <h3>Comp offs</h3>
         <span className="folio">
-          {available.length} available · {compOffs.length} earned
+          Balance: {usable.length} · {compOffs.length} earned in total
         </span>
       </div>
       <div className="bd">
@@ -53,16 +64,16 @@ export function MyCompOffs({
           <>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
               {compOffs.map((c) => (
-                <span key={c.id} className="pill" style={pillStyle(c.status)}>
-                  Earned {formatDate(c.earnedDate)} · {STATUS_LABEL[c.status]}
+                <span key={c.id} className="pill" style={pillStyle(c)}>
+                  Earned {formatDate(c.earnedDate)} · {pillLabel(c)}
                   {c.usedDate && c.status === 'used' ? ` (taken ${formatDate(c.usedDate)})` : ''}
                 </span>
               ))}
             </div>
 
-            {available.length > 0 &&
+            {usable.length > 0 &&
               (canApply ? (
-                <ApplyForm available={available} />
+                <ApplyForm available={usable} />
               ) : (
                 <p className="muted" style={{ fontSize: 13, margin: 0 }}>
                   {blockedReason}

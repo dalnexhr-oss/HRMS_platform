@@ -182,7 +182,9 @@ export function LeaveSalaryAdmin({
             Formula per period: (monthly salary ÷ 2) × months ÷ 12 × present days ÷ calendar days.
             Week-offs, holidays and comp-offs count as present; a half day counts 0.5; absences and
             leave days count 0. Salaries pre-fill from the employee record — correct the
-            pre-appraisal figure by hand where it differs.
+            pre-appraisal figure by hand where it differs. The ÷ days denominator is editable too:
+            type a day count to override it, or leave the box blank to use the period&rsquo;s real
+            calendar days. Present days always come from the attendance register.
           </p>
         </div>
       </div>
@@ -273,6 +275,13 @@ function WorkingRow({
   const [after, setAfter] = useState(String(row.salaryAfter || ''));
   const [incMonth, setIncMonth] = useState(row.incrementMonth);
   const [remarks, setRemarks] = useState(row.remarks);
+  // Editable calendar-day denominators (0041). Blank = real calendar days.
+  const [daysP1, setDaysP1] = useState(
+    row.calendarDaysP1Override != null ? String(row.calendarDaysP1Override) : '',
+  );
+  const [daysP2, setDaysP2] = useState(
+    row.calendarDaysP2Override != null ? String(row.calendarDaysP2Override) : '',
+  );
   const [open, setOpen] = useState(false);
 
   const salaryBefore = Number(before);
@@ -280,6 +289,15 @@ function WorkingRow({
   const valid =
     Number.isFinite(salaryBefore) && salaryBefore >= 0 &&
     Number.isFinite(salaryAfter) && salaryAfter >= 0;
+
+  const overrideOf = (raw: string): number | null => {
+    const s = raw.trim();
+    if (!s) return null;
+    const n = Math.round(Number(s));
+    return Number.isFinite(n) && n >= 1 && n <= 366 ? n : null;
+  };
+  const p1Override = overrideOf(daysP1);
+  const p2Override = overrideOf(daysP2);
 
   // Live figures follow the inputs as HR types; locked rows show the snapshot.
   const live: LeaveSalaryResult = useMemo(
@@ -290,8 +308,10 @@ function WorkingRow({
         salaryAfter: valid ? salaryAfter : 0,
         incrementMonth: incMonth,
         monthlyPresence: row.monthlyPresence,
+        calendarDaysP1Override: p1Override,
+        calendarDaysP2Override: p2Override,
       }),
-    [year, salaryBefore, salaryAfter, incMonth, row.monthlyPresence, valid],
+    [year, salaryBefore, salaryAfter, incMonth, row.monthlyPresence, valid, p1Override, p2Override],
   );
   const fig = locked ? effectiveFigures(row.working, row.live) : effectiveFigures(null, live);
 
@@ -301,6 +321,8 @@ function WorkingRow({
       salaryAfter !== row.salaryAfter ||
       incMonth !== row.incrementMonth ||
       remarks.trim() !== row.remarks.trim() ||
+      p1Override !== row.calendarDaysP1Override ||
+      p2Override !== row.calendarDaysP2Override ||
       row.working === null);
 
   const inputStyle = { width: 92, padding: '4px 6px', textAlign: 'right' as const };
@@ -361,13 +383,49 @@ function WorkingRow({
             </select>
           )}
         </td>
-        <td className="right mono">
-          {fig.presentP1}
-          <span className="muted">/{fig.calendarDaysP1}</span>
+        <td className="right mono" onClick={(e) => e.stopPropagation()}>
+          {locked ? (
+            <>
+              {fig.presentP1}
+              <span className="muted">/{fig.calendarDaysP1}</span>
+            </>
+          ) : (
+            <span style={{ whiteSpace: 'nowrap' }}>
+              {fig.presentP1}
+              <span className="muted">/</span>
+              <input
+                className="mono"
+                value={daysP1}
+                onChange={(e) => setDaysP1(e.target.value)}
+                placeholder={String(live.p1.calendarDays)}
+                title="Days in the pre-increment period (the ÷ days of the formula) — blank uses the real calendar days"
+                style={{ width: 48, padding: '4px 6px', textAlign: 'right' }}
+                aria-label={`${row.name}: calendar days before the increment (blank = real calendar days)`}
+              />
+            </span>
+          )}
         </td>
-        <td className="right mono">
-          {fig.presentP2}
-          <span className="muted">/{fig.calendarDaysP2}</span>
+        <td className="right mono" onClick={(e) => e.stopPropagation()}>
+          {locked ? (
+            <>
+              {fig.presentP2}
+              <span className="muted">/{fig.calendarDaysP2}</span>
+            </>
+          ) : (
+            <span style={{ whiteSpace: 'nowrap' }}>
+              {fig.presentP2}
+              <span className="muted">/</span>
+              <input
+                className="mono"
+                value={daysP2}
+                onChange={(e) => setDaysP2(e.target.value)}
+                placeholder={String(live.p2.calendarDays)}
+                title="Days in the post-increment period (the ÷ days of the formula) — blank uses the real calendar days"
+                style={{ width: 48, padding: '4px 6px', textAlign: 'right' }}
+                aria-label={`${row.name}: calendar days after the increment (blank = real calendar days)`}
+              />
+            </span>
+          )}
         </td>
         <td className="right mono">{inr(fig.amountP1)}</td>
         <td className="right mono">{inr(fig.amountP2)}</td>
@@ -399,6 +457,8 @@ function WorkingRow({
                         salaryAfter,
                         incrementMonth: incMonth,
                         remarks,
+                        calendarDaysP1Override: p1Override,
+                        calendarDaysP2Override: p2Override,
                       }),
                     'Working saved.',
                   )

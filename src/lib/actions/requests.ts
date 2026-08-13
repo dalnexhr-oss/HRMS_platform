@@ -249,6 +249,7 @@ async function decideApprovalStep(
   requestId: string,
   decision: 'approved' | 'rejected',
   profileId: string,
+  remark: string | null,
 ): Promise<ChainOutcome> {
   const { data: steps, error } = await supabase
     .from('approval_steps')
@@ -272,7 +273,12 @@ async function decideApprovalStep(
 
   const { data: claimed, error: claimErr } = await supabase
     .from('approval_steps')
-    .update({ status: decision, approver_id: profileId, decided_at: new Date().toISOString() })
+    .update({
+      status: decision,
+      approver_id: profileId,
+      decided_at: new Date().toISOString(),
+      remark,
+    })
     .eq('id', current.id)
     .eq('status', 'pending')
     .select('id');
@@ -305,10 +311,14 @@ async function decideApprovalStep(
 export async function reviewRequest(
   id: string,
   decision: 'approved' | 'rejected',
+  /** The approver's reason (0041) — stored on the request, shown to the employee. */
+  remark?: string,
 ): Promise<ActionResult> {
   // Staff-only, DB required. requireStaff also covers the no-database refusal.
   const gate = await requireStaff(`Marking a request ${decision}`);
   if (!gate.ok) return gate;
+
+  const cleanRemark = String(remark ?? '').trim().slice(0, 500) || null;
 
   const supabase = await createClient();
 
@@ -320,7 +330,7 @@ export async function reviewRequest(
   // A request with NO steps — anything filed before 0036, or with the levels
   // setting at 1 and the seed skipped — falls straight through to the original
   // one-shot path, so in-flight approvals cannot break.
-  const chain = await decideApprovalStep(supabase, id, decision, gate.profileId);
+  const chain = await decideApprovalStep(supabase, id, decision, gate.profileId, cleanRemark);
   if (!chain.ok) return { ok: false, error: chain.error };
   if (chain.stage === 'intermediate') {
     // More approvals to go: the request stays pending on purpose.
@@ -337,12 +347,27 @@ export async function reviewRequest(
     return { ok: true };
   }
 
-  const { data, error } = await supabase
+  let res = await supabase
     .from('requests')
-    .update({ status: decision, reviewed_at: new Date().toISOString() })
+    .update({
+      status: decision,
+      reviewed_by: gate.profileId,
+      reviewed_at: new Date().toISOString(),
+      review_remark: cleanRemark,
+    })
     .eq('id', id)
     .eq('status', 'pending')
     .select('id, type, leave_kind, days, employee_id, start_date, end_date');
+  // review_remark arrives with 0041 — decide without it until it is applied.
+  if (res.error?.code === 'PGRST204' || res.error?.code === '42703') {
+    res = (await supabase
+      .from('requests')
+      .update({ status: decision, reviewed_by: gate.profileId, reviewed_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('status', 'pending')
+      .select('id, type, leave_kind, days, employee_id, start_date, end_date')) as typeof res;
+  }
+  const { data, error } = res;
   if (error) return { ok: false, error: error.message };
 
   if (!data || data.length === 0) {
@@ -463,7 +488,7 @@ export async function reviewRequest(
     await notifyEmployee(owner.employee_id, {
       kind: 'approval',
       title: `Your ${owner.type.replace('_', ' ')} request was ${decision}`,
-      body: span,
+      body: cleanRemark ? `${span} — “${cleanRemark}”` : span,
       link: '/me#leave',
     });
   }

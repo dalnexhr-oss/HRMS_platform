@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
+import type { ChangeEvent } from 'react';
 import Link from 'next/link';
 import { Stamp } from '@/components/ui/Stamp';
 import { reviewRequest } from '@/lib/actions/requests';
@@ -99,10 +100,11 @@ function RequestCard({
   toast: (message: string, kind?: 'success' | 'error' | 'info') => void;
 }) {
   const [busy, startTransition] = useTransition();
+  const [remark, setRemark] = useState('');
 
   const decide = (decision: 'approved' | 'rejected') => {
     startTransition(async () => {
-      const res = await reviewRequest(request.id, decision);
+      const res = await reviewRequest(request.id, decision, remark);
       if (res.ok) {
         onReviewed(request.id);
         // A warning means the decision stood but a side-effect needs a human
@@ -132,7 +134,16 @@ function RequestCard({
         </span>
       </div>
       <div className="body">{requestSentence(request)}</div>
-      <div className="acts">
+      <div className="acts" style={{ flexWrap: 'wrap' }}>
+        <input
+          value={remark}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setRemark(e.target.value)}
+          placeholder="Reason for the decision (shared with the employee)"
+          maxLength={500}
+          disabled={busy}
+          aria-label={`Reason for approving or rejecting ${request.employeeName}'s request`}
+          style={{ flex: '1 1 220px', minWidth: 180, padding: '7px 10px' }}
+        />
         <button className="btn primary" onClick={() => decide('approved')} disabled={busy}>
           {busy ? 'Saving…' : 'Approve'}
         </button>

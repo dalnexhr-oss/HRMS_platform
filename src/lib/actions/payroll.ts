@@ -205,6 +205,7 @@ export async function markRunPaid(runId: string): Promise<{ ok: boolean; error?:
 const MONEY_FIELDS = [
   'advance_recovery',
   'loss_damage',
+  'other_deductions',
   'last_month_balance',
   'reimbursement_bonus',
 ] as const;
@@ -213,7 +214,8 @@ type MoneyField = (typeof MONEY_FIELDS)[number];
 
 const MONEY_LABEL: Record<MoneyField, string> = {
   advance_recovery: 'Advance recovery',
-  loss_damage: 'Loss / damage',
+  loss_damage: 'Late marks / Loss & damage',
+  other_deductions: 'Other deductions',
   last_month_balance: 'Last month balance',
   reimbursement_bonus: 'Reimbursement / bonus',
 };
@@ -322,7 +324,16 @@ export async function saveAdjustments(
       },
       { onConflict: 'id' },
     );
-    if (upsertError) return { ok: false, error: `${context}: ${pgMessage(upsertError)}` };
+    if (upsertError) {
+      // PGRST204/42703 = other_deductions doesn't exist yet (0041 pending).
+      if (upsertError.code === 'PGRST204' || upsertError.code === '42703') {
+        return {
+          ok: false,
+          error: `${context}: the database is missing the other_deductions column — apply migration 0041_payslip_compoff_leave.sql.`,
+        };
+      }
+      return { ok: false, error: `${context}: ${pgMessage(upsertError)}` };
+    }
 
     // Recompute so the row the user is looking at tells the truth.
     const { error: recomputeError } = await supabase.rpc('fn_compute_payslip', {

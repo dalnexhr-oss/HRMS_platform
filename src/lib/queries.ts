@@ -123,11 +123,20 @@ function clockTime(ts: string): string {
 // `id` is the payslip's own uuid and must stay selected: it keys the adjustments
 // lookup and is the value posted back by saveAdjustments. It was missing here,
 // which left mapPayslip's `?? p.id` fallback permanently undefined.
+// The adjustments embed is selected with `*` on purpose: 0041 adds
+// other_deductions, and naming it here would 42703 the whole payslip query on a
+// database where that migration is still pending. `*` returns whatever columns
+// exist and mapPayslip defaults the rest to 0.
 const PAYSLIP_FIELDS = `id, payable_days, earned_gross, shortfall_amount, per_day_rate,
   basic_earned, hra_earned, special_earned, pf_employee, pf_employer, esic_employee,
-  esic_employer, professional_tax, net_payable, shortfall_minutes`;
+  esic_employer, professional_tax, net_payable, shortfall_minutes, payslip_adjustments(*)`;
 
 function mapPayslip(p: any): PayslipRow {
+  // The 1:1 embed's shape (object vs single-element array) depends on how
+  // PostgREST resolved the FK — accept both, and null when no row exists.
+  const adj = Array.isArray(p.payslip_adjustments)
+    ? p.payslip_adjustments[0]
+    : p.payslip_adjustments;
   return {
     // The payslip uuid — NOT employees.code, which is what `code` below is for.
     // Handing back the code sent employee codes into `payslip_adjustments.id`
@@ -154,6 +163,11 @@ function mapPayslip(p: any): PayslipRow {
     professionalTax: Number(p.professional_tax),
     netPayable: Number(p.net_payable),
     shortfallMinutes: p.shortfall_minutes,
+    advanceRecovery: Number(adj?.advance_recovery ?? 0),
+    lossDamage: Number(adj?.loss_damage ?? 0),
+    otherDeductions: Number(adj?.other_deductions ?? 0),
+    lastMonthBalance: Number(adj?.last_month_balance ?? 0),
+    reimbursementBonus: Number(adj?.reimbursement_bonus ?? 0),
   };
 }
 
@@ -746,6 +760,9 @@ export interface LeaveSalaryWorkingRow {
   remarks: string | null;
   paidAt: string | null;
   updatedAt: string;
+  /** HR-typed calendar-day denominators (0041); null = real calendar days. */
+  calendarDaysP1Override: number | null;
+  calendarDaysP2Override: number | null;
 }
 
 /**
@@ -759,19 +776,32 @@ export async function getLeaveSalaryWorkings(
   year: number,
 ): Promise<LeaveSalaryWorkingRow[] | null> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let res = await supabase
     .from('leave_salary_workings')
     .select(
       `id, employee_id, year, salary_before, salary_after, increment_effective,
        present_p1, present_p2, calendar_days_p1, calendar_days_p2,
-       amount_p1, amount_p2, total_amount, status, remarks, paid_at, updated_at`,
+       amount_p1, amount_p2, total_amount, status, remarks, paid_at, updated_at,
+       calendar_days_p1_override, calendar_days_p2_override`,
     )
     .eq('year', year);
-  if (error) {
-    if (isMissingTable(error)) return null;
-    fail('getLeaveSalaryWorkings: could not load workings', error);
+  // The override columns arrive with 0041 — retry without them so the page
+  // keeps working (days simply aren't editable) until it is applied.
+  if (res.error?.code === '42703') {
+    res = (await supabase
+      .from('leave_salary_workings')
+      .select(
+        `id, employee_id, year, salary_before, salary_after, increment_effective,
+         present_p1, present_p2, calendar_days_p1, calendar_days_p2,
+         amount_p1, amount_p2, total_amount, status, remarks, paid_at, updated_at`,
+      )
+      .eq('year', year)) as typeof res;
   }
-  return (data ?? []).map((r: any) => ({
+  if (res.error) {
+    if (isMissingTable(res.error)) return null;
+    fail('getLeaveSalaryWorkings: could not load workings', res.error);
+  }
+  return (res.data ?? []).map((r: any) => ({
     id: r.id,
     employeeId: r.employee_id,
     year: Number(r.year),
@@ -789,6 +819,10 @@ export async function getLeaveSalaryWorkings(
     remarks: r.remarks,
     paidAt: r.paid_at,
     updatedAt: r.updated_at,
+    calendarDaysP1Override:
+      r.calendar_days_p1_override != null ? Number(r.calendar_days_p1_override) : null,
+    calendarDaysP2Override:
+      r.calendar_days_p2_override != null ? Number(r.calendar_days_p2_override) : null,
   }));
 }
 
@@ -1184,16 +1218,21 @@ export async function getMyPayslips(employeeId: string): Promise<PayslipRow[]> {
 /** One employee's leave / duty requests, newest first. */
 export async function getMyRequests(employeeId: string): Promise<RequestView[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let res = await supabase
     .from('requests')
-    .select(
-      `id, type, leave_kind, start_date, end_date, days, reason, status, balance_after, created_at,
-       employees(code, full_name, branches(name))`,
-    )
+    .select(REQUEST_FIELDS)
     .eq('employee_id', employeeId)
     .order('created_at', { ascending: false });
-  if (error) fail('getMyRequests: could not load requests', error);
-  return (data ?? []).map(mapRequest);
+  // review_remark arrives with 0041 — retry without it until then.
+  if (res.error?.code === '42703') {
+    res = (await supabase
+      .from('requests')
+      .select(REQUEST_FIELDS_LEGACY)
+      .eq('employee_id', employeeId)
+      .order('created_at', { ascending: false })) as typeof res;
+  }
+  if (res.error) fail('getMyRequests: could not load requests', res.error);
+  return (res.data ?? []).map(mapRequest);
 }
 
 /** One employee's helpdesk tickets, newest first. */
@@ -1548,6 +1587,26 @@ export interface CompOffRow {
   earnedDate: string;
   status: 'available' | 'applied' | 'used' | 'expired';
   usedDate: string | null;
+  /** 0041: false = on hold by staff, an employee cannot apply against it. */
+  isApplicable: boolean;
+  expiresOn: string | null;
+}
+
+// The two newer columns (expires_on: 0036, is_applicable: 0041) may be missing
+// on an un-migrated database; both selects retry without them and default.
+const COMP_OFF_FIELDS = 'id, employee_id, earned_date, status, used_date, expires_on, is_applicable';
+const COMP_OFF_FIELDS_LEGACY = 'id, employee_id, earned_date, status, used_date';
+
+function mapCompOff(c: any): CompOffRow {
+  return {
+    id: c.id,
+    employeeId: c.employee_id,
+    earnedDate: String(c.earned_date).slice(0, 10),
+    status: c.status,
+    usedDate: c.used_date ? String(c.used_date).slice(0, 10) : null,
+    isApplicable: c.is_applicable !== false,
+    expiresOn: c.expires_on ? String(c.expires_on).slice(0, 10) : null,
+  };
 }
 
 /**
@@ -1560,49 +1619,93 @@ export async function getCompOffsForMonth(
 ): Promise<CompOffRow[]> {
   const { start, end } = monthRange(periodMonth);
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let res = await supabase
     .from('comp_offs')
-    .select('id, employee_id, earned_date, status, used_date')
+    .select(COMP_OFF_FIELDS)
     .gte('earned_date', start)
     .lte('earned_date', end);
-  if (error) {
-    if (isMissingTable(error)) {
+  if (res.error?.code === '42703') {
+    res = (await supabase
+      .from('comp_offs')
+      .select(COMP_OFF_FIELDS_LEGACY)
+      .gte('earned_date', start)
+      .lte('earned_date', end)) as typeof res;
+  }
+  if (res.error) {
+    if (isMissingTable(res.error)) {
       warnNotMigrated('getCompOffsForMonth', 'migration 0009_reimbursements_compoff_sweep.sql');
       return [];
     }
-    fail('getCompOffsForMonth: could not load comp offs', error);
+    fail('getCompOffsForMonth: could not load comp offs', res.error);
   }
-  return (data ?? []).map((c: any) => ({
-    id: c.id,
-    employeeId: c.employee_id,
-    earnedDate: String(c.earned_date).slice(0, 10),
-    status: c.status,
-    usedDate: c.used_date ? String(c.used_date).slice(0, 10) : null,
-  }));
+  return (res.data ?? []).map(mapCompOff);
 }
 
 /** One employee's comp-off credits, newest earned first. */
 export async function getMyCompOffs(employeeId: string): Promise<CompOffRow[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let res = await supabase
     .from('comp_offs')
-    .select('id, employee_id, earned_date, status, used_date')
+    .select(COMP_OFF_FIELDS)
     .eq('employee_id', employeeId)
     .order('earned_date', { ascending: false });
-  if (error) {
-    if (isMissingTable(error)) {
+  if (res.error?.code === '42703') {
+    res = (await supabase
+      .from('comp_offs')
+      .select(COMP_OFF_FIELDS_LEGACY)
+      .eq('employee_id', employeeId)
+      .order('earned_date', { ascending: false })) as typeof res;
+  }
+  if (res.error) {
+    if (isMissingTable(res.error)) {
       warnNotMigrated('getMyCompOffs', 'migration 0009_reimbursements_compoff_sweep.sql');
       return [];
     }
-    fail('getMyCompOffs: could not load comp offs', error);
+    fail('getMyCompOffs: could not load comp offs', res.error);
   }
-  return (data ?? []).map((c: any) => ({
-    id: c.id,
-    employeeId: c.employee_id,
-    earnedDate: String(c.earned_date).slice(0, 10),
-    status: c.status,
-    usedDate: c.used_date ? String(c.used_date).slice(0, 10) : null,
-  }));
+  return (res.data ?? []).map(mapCompOff);
+}
+
+/** A live (not yet spent/expired) credit with its owner, for the admin card. */
+export interface CompOffAdminRow extends CompOffRow {
+  code: string;
+  name: string;
+}
+
+/**
+ * Every live comp-off credit (available or awaiting approval) with its owner —
+ * the admin dashboard's comp-off card: per-employee balances plus the
+ * applicable/not-applicable switch per credit.
+ */
+export async function getCompOffAdmin(): Promise<CompOffAdminRow[]> {
+  const supabase = await createClient();
+  const FIELDS = (cols: string) => `${cols}, employees(code, full_name)`;
+  let res = await supabase
+    .from('comp_offs')
+    .select(FIELDS(COMP_OFF_FIELDS))
+    .in('status', ['available', 'applied'])
+    .order('earned_date', { ascending: true });
+  if (res.error?.code === '42703') {
+    res = (await supabase
+      .from('comp_offs')
+      .select(FIELDS(COMP_OFF_FIELDS_LEGACY))
+      .in('status', ['available', 'applied'])
+      .order('earned_date', { ascending: true })) as typeof res;
+  }
+  if (res.error) {
+    if (isMissingTable(res.error)) {
+      warnNotMigrated('getCompOffAdmin', 'migration 0009_reimbursements_compoff_sweep.sql');
+      return [];
+    }
+    fail('getCompOffAdmin: could not load comp offs', res.error);
+  }
+  return (res.data ?? [])
+    .map((c: any) => ({
+      ...mapCompOff(c),
+      code: c.employees?.code ?? '',
+      name: c.employees?.full_name ?? '',
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name) || a.earnedDate.localeCompare(b.earnedDate));
 }
 
 /** Full editable fields for one employee, keyed by code. Null when not found. */
@@ -1973,6 +2076,14 @@ export interface EmployeeOverview {
   leaves: number;
   workedHours: string;
   netPay: number | null;
+  /**
+   * Month-to-date hours still owed: (working days so far × full_day_minutes)
+   * − worked minutes so far, floored at zero. 'HH:MM'.
+   */
+  pendingHours: string;
+  pendingMinutes: number;
+  /** The month-to-date target the pending figure is measured against. 'HH:MM'. */
+  targetHours: string;
 }
 
 export async function getEmployeeOverview(
@@ -1985,6 +2096,7 @@ export async function getEmployeeOverview(
     return {
       name: fallbackName ?? '', code: '', branch: '',
       present: 0, halfDays: 0, leaves: 0, workedHours: '00:00', netPay: null,
+      pendingHours: '00:00', pendingMinutes: 0, targetHours: '00:00',
     };
   }
 
@@ -2001,7 +2113,7 @@ export async function getEmployeeOverview(
 
   const { data: days, error: daysError } = await supabase
     .from('attendance_days')
-    .select('status, worked_minutes')
+    .select('work_date, status, worked_minutes')
     .eq('employee_id', employeeId)
     .gte('work_date', start)
     .lte('work_date', end);
@@ -2010,6 +2122,32 @@ export async function getEmployeeOverview(
   const rows = days ?? [];
   const count = (s: string) => rows.filter((d: any) => d.status === s).length;
   const workedMin = rows.reduce((a: number, d: any) => a + (d.worked_minutes ?? 0), 0);
+
+  // Pending hours, month to date. Mirrors fn_compute_payslip's target rule:
+  // working days = P+CO+OH+T+S+LM (+ 0.5·HD), each owing full_day_minutes.
+  // Only days up to today count — tomorrow's shift is not yet "pending".
+  // settings is readable by every authenticated user (0003), so this works for
+  // employees too; the seeded default stands in if the row is missing.
+  const today = todayISO();
+  const WORKING_STATUSES = ['P', 'CO', 'OH', 'T', 'S', 'LM'];
+  let workingCredit = 0;
+  let workedToDate = 0;
+  for (const d of rows as { work_date: string; status: string; worked_minutes: number | null }[]) {
+    if (String(d.work_date) > today) continue;
+    if (WORKING_STATUSES.includes(d.status)) workingCredit += 1;
+    else if (d.status === 'HD') workingCredit += 0.5;
+    workedToDate += d.worked_minutes ?? 0;
+  }
+  let fullDayMin = 555;
+  const { data: fdm } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', 'full_day_minutes')
+    .maybeSingle<{ value: unknown }>();
+  const fdmNum = Number(fdm?.value);
+  if (Number.isFinite(fdmNum) && fdmNum > 0) fullDayMin = fdmNum;
+  const targetMin = Math.round(workingCredit * fullDayMin);
+  const pendingMin = Math.max(0, targetMin - workedToDate);
 
   const { data: slip, error: slipError } = await supabase
     .from('payslips')
@@ -2026,6 +2164,9 @@ export async function getEmployeeOverview(
     present: count('P'), halfDays: count('HD'), leaves: count('L'),
     workedHours: minutesToHHMM(workedMin),
     netPay: slip ? Number((slip as any).net_payable) : null,
+    pendingHours: minutesToHHMM(pendingMin),
+    pendingMinutes: pendingMin,
+    targetHours: minutesToHHMM(targetMin),
   };
 }
 
@@ -2435,6 +2576,8 @@ export interface RequestView {
   reason: string | null;
   status: 'pending' | 'approved' | 'rejected' | 'cancelled';
   balanceAfter: number | null;
+  /** The approver's reason for the decision (0041), shown to the employee. */
+  reviewRemark: string | null;
 }
 
 function mapRequest(r: any): RequestView {
@@ -2451,22 +2594,66 @@ function mapRequest(r: any): RequestView {
     reason: r.reason,
     status: r.status,
     balanceAfter: r.balance_after != null ? Number(r.balance_after) : null,
+    reviewRemark: r.review_remark ?? null,
   };
 }
+
+// review_remark arrives with 0041 — every request select retries without it.
+const REQUEST_FIELDS = `id, type, leave_kind, start_date, end_date, days, reason, status,
+  balance_after, review_remark, created_at, employees(code, full_name, branches(name))`;
+const REQUEST_FIELDS_LEGACY = `id, type, leave_kind, start_date, end_date, days, reason, status,
+  balance_after, created_at, employees(code, full_name, branches(name))`;
 
 /** Leave / duty requests, pending first then reviewed. */
 export async function getRequests(): Promise<RequestView[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let res = await supabase
     .from('requests')
-    .select(
-      `id, type, leave_kind, start_date, end_date, days, reason, status, balance_after, created_at,
-       employees(code, full_name, branches(name))`,
-    )
+    .select(REQUEST_FIELDS)
     .order('created_at', { ascending: false });
-  if (error) fail('getRequests: could not load requests', error);
+  if (res.error?.code === '42703') {
+    res = (await supabase
+      .from('requests')
+      .select(REQUEST_FIELDS_LEGACY)
+      .order('created_at', { ascending: false })) as typeof res;
+  }
+  if (res.error) fail('getRequests: could not load requests', res.error);
   // Pending first, otherwise preserve newest-first ordering.
-  return (data ?? [])
+  return (res.data ?? [])
     .map(mapRequest)
     .sort((a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1));
+}
+
+// ---------------------------------------------------------- on leave today ---
+export interface OnLeaveTodayRow {
+  employeeId: string;
+  name: string;
+  branch: string;
+  startDate: string;
+  endDate: string;
+}
+
+/**
+ * Employees on APPROVED leave today (IST), via SECURITY DEFINER
+ * fn_on_leave_today (0041) so ordinary employees can see colleagues' names.
+ * Returns [] when the function is not installed yet.
+ */
+export async function getOnLeaveToday(): Promise<OnLeaveTodayRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('fn_on_leave_today');
+  if (error) {
+    // PGRST202/42883 = 0041 not applied yet — an empty strip, not a crash.
+    if (error.code === 'PGRST202' || error.code === '42883') {
+      warnNotMigrated('getOnLeaveToday', 'migration 0041_payslip_compoff_leave.sql');
+      return [];
+    }
+    fail('getOnLeaveToday: could not load who is on leave', error);
+  }
+  return ((data ?? []) as any[]).map((r) => ({
+    employeeId: r.employee_id,
+    name: r.full_name ?? '',
+    branch: r.branch ?? '',
+    startDate: String(r.start_date).slice(0, 10),
+    endDate: String(r.end_date).slice(0, 10),
+  }));
 }

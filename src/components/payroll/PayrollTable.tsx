@@ -16,6 +16,7 @@ type ActionResult = { ok: boolean; error?: string };
 export interface PayslipAdjustments {
   advanceRecovery: number;
   lossDamage: number;
+  otherDeductions: number;
   lastMonthBalance: number;
   reimbursementBonus: number;
   remarks: string;
@@ -24,6 +25,7 @@ export interface PayslipAdjustments {
 export const EMPTY_ADJUSTMENTS: PayslipAdjustments = {
   advanceRecovery: 0,
   lossDamage: 0,
+  otherDeductions: 0,
   lastMonthBalance: 0,
   reimbursementBonus: 0,
   remarks: '',
@@ -349,6 +351,9 @@ function PayExpand({
               value={p.esicEmployee ? inr(p.esicEmployee) : '—'}
             />
             <Kv label={`Professional tax · ${p.state}`} value={inr(p.professionalTax)} />
+            <Kv label="Advance recovery" value={p.advanceRecovery ? inr(p.advanceRecovery) : '—'} />
+            <Kv label="Other deductions" value={p.otherDeductions ? inr(p.otherDeductions) : '—'} />
+            <Kv label="Late marks / Loss & damage" value={p.lossDamage ? inr(p.lossDamage) : '—'} />
             <Kv label="Net payable" value={inr(p.netPayable)} total />
             <div className="kv muted" style={{ fontSize: 11 }}>
               <span>
@@ -381,6 +386,7 @@ function AdjForm({
   const [form, setForm] = useState({
     advance_recovery: String(adj.advanceRecovery),
     loss_damage: String(adj.lossDamage),
+    other_deductions: String(adj.otherDeductions),
     last_month_balance: String(adj.lastMonthBalance),
     reimbursement_bonus: String(adj.reimbursementBonus),
     remarks: adj.remarks,
@@ -415,10 +421,17 @@ function AdjForm({
         readOnly={frozen}
       />
       <AdjRow
-        label="Loss / damage"
+        label="Late marks / Loss & damage"
         name="loss_damage"
         value={form.loss_damage}
         onChange={set('loss_damage')}
+        readOnly={frozen}
+      />
+      <AdjRow
+        label="Other deductions"
+        name="other_deductions"
+        value={form.other_deductions}
+        onChange={set('other_deductions')}
         readOnly={frozen}
       />
       <AdjRow

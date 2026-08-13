@@ -217,6 +217,59 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
     };
   }
 
+  // ------------------------------------------------- comp-off availment ---
+  // A manual 'CO' stamp is an availment too: close the employee's oldest
+  // usable credit so the balance drops, exactly as the approval path does.
+  // Without this, the register override left the credit 'available' forever.
+  // Best-effort: the day is already stamped, so a credit problem is a WARNING.
+  let compOffWarning: string | null = null;
+  if (status === 'CO') {
+    // Idempotence: re-saving the same day must not spend a second credit.
+    const { data: already } = await supabase
+      .from('comp_offs')
+      .select('id')
+      .eq('employee_id', employeeId)
+      .eq('used_date', workDate)
+      .in('status', ['applied', 'used'])
+      .limit(1);
+    if (!already || already.length === 0) {
+      let fifo = await supabase
+        .from('comp_offs')
+        .select('id')
+        .eq('employee_id', employeeId)
+        .eq('status', 'available')
+        .eq('is_applicable', true)
+        .order('expires_on', { ascending: true, nullsFirst: false })
+        .order('earned_date', { ascending: true })
+        .limit(1)
+        .maybeSingle<{ id: string }>();
+      // expires_on / is_applicable may predate 0036/0041 on this database.
+      if (fifo.error?.code === '42703') {
+        fifo = (await supabase
+          .from('comp_offs')
+          .select('id')
+          .eq('employee_id', employeeId)
+          .eq('status', 'available')
+          .order('earned_date', { ascending: true })
+          .limit(1)
+          .maybeSingle<{ id: string }>()) as typeof fifo;
+      }
+      if (fifo.data?.id) {
+        const { error: spendErr } = await supabase
+          .from('comp_offs')
+          .update({ status: 'used', used_date: workDate })
+          .eq('id', fifo.data.id)
+          .eq('status', 'available');
+        if (spendErr) {
+          compOffWarning = `The day was stamped CO, but the comp-off credit could not be closed: ${spendErr.message}`;
+        }
+      } else if (!fifo.error) {
+        compOffWarning =
+          'The day was stamped CO, but this employee has no usable comp-off credit to deduct — the balance was not reduced.';
+      }
+    }
+  }
+
   // ----------------------------------------------------------- audit log ---
   const punchText = punchIn && punchOut ? `${punchIn}–${punchOut}` : 'no punches';
   const actor = session.profile.full_name ?? session.email ?? 'A staff user';
@@ -240,11 +293,13 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
   // across the two writes). Surface the audit failure as a WARNING on a
   // success — the correction itself is saved, and screens must show it as such.
   revalidatePath('/register');
-  if (logError) {
-    return {
-      ok: true,
-      warning: `Attendance was updated, but the audit-log entry failed: ${logError.message}`,
-    };
+  if (status === 'CO') revalidatePath('/me'); // the employee's balance moved
+  const warnings = [
+    compOffWarning,
+    logError ? `Attendance was updated, but the audit-log entry failed: ${logError.message}` : null,
+  ].filter(Boolean);
+  if (warnings.length > 0) {
+    return { ok: true, warning: warnings.join(' ') };
   }
   return { ok: true };
 }

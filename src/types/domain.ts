@@ -57,6 +57,13 @@ export interface PayslipRow {
   professionalTax: number;
   netPayable: number;
   shortfallMinutes: number;
+  /** Manual adjustments (payslip_adjustments) — 0 when none are saved. */
+  advanceRecovery: number;
+  lossDamage: number;
+  otherDeductions: number;
+  /** ± carry-over: positive is an addition, negative a deduction. */
+  lastMonthBalance: number;
+  reimbursementBonus: number;
 }
 
 export interface TodayKpis {

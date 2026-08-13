@@ -59,7 +59,12 @@ export function DocumentQueue({ documents }: { documents: EmployeeDocumentRow[] 
 
   async function open(id: string) {
     // Claim the tab INSIDE the click gesture — see MyDocuments.open().
-    const win = window.open('', '_blank', 'noopener,noreferrer');
+    // No 'noopener' in the features string: with it, window.open() returns null
+    // by spec, which sent every successful open through the fallback below and
+    // navigated the HRMS tab itself away to the signed URL. The opener link is
+    // severed by hand instead.
+    const win = window.open('about:blank', '_blank');
+    if (win) win.opener = null;
     const res = await getDocumentUrl(id);
     if (!res.ok || !res.url) {
       win?.close();
@@ -67,7 +72,7 @@ export function DocumentQueue({ documents }: { documents: EmployeeDocumentRow[] 
       return;
     }
     if (win) win.location.href = res.url;
-    else window.location.href = res.url;
+    else window.location.href = res.url; // popup blocked outright — navigate in place
   }
 
   return (

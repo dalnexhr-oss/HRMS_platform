@@ -69,6 +69,9 @@ export async function saveLeaveSalaryWorking(input: {
   /** 1–12; 4 = the default 1 April increment. */
   incrementMonth: number;
   remarks?: string;
+  /** HR-typed calendar-day denominators (0041). null/undefined = real calendar days. */
+  calendarDaysP1Override?: number | null;
+  calendarDaysP2Override?: number | null;
 }): Promise<ActionResult> {
   const gate = await requireRoles(['admin', 'hr'], 'Saving a leave-salary working');
   if (!gate.ok) return gate;
@@ -77,6 +80,21 @@ export async function saveLeaveSalaryWorking(input: {
   const salaryBefore = Number(input.salaryBefore);
   const salaryAfter = Number(input.salaryAfter);
   const incrementMonth = Number(input.incrementMonth);
+
+  // Denominator overrides: blank = automatic. A typed value must be a whole
+  // day count a period can actually have — dividing by 0 (or a typo like
+  // 3650) would silently wreck the payout.
+  const parseOverride = (v: number | null | undefined): number | null | 'bad' => {
+    if (v == null) return null;
+    const n = Math.round(Number(v));
+    if (!Number.isFinite(n) || n < 1 || n > 366) return 'bad';
+    return n;
+  };
+  const calendarDaysP1Override = parseOverride(input.calendarDaysP1Override);
+  const calendarDaysP2Override = parseOverride(input.calendarDaysP2Override);
+  if (calendarDaysP1Override === 'bad' || calendarDaysP2Override === 'bad') {
+    return { ok: false, error: 'Days must be a whole number between 1 and 366, or blank for the real calendar days.' };
+  }
 
   if (!UUID_RE.test(String(input.employeeId ?? ''))) return { ok: false, error: 'Pick an employee.' };
   if (!validYear(year)) return { ok: false, error: 'Enter a valid year.' };
@@ -117,7 +135,15 @@ export async function saveLeaveSalaryWorking(input: {
     return { ok: false, error: `Saving a leave-salary working: ${(e as Error).message}` };
   }
 
-  const result = computeLeaveSalary({ year, salaryBefore, salaryAfter, incrementMonth, monthlyPresence });
+  const result = computeLeaveSalary({
+    year,
+    salaryBefore,
+    salaryAfter,
+    incrementMonth,
+    monthlyPresence,
+    calendarDaysP1Override,
+    calendarDaysP2Override,
+  });
 
   const snapshot = {
     employee_id: input.employeeId,
@@ -133,6 +159,8 @@ export async function saveLeaveSalaryWorking(input: {
     amount_p2: result.p2.payable,
     total_amount: result.total,
     remarks: String(input.remarks ?? '').trim() || null,
+    calendar_days_p1_override: calendarDaysP1Override,
+    calendar_days_p2_override: calendarDaysP2Override,
     updated_by: gate.profileId,
   };
 
@@ -143,6 +171,13 @@ export async function saveLeaveSalaryWorking(input: {
   if (error) {
     if (notMigrated(error.code)) {
       return { ok: false, error: 'Leave salary is not set up on the database yet — apply migration 0038.' };
+    }
+    // PGRST204/42703 = the override columns don't exist yet (0041 pending).
+    if (error.code === 'PGRST204' || error.code === '42703') {
+      return {
+        ok: false,
+        error: 'Editable day counts need migration 0041_payslip_compoff_leave.sql — apply it, then save again.',
+      };
     }
     return { ok: false, error: error.message };
   }
@@ -164,18 +199,32 @@ export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
   if (!UUID_RE.test(id)) return { ok: false, error: 'Unknown working.' };
 
   const supabase = await createClient();
-  const { data: row, error: readErr } = await supabase
+  type WorkingRead = {
+    employee_id: string;
+    year: number;
+    salary_before: number | string;
+    salary_after: number | string;
+    increment_effective: string;
+    status: string;
+    calendar_days_p1_override?: number | string | null;
+    calendar_days_p2_override?: number | string | null;
+  };
+  let read = await supabase
     .from('leave_salary_workings')
-    .select('id, employee_id, year, salary_before, salary_after, increment_effective, status')
+    .select(
+      'id, employee_id, year, salary_before, salary_after, increment_effective, status, calendar_days_p1_override, calendar_days_p2_override',
+    )
     .eq('id', id)
-    .maybeSingle<{
-      employee_id: string;
-      year: number;
-      salary_before: number | string;
-      salary_after: number | string;
-      increment_effective: string;
-      status: string;
-    }>();
+    .maybeSingle<WorkingRead>();
+  // Override columns arrive with 0041 — finalize must still work without them.
+  if (read.error?.code === '42703') {
+    read = (await supabase
+      .from('leave_salary_workings')
+      .select('id, employee_id, year, salary_before, salary_after, increment_effective, status')
+      .eq('id', id)
+      .maybeSingle<WorkingRead>()) as typeof read;
+  }
+  const { data: row, error: readErr } = read;
   if (readErr) return { ok: false, error: readErr.message };
   if (!row) return { ok: false, error: 'That working no longer exists.' };
   if (row.status !== 'draft') return { ok: false, error: `This working is already ${row.status}.` };
@@ -194,6 +243,11 @@ export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
     salaryAfter: Number(row.salary_after),
     incrementMonth: Number(String(row.increment_effective).slice(5, 7)),
     monthlyPresence,
+    // The finalize recompute keeps honouring HR's typed denominators.
+    calendarDaysP1Override:
+      row.calendar_days_p1_override != null ? Number(row.calendar_days_p1_override) : null,
+    calendarDaysP2Override:
+      row.calendar_days_p2_override != null ? Number(row.calendar_days_p2_override) : null,
   });
 
   const { data, error } = await supabase

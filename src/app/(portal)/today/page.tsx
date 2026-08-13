@@ -1,8 +1,10 @@
 import { TodayBoard, type Loaded } from '@/components/today/TodayBoard';
+import { CompOffAdminCard } from '@/components/today/CompOffAdminCard';
 import {
   currentPeriodMonth,
   getActivityFeed,
   getCelebrationsToday,
+  getCompOffAdmin,
   getPayrollRun,
   getPunchLogToday,
   getRegister,
@@ -82,15 +84,17 @@ function marksWatchFrom(register: RegisterEmployee[], threshold: number): MarkWa
 // Today — the operational dashboard. Same markup as the prototype; live data behind it.
 export default async function TodayPage() {
   const periodMonth = currentPeriodMonth();
-  const [board, punchLog, celebrations, activity, run, register, settings] = await Promise.all([
-    load(getTodayBoard()),
-    load(getPunchLogToday()),
-    load(getCelebrationsToday()),
-    load(getActivityFeed(6)),
-    load(getPayrollRun(periodMonth)),
-    load(getRegister(periodMonth)),
-    load(getSettings()),
-  ]);
+  const [board, punchLog, celebrations, activity, run, register, settings, compOffs] =
+    await Promise.all([
+      load(getTodayBoard()),
+      load(getPunchLogToday()),
+      load(getCelebrationsToday()),
+      load(getActivityFeed(6)),
+      load(getPayrollRun(periodMonth)),
+      load(getRegister(periodMonth)),
+      load(getSettings()),
+      load(getCompOffAdmin()),
+    ]);
 
   const threshold = markThreshold(settings);
   const marks: Loaded<MarkWatch[]> = register.ok
@@ -98,17 +102,26 @@ export default async function TodayPage() {
     : register;
 
   return (
-    <TodayBoard
-      board={board}
-      punchLog={punchLog}
-      celebrations={celebrations}
-      activity={activity}
-      run={run}
-      marks={marks}
-      markThreshold={threshold}
-      today={todayISO()}
-      todayLabel={todayLabel()}
-      periodMonthLabel={monthLabelOf(periodMonth)}
-    />
+    <>
+      <TodayBoard
+        board={board}
+        punchLog={punchLog}
+        celebrations={celebrations}
+        activity={activity}
+        run={run}
+        marks={marks}
+        markThreshold={threshold}
+        today={todayISO()}
+        todayLabel={todayLabel()}
+        periodMonthLabel={monthLabelOf(periodMonth)}
+      />
+      {/* Comp-off balances + the applicable/not-applicable switch (0041). */}
+      <div className="wrap grid">
+        <CompOffAdminCard
+          rows={compOffs.ok ? compOffs.data : []}
+          error={compOffs.ok ? undefined : compOffs.error}
+        />
+      </div>
+    </>
   );
 }

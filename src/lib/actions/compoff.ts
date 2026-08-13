@@ -141,13 +141,16 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
       .select('id')
       .eq('employee_id', employeeId)
       .eq('status', 'available')
+      // A credit staff put on hold (0041) must not be picked for the employee.
+      .eq('is_applicable', true)
       // nullsFirst:false so dated credits are consumed before undated ones —
       // an undated credit cannot lapse, so it can safely wait.
       .order('expires_on', { ascending: true, nullsFirst: false })
       .order('earned_date', { ascending: true })
       .limit(1)
       .maybeSingle<{ id: string }>();
-    // A missing expires_on column (0036 unapplied) still sorts by earned_date.
+    // A missing expires_on/is_applicable column (0036/0041 unapplied) still
+    // falls back to plain earned-date FIFO.
     if (fifoErr && fifoErr.code === '42703') {
       const { data: fallback } = await supabase
         .from('comp_offs')
@@ -163,23 +166,37 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
     } else {
       compOffId = oldest?.id ?? '';
     }
-    if (!compOffId) return { ok: false, error: 'You have no comp off available to apply for.' };
+    if (!compOffId) return { ok: false, error: 'You have no usable comp off to apply for.' };
   }
 
   // Claim the credit first: the status predicate means two concurrent
-  // applications for the same credit cannot both succeed.
-  const { data: claimed, error: claimErr } = await supabase
+  // applications for the same credit cannot both succeed, and the
+  // is_applicable predicate refuses a credit staff put on hold.
+  let claim = await supabase
     .from('comp_offs')
     .update({ status: 'applied' })
     .eq('id', compOffId)
     .eq('employee_id', employeeId)
     .eq('status', 'available')
+    .eq('is_applicable', true)
     .select('id, earned_date');
+  // is_applicable arrives with 0041 — claim without the predicate until then.
+  if (claim.error?.code === '42703') {
+    claim = (await supabase
+      .from('comp_offs')
+      .update({ status: 'applied' })
+      .eq('id', compOffId)
+      .eq('employee_id', employeeId)
+      .eq('status', 'available')
+      .select('id, earned_date')) as typeof claim;
+  }
+  const { data: claimed, error: claimErr } = claim;
   if (claimErr) return { ok: false, error: claimErr.message };
   if (wroteNothing(claimed)) {
     return {
       ok: false,
-      error: 'That comp off is no longer available — it may already be applied for or used.',
+      error:
+        'That comp off cannot be used — it may already be applied for or used, or HR has marked it not applicable.',
     };
   }
 
@@ -220,5 +237,65 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
 
   revalidatePath('/me');
   revalidatePath('/approvals');
+  return { ok: true };
+}
+
+/**
+ * Staff switch (0041): mark an AVAILABLE credit applicable / not applicable.
+ * A not-applicable credit stays on the books and keeps its expiry, but the
+ * employee cannot apply against it until it is switched back.
+ */
+export async function setCompOffApplicability(
+  id: string,
+  applicable: boolean,
+): Promise<ActionResult> {
+  const gate = await requireStaff('Updating a comp off');
+  if (!gate.ok) return gate;
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return { ok: false, error: 'Unknown comp off.' };
+
+  const supabase = await createClient();
+  // Only an available credit can be toggled: an applied one is already in the
+  // approvals queue, and used/expired credits are history.
+  const { data, error } = await supabase
+    .from('comp_offs')
+    .update({ is_applicable: applicable })
+    .eq('id', id)
+    .eq('status', 'available')
+    .select('id, employee_id, earned_date');
+  if (error) {
+    if (error.code === 'PGRST204' || error.code === '42703') {
+      return {
+        ok: false,
+        error: 'Comp-off applicability needs migration 0041_payslip_compoff_leave.sql — apply it first.',
+      };
+    }
+    return { ok: false, error: error.message };
+  }
+  if (wroteNothing(data)) {
+    return {
+      ok: false,
+      error: 'Only an available credit can be switched — this one is already applied for, used or expired.',
+    };
+  }
+
+  const row = data![0] as { employee_id: string; earned_date: string };
+  await supabase.from('activity_log').insert({
+    actor_id: gate.profileId,
+    employee_id: row.employee_id,
+    event_type: 'comp_off_applicability',
+    message: `Comp off earned ${row.earned_date} marked ${applicable ? 'applicable' : 'not applicable'}.`,
+    metadata: { comp_off_id: id, earned_date: row.earned_date, is_applicable: applicable },
+  });
+  await notifyEmployee(row.employee_id, {
+    kind: 'comp_off',
+    title: applicable ? 'A comp off is available again' : 'A comp off was put on hold',
+    body: applicable
+      ? `Your comp off earned on ${row.earned_date} can be applied for again.`
+      : `Your comp off earned on ${row.earned_date} was marked not applicable by HR.`,
+    link: '/me#comp-offs',
+  });
+
+  revalidatePath('/today');
+  revalidatePath('/me');
   return { ok: true };
 }

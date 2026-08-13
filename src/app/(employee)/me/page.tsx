@@ -21,6 +21,7 @@ import {
   getPayrollRun,
   getHolidays,
   getNotices,
+  getOnLeaveToday,
   getReadNoticeIds,
   getWeekOffPolicy,
   isSupabaseConfigured,
@@ -36,6 +37,7 @@ import {
   type MyItemRow,
   type EmployeeDocumentRow,
   type OnboardingTaskRow,
+  type OnLeaveTodayRow,
 } from '@/lib/queries';
 import { PolicyList } from '@/components/policies/PolicyList';
 import { EmployeeNotices } from '@/components/employee/EmployeeNotices';
@@ -82,6 +84,7 @@ export default async function MePage() {
     readNoticeIds,
     myDocuments,
     myOnboarding,
+    onLeaveToday,
   ] = await Promise.all([
       getEmployeeOverview(employeeId, profile?.full_name, periodMonth),
       getEmployeePolicies(employeeId),
@@ -106,6 +109,9 @@ export default async function MePage() {
       employeeId ? getReadNoticeIds(employeeId) : Promise.resolve<string[]>([]),
       employeeId ? getEmployeeDocuments(employeeId) : Promise.resolve<EmployeeDocumentRow[]>([]),
       employeeId ? getMyOnboardingTasks(employeeId) : Promise.resolve<OnboardingTaskRow[]>([]),
+      // Who is out today — visible to everyone; degrades to [] on failure so a
+      // broken leave feed never blanks the whole dashboard.
+      getOnLeaveToday().catch(() => [] as OnLeaveTodayRow[]),
     ]);
 
   // Notices are company announcements — every employee sees all PUBLISHED ones
@@ -191,6 +197,24 @@ export default async function MePage() {
           </div>
         </div>
         <div className="card kpi">
+          <div className="lab">Pending hours · {monthName(periodMonth)}</div>
+          <div
+            className="val mono"
+            style={{
+              fontSize: 26,
+              paddingTop: 8,
+              color: overview.pendingMinutes > 0 ? 'var(--lm)' : 'var(--p)',
+            }}
+          >
+            {overview.pendingHours}
+          </div>
+          <div className="note">
+            {overview.pendingMinutes > 0
+              ? `of ${overview.targetHours} due so far this month`
+              : 'you are on target'}
+          </div>
+        </div>
+        <div className="card kpi">
           <div className="lab">Net pay · {monthName(periodMonth)}</div>
           <div className="val" style={{ fontSize: 26, paddingTop: 8, color: 'var(--brand-deep)' }}>
             {overview.netPay != null ? inr(overview.netPay) : '—'}
@@ -220,6 +244,40 @@ export default async function MePage() {
             {openTickets}
           </div>
           <div className="note">{tickets.length} raised in total</div>
+        </div>
+      </div>
+
+      {/* who is out today — approved leaves overlapping today's date */}
+      <div className="card" id="on-leave-today">
+        <div className="hd">
+          <h3>On leave today</h3>
+          <span className="folio">
+            {onLeaveToday.length === 0
+              ? 'everyone is in'
+              : `${onLeaveToday.length} ${onLeaveToday.length === 1 ? 'colleague' : 'colleagues'}`}
+          </span>
+        </div>
+        <div className="bd">
+          {onLeaveToday.length === 0 ? (
+            <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+              No approved leaves overlap today.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {onLeaveToday.map((p) => (
+                <span
+                  key={p.employeeId}
+                  className="pill"
+                  style={{ borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' }}
+                  title={`${p.startDate === p.endDate ? p.startDate : `${p.startDate} – ${p.endDate}`}`}
+                >
+                  <b>{p.name}</b>
+                  {p.branch ? <span style={{ opacity: 0.75 }}>&nbsp;· {p.branch}</span> : null}
+                  &nbsp;— On Leave Today
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
