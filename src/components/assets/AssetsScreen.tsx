@@ -9,8 +9,40 @@ import { AddAssetDrawer } from './AddAssetDrawer';
 import { AssignAssetDrawer } from './AssignAssetDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
+import { FilterSelect, distinctOptions } from '@/components/ui/FilterSelect';
 import { deleteAsset } from '@/lib/actions/assets';
 import type { AssetRow, EmployeeOption, AssetSummaryRow } from '@/lib/queries';
+
+/** One dropdown per headline column. '' = All (no filtering on that column). */
+interface AssetFilters {
+  name: string;
+  category: string;
+  brand: string;
+  serial: string;
+  model: string;
+  assignee: string; // employee name or 'Unassigned'
+  warranty: string; // '' | 'In warranty' | 'Expiring ≤ 30 days' | 'Expired' | 'No date'
+  processor: string;
+  ram: string;
+  storage: string;
+}
+
+const NO_ASSET_FILTERS: AssetFilters = {
+  name: '', category: '', brand: '', serial: '', model: '', assignee: '', warranty: '',
+  processor: '', ram: '', storage: '',
+};
+
+const UNASSIGNED = 'Unassigned';
+
+/** Bucket a warranty_upto date for the Warranty dropdown. */
+function warrantyBucket(warrantyUpto: string | null, todayISO: string): string {
+  if (!warrantyUpto) return 'No date';
+  if (warrantyUpto < todayISO) return 'Expired';
+  const soon = new Date(`${todayISO}T00:00:00Z`);
+  soon.setUTCDate(soon.getUTCDate() + 30);
+  if (warrantyUpto <= soon.toISOString().slice(0, 10)) return 'Expiring ≤ 30 days';
+  return 'In warranty';
+}
 
 export function AssetsScreen({
   assets,
@@ -23,6 +55,7 @@ export function AssetsScreen({
 }) {
   const router = useRouter();
   const [q, setQ] = useState('');
+  const [filters, setFilters] = useState<AssetFilters>(NO_ASSET_FILTERS);
   const [drawer, setDrawer] = useState(false);
   const [editing, setEditing] = useState<AssetRow | null>(null);
   const [assigning, setAssigning] = useState<AssetRow | null>(null);
@@ -31,15 +64,38 @@ export function AssetsScreen({
   const { confirm, confirmDialog } = useConfirm();
   const { toast, toastNode } = useToast();
 
+  const set = (k: keyof AssetFilters) => (v: string) => setFilters((f) => ({ ...f, [k]: v }));
+  const anyFilter = Object.values(filters).some(Boolean);
+  // One render's worth of "today" — the buckets must agree between options and rows.
+  const todayISO = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
-    if (!term) return assets;
-    return assets.filter((a) =>
-      [a.desktop_name, a.brand, a.serial_no, a.model_no, a.device_id, a.product_id].some((v) =>
-        (v ?? '').toLowerCase().includes(term),
-      ),
-    );
-  }, [q, assets]);
+    return assets.filter((a) => {
+      if (
+        term &&
+        ![a.desktop_name, a.brand, a.serial_no, a.model_no, a.device_id, a.product_id].some((v) =>
+          (v ?? '').toLowerCase().includes(term),
+        )
+      ) {
+        return false;
+      }
+      if (filters.name && a.desktop_name !== filters.name) return false;
+      if (filters.category && (a.asset_category ?? '') !== filters.category) return false;
+      if (filters.brand && (a.brand ?? '') !== filters.brand) return false;
+      if (filters.serial && (a.serial_no ?? '') !== filters.serial) return false;
+      if (filters.model && (a.model_no ?? '') !== filters.model) return false;
+      if (filters.assignee) {
+        const holder = a.assigned_employee_id ? (a.assigned_person_name ?? '') : UNASSIGNED;
+        if (holder !== filters.assignee) return false;
+      }
+      if (filters.warranty && warrantyBucket(a.warranty_upto, todayISO) !== filters.warranty) return false;
+      if (filters.processor && (a.processor ?? '') !== filters.processor) return false;
+      if (filters.ram && (a.ram ?? '') !== filters.ram) return false;
+      if (filters.storage && (a.storage ?? '') !== filters.storage) return false;
+      return true;
+    });
+  }, [q, assets, filters, todayISO]);
 
   function openAdd() {
     setEditing(null);
@@ -96,6 +152,36 @@ export function AssetsScreen({
       </div>
 
       {toastNode}
+
+      {/* one dropdown per headline column — filters combine (AND) with search */}
+      <div
+        className="card"
+        style={{ padding: '10px 14px', display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', marginBottom: 12 }}
+      >
+        <FilterSelect label="Desktop name" value={filters.name} options={distinctOptions(assets.map((a) => a.desktop_name))} onChange={set('name')} />
+        <FilterSelect label="Category" value={filters.category} options={distinctOptions(assets.map((a) => a.asset_category))} onChange={set('category')} />
+        <FilterSelect label="Brand" value={filters.brand} options={distinctOptions(assets.map((a) => a.brand))} onChange={set('brand')} />
+        <FilterSelect label="Serial no." value={filters.serial} options={distinctOptions(assets.map((a) => a.serial_no))} onChange={set('serial')} />
+        <FilterSelect label="Model" value={filters.model} options={distinctOptions(assets.map((a) => a.model_no))} onChange={set('model')} />
+        <FilterSelect
+          label="Assigned to"
+          value={filters.assignee}
+          options={[UNASSIGNED, ...distinctOptions(assets.filter((a) => a.assigned_employee_id).map((a) => a.assigned_person_name))]}
+          onChange={set('assignee')}
+        />
+        <FilterSelect label="Warranty" value={filters.warranty} options={['In warranty', 'Expiring ≤ 30 days', 'Expired', 'No date']} onChange={set('warranty')} />
+        <FilterSelect label="Processor" value={filters.processor} options={distinctOptions(assets.map((a) => a.processor))} onChange={set('processor')} />
+        <FilterSelect label="RAM" value={filters.ram} options={distinctOptions(assets.map((a) => a.ram))} onChange={set('ram')} />
+        <FilterSelect label="Storage" value={filters.storage} options={distinctOptions(assets.map((a) => a.storage))} onChange={set('storage')} />
+        {anyFilter && (
+          <button className="btn quiet" onClick={() => setFilters(NO_ASSET_FILTERS)}>
+            Clear filters
+          </button>
+        )}
+        <span className="muted" style={{ fontSize: 11, marginLeft: 'auto' }}>
+          {filtered.length} of {assets.length} shown
+        </span>
+      </div>
 
       {summary.length > 0 && (
         <div className="kpis" style={{ marginBottom: 12 }}>
@@ -194,7 +280,7 @@ export function AssetsScreen({
               {filtered.length === 0 && (
                 <tr>
                   <td className="muted" colSpan={11} style={{ textAlign: 'center' }}>
-                    {q ? `No assets match “${q}”.` : 'No assets yet.'}
+                    {q || anyFilter ? 'No assets match the current search / filters.' : 'No assets yet.'}
                   </td>
                 </tr>
               )}
