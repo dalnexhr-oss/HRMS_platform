@@ -96,7 +96,7 @@ async function getSandwichPolicy(): Promise<boolean> {
 function revalidateRequestViews(): void {
   revalidatePath('/me');
   revalidatePath('/approvals');
-  revalidatePath('/leaves');
+  revalidatePath('/hr');
 }
 
 /** Every 'YYYY-MM-DD' in an inclusive span (small spans only — capped upstream). */

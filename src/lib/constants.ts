@@ -217,7 +217,7 @@ export const NAV: NavItem[] = [
   { slug: 'onboarding', label: 'Onboarding', group: GROUPS.WORKFORCE },
   { slug: 'exits', label: 'Exits', group: GROUPS.WORKFORCE },
 
-  { slug: 'leaves', label: 'Leave Management', group: GROUPS.HR },
+  { slug: 'hr', label: 'Leave Management', group: GROUPS.HR },
   { slug: 'leave', label: 'Leave salary', group: GROUPS.HR },
   { slug: 'payroll', label: 'Payroll', group: GROUPS.HR },
   { slug: 'reimbursements', label: 'Reimbursements', group: GROUPS.HR },
