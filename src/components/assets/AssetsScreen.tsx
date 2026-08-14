@@ -9,40 +9,29 @@ import { AddAssetDrawer } from './AddAssetDrawer';
 import { AssignAssetDrawer } from './AssignAssetDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
-import { FilterSelect, distinctOptions } from '@/components/ui/FilterSelect';
+import { ThMenu, distinctValues, type SortDir } from '@/components/ui/ThMenu';
 import { deleteAsset } from '@/lib/actions/assets';
 import type { AssetRow, EmployeeOption, AssetSummaryRow } from '@/lib/queries';
 
-/** One dropdown per headline column. '' = All (no filtering on that column). */
-interface AssetFilters {
-  name: string;
-  category: string;
-  brand: string;
-  serial: string;
-  model: string;
-  assignee: string; // employee name or 'Unassigned'
-  warranty: string; // '' | 'In warranty' | 'Expiring ≤ 30 days' | 'Expired' | 'No date'
-  processor: string;
-  ram: string;
-  storage: string;
-}
+// One entry per data column, in display order (Actions excluded). `get` yields
+// the string each header menu sorts and filters on; '—' stands in for blank so
+// "no value" is itself pickable in the filter.
+type ColKey =
+  | 'name' | 'category' | 'brand' | 'serial' | 'model'
+  | 'assigned' | 'warranty' | 'processor' | 'ram' | 'storage';
 
-const NO_ASSET_FILTERS: AssetFilters = {
-  name: '', category: '', brand: '', serial: '', model: '', assignee: '', warranty: '',
-  processor: '', ram: '', storage: '',
-};
-
-const UNASSIGNED = 'Unassigned';
-
-/** Bucket a warranty_upto date for the Warranty dropdown. */
-function warrantyBucket(warrantyUpto: string | null, todayISO: string): string {
-  if (!warrantyUpto) return 'No date';
-  if (warrantyUpto < todayISO) return 'Expired';
-  const soon = new Date(`${todayISO}T00:00:00Z`);
-  soon.setUTCDate(soon.getUTCDate() + 30);
-  if (warrantyUpto <= soon.toISOString().slice(0, 10)) return 'Expiring ≤ 30 days';
-  return 'In warranty';
-}
+const COLS: { key: ColKey; label: string; get: (a: AssetRow) => string }[] = [
+  { key: 'name', label: 'Desktop name', get: (a) => a.desktop_name || '—' },
+  { key: 'category', label: 'Category', get: (a) => a.asset_category ?? '—' },
+  { key: 'brand', label: 'Brand', get: (a) => a.brand ?? '—' },
+  { key: 'serial', label: 'Serial no.', get: (a) => a.serial_no ?? '—' },
+  { key: 'model', label: 'Model', get: (a) => a.model_no ?? '—' },
+  { key: 'assigned', label: 'Assigned to', get: (a) => a.assigned_person_name ?? '—' },
+  { key: 'warranty', label: 'Warranty upto', get: (a) => a.warranty_upto ?? '—' },
+  { key: 'processor', label: 'Processor', get: (a) => a.processor ?? '—' },
+  { key: 'ram', label: 'RAM', get: (a) => a.ram ?? '—' },
+  { key: 'storage', label: 'Storage', get: (a) => a.storage ?? '—' },
+];
 
 export function AssetsScreen({
   assets,
@@ -55,7 +44,6 @@ export function AssetsScreen({
 }) {
   const router = useRouter();
   const [q, setQ] = useState('');
-  const [filters, setFilters] = useState<AssetFilters>(NO_ASSET_FILTERS);
   const [drawer, setDrawer] = useState(false);
   const [editing, setEditing] = useState<AssetRow | null>(null);
   const [assigning, setAssigning] = useState<AssetRow | null>(null);
@@ -64,38 +52,52 @@ export function AssetsScreen({
   const { confirm, confirmDialog } = useConfirm();
   const { toast, toastNode } = useToast();
 
-  const set = (k: keyof AssetFilters) => (v: string) => setFilters((f) => ({ ...f, [k]: v }));
-  const anyFilter = Object.values(filters).some(Boolean);
-  // One render's worth of "today" — the buckets must agree between options and rows.
-  const todayISO = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  // Header-menu state: one active sort, plus per-column value selections.
+  const [sort, setSort] = useState<{ key: ColKey; dir: SortDir } | null>(null);
+  const [filters, setFilters] = useState<Partial<Record<ColKey, string[]>>>({});
+
+  // Options come from the full list (not the filtered one), so a selection in
+  // one column never hides another column's choices.
+  const options = useMemo(() => {
+    const out = {} as Record<ColKey, string[]>;
+    for (const c of COLS) out[c.key] = distinctValues(assets.map(c.get));
+    return out;
+  }, [assets]);
+
+  const hasFilters = Object.values(filters).some((sel) => (sel?.length ?? 0) > 0);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
-    return assets.filter((a) => {
-      if (
-        term &&
-        ![a.desktop_name, a.brand, a.serial_no, a.model_no, a.device_id, a.product_id].some((v) =>
+    let rows = assets;
+    if (term) {
+      rows = rows.filter((a) =>
+        [a.desktop_name, a.brand, a.serial_no, a.model_no, a.device_id, a.product_id].some((v) =>
           (v ?? '').toLowerCase().includes(term),
-        )
-      ) {
-        return false;
+        ),
+      );
+    }
+    for (const c of COLS) {
+      const sel = filters[c.key];
+      if (sel?.length) rows = rows.filter((a) => sel.includes(c.get(a)));
+    }
+    if (sort) {
+      const col = COLS.find((c) => c.key === sort.key);
+      if (col) {
+        const dir = sort.dir === 'asc' ? 1 : -1;
+        rows = [...rows].sort(
+          (x, y) => dir * col.get(x).localeCompare(col.get(y), undefined, { numeric: true }),
+        );
       }
-      if (filters.name && a.desktop_name !== filters.name) return false;
-      if (filters.category && (a.asset_category ?? '') !== filters.category) return false;
-      if (filters.brand && (a.brand ?? '') !== filters.brand) return false;
-      if (filters.serial && (a.serial_no ?? '') !== filters.serial) return false;
-      if (filters.model && (a.model_no ?? '') !== filters.model) return false;
-      if (filters.assignee) {
-        const holder = a.assigned_employee_id ? (a.assigned_person_name ?? '') : UNASSIGNED;
-        if (holder !== filters.assignee) return false;
-      }
-      if (filters.warranty && warrantyBucket(a.warranty_upto, todayISO) !== filters.warranty) return false;
-      if (filters.processor && (a.processor ?? '') !== filters.processor) return false;
-      if (filters.ram && (a.ram ?? '') !== filters.ram) return false;
-      if (filters.storage && (a.storage ?? '') !== filters.storage) return false;
-      return true;
+    }
+    return rows;
+  }, [q, assets, filters, sort]);
+
+  function toggleFilter(key: ColKey, value: string) {
+    setFilters((f) => {
+      const cur = f[key] ?? [];
+      return { ...f, [key]: cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value] };
     });
-  }, [q, assets, filters, todayISO]);
+  }
 
   function openAdd() {
     setEditing(null);
@@ -153,38 +155,10 @@ export function AssetsScreen({
 
       {toastNode}
 
-      {/* one dropdown per headline column — filters combine (AND) with search */}
-      <div
-        className="card"
-        style={{ padding: '10px 14px', display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', marginBottom: 12 }}
-      >
-        <FilterSelect label="Desktop name" value={filters.name} options={distinctOptions(assets.map((a) => a.desktop_name))} onChange={set('name')} />
-        <FilterSelect label="Category" value={filters.category} options={distinctOptions(assets.map((a) => a.asset_category))} onChange={set('category')} />
-        <FilterSelect label="Brand" value={filters.brand} options={distinctOptions(assets.map((a) => a.brand))} onChange={set('brand')} />
-        <FilterSelect label="Serial no." value={filters.serial} options={distinctOptions(assets.map((a) => a.serial_no))} onChange={set('serial')} />
-        <FilterSelect label="Model" value={filters.model} options={distinctOptions(assets.map((a) => a.model_no))} onChange={set('model')} />
-        <FilterSelect
-          label="Assigned to"
-          value={filters.assignee}
-          options={[UNASSIGNED, ...distinctOptions(assets.filter((a) => a.assigned_employee_id).map((a) => a.assigned_person_name))]}
-          onChange={set('assignee')}
-        />
-        <FilterSelect label="Warranty" value={filters.warranty} options={['In warranty', 'Expiring ≤ 30 days', 'Expired', 'No date']} onChange={set('warranty')} />
-        <FilterSelect label="Processor" value={filters.processor} options={distinctOptions(assets.map((a) => a.processor))} onChange={set('processor')} />
-        <FilterSelect label="RAM" value={filters.ram} options={distinctOptions(assets.map((a) => a.ram))} onChange={set('ram')} />
-        <FilterSelect label="Storage" value={filters.storage} options={distinctOptions(assets.map((a) => a.storage))} onChange={set('storage')} />
-        {anyFilter && (
-          <button className="btn quiet" onClick={() => setFilters(NO_ASSET_FILTERS)}>
-            Clear filters
-          </button>
-        )}
-        <span className="muted" style={{ fontSize: 11, marginLeft: 'auto' }}>
-          {filtered.length} of {assets.length} shown
-        </span>
-      </div>
-
+      {/* 14px below, matching .emp-top's own margin, so the search row, summary
+          band and table card sit on one consistent vertical rhythm. */}
       {summary.length > 0 && (
-        <div className="kpis" style={{ marginBottom: 12 }}>
+        <div className="kpis" style={{ marginBottom: 14 }}>
           {summary.map((s) => (
             <div className="card kpi" key={s.category}>
               <div className="lab">{s.category}</div>
@@ -202,29 +176,34 @@ export function AssetsScreen({
 
       <div className="card">
         <div style={{ overflowX: 'auto' }}>
-          <table>
+          {/* min-width keeps 11 columns from crushing into each other — below
+              it the wrapper scrolls horizontally instead of misaligning. */}
+          <table style={{ minWidth: 1080 }}>
             <thead>
               <tr>
-                <th>Desktop name</th>
-                <th>Category</th>
-                <th>Brand</th>
-                <th>Serial no.</th>
-                <th>Model</th>
-                <th>Assigned to</th>
-                <th>Warranty upto</th>
-                <th>Processor</th>
-                <th>RAM</th>
-                <th>Storage</th>
+                {COLS.map((c) => (
+                  <th key={c.key}>
+                    <ThMenu
+                      label={c.label}
+                      sortDir={sort?.key === c.key ? sort.dir : null}
+                      onSort={(dir) => setSort(dir ? { key: c.key, dir } : null)}
+                      options={options[c.key]}
+                      selected={filters[c.key] ?? []}
+                      onToggle={(v) => toggleFilter(c.key, v)}
+                      onClear={() => setFilters((f) => ({ ...f, [c.key]: [] }))}
+                    />
+                  </th>
+                ))}
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((a) => (
                 <tr key={a.id}>
-                  <td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
                     <b>{a.desktop_name}</b>
                   </td>
-                  <td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
                     {a.asset_category ? (
                       <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
                         {a.asset_category}
@@ -233,10 +212,16 @@ export function AssetsScreen({
                       <span className="muted">—</span>
                     )}
                   </td>
-                  <td>{a.brand ?? '—'}</td>
-                  <td className="mono">{a.serial_no ?? '—'}</td>
-                  <td>{a.model_no ?? '—'}</td>
                   <td>
+                    <Trunc v={a.brand} w={110} />
+                  </td>
+                  <td className="mono" style={{ whiteSpace: 'nowrap' }}>
+                    {a.serial_no ?? '—'}
+                  </td>
+                  <td>
+                    <Trunc v={a.model_no} w={140} />
+                  </td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
                     {a.assigned_employee_id ? (
                       <>
                         {a.assigned_person_name ?? '—'}{' '}
@@ -248,12 +233,20 @@ export function AssetsScreen({
                       <span className="muted">—</span>
                     )}
                   </td>
-                  <td className="mono">{a.warranty_upto ?? '—'}</td>
-                  <td>{a.processor ?? '—'}</td>
-                  <td>{a.ram ?? '—'}</td>
-                  <td>{a.storage ?? '—'}</td>
+                  <td className="mono" style={{ whiteSpace: 'nowrap' }}>
+                    {a.warranty_upto ?? '—'}
+                  </td>
                   <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <Trunc v={a.processor} w={170} />
+                  </td>
+                  <td>
+                    <Trunc v={a.ram} w={100} />
+                  </td>
+                  <td>
+                    <Trunc v={a.storage} w={140} />
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 6, whiteSpace: 'nowrap' }}>
                       <button className="btn quiet" onClick={() => openEdit(a)} disabled={pending && busyId === a.id}>
                         Edit
                       </button>
@@ -280,7 +273,7 @@ export function AssetsScreen({
               {filtered.length === 0 && (
                 <tr>
                   <td className="muted" colSpan={11} style={{ textAlign: 'center' }}>
-                    {q || anyFilter ? 'No assets match the current search / filters.' : 'No assets yet.'}
+                    {q || hasFilters ? 'No assets match the current search / filters.' : 'No assets yet.'}
                   </td>
                 </tr>
               )}
@@ -300,5 +293,29 @@ export function AssetsScreen({
       <AssignAssetDrawer asset={assigning} employees={employees} onClose={() => setAssigning(null)} />
       {confirmDialog}
     </div>
+  );
+}
+
+/**
+ * One-line cell for free-text specs (processor, storage…): long values get an
+ * ellipsis and a hover tooltip instead of wrapping, so every row stays one
+ * line and columns keep their alignment with the headers.
+ */
+function Trunc({ v, w = 150 }: { v: string | null; w?: number }) {
+  if (!v) return <span className="muted">—</span>;
+  return (
+    <span
+      title={v}
+      style={{
+        display: 'inline-block',
+        maxWidth: w,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        verticalAlign: 'bottom',
+      }}
+    >
+      {v}
+    </span>
   );
 }

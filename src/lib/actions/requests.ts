@@ -97,7 +97,6 @@ function revalidateRequestViews(): void {
   revalidatePath('/me');
   revalidatePath('/approvals');
   revalidatePath('/leaves');
-  revalidatePath('/hr'); // the HR dashboard's Leave Management history
 }
 
 /** Every 'YYYY-MM-DD' in an inclusive span (small spans only — capped upstream). */

@@ -9,31 +9,35 @@ import { AddItemDrawer } from './AddItemDrawer';
 import { AssignItemDrawer } from './AssignItemDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
-import { FilterSelect, distinctOptions } from '@/components/ui/FilterSelect';
+import { ThMenu, distinctValues, type SortDir } from '@/components/ui/ThMenu';
 import { deleteItem } from '@/lib/actions/items';
 import type { ItemRow, EmployeeOption } from '@/lib/queries';
 
-/** One dropdown per headline column. '' = All (no filtering on that column). */
-interface ItemFilters {
-  code: string;
-  name: string;
-  category: string;
-  brand: string;
-  size: string;
-  unit: string;
-  status: string;
-  returnable: string; // '' | 'Yes' | 'No'
-  stock: string; //      '' | 'In stock' | 'Fully assigned'
-}
+// One entry per data column, in display order (Actions excluded). `get` yields
+// the string each header menu sorts and filters on; '—' stands in for blank so
+// "no value" is itself pickable in the filter. Quantity columns sort/filter on
+// their numbers (numeric compare) and keep the right-aligned header.
+type ColKey =
+  | 'code' | 'name' | 'category' | 'brand' | 'size' | 'unit'
+  | 'total' | 'assigned' | 'remaining' | 'status' | 'returnable';
 
-const NO_ITEM_FILTERS: ItemFilters = {
-  code: '', name: '', category: '', brand: '', size: '', unit: '', status: '', returnable: '', stock: '',
-};
+const COLS: { key: ColKey; label: string; get: (i: ItemRow) => string; numeric?: boolean }[] = [
+  { key: 'code', label: 'Material / Tool ID', get: (i) => i.item_code ?? '—' },
+  { key: 'name', label: 'Name', get: (i) => i.item_name || '—' },
+  { key: 'category', label: 'Category', get: (i) => i.category ?? '—' },
+  { key: 'brand', label: 'Brand', get: (i) => i.brand ?? '—' },
+  { key: 'size', label: 'Size / spec', get: (i) => i.size_spec ?? '—' },
+  { key: 'unit', label: 'Unit', get: (i) => i.unit ?? '—' },
+  { key: 'total', label: 'Total', get: (i) => String(i.total_quantity), numeric: true },
+  { key: 'assigned', label: 'Assigned', get: (i) => String(i.quantity_assigned), numeric: true },
+  { key: 'remaining', label: 'Remaining', get: (i) => String(i.quantity_remaining), numeric: true },
+  { key: 'status', label: 'Status', get: (i) => i.status || '—' },
+  { key: 'returnable', label: 'Returnable', get: (i) => (i.returnable ? 'Yes' : 'No') },
+];
 
 export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: EmployeeOption[] }) {
   const router = useRouter();
   const [q, setQ] = useState('');
-  const [filters, setFilters] = useState<ItemFilters>(NO_ITEM_FILTERS);
   const [editDrawer, setEditDrawer] = useState(false);
   const [editing, setEditing] = useState<ItemRow | null>(null);
   const [assignFor, setAssignFor] = useState<ItemRow | null>(null);
@@ -42,33 +46,50 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
   const { confirm, confirmDialog } = useConfirm();
   const { toast, toastNode } = useToast();
 
-  const set = (k: keyof ItemFilters) => (v: string) => setFilters((f) => ({ ...f, [k]: v }));
-  const anyFilter = Object.values(filters).some(Boolean);
+  // Header-menu state: one active sort, plus per-column value selections.
+  const [sort, setSort] = useState<{ key: ColKey; dir: SortDir } | null>(null);
+  const [filters, setFilters] = useState<Partial<Record<ColKey, string[]>>>({});
+
+  // Options come from the full list (not the filtered one), so a selection in
+  // one column never hides another column's choices.
+  const options = useMemo(() => {
+    const out = {} as Record<ColKey, string[]>;
+    for (const c of COLS) out[c.key] = distinctValues(items.map(c.get));
+    return out;
+  }, [items]);
+
+  const hasFilters = Object.values(filters).some((sel) => (sel?.length ?? 0) > 0);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
-    return items.filter((i) => {
-      if (
-        term &&
-        ![i.item_name, i.item_code, i.category, i.brand].some((v) =>
-          (v ?? '').toLowerCase().includes(term),
-        )
-      ) {
-        return false;
+    let rows = items;
+    if (term) {
+      rows = rows.filter((i) =>
+        [i.item_name, i.item_code, i.category, i.brand].some((v) => (v ?? '').toLowerCase().includes(term)),
+      );
+    }
+    for (const c of COLS) {
+      const sel = filters[c.key];
+      if (sel?.length) rows = rows.filter((i) => sel.includes(c.get(i)));
+    }
+    if (sort) {
+      const col = COLS.find((c) => c.key === sort.key);
+      if (col) {
+        const dir = sort.dir === 'asc' ? 1 : -1;
+        rows = [...rows].sort(
+          (x, y) => dir * col.get(x).localeCompare(col.get(y), undefined, { numeric: true }),
+        );
       }
-      if (filters.code && (i.item_code ?? '') !== filters.code) return false;
-      if (filters.name && i.item_name !== filters.name) return false;
-      if (filters.category && (i.category ?? '') !== filters.category) return false;
-      if (filters.brand && (i.brand ?? '') !== filters.brand) return false;
-      if (filters.size && (i.size_spec ?? '') !== filters.size) return false;
-      if (filters.unit && (i.unit ?? '') !== filters.unit) return false;
-      if (filters.status && i.status !== filters.status) return false;
-      if (filters.returnable && (i.returnable ? 'Yes' : 'No') !== filters.returnable) return false;
-      if (filters.stock === 'In stock' && i.quantity_remaining <= 0) return false;
-      if (filters.stock === 'Fully assigned' && i.quantity_remaining > 0) return false;
-      return true;
+    }
+    return rows;
+  }, [q, items, filters, sort]);
+
+  function toggleFilter(key: ColKey, value: string) {
+    setFilters((f) => {
+      const cur = f[key] ?? [];
+      return { ...f, [key]: cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value] };
     });
-  }, [q, items, filters]);
+  }
 
   function openAdd() {
     setEditing(null);
@@ -121,69 +142,56 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
 
       {toastNode}
 
-      {/* one dropdown per headline column — filters combine (AND) with search */}
-      <div
-        className="card"
-        style={{ padding: '10px 14px', display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', marginBottom: 12 }}
-      >
-        <FilterSelect label="Material / Tool ID" value={filters.code} options={distinctOptions(items.map((i) => i.item_code))} onChange={set('code')} />
-        <FilterSelect label="Name" value={filters.name} options={distinctOptions(items.map((i) => i.item_name))} onChange={set('name')} />
-        <FilterSelect label="Category" value={filters.category} options={distinctOptions(items.map((i) => i.category))} onChange={set('category')} />
-        <FilterSelect label="Brand" value={filters.brand} options={distinctOptions(items.map((i) => i.brand))} onChange={set('brand')} />
-        <FilterSelect label="Size / spec" value={filters.size} options={distinctOptions(items.map((i) => i.size_spec))} onChange={set('size')} />
-        <FilterSelect label="Unit" value={filters.unit} options={distinctOptions(items.map((i) => i.unit))} onChange={set('unit')} />
-        <FilterSelect label="Status" value={filters.status} options={distinctOptions(items.map((i) => i.status))} onChange={set('status')} />
-        <FilterSelect label="Returnable" value={filters.returnable} options={['Yes', 'No']} onChange={set('returnable')} />
-        <FilterSelect label="Stock" value={filters.stock} options={['In stock', 'Fully assigned']} onChange={set('stock')} />
-        {anyFilter && (
-          <button className="btn quiet" onClick={() => setFilters(NO_ITEM_FILTERS)}>
-            Clear filters
-          </button>
-        )}
-        <span className="muted" style={{ fontSize: 11, marginLeft: 'auto' }}>
-          {filtered.length} of {items.length} shown
-        </span>
-      </div>
-
       <div className="card">
         <div style={{ overflowX: 'auto' }}>
-          <table>
+          {/* min-width keeps 12 columns from crushing into each other — below
+              it the wrapper scrolls horizontally instead of misaligning. */}
+          <table style={{ minWidth: 1000 }}>
             <thead>
               <tr>
-                <th>Material / Tool ID</th>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Brand</th>
-                <th>Size / spec</th>
-                <th>Unit</th>
-                <th className="right">Total</th>
-                <th className="right">Assigned</th>
-                <th className="right">Remaining</th>
-                <th>Status</th>
-                <th>Returnable</th>
+                {COLS.map((c) => (
+                  <th key={c.key} className={c.numeric ? 'right' : undefined}>
+                    <ThMenu
+                      label={c.label}
+                      numeric={c.numeric}
+                      sortDir={sort?.key === c.key ? sort.dir : null}
+                      onSort={(dir) => setSort(dir ? { key: c.key, dir } : null)}
+                      options={options[c.key]}
+                      selected={filters[c.key] ?? []}
+                      onToggle={(v) => toggleFilter(c.key, v)}
+                      onClear={() => setFilters((f) => ({ ...f, [c.key]: [] }))}
+                    />
+                  </th>
+                ))}
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((i) => (
                 <tr key={i.id}>
-                  <td className="mono muted">{i.item_code ?? '—'}</td>
-                  <td>
+                  <td className="mono muted" style={{ whiteSpace: 'nowrap' }}>
+                    {i.item_code ?? '—'}
+                  </td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
                     <b>{i.item_name}</b>
                   </td>
-                  <td>{i.category ?? '—'}</td>
-                  <td>{i.brand ?? '—'}</td>
-                  <td>{i.size_spec ?? '—'}</td>
-                  <td>{i.unit ?? '—'}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{i.category ?? '—'}</td>
+                  <td>
+                    <Trunc v={i.brand} w={110} />
+                  </td>
+                  <td>
+                    <Trunc v={i.size_spec} w={130} />
+                  </td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{i.unit ?? '—'}</td>
                   <td className="right mono">{i.total_quantity}</td>
                   <td className="right mono">{i.quantity_assigned}</td>
                   <td className="right mono">
                     <b>{i.quantity_remaining}</b>
                   </td>
-                  <td>{i.status}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{i.status}</td>
                   <td>{i.returnable ? 'Yes' : 'No'}</td>
                   <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <div style={{ display: 'flex', gap: 6, whiteSpace: 'nowrap' }}>
                       <button
                         className="btn quiet"
                         onClick={() => setAssignFor(i)}
@@ -210,7 +218,7 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
               {filtered.length === 0 && (
                 <tr>
                   <td className="muted" colSpan={12} style={{ textAlign: 'center' }}>
-                    {q || anyFilter
+                    {q || hasFilters
                       ? 'No materials or tools match the current search / filters.'
                       : 'No materials or tools yet.'}
                   </td>
@@ -237,5 +245,29 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
       />
       {confirmDialog}
     </div>
+  );
+}
+
+/**
+ * One-line cell for free-text fields (brand, size/spec): long values get an
+ * ellipsis and a hover tooltip instead of wrapping, so every row stays one
+ * line and columns keep their alignment with the headers.
+ */
+function Trunc({ v, w = 150 }: { v: string | null; w?: number }) {
+  if (!v) return <span className="muted">—</span>;
+  return (
+    <span
+      title={v}
+      style={{
+        display: 'inline-block',
+        maxWidth: w,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        verticalAlign: 'bottom',
+      }}
+    >
+      {v}
+    </span>
   );
 }
