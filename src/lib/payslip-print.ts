@@ -20,6 +20,20 @@ function monthLabel(periodMonth: string | null): string {
   return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
 
+/** Calendar days in the pay period, or null when there is no usable period. */
+function daysInPeriod(periodMonth: string | null): number | null {
+  if (!periodMonth) return null;
+  const m = /^(\d{4})-(\d{2})/.exec(periodMonth);
+  if (!m) return null;
+  // Day 0 of the next month === last day of this one.
+  return new Date(Date.UTC(Number(m[1]), Number(m[2]), 0)).getUTCDate();
+}
+
+/** '26' / '26.5' — payable and LOP days are numeric(5,1), so half-days are real. */
+function days(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
 function totalDeductions(p: PayslipRow): number {
   return (
     p.shortfallAmount +
@@ -39,8 +53,14 @@ function totalAdditions(p: PayslipRow): number {
   return p.bonus + p.reimbursementBonus + Math.max(0, p.lastMonthBalance);
 }
 
-/** Escape user-supplied text before injecting into the print document. */
-function esc(s: string): string {
+/**
+ * Escape user-supplied text before injecting into the print document. Coerces
+ * first: mapPayslip leaves `state` undefined when a branch has none, and a
+ * `.replace` on that threw before a single line of the document was written,
+ * so one missing field blanked the whole payslip window.
+ */
+function esc(v: unknown): string {
+  const s = v === null || v === undefined ? '—' : String(v);
   return s.replace(/[&<>"']/g, (c) =>
     c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '"' ? '&quot;' : '&#39;',
   );
@@ -61,6 +81,13 @@ function payslipHtml(p: PayslipRow, logoUrl: string): string {
   const add = totalAdditions(p);
   const lmbDed = Math.max(0, -p.lastMonthBalance); // negative carry-over → deduction line
   const lmbAdd = Math.max(0, p.lastMonthBalance); //  positive carry-over → earnings line
+  const totalDays = daysInPeriod(p.periodMonth);
+  // Loss of pay is not stored on the payslip — it is the gap left by pro-rating.
+  // fn_compute_payslip earns basic/HRA/special as (monthly / days_in_month *
+  // payable_days), so the unpaid remainder is exactly the days not paid for, at
+  // the per-day rate. Same quantity the PF ECR reports as NCP days.
+  const lopDays = totalDays === null ? null : Math.max(0, totalDays - p.payableDays);
+  const lopAmount = lopDays === null ? null : lopDays * p.perDayRate;
   return `<!doctype html>
 <html><head><meta charset="utf-8" />
 <title>Payslip — ${esc(p.name)} — ${esc(period)}</title>
@@ -74,6 +101,7 @@ function payslipHtml(p: PayslipRow, logoUrl: string): string {
   .hd .co { font-size: 12px; color: #666; margin-top: 2px; }
   .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; margin-bottom: 22px; font-size: 12px; }
   .meta b { color: #333; }
+  .meta .payable { grid-column: 1 / -1; }
   h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #666;
        margin: 18px 0 6px; border-bottom: 1px solid #e5e3dd; padding-bottom: 4px; }
   table { width: 100%; border-collapse: collapse; }
@@ -103,22 +131,30 @@ function payslipHtml(p: PayslipRow, logoUrl: string): string {
       <div><b>Employee:</b> ${esc(p.name)}</div>
       <div><b>Code:</b> ${esc(p.code)}</div>
       <div><b>Branch:</b> ${esc(p.branch)} (${esc(p.state)})</div>
-      <div><b>Payable days:</b> ${esc(String(p.payableDays))}</div>
+      <div><b>Payable days:</b> ${esc(days(p.payableDays))}</div>
+      <div><b>Total days of ${esc(period)}:</b> ${esc(totalDays === null ? '—' : String(totalDays))}</div>
+      <div><b>Loss of pay:</b> ${
+        lopDays === null
+          ? '—'
+          : lopDays
+            ? `${esc(days(lopDays))} ${lopDays === 1 ? 'day' : 'days'} (${esc(inr(lopAmount ?? 0))})`
+            : 'None'
+      }</div>
     </div>
 
     <div class="cols">
       <div>
         <h2>Earnings</h2>
         <table>
-          ${row('Per-day rate', inr(p.perDayRate))}
-          ${row('Basic + DA (earned)', inr(p.basicEarned))}
-          ${row('HRA (earned)', inr(p.hraEarned))}
-          ${row('Special allowance (earned)', inr(p.specialEarned))}
+          ${row('Per-day ', inr(p.perDayRate))}
+          ${row('Basic + DA ', inr(p.basicEarned))}
+          ${row('HRA ', inr(p.hraEarned))}
+          ${row('Special allowance ', inr(p.specialEarned))}
           ${row('Earned gross', inr(p.earnedGross), { total: true })}
-          ${add ? row('Bonus', p.bonus ? '+' + inr(p.bonus) : '—') : ''}
-          ${add ? row('Reimbursement', p.reimbursementBonus ? '+' + inr(p.reimbursementBonus) : '—') : ''}
-          ${add && lmbAdd ? row('Last month balance (b/f)', '+' + inr(lmbAdd)) : ''}
-          ${add ? row('Total earnings', inr(p.earnedGross + add), { total: true }) : ''}
+          ${row('Bonus', p.bonus ? '+' + inr(p.bonus) : '—')}
+          ${row('Reimbursement', p.reimbursementBonus ? '+' + inr(p.reimbursementBonus) : '—')}
+          ${row('Last month balance ', '+' + inr(lmbAdd))}
+          ${row('Total earnings', inr(p.earnedGross + add), { total: true })}
         </table>
       </div>
       <div>

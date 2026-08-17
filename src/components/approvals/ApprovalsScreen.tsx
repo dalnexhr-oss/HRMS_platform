@@ -19,10 +19,12 @@ const TYPE_STAMP: Record<RequestView['type'], string> = {
 
 // Human labels for the leave-kind codes stored on a request.
 const LEAVE_KIND_LABEL: Record<string, string> = {
-  PL: 'Paid leave',
   CL: 'Casual leave',
+  CO: 'Comp Off',
   SL: 'Sick leave',
   LWP: 'Leave without pay',
+  LOP: 'Leave of pay',
+  
 };
 
 /** '2026-07-16' -> day-of-month number as a string. */

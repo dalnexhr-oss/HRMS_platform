@@ -3,6 +3,7 @@
 import { useActionState, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createRequest, cancelRequest } from '@/lib/actions/requests';
+import { applyCompOff } from '@/lib/actions/compoff';
 import type { LeaveBalanceRow, RequestView } from '@/lib/queries';
 import type { RequestType } from '@/types/database';
 
@@ -28,7 +29,21 @@ const LEAVE_KIND_LABEL: Record<LeaveBalanceRow['type'], string> = {
   LWP: 'Leave without pay',
 };
 
-const LEAVE_KIND_OPTIONS: LeaveBalanceRow['type'][] = ['PL', 'LWP'];
+/**
+ * What a NEW leave request may be filed as.
+ *
+ * 'CO' is deliberately not a LeaveType: comp off is absent from the leave_type
+ * enum, so createRequest rejects it as a leave_kind. Picking it here files a
+ * comp-off application against an earned credit via applyCompOff instead —
+ * the only way a comp off can be taken, because the credit has to be claimed so
+ * it cannot be spent twice.
+ */
+const LEAVE_KIND_OPTIONS = [
+  { value: 'CO', label: 'Comp off' },
+  { value: 'LWP', label: 'Leave without pay' },
+] as const;
+
+type LeaveKindChoice = (typeof LEAVE_KIND_OPTIONS)[number]['value'];
 
 const STATUS_LABEL: Record<RequestView['status'], string> = {
   pending: 'Pending',
@@ -74,11 +89,15 @@ export function ApplyLeave({
   requests,
   balances,
   canApply,
+  compOffBalance = 0,
   id,
 }: {
   requests: RequestView[];
   balances: LeaveBalanceRow[];
   canApply: boolean;
+  /** Usable comp-off credits (available AND applicable) — the Comp off kind
+   *  cannot be filed without one, so the form needs the count up front. */
+  compOffBalance?: number;
   id?: string;
 }) {
   return (
@@ -123,7 +142,7 @@ export function ApplyLeave({
           )}
 
           {canApply ? (
-            <NewRequestForm />
+            <NewRequestForm compOffBalance={compOffBalance} />
           ) : (
             <p className="muted" style={{ fontSize: 13 }}>
               Your login is not linked to an employee record, so requests cannot be filed. Ask HR to
@@ -211,19 +230,28 @@ function RequestItem({ request }: { request: RequestView }) {
   );
 }
 
-function NewRequestForm() {
+function NewRequestForm({ compOffBalance }: { compOffBalance: number }) {
   const router = useRouter();
   const [type, setType] = useState<RequestType>('leave');
+  const [leaveKind, setLeaveKind] = useState<LeaveKindChoice>('CO');
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
     async (_prev, formData) => {
-      const res = await createRequest(formData);
-      // createRequest revalidates /me, but refresh keeps the list in step even
+      // A comp off is an application against an earned credit, not a leave kind,
+      // so it goes to applyCompOff. The intent is read off the FormData rather
+      // than component state so a submit can never race a re-render.
+      const takingCompOff =
+        formData.get('type') === 'leave' && formData.get('leave_kind') === 'CO';
+      const res = takingCompOff ? await applyCompOff(formData) : await createRequest(formData);
+      // The actions revalidate /me, but refresh keeps the list in step even
       // when this form is rendered inside an unchanged cached segment.
       if (res.ok) router.refresh();
       return res;
     },
     {},
   );
+
+  const takingCompOff = type === 'leave' && leaveKind === 'CO';
+  const noCredits = takingCompOff && compOffBalance === 0;
 
   return (
     <form action={action}>
@@ -245,26 +273,47 @@ function NewRequestForm() {
       {type === 'leave' && (
         <div className="f">
           <label>Leave type</label>
-          <select name="leave_kind" defaultValue="PL">
+          <select
+            name="leave_kind"
+            value={leaveKind}
+            onChange={(e) => setLeaveKind(e.target.value as LeaveKindChoice)}
+          >
             {LEAVE_KIND_OPTIONS.map((k) => (
-              <option key={k} value={k}>
-                {k} · {LEAVE_KIND_LABEL[k]}
+              <option key={k.value} value={k.value}>
+                {k.value} · {k.label}
               </option>
             ))}
           </select>
+          {takingCompOff && (
+            <p className="muted" style={{ fontSize: 11, margin: '4px 0 0' }}>
+              {noCredits
+                ? 'You have no comp-off credits to use. HR grants one when you work a week-off or holiday.'
+                : `${compOffBalance} credit${compOffBalance === 1 ? '' : 's'} available — the one closest to expiring is used first. ` +
+                  'Pick a specific credit from the Comp offs card below.'}
+            </p>
+          )}
         </div>
       )}
 
-      <div className="f-row">
+      {/* One credit buys one day off, so a comp off takes a single date rather
+          than a range — matching what applyCompOff accepts. */}
+      {takingCompOff ? (
         <div className="f">
-          <label>From</label>
-          <input name="start_date" type="date" required />
+          <label>Take this day off</label>
+          <input name="take_date" type="date" required />
         </div>
-        <div className="f">
-          <label>To</label>
-          <input name="end_date" type="date" required />
+      ) : (
+        <div className="f-row">
+          <div className="f">
+            <label>From</label>
+            <input name="start_date" type="date" required />
+          </div>
+          <div className="f">
+            <label>To</label>
+            <input name="end_date" type="date" required />
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="f">
         <label>Reason</label>
@@ -287,7 +336,12 @@ function NewRequestForm() {
       {state.error && <div className="login-error">{state.error}</div>}
       {state.ok && <div className="hint">✓&nbsp; Request submitted for approval.</div>}
 
-      <button className="btn primary" type="submit" disabled={pending} style={{ marginTop: 4 }}>
+      <button
+        className="btn primary"
+        type="submit"
+        disabled={pending || noCredits}
+        style={{ marginTop: 4 }}
+      >
         {pending ? 'Submitting…' : 'Submit request'}
       </button>
     </form>

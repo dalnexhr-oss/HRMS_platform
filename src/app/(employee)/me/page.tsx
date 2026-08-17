@@ -142,6 +142,13 @@ export default async function MePage() {
   const pendingRequests = requests.filter((r) => r.status === 'pending').length;
   const openTickets = tickets.filter((t) => t.status === 'open' || t.status === 'in_progress').length;
 
+  // Comp-off credits the employee can actually spend. A credit staff put on hold
+  // (is_applicable=false) is still 'available' but cannot be applied against, so
+  // counting on status alone would advertise a balance applyCompOff refuses.
+  // Same rule as the Comp offs card, so the two never disagree.
+  const compOffBalance = compOffs.filter((c) => c.status === 'available' && c.isApplicable).length;
+  const compOffApplied = compOffs.filter((c) => c.status === 'applied').length;
+
   // createTicket writes `employee_id: profile.employee_id`, so an unlinked login
   // would file a ticket that never appears in "My tickets" below; and with no
   // Supabase it returns {ok:true} without writing at all. Gate the form on both
@@ -212,6 +219,17 @@ export default async function MePage() {
             {overview.pendingMinutes > 0
               ? `of ${overview.targetHours} due so far this month`
               : 'you are on target'}
+          </div>
+        </div>
+        <div className="card kpi">
+          <div className="lab">Comp offs remaining</div>
+          <div className="val" style={{ color: compOffBalance > 0 ? 'var(--p)' : 'var(--ink-3)' }}>
+            {compOffBalance}
+          </div>
+          <div className="note">
+            {compOffApplied > 0
+              ? `${compOffApplied} awaiting approval · ${compOffs.length} earned in total`
+              : `${compOffs.length} earned in total`}
           </div>
         </div>
         <div className="card kpi">
@@ -323,7 +341,13 @@ export default async function MePage() {
       <MyAttendance days={attendance} periodMonth={periodMonth} id="attendance" />
 
       {/* leave / duty requests + balances */}
-      <ApplyLeave requests={requests} balances={balances} canApply={!!employeeId} id="leave" />
+      <ApplyLeave
+        requests={requests}
+        balances={balances}
+        canApply={!!employeeId}
+        compOffBalance={compOffBalance}
+        id="leave"
+      />
 
       {/* comp offs earned by working an off day */}
       <MyCompOffs

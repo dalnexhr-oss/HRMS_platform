@@ -24,8 +24,8 @@ export interface ActionResult {
 
 const REQUEST_TYPES: readonly RequestType[] = ['leave', 'site_visit', 'outdoor_duty', 'wfh'];
 // One paid-leave pool since the leave-salary policy (0038). CL/SL stay in the
-// enum for historic rows but a new request may no longer carry them.
-const LEAVE_KINDS: readonly LeaveType[] = ['PL', 'LWP'];
+// enum for historic rows but a new request may no onger carry them.
+const LEAVE_TYPES: readonly LeaveType[] = ['PL', 'LWP', 'CL', 'SL'];
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -524,7 +524,7 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
   let leaveKind: LeaveType | null = null;
   if (type === 'leave') {
     const raw = String(formData.get('leave_kind') ?? '').trim() as LeaveType;
-    if (!LEAVE_KINDS.includes(raw)) {
+    if (!LEAVE_TYPES.includes(raw)) {
       return { ok: false, error: 'Pick a leave type (Paid leave / Leave without pay).' };
     }
     leaveKind = raw;
