@@ -16,6 +16,8 @@ import {
 import { usePrompt } from '@/components/ui/PromptDialog';
 import { useToast } from '@/components/ui/Toast';
 import type { EmployeeOption } from '@/lib/queries';
+import { AccessDrawer, type AccessTarget } from '@/components/users/AccessDrawer';
+import { isConfigurableRole } from '@/lib/access';
 import type { AppRole } from '@/types/database';
 
 const ROLE_LABEL: Record<AppRole, string> = {
@@ -76,6 +78,7 @@ export function UsersScreen({
   const [drawer, setDrawer] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [accessFor, setAccessFor] = useState<AccessTarget | null>(null);
   const [pending, startTransition] = useTransition();
   const { prompt, promptDialog } = usePrompt();
   const { toast, toastNode } = useToast();
@@ -98,6 +101,9 @@ export function UsersScreen({
   }
 
   async function onRoleChange(u: ManagedUser, role: AppRole) {
+    // The existing link is carried over rather than dropped — changing somebody
+    // from Employee to Manager (or Admin to HR) must not unlink them from their
+    // own attendance and payslips.
     let employeeId: string | null = u.employeeId;
     if (role === 'employee' && !employeeId) {
       const code = await prompt({
@@ -248,6 +254,28 @@ export function UsersScreen({
                           </option>
                         ))}
                       </select>
+                      {/* Tab access is a super-admin power, and only an admin or
+                          HR account has anything to configure — every other role
+                          reaches the portal through its own static gate. Hidden
+                          rather than disabled: a control you can never use is
+                          noise. setUserTabAccess re-checks both conditions. */}
+                      {callerRole === 'super_admin' && isConfigurableRole(u.role) && (
+                        <button
+                          className="btn quiet"
+                          disabled={pending && busy === u.id}
+                          onClick={() =>
+                            setAccessFor({
+                              id: u.id,
+                              email: u.email,
+                              fullName: u.fullName ?? null,
+                              role: u.role as AppRole,
+                            })
+                          }
+                          title="Choose which tabs this account can open"
+                        >
+                          Access
+                        </button>
+                      )}
                       <button
                         className="btn quiet"
                         disabled={pending && busy === u.id}
@@ -342,6 +370,12 @@ export function UsersScreen({
         page. Only an admin can create or grant the admin role.
       </p>
 
+      <AccessDrawer
+        user={accessFor}
+        onClose={() => setAccessFor(null)}
+        onToast={(msg, kind) => toast(msg, kind)}
+      />
+
       <AddUserDrawer
         open={drawer}
         onClose={() => setDrawer(false)}
@@ -428,23 +462,28 @@ function AddUserDrawer({
               </select>
             </div>
 
-            {role === 'employee' && (
-              <div className="f">
-                <label>Linked employee</label>
-                <select name="employee_id" required>
-                  <option value="">Choose an employee…</option>
-                  {employees.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.code} · {e.name}
-                    </option>
-                  ))}
-                </select>
-                <span className="hint">
-                  An employee login must point at an employee record, or their dashboard has no
-                  attendance, payslips or claims to show.
-                </span>
-              </div>
-            )}
+            {/* Offered for EVERY role, not just 'employee'. An admin, HR,
+                manager or viewer is normally on the payroll too, and this link is
+                what gives them their own attendance, payslips and leave. Only an
+                employee login is required to have one. */}
+            <div className="f">
+              <label>Linked employee{role === 'employee' ? '' : ' (optional)'}</label>
+              <select name="employee_id" required={role === 'employee'} defaultValue="">
+                <option value="">
+                  {role === 'employee' ? 'Choose an employee…' : 'Not linked'}
+                </option>
+                {employees.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.code} · {e.name}
+                  </option>
+                ))}
+              </select>
+              <span className="hint">
+                {role === 'employee'
+                  ? 'An employee login must point at an employee record, or their dashboard has no attendance, payslips or claims to show.'
+                  : 'Link this login to its employee record so this person still gets their own attendance, payslips and leave.'}
+              </span>
+            </div>
 
             {state.error && <div className="login-error">{state.error}</div>}
           </div>

@@ -12,6 +12,7 @@
 // A legitimately empty result (no payroll run for the month yet) returns an
 // empty array — that is an empty state, not an error.
 // ============================================================================
+import type { TabAccess } from '@/lib/access';
 import { createClient } from '@/lib/supabase/server';
 import { minutesToHHMM, trimTime } from '@/lib/format';
 import { isSupabaseConfigured } from '@/lib/supabase/env';
@@ -25,7 +26,7 @@ import type { TopbarStats } from '@/lib/constants';
 import type {
   RegisterEmployee, PayslipRow, DayCell, TodayKpis, Celebration, PunchLogRow,
 } from '@/types/domain';
-import type { Policy, LeaveType, RequestType } from '@/types/database';
+import type { Policy, LeaveType, RequestType, AppRole } from '@/types/database';
 
 // Re-exported: ~8 action files already import isSupabaseConfigured from here.
 // The implementation now lives in @/lib/supabase/env (single source of truth).
@@ -2666,4 +2667,39 @@ export async function getOnLeaveToday(): Promise<OnLeaveTodayRow[]> {
     startDate: String(r.start_date).slice(0, 10),
     endDate: String(r.end_date).slice(0, 10),
   }));
+}
+
+
+// ------------------------------------------------------- user tab access ---
+/**
+ * Which tabs the SIGNED-IN account may open — migration 0045.
+ *
+ * Only explicit decisions are stored, so a missing entry means "allowed"; see
+ * lib/access.ts for the rule that consumes it. RLS limits the rows to your own,
+ * so this stays a single indexed lookup on every portal request.
+ *
+ * Degrades to an empty map when 0045 has not been applied, which reproduces the
+ * behaviour before this feature existed (every tab allowed) rather than locking
+ * anyone out of a database that simply has not caught up yet.
+ */
+export async function getMyTabAccess(userId: string | null): Promise<TabAccess> {
+  if (!userId) return {};
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('user_tab_access')
+    .select('slug, allowed')
+    .eq('user_id', userId);
+  if (error) {
+    if (isMissingTable(error)) {
+      warnNotMigrated('getMyTabAccess', 'migration 0045_user_tab_access.sql');
+      return {};
+    }
+    fail('getMyTabAccess: could not load tab access', error);
+  }
+
+  const map: TabAccess = {};
+  for (const row of (data ?? []) as { slug: string; allowed: boolean }[]) {
+    map[row.slug] = row.allowed;
+  }
+  return map;
 }

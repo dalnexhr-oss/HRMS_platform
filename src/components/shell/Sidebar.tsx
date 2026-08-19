@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import { usePathname } from 'next/navigation';
-import { NAV, NAV_ROLE_GATED, GROUP_ORDER, type NavItem } from '@/lib/constants';
+import { NAV, GROUP_ORDER, type NavItem } from '@/lib/constants';
+import { canAccessTab, type TabAccess } from '@/lib/access';
+import type { AppRole } from '@/types/database';
 import { ICONS } from '@/components/Icons';
 import { Brand } from '@/components/ui/Brand';
 
@@ -112,12 +114,13 @@ function iconFor(slug: string) {
   return ICONS[slug] ?? EXTRA_ICONS[slug] ?? FALLBACK_ICON;
 }
 
-/** Drop the links this role would only be bounced from. */
-function visibleNav(role?: string | null): NavItem[] {
-  return NAV.filter((n) => {
-    const allowed = NAV_ROLE_GATED[n.slug];
-    return !allowed || (role != null && allowed.includes(role));
-  });
+/**
+ * Drop the links this role would only be bounced from — the static gate in
+ * constants.ts AND whatever the super admin has switched off on /access. Hiding
+ * the link is cosmetic; the (portal) layout is what actually blocks the page.
+ */
+function visibleNav(role: AppRole | null | undefined, access: TabAccess): NavItem[] {
+  return NAV.filter((n) => canAccessTab(role, n.slug, access));
 }
 
 /** Turn a role slug into a human label for the sidebar footer. */
@@ -130,11 +133,20 @@ const ROLE_LABEL: Record<string, string> = {
   employee: 'Employee',
 };
 
-export function Sidebar({ name, role }: { name?: string | null; role?: string | null }) {
+export function Sidebar({
+  name,
+  role,
+  access = {},
+}: {
+  name?: string | null;
+  role?: AppRole | null;
+  /** This account's tab switches (migration 0045); {} means nothing revoked. */
+  access?: TabAccess;
+}) {
   const pathname = usePathname();
   const active = pathname.split('/')[1] || 'today';
 
-  const items = visibleNav(role);
+  const items = visibleNav(role, access);
 
   return (
     <aside className="sidebar">

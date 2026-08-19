@@ -5,7 +5,15 @@ import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import type { AppRole, Profile } from '@/types/database';
 
-export const STAFF_ROLES: AppRole[] = ['super_admin', 'admin', 'hr', 'manager', 'viewer'];
+/**
+ * Roles that belong in the (portal) area. 'viewer' is here because it reads the
+ * portal read-only; 'manager' is NOT — it has employee-level access (0046) and
+ * lands on /me like an employee. RLS agrees: is_portal() no longer lists it.
+ */
+export const STAFF_ROLES: AppRole[] = ['super_admin', 'admin', 'hr', 'viewer'];
+
+/** Roles that use the employee self-service area rather than the portal. */
+const EMPLOYEE_AREA_ROLES: AppRole[] = ['employee', 'manager'];
 
 export function isStaffRole(role: AppRole | null | undefined): boolean {
   return !!role && STAFF_ROLES.includes(role);
@@ -13,7 +21,7 @@ export function isStaffRole(role: AppRole | null | undefined): boolean {
 
 /** Where a role lands after signing in. */
 export function homeForRole(role: AppRole | null | undefined): '/me' | '/today' {
-  return role === 'employee' ? '/me' : '/today';
+  return role != null && EMPLOYEE_AREA_ROLES.includes(role) ? '/me' : '/today';
 }
 
 export interface SessionContext {

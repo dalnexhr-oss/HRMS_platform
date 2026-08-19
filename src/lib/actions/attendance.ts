@@ -31,7 +31,7 @@ export interface CorrectionState {
 /**
  * Roles that may WRITE attendance.
  *
- * Deliberately NOT isStaffRole(). That helper is ['admin','hr','manager','viewer'],
+ * Deliberately NOT isStaffRole(). That helper still includes 'viewer',
  * which mirrors SQL is_portal() — the READ gate. The write gate is the
  * attendance_days_write policy (0003), which is `using (is_staff())`. 0003's own
  * header says it plainly: "'viewer' is read-only." Authorising viewers here would

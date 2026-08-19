@@ -16,7 +16,18 @@ export async function updateSession(request: NextRequest) {
   const url = supabaseUrl();
   const key = supabaseKey();
 
-  let response = NextResponse.next({ request });
+  // The (portal) layout enforces per-tab access (migration 0044) and needs to
+  // know which tab was requested, which a Server Component cannot read on its
+  // own. Forwarding it as a request header costs nothing — no extra round trip,
+  // no database read here — and keeps the enforcement in one place instead of
+  // repeating a guard in all ~21 page files.
+  // Copied rather than mutated in place: NextRequest.headers is immutable in
+  // some runtimes, and a throw here would 500 every portal request.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', request.nextUrl.pathname);
+  const forward = () => NextResponse.next({ request: { headers: requestHeaders } });
+
+  let response = forward();
   if (!url || !key) {
     // No Supabase env: fail closed, never open.
     return new NextResponse(
@@ -55,7 +66,7 @@ export async function updateSession(request: NextRequest) {
       },
       setAll(cookiesToSet: { name: string; value: string; options?: CookieOptions }[]) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = NextResponse.next({ request });
+        response = forward();
         cookiesToSet.forEach(({ name, value, options }) =>
           response.cookies.set(name, value, options),
         );

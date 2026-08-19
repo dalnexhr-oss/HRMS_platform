@@ -206,6 +206,11 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
     };
   }
   // An employee login is useless — and silently broken — without a linked record.
+  // An employee login is useless without a record to read. Every OTHER role may
+  // carry one too and usually should: an admin, HR, manager or viewer is normally
+  // also on the payroll, and the link is what gives them their own attendance,
+  // payslips and leave. It used to be forced to null for every non-employee role,
+  // which silently unlinked those accounts.
   if (role === 'employee' && !employeeId) {
     return { ok: false, error: 'Pick which employee this login belongs to.' };
   }
@@ -232,7 +237,7 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
     // upsert the intended role and employee link over it.
     const { error: pErr } = await admin
       .from('profiles')
-      .upsert({ id: userId, full_name: fullName, role, employee_id: role === 'employee' ? employeeId : null });
+      .upsert({ id: userId, full_name: fullName, role, employee_id: employeeId });
     if (pErr) {
       // The login exists but has the wrong role — say so rather than reporting success.
       return {
@@ -289,7 +294,7 @@ export async function updateUserRole(
 
     const { data, error } = await admin
       .from('profiles')
-      .update({ role, employee_id: role === 'employee' ? employeeId : null })
+      .update({ role, employee_id: employeeId })
       .eq('id', userId)
       .select('id');
     if (error) return { ok: false, error: error.message };

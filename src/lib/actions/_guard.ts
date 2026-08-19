@@ -27,10 +27,9 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
  * Roles allowed to write. Deliberately NOT STAFF_ROLES from '@/lib/auth' — that
  * set includes 'viewer', who may read the portal but must never write.
  *
- * This set is intentionally NARROWER than the database's is_staff() (0043), which
- * still admits 'manager'. Manager write access was withdrawn at the app layer, so
- * a manager gets an explained refusal here instead of reaching RLS at all; RLS
- * remains the wider backstop rather than the gate.
+ * Matches the database's is_staff() exactly as of 0046, which also dropped
+ * 'manager' — manager is now an employee-level role and does not reach the portal
+ * at all.
  */
 export const WRITE_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
