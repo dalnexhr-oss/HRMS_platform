@@ -1,7 +1,7 @@
 // Read-only onboarding checklist for the joiner's own dashboard.
 //
 // Deliberately NOT interactive: 0037's read-own policy grants SELECT only, and
-// ticking a step is a staff action (done_by/done_at must name a real reviewer).
+// ticking a step is a staff action (done_by/done_at must name a real role).
 // So this answers "what is HR/IT still waiting on?" without pretending the
 // employee can close it themselves.
 import { formatDate } from '@/lib/format';

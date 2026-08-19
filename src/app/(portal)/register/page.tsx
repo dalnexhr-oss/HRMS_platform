@@ -25,8 +25,8 @@ const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 /**
  * Roles offered the correction UI — must match WRITE_ROLES in
  * src/lib/actions/attendance.ts, which in turn matches SQL is_staff() behind the
- * attendance_days_write policy. NOT isStaffRole(): that includes 'viewer', which
- * 0003 defines as read-only, so viewers would get a drawer Postgres then rejects.
+ * attendance_days_write policy. NOT isStaffRole(): that includes '', which
+ * 0003 defines as read-only, so s would get a drawer Postgres then rejects.
  */
 const CORRECTION_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
@@ -272,14 +272,7 @@ export default async function RegisterPage({
             compOffKeys={compOffKeys}
           />
 
-          <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>
-            Click a row to open punch detail (In / Out / Hours).{' '}
-            {canCorrect
-              ? 'Click any day to correct it — every manual correction asks for a reason and is written to the audit log.'
-              : role === 'viewer'
-                ? 'Your role is read-only, so corrections are disabled — ask an admin or HR to make a change.'
-                : 'Corrections are restricted to admin, HR and managers.'}
-          </p>
+          
         </>
       )}
     </div>

@@ -22,7 +22,6 @@ import type { AppRole, PayrollStatus } from '@/types/database';
 
 /**
  * Roles allowed to move money. Deliberately NOT `STAFF_ROLES` from @/lib/auth:
- * that set includes 'viewer', who would pass an isStaffRole() check and then have
  * every UPDATE silently filtered to zero rows by RLS — a write that reports
  * success and changes nothing. An explicit set turns that into an honest,
  * explained refusal.

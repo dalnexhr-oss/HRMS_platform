@@ -50,8 +50,10 @@ export type CommitResult =
 
 /**
  * Roles that may actually write. This is deliberately NOT isStaffRole() from
- * '@/lib/auth': that helper counts 'viewer' as staff, and gating on the wider set
- * would let a viewer through the UI and into an RLS denial.
+  * @/lib/auth: that set includes 'viewer', who would pass an isStaffRole() check
+  * and then have every UPDATE silently filtered to zero rows by RLS — a write that
+  * reports success and changes nothing. An explicit set turns that into an honest,
+  * explained refusal.
  *
  * Mirrors _guard.ts WRITE_ROLES and IMPORT_ROLES in actions/export.ts.
  */

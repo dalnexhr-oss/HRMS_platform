@@ -20,7 +20,7 @@ import { requireOpenPayrollMonth } from '@/lib/actions/_guard';
  * verified the caller is staff.
  *
  * Returns a warning string when the side-effects failed, so the caller can tell
- * the reviewer the decision saved but the follow-up did not.
+ * the user the decision saved but the follow-up did not.
  */
 export async function settleApprovedCompOff(requestId: string): Promise<string | null> {
   try {

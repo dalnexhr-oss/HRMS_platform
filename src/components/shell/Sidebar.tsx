@@ -129,7 +129,6 @@ const ROLE_LABEL: Record<string, string> = {
   super_admin: 'Super Admin',
   hr: 'HR',
   manager: 'Manager',
-  viewer: 'Viewer (read-only)',
   employee: 'Employee',
 };
 

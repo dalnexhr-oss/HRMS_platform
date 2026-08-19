@@ -6,7 +6,7 @@
 //   1. Refuse when Supabase is not configured — a write with no database is a FAILURE, not a
 //      silent {ok:true} over nothing persisted.
 //   2. Gate on a real staff role at the app layer (super_admin/admin/hr) so a
-//      viewer or manager gets an explained refusal instead of a raw 42501 or a
+//     portal reader cannot reach the action and have every UPDATE silently
 //      silent RLS no-op.
 //   3. Verify a write actually touched rows — an RLS-filtered UPDATE/DELETE
 //      affects zero rows, which PostgREST reports as success.
@@ -25,7 +25,7 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
 /**
  * Roles allowed to write. Deliberately NOT STAFF_ROLES from '@/lib/auth' — that
- * set includes 'viewer', who may read the portal but must never write.
+ * set includes '', who may read the portal but must never write.
  *
  * Matches the database's is_staff() exactly as of 0046, which also dropped
  * 'manager' — manager is now an employee-level role and does not reach the portal

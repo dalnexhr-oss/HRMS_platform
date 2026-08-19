@@ -6,7 +6,7 @@ import type { AppRole } from '@/types/database';
 /**
  * Roles allowed to import. Mirrors IMPORT_ROLES in '@/lib/actions/import',
  * which in turn mirrors the database's is_staff() (migration 0003) —
- * ('super_admin','admin','hr'), deliberately excluding 'viewer' and 'manager'.
+ * ('super_admin','admin','hr'), deliberately excluding  and 'manager'.
  *
  * This is a UI affordance only. commitImport re-checks server-side, and RLS
  * enforces it again in the database.

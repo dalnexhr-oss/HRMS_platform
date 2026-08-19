@@ -26,8 +26,6 @@ function roleLabel(role: string | null | undefined): string {
       return 'HR';
     case 'manager':
       return 'Manager';
-    case 'viewer':
-      return 'Viewer';
     case 'employee':
       return 'Employee';
     default:

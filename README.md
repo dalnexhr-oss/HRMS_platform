@@ -78,11 +78,11 @@ and, for employees, an `employee_id` linking to their `employees` record.
 
 | Role                                                              | Lands on | Sees                                           |
 | ----------------------------------------------------------------- | -------- | ---------------------------------------------- |
-| `super_admin` / `admin` / `hr` / `manager` / `viewer`             | `/today` | The full admin portal                          |
+| `super_admin` / `admin` / `hr` / `manager` / ``             | `/today` | The full admin portal                          |
 | `employee`                                                        | `/me`    | Own attendance/pay snapshot + company policies |
 
 Write access narrows inside the portal. `_guard.ts` `WRITE_ROLES` is
-`super_admin`/`admin`/`hr`: a `viewer` may read but never write, and a `manager`
+`super_admin`/`admin`/`hr`: a `` may read but never write, and a `manager`
 reads the portal without the attendance, payroll or import write paths. User
 administration is tiered on top of that (`ROLE_TIER` in `lib/actions/users.ts`) —
 you may only grant, or act on, a role at or below your own, so only a
@@ -135,7 +135,7 @@ acknowledgements are recorded per employee in `policy_acknowledgements`.
   - PF = 12% of earned Basic+DA
   - ESIC = 0.75% of earned gross, only when monthly gross ≤ ₹21,000
   - Professional tax resolved from `pt_slabs` (`fn_professional_tax`)
-- **RLS** — read for any authenticated staff/viewer; writes for `admin`/`hr`/`manager`.
+- **RLS** — read for any authenticated staff/; writes for `admin`/`hr`/`manager`.
   Batch jobs (night sweep, payroll compute) use the service-role key and bypass RLS.
 
 ## Regenerating DB types
@@ -150,6 +150,6 @@ npm run db:types            # supabase gen types typescript --local > src/types/
   (rounding may differ by ₹1 on pro-rated lines).
 - Auth is live: `src/middleware.ts` refreshes the session and gates every route by
   role. New self-service logins default to the non-portal `employee` role
-  (migration `0008`); staff/`viewer` access is only ever assigned deliberately.
+  (migration `0008`); staff/`` access is only ever assigned deliberately.
 - The original prototype is kept at `dalnex-admin-portal.html` for reference.
 ```

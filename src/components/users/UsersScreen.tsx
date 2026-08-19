@@ -25,12 +25,11 @@ const ROLE_LABEL: Record<AppRole, string> = {
   super_admin: 'Super Admin',
   hr: 'HR',
   manager: 'Manager',
-  viewer: 'Viewer (read-only)',
   employee: 'Employee',
 };
 
 // Highest tier first — mirrors ROLE_TIER in lib/actions/users.ts.
-const ROLE_ORDER: AppRole[] = ['super_admin', 'admin', 'hr', 'manager', 'viewer', 'employee'];
+const ROLE_ORDER: AppRole[] = ['super_admin', 'admin', 'hr', 'manager', 'employee'];
 
 /** Mirrors ROLE_TIER in lib/actions/users.ts — the server is the real gate. */
 const ROLE_TIER: Record<AppRole, number> = {
@@ -38,7 +37,6 @@ const ROLE_TIER: Record<AppRole, number> = {
   admin: 2,
   hr: 1,
   manager: 0,
-  viewer: 0,
   employee: 0,
 };
 
@@ -463,7 +461,7 @@ function AddUserDrawer({
             </div>
 
             {/* Offered for EVERY role, not just 'employee'. An admin, HR,
-                manager or viewer is normally on the payroll too, and this link is
+                manager or  is normally on the payroll too, and this link is
                 what gives them their own attendance, payslips and leave. Only an
                 employee login is required to have one. */}
             <div className="f">

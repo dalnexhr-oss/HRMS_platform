@@ -6,11 +6,11 @@ import { createClient } from '@/lib/supabase/server';
 import type { AppRole, Profile } from '@/types/database';
 
 /**
- * Roles that belong in the (portal) area. 'viewer' is here because it reads the
+ * Roles that belong in the (portal) area. 
  * portal read-only; 'manager' is NOT — it has employee-level access (0046) and
  * lands on /me like an employee. RLS agrees: is_portal() no longer lists it.
  */
-export const STAFF_ROLES: AppRole[] = ['super_admin', 'admin', 'hr', 'viewer'];
+export const STAFF_ROLES: AppRole[] = ['super_admin', 'admin', 'hr', ];
 
 /** Roles that use the employee self-service area rather than the portal. */
 const EMPLOYEE_AREA_ROLES: AppRole[] = ['employee', 'manager'];

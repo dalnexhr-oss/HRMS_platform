@@ -8,7 +8,7 @@
 // role BEFORE touching the privileged client; the service client is never
 // reachable from an unauthenticated or under-privileged request.
 //
-// Privilege escalation guard: HR may create hr/manager/viewer/employee accounts,
+// Privilege escalation guard: HR may create hr/manager/employee accounts,
 // but only an ADMIN may create or assign the 'admin' role — otherwise HR could
 // mint themselves an admin and step over their own ceiling.
 // ============================================================================
@@ -27,7 +27,7 @@ const USER_ADMIN_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
 // Roles that may be assigned through this screen. NOT exported: a 'use server'
 // module may only export async functions, so the UI keeps its own display list.
-const ASSIGNABLE_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr', 'manager', 'viewer', 'employee'];
+const ASSIGNABLE_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr', 'manager', 'employee'];
 
 /**
  * User administration is TIERED, and every rule below derives from this one map.
@@ -44,12 +44,11 @@ const ROLE_TIER: Record<AppRole, number> = {
   admin: 2,
   hr: 1,
   manager: 0,
-  viewer: 0,
   employee: 0,
 };
 
 function tierOf(role: AppRole | null | undefined): number {
-  return role ? ROLE_TIER[role] ?? 0 : 0;
+  return role ?  ROLE_TIER[role] ?? 0 : 0;
 }
 
 /** Role name as it reads in a refusal message. */
@@ -58,7 +57,6 @@ const TIER_LABEL: Record<AppRole, string> = {
   admin: 'admin',
   hr: 'HR',
   manager: 'manager',
-  viewer: 'viewer',
   employee: 'employee',
 };
 
@@ -207,7 +205,7 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
   }
   // An employee login is useless — and silently broken — without a linked record.
   // An employee login is useless without a record to read. Every OTHER role may
-  // carry one too and usually should: an admin, HR, manager or viewer is normally
+  // carry one too and usually should: an admin, HR, manager or  is normally
   // also on the payroll, and the link is what gives them their own attendance,
   // payslips and leave. It used to be forced to null for every non-employee role,
   // which silently unlinked those accounts.

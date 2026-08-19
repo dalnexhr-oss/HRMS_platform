@@ -131,7 +131,7 @@ export async function startOnboarding(
  * Move a step between pending / done / blocked.
  *
  * Reopening CLEARS done_by and done_at. Leaving them behind would leave a
- * pending task still naming a reviewer and a completion time — the record would
+ * pending task still naming a re and a completion time — the record would
  * claim someone signed off work that is once again outstanding.
  */
 export async function setOnboardingTaskStatus(
