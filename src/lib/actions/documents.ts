@@ -32,7 +32,7 @@ export interface ActionResult {
   error?: string;
 }
 
-const VERIFY_ROLES: AppRole[] = ['admin', 'hr'];
+const VERIFY_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 // Where UPLOADS go. Reads must not assume it — HR-issued letters live in
 // generated-documents and the row's `bucket` column (0039) says which is which.
 const UPLOAD_BUCKET: StorageBucket = 'employee-documents';

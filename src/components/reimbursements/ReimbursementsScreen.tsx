@@ -47,7 +47,7 @@ export function ReimbursementsScreen({
   callerRole,
 }: {
   claims: ReimbursementView[];
-  /** Finance sign-off is admin-only — mirrors the server guard. */
+  /** Finance sign-off is super-admin/admin only — mirrors the server guard. */
   callerRole?: string | null;
 }) {
   const canFinance = callerRole === 'super_admin' || callerRole === 'admin';

@@ -12,7 +12,7 @@ import type { Route } from 'next';
 import { AvatarInner } from '@/components/ui/Avatar';
 
 const ROLE_LABEL: Record<string, string> = {
-  admin: 'Adminr',
+  admin: 'Administrator',
   super_admin: 'Super Admin',
   hr: 'HR',
   manager: 'Manager',

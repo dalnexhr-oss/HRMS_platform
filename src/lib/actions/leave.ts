@@ -80,7 +80,7 @@ export async function adjustLeaveBalance(input: {
   delta: number;
   reason: string;
 }): Promise<ActionResult> {
-  const gate = await requireRoles(['admin', 'hr'], 'Adjusting a leave balance');
+  const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Adjusting a leave balance');
   if (!gate.ok) return gate;
 
   const reason = String(input.reason ?? '').trim();

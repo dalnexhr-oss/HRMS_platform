@@ -33,10 +33,10 @@ export interface CorrectionState {
  *
  * Deliberately NOT isStaffRole(). That helper is ['admin','hr','manager','viewer'],
  * which mirrors SQL is_portal() — the READ gate. The write gate is the
- * attendance_days_write policy (0003), which is `using (is_staff())` where
- * is_staff() = ('admin','hr','manager'). 0003's own header says it plainly:
- * "'viewer' is read-only." Authorising viewers here would wave them through the
- * whole drawer only for Postgres to reject the row at the last step.
+ * attendance_days_write policy (0003), which is `using (is_staff())`. 0003's own
+ * header says it plainly: "'viewer' is read-only." Authorising viewers here would
+ * wave them through the whole drawer only for Postgres to reject the row at the
+ * last step. 'manager' is excluded at the app layer too — see _guard.ts.
  *
  * Mirrored in src/app/(portal)/register/page.tsx (a 'use server' module may only
  * export async functions, so this cannot be shared from here).

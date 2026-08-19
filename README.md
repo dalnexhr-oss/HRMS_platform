@@ -76,14 +76,31 @@ fallback.
 Sign-in is Supabase email/password. A `profiles` row carries the user's `role`
 and, for employees, an `employee_id` linking to their `employees` record.
 
-| Role                          | Lands on | Sees                                              |
-| ----------------------------- | -------- | ------------------------------------------------- |
-|  `super admin` /`admin` / `hr` / `manager` / `viewer` | `/today` | The full admin portal                     |
-| `employee`                    | `/me`    | Own attendance/pay snapshot + company policies    |
+| Role                                                              | Lands on | Sees                                           |
+| ----------------------------------------------------------------- | -------- | ---------------------------------------------- |
+| `super_admin` / `admin` / `hr` / `manager` / `viewer`             | `/today` | The full admin portal                          |
+| `employee`                                                        | `/me`    | Own attendance/pay snapshot + company policies |
+
+Write access narrows inside the portal. `_guard.ts` `WRITE_ROLES` is
+`super_admin`/`admin`/`hr`: a `viewer` may read but never write, and a `manager`
+reads the portal without the attendance, payroll or import write paths. User
+administration is tiered on top of that (`ROLE_TIER` in `lib/actions/users.ts`) —
+you may only grant, or act on, a role at or below your own, so only a
+`super_admin` can create, promote to, or delete another `super_admin`.
+
+The first `super_admin` must be promoted directly in SQL, since the rule above
+means no lower tier can mint one:
+
+```sql
+update profiles set role = 'super_admin' where id = '<auth-user-uuid>';
+```
 
 `middleware.ts` refreshes the session and routes each role to its area (employees
 can't reach the portal; staff can't reach `/me`). Seed accounts (both `password123`):
 
+```
+admin@dalnex.test      → admin portal
+employee@dalnex.test   → employee dashboard (linked to DN001 Rajesh Kumar)
 ```
 
 Row Level Security (migration `0004`) tightens employee access: an employee reads

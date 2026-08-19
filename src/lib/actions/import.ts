@@ -50,11 +50,12 @@ export type CommitResult =
 
 /**
  * Roles that may actually write. This is deliberately NOT isStaffRole() from
- * '@/lib/auth': that helper counts 'viewer' as staff, but the database's
- * is_staff() (migration 0003) is only ('admin','hr','manager'). Gating on the
- * wider set would let a viewer through the UI and into an RLS denial.
+ * '@/lib/auth': that helper counts 'viewer' as staff, and gating on the wider set
+ * would let a viewer through the UI and into an RLS denial.
+ *
+ * Mirrors _guard.ts WRITE_ROLES and IMPORT_ROLES in actions/export.ts.
  */
-const IMPORT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr', ];
+const IMPORT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 const UPSERT_CHUNK = 500;
 const SELECT_PAGE = 1000;

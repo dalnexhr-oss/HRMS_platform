@@ -111,7 +111,7 @@ export async function exportAttendanceTemplateXlsx(periodMonth: string): Promise
 }
 
 /** Roles that may import the register — mirrors IMPORT_ROLES in actions/import. */
-const IMPORT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr', ];
+const IMPORT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 /** 'YYYY-MM' — the same shape /register and /payroll accept in their ?m= param. */
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -206,7 +206,7 @@ export async function exportReimbursementsXlsx(): Promise<ExportResult> {
  * this file carries every employee's salary.
  */
 export async function exportLeaveSalaryXlsx(year: number): Promise<ExportResult> {
-  const gate = await requireRoles(['admin', 'hr'], 'Exporting the leave-salary working');
+  const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Exporting the leave-salary working');
   if (!gate.ok) return gate;
   if (!Number.isInteger(year) || year < 2000 || year > 2100) {
     return { ok: false, error: 'Enter a valid year.' };

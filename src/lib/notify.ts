@@ -41,7 +41,7 @@ export interface NotifyInput {
 }
 
 /** Roles that review things — the audience for "something needs your attention". */
-const APPROVER_ROLES: readonly AppRole[] = ['admin', 'hr', 'manager'];
+const APPROVER_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
 function warn(context: string, detail: unknown): void {
   console.warn(
@@ -107,7 +107,7 @@ export async function notifyEmployee(
   }
 }
 
-/** Notify everyone who can approve things (admin/hr/manager). */
+/** Notify everyone who can approve things — mirrors _guard.ts WRITE_ROLES. */
 export async function notifyApprovers(input: NotifyInput, exceptProfileId?: string): Promise<void> {
   if (!isServiceRoleConfigured()) {
     warn(input.kind, 'SUPABASE_SECRET_KEY is not set, so notifications are disabled.');

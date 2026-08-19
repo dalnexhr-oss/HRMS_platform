@@ -22,11 +22,13 @@ import type { AppRole, PayrollStatus } from '@/types/database';
 
 /**
  * Roles allowed to move money. Deliberately NOT `STAFF_ROLES` from @/lib/auth:
- * that set includes 'viewer', but the database's is_staff() (migration 0003) is
- * admin/hr/manager only. A viewer would pass an isStaffRole() check, then have
+ * that set includes 'viewer', who would pass an isStaffRole() check and then have
  * every UPDATE silently filtered to zero rows by RLS — a write that reports
- * success and changes nothing. Mirroring is_staff() exactly turns that into an
- * honest, explained refusal.
+ * success and changes nothing. An explicit set turns that into an honest,
+ * explained refusal.
+ *
+ * Matches _guard.ts WRITE_ROLES: super_admin/admin/hr. 'manager' is excluded at
+ * the app layer even though the database's is_staff() (0043) still admits it.
  */
 const PAYROLL_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 

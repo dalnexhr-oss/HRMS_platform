@@ -10,7 +10,7 @@ import type { AppRole } from '@/types/database';
 
 /** Staff roles allowed to import — and so to download the blank template.
  *  Mirrors IMPORT_ROLES in actions/import.ts (commitImport). */
-const IMPORT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr', ];
+const IMPORT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 /** How far the "Other month" list reaches: next month down to 12 months back. */
 const MONTHS_BACK = 12;

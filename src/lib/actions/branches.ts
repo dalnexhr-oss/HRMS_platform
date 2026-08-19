@@ -32,7 +32,7 @@ function revalidateBranchSurfaces(): void {
 
 /** Rename a branch and/or move it to another state. Admin/HR, like /settings itself. */
 export async function updateBranch(id: string, formData: FormData): Promise<ActionResult> {
-  const gate = await requireRoles(['admin', 'hr'], 'Updating a branch');
+  const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Updating a branch');
   if (!gate.ok) return gate;
 
   const name = String(formData.get('name') ?? '').trim();
@@ -76,7 +76,7 @@ export async function updateBranch(id: string, formData: FormData): Promise<Acti
  * or was created by mistake.
  */
 export async function deleteBranch(id: string): Promise<ActionResult> {
-  const gate = await requireRoles(['admin', 'hr'], 'Deleting a branch');
+  const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Deleting a branch');
   if (!gate.ok) return gate;
   if (!id) return { ok: false, error: 'Which branch to delete is missing.' };
 

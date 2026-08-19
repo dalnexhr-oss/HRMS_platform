@@ -13,7 +13,7 @@ import { requireRoles, wroteNothing } from '@/lib/actions/_guard';
  * the week-off schedule and the reimbursement rate.
  */
 export async function updateSetting(key: string, value: unknown) {
-  const gate = await requireRoles(['admin', 'hr'], 'Changing a setting');
+  const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Changing a setting');
   if (!gate.ok) return gate;
 
   const supabase = await createClient();

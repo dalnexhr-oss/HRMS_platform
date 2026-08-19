@@ -29,6 +29,39 @@ const USER_ADMIN_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 // module may only export async functions, so the UI keeps its own display list.
 const ASSIGNABLE_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr', 'manager', 'viewer', 'employee'];
 
+/**
+ * User administration is TIERED, and every rule below derives from this one map.
+ *
+ * A caller may only grant a role, or act on an account holding a role, at or
+ * below their own tier. The escalation this closes is not theoretical: before it,
+ * updateUserRole checked only for the literal 'admin', so an HR account could set
+ * anyone's role — including its own — to 'super_admin' and take the top tier in a
+ * single request. Server Actions are public endpoints, so the UI never offering
+ * the option was no defence.
+ */
+const ROLE_TIER: Record<AppRole, number> = {
+  super_admin: 3,
+  admin: 2,
+  hr: 1,
+  manager: 0,
+  viewer: 0,
+  employee: 0,
+};
+
+function tierOf(role: AppRole | null | undefined): number {
+  return role ? ROLE_TIER[role] ?? 0 : 0;
+}
+
+/** Role name as it reads in a refusal message. */
+const TIER_LABEL: Record<AppRole, string> = {
+  super_admin: 'super admin',
+  admin: 'admin',
+  hr: 'HR',
+  manager: 'manager',
+  viewer: 'viewer',
+  employee: 'employee',
+};
+
 const MIN_PASSWORD = 8;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -75,8 +108,9 @@ async function assertMayActOnTarget(
     .maybeSingle<{ role: AppRole | null }>();
   if (error) return { ok: false, error: `Could not read that account: ${error.message}` };
   if (!data) return { ok: false, error: 'That account no longer exists.' };
-  if (data.role === 'admin' && callerRole !== 'admin') {
-    return { ok: false, error: 'Only an admin can manage another admin account.' };
+  if (tierOf(data.role) > tierOf(callerRole)) {
+    const label = TIER_LABEL[data.role as AppRole];
+    return { ok: false, error: `Only a ${label} account can manage another ${label} account.` };
   }
   return { ok: true, targetRole: data.role };
 }
@@ -163,14 +197,13 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
   if (!fullName) return { ok: false, error: 'Enter the person’s full name.' };
   if (!ASSIGNABLE_ROLES.includes(role)) return { ok: false, error: 'Choose a role.' };
 
-  // Only a super admin may mint another super admin or admin.
-  if (role === 'super_admin' && gate.role !== 'super_admin') {
-    return { ok: false, error: 'Only a super admin can create another super admin account.' };
-  }
-  // Only an admin may mint another admin.
-  
-  if (role === 'admin' && gate.role !== 'admin') {
-    return { ok: false, error: 'Only an admin can create another admin account.' };
+  // No minting a role above your own tier: a super admin only by a super admin,
+  // an admin by an admin or a super admin.
+  if (tierOf(role) > tierOf(gate.role)) {
+    return {
+      ok: false,
+      error: `Only a ${TIER_LABEL[role]} account can create another ${TIER_LABEL[role]} account.`,
+    };
   }
   // An employee login is useless — and silently broken — without a linked record.
   if (role === 'employee' && !employeeId) {
@@ -226,24 +259,26 @@ export async function updateUserRole(
   if (!isServiceRoleConfigured()) return serviceUnavailable();
 
   if (!ASSIGNABLE_ROLES.includes(role)) return { ok: false, error: 'Choose a valid role.' };
-  if (role === 'admin' && gate.role !== 'admin') {
-    return { ok: false, error: 'Only an admin can grant the admin role.' };
+  // No granting a role above your own tier. The absence of this check is what let
+  // an HR account promote itself to super_admin.
+  if (tierOf(role) > tierOf(gate.role)) {
+    return { ok: false, error: `Only a ${TIER_LABEL[role]} account can grant the ${TIER_LABEL[role]} role.` };
   }
   if (role === 'employee' && !employeeId) {
     return { ok: false, error: 'Pick which employee this login belongs to.' };
   }
-  // Don't let the last admin demote themselves into lockout.
-  if (userId === gate.profileId && gate.role === 'admin' && role !== 'admin') {
+  // Don't let an admin or super admin demote themselves into lockout.
+  if (userId === gate.profileId && tierOf(role) < tierOf(gate.role)) {
     return {
       ok: false,
-      error: 'You cannot remove your own admin role — ask another admin to do it.',
+      error: `You cannot remove your own ${TIER_LABEL[gate.role]} role — ask another ${TIER_LABEL[gate.role]} to do it.`,
     };
   }
 
   try {
     const admin = createServiceClient();
 
-    // HR must not be able to demote/Aceess an existing admin.
+    // HR must not be able to demote or seize a higher-tier account.
     const allowed = await assertMayActOnTarget(admin, userId, gate.role);
     if (!allowed.ok) return allowed;
 
@@ -273,8 +308,9 @@ export async function updateUserRole(
  *
  * Guards, in order of how badly they'd hurt:
  *  - you cannot delete yourself (instant self-lockout),
- *  - HR cannot delete an admin (privilege inversion),
- *  - the last remaining admin cannot be deleted (locks everyone out of /users).
+ *  - you cannot delete an account that outranks you (privilege inversion),
+ *  - the last admin (or last super admin) cannot be deleted (locks everyone out
+ *    of /users).
  */
 export async function deleteUser(userId: string): Promise<ActionResult> {
   const gate = await requireRoles(USER_ADMIN_ROLES, 'Deleting a user');
@@ -297,22 +333,25 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
       .maybeSingle<{ id: string; role: AppRole; full_name: string | null }>();
     if (readErr) return { ok: false, error: `Could not read that account: ${readErr.message}` };
     if (!target) return { ok: false, error: 'That account no longer exists.' };
-    if( target?.role === 'super_admin' && gate.role !== 'super_admin' ) {
-      return { ok: false, error: 'Only a super admin can delete a super admin account or delete the admin account.' };
+
+    // Tier rule: you cannot delete an account that outranks you.
+    if (tierOf(target.role) > tierOf(gate.role)) {
+      const label = TIER_LABEL[target.role];
+      return { ok: false, error: `Only a ${label} account can delete another ${label} account.` };
     }
-    if (target?.role === 'admin') {
-      if (gate.role !== 'admin') {
-        return { ok: false, error: 'Only an admin can delete another admin account.' };
-      }
+
+    // Never empty an administrative tier — that locks everyone out of /users.
+    if (target.role === 'admin' || target.role === 'super_admin') {
+      const label = TIER_LABEL[target.role];
       const { count, error: countErr } = await admin
         .from('profiles')
         .select('id', { count: 'exact', head: true })
-        .eq('role', 'admin');
-      if (countErr) return { ok: false, error: `Could not count admins: ${countErr.message}` };
+        .eq('role', target.role);
+      if (countErr) return { ok: false, error: `Could not count ${label} accounts: ${countErr.message}` };
       if ((count ?? 0) <= 1) {
         return {
           ok: false,
-          error: 'This is the last admin account — promote another admin before deleting it.',
+          error: `This is the last ${label} account — promote another before deleting it.`,
         };
       }
     }

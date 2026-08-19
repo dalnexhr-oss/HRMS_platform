@@ -171,7 +171,6 @@ export const GROUPS = {
   RESOURCES: 'Resources',
   COMPANY: 'Company',
   ADMIN: 'Admin',
-  SUPPER_ADMIN: 'Super Admin',
 } as const;
 
 export type NavGroup = (typeof GROUPS)[keyof typeof GROUPS];

@@ -5,9 +5,9 @@
 // the older actions were doing inconsistently (or not at all):
 //   1. Refuse when Supabase is not configured — a write with no database is a FAILURE, not a
 //      silent {ok:true} over nothing persisted.
-//   2. Gate on a real staff role at the app layer (admin/hr/manager), mirroring
-//      the database's is_staff() so a viewer gets an explained refusal instead of
-//      a raw 42501 or a silent RLS no-op.
+//   2. Gate on a real staff role at the app layer (super_admin/admin/hr) so a
+//      viewer or manager gets an explained refusal instead of a raw 42501 or a
+//      silent RLS no-op.
 //   3. Verify a write actually touched rows — an RLS-filtered UPDATE/DELETE
 //      affects zero rows, which PostgREST reports as success.
 //
@@ -25,19 +25,22 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
 /**
  * Roles allowed to write. Deliberately NOT STAFF_ROLES from '@/lib/auth' — that
- * set includes 'viewer', but the database's is_staff() (migration 0003) is only
- * ('admin','hr','manager'). Gating on the wider set would wave a viewer through
- * the UI and into an RLS denial.
+ * set includes 'viewer', who may read the portal but must never write.
+ *
+ * This set is intentionally NARROWER than the database's is_staff() (0043), which
+ * still admits 'manager'. Manager write access was withdrawn at the app layer, so
+ * a manager gets an explained refusal here instead of reaching RLS at all; RLS
+ * remains the wider backstop rather than the gate.
  */
-export const WRITE_ROLES: readonly AppRole[] = ['admin', 'hr', 'manager'];
+export const WRITE_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
 export type StaffGate =
   | { ok: true; profileId: string; employeeId: string | null }
   | { ok: false; error: string };
 
 /**
- * Gate a staff write: requires a real DB connection AND an admin/hr/manager
- * session. `action` names the operation for the error message ("Deleting a
+ * Gate a staff write: requires a real DB connection AND a super-admin, admin or
+ * HR session. `action` names the operation for the error message ("Deleting a
  * holiday", …).
  */
 export async function requireStaff(action = 'This action'): Promise<StaffGate> {
@@ -52,7 +55,7 @@ export async function requireStaff(action = 'This action'): Promise<StaffGate> {
   if (!WRITE_ROLES.includes(profile.role)) {
     return {
       ok: false,
-      error: `${action} needs an admin, HR or manager account — yours is "${profile.role}".`,
+      error: `${action} needs a super admin, admin or HR account — yours is "${profile.role}".`,
     };
   }
   return { ok: true, profileId: profile.id, employeeId: profile.employee_id };
@@ -60,8 +63,8 @@ export async function requireStaff(action = 'This action'): Promise<StaffGate> {
 
 /**
  * Gate on an explicit role set — for operations narrower than "staff", such as
- * user administration (admin/hr only). Returns the caller's own role so the
- * action can apply finer rules (e.g. only an admin may mint another admin).
+ * user administration. Returns the caller's own role so the action can apply
+ * finer rules (e.g. only a super admin may mint another super admin).
  */
 export async function requireRoles(
   roles: readonly AppRole[],

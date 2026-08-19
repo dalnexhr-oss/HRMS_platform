@@ -27,10 +27,23 @@ const ROLE_LABEL: Record<AppRole, string> = {
   employee: 'Employee',
 };
 
-const ROLE_ORDER: AppRole[] = ['admin', 'hr', 'manager', 'viewer', 'employee'];
+// Highest tier first — mirrors ROLE_TIER in lib/actions/users.ts.
+const ROLE_ORDER: AppRole[] = ['super_admin', 'admin', 'hr', 'manager', 'viewer', 'employee'];
+
+/** Mirrors ROLE_TIER in lib/actions/users.ts — the server is the real gate. */
+const ROLE_TIER: Record<AppRole, number> = {
+  super_admin: 3,
+  admin: 2,
+  hr: 1,
+  manager: 0,
+  viewer: 0,
+  employee: 0,
+};
 
 function rolePillStyle(role: AppRole | null): React.CSSProperties {
-  if (role === 'super_admin') return { borderColor: 'var(--brand)', color: 'var(--brand)' };
+  if (role === 'super_admin') {
+    return { borderColor: 'var(--brand)', color: '#fff', background: 'var(--brand)' };
+  }
   if (role === 'admin') return { borderColor: 'var(--brand)', color: 'var(--brand)' };
   if (role === 'hr' || role === 'manager') return { borderColor: 'var(--brass)', color: 'var(--brass)' };
   if (role === 'employee') return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
@@ -68,7 +81,9 @@ export function UsersScreen({
   const { toast, toastNode } = useToast();
 
   // Only an admin may hand out the admin role — mirrors the server guard.
-  const assignable = callerRole === 'admin' ? ROLE_ORDER : ROLE_ORDER.filter((r) => r !== 'admin');
+  // Only offer roles at or below the caller's own tier — the same rule the
+  // server enforces, so the dropdown can't suggest a refusal.
+  const assignable = ROLE_ORDER.filter((r) => ROLE_TIER[r] <= ROLE_TIER[callerRole]);
 
   function run(id: string, fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) {
     setBusy(id);

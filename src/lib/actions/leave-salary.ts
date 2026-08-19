@@ -194,7 +194,7 @@ export async function saveLeaveSalaryWorking(input: {
  * save) and stamp the result. From here the figures on the row ARE the payout.
  */
 export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
-  const gate = await requireRoles(['admin', 'hr'], 'Finalizing a leave-salary working');
+  const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Finalizing a leave-salary working');
   if (!gate.ok) return gate;
   if (!UUID_RE.test(id)) return { ok: false, error: 'Unknown working.' };
 
@@ -283,7 +283,7 @@ export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
 
 /** Unlock a finalized working for correction. Paid stays paid. */
 export async function reopenLeaveSalary(id: string): Promise<ActionResult> {
-  const gate = await requireRoles(['admin', 'hr'], 'Reopening a leave-salary working');
+  const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Reopening a leave-salary working');
   if (!gate.ok) return gate;
   if (!UUID_RE.test(id)) return { ok: false, error: 'Unknown working.' };
 
@@ -305,7 +305,7 @@ export async function reopenLeaveSalary(id: string): Promise<ActionResult> {
 
 /** Mark a finalized working paid: stamp who/when, tell the employee. */
 export async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
-  const gate = await requireRoles(['admin', 'hr'], 'Marking a leave salary paid');
+  const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Marking a leave salary paid');
   if (!gate.ok) return gate;
   if (!UUID_RE.test(id)) return { ok: false, error: 'Unknown working.' };
 

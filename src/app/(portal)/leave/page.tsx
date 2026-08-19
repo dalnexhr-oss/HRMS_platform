@@ -8,7 +8,7 @@ import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import type { AppRole } from '@/types/database';
 
 // The leave-salary working writes salaries and money — admin/HR only, matching
-// the server actions' requireRoles(['admin','hr']) gate.
+// the server actions' requireRoles(['super_admin','admin','hr']) gate.
 const LEAVE_ADMIN_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 const YEAR_RE = /^\d{4}$/;

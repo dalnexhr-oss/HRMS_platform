@@ -17,7 +17,7 @@ export async function fetchAssetMaintenance(assetId: string) {
 }
 
 // Asset Management is admin/HR only — same gate as user administration.
-const ASSET_ADMIN_ROLES: AppRole[] = ['admin', 'hr'];
+const ASSET_ADMIN_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 /** Pull the asset columns from the form; blank strings become null. */
 function assetFields(formData: FormData) {
