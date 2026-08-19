@@ -17,3 +17,7 @@ port = 54323
 [auth]
 site_url = "http://localhost:3000"
 enable_signup = true
+
+[db.seed]
+enabled = true
+sql_paths = []

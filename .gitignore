@@ -51,3 +51,4 @@ supabase/APPLY_*.sql
 # tracked — the deploy build does not regenerate it. Scope any new rule to a
 # path (`/build`, `supabase/seed.sql`) rather than a bare filename.
 project_code.txt
+*.sql

@@ -80,7 +80,6 @@ export function UsersScreen({
   const { prompt, promptDialog } = usePrompt();
   const { toast, toastNode } = useToast();
 
-  // Only an admin may hand out the admin role — mirrors the server guard.
   // Only offer roles at or below the caller's own tier — the same rule the
   // server enforces, so the dropdown can't suggest a refusal.
   const assignable = ROLE_ORDER.filter((r) => ROLE_TIER[r] <= ROLE_TIER[callerRole]);
@@ -220,9 +219,18 @@ export function UsersScreen({
                   <td className="mono muted">{stamp(u.lastSignInAt)}</td>
                   <td>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                      {/* Your own role is the one row you cannot edit — mirrors
+                          the server guard, so the control never offers a change
+                          that would come back as a refusal. Everyone else's row
+                          stays editable. */}
                       <select
                         value={u.role ?? ''}
-                        disabled={pending && busy === u.id}
+                        disabled={(pending && busy === u.id) || u.id === selfId}
+                        title={
+                          u.id === selfId
+                            ? 'You cannot change your own role — ask another admin to do it'
+                            : undefined
+                        }
                         onChange={(e) => onRoleChange(u, e.target.value as AppRole)}
                         style={{
                           padding: '5px 8px',

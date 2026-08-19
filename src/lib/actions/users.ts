@@ -267,11 +267,16 @@ export async function updateUserRole(
   if (role === 'employee' && !employeeId) {
     return { ok: false, error: 'Pick which employee this login belongs to.' };
   }
-  // Don't let an admin or super admin demote themselves into lockout.
-  if (userId === gate.profileId && tierOf(role) < tierOf(gate.role)) {
+  // Nobody changes their OWN role — a super admin included. Other people's roles
+  // are exactly what this screen is for; your own is the one row you must not
+  // touch. Self-service is how an account either demotes itself into lockout or
+  // quietly rewrites its own privileges with no second party involved, and the
+  // tier rule above cannot catch the latter: a caller always outranks themselves.
+  // The change has to come from another account of sufficient tier.
+  if (userId === gate.profileId && role !== gate.role) {
     return {
       ok: false,
-      error: `You cannot remove your own ${TIER_LABEL[gate.role]} role — ask another ${TIER_LABEL[gate.role]} to do it.`,
+      error: `You cannot change your own role — ask another ${TIER_LABEL[gate.role]} to do it.`,
     };
   }
 
