@@ -28,7 +28,7 @@ const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
  * attendance_days_write policy. NOT isStaffRole(): that includes 'viewer', which
  * 0003 defines as read-only, so viewers would get a drawer Postgres then rejects.
  */
-const CORRECTION_ROLES: AppRole[] = ['admin', 'hr', 'manager'];
+const CORRECTION_ROLES: AppRole[] = ['admin', 'hr', 'super_admin'];
 
 /** '?m=2026-05' -> '2026-05-01'. Anything unparseable falls back to the current month (IST). */
 function periodFromParam(m: string | undefined): string {

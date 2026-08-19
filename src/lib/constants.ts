@@ -171,6 +171,7 @@ export const GROUPS = {
   RESOURCES: 'Resources',
   COMPANY: 'Company',
   ADMIN: 'Admin',
+  SUPPER_ADMIN: 'Super Admin',
 } as const;
 
 export type NavGroup = (typeof GROUPS)[keyof typeof GROUPS];
@@ -244,20 +245,20 @@ export const NAV: NavItem[] = [
  * never listed. A plain employee could open 'Rules & thresholds'.
  */
 export const NAV_ROLE_GATED: Record<string, readonly string[]> = {
-  audit: ['admin', 'hr', 'manager'],
-  onboarding: ['admin', 'hr'],
-  exits: ['admin', 'hr'],
-  hr: ['admin', 'hr'],
-  leave: ['admin', 'hr'],
-  assets: ['admin', 'hr'],
-  items: ['admin', 'hr'],
-  users: ['admin', 'hr'],
+  audit: ['super_admin', 'admin', 'hr'],
+  onboarding: ['super_admin', 'admin', 'hr'],
+  exits: ['super_admin', 'admin', 'hr'],
+  hr: ['super_admin', 'admin', 'hr'],
+  leave: ['super_admin', 'admin', 'hr'],
+  assets: ['super_admin', 'admin', 'hr'],
+  items: ['super_admin', 'admin', 'hr'],
+  users: ['super_admin', 'admin', 'hr'],
   // Mirrors IMPORT_ROLES in actions/import.ts (commitImport) — the widest
   // real write path. The nav used to say admin/hr while the action allowed
   // managers, so a manager could import by URL but saw no link.
-  import: ['admin', 'hr', 'manager'],
+  import: ['super_admin', 'admin', 'hr'],
   // Mirrors the /settings page guard and updateSetting/updateBranch.
-  settings: ['admin', 'hr'],
+  settings: ['super_admin', 'admin', 'hr'],
 };
 
 // Page titles + FALLBACK subtitles keyed by slug. These are deliberately plain

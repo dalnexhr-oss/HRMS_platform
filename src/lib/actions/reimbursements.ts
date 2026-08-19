@@ -416,7 +416,7 @@ export async function financeReviewReimbursement(
   decision: 'approved' | 'rejected',
   remark?: string,
 ): Promise<ActionResult> {
-  const gate = await requireRoles(['admin'], `Finance-${decision === 'approved' ? 'approving' : 'rejecting'} a claim`);
+  const gate = await requireRoles(['super_admin', 'admin'], `Finance-${decision === 'approved' ? 'approving' : 'rejecting'} a claim`);
   if (!gate.ok) return gate;
 
   const cleanRemark = (remark ?? '').trim();

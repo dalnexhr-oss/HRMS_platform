@@ -7,7 +7,7 @@ import type { AppRole } from '@/types/database';
 
 // User administration is admin/HR only. Anyone else is bounced rather than shown
 // a screen whose every control would be refused.
-const USER_ADMIN_ROLES: AppRole[] = ['admin', 'hr'];
+const USER_ADMIN_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 export default async function UsersPage() {
   const { profile } = await getSession();

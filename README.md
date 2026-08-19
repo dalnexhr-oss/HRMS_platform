@@ -78,15 +78,12 @@ and, for employees, an `employee_id` linking to their `employees` record.
 
 | Role                          | Lands on | Sees                                              |
 | ----------------------------- | -------- | ------------------------------------------------- |
-| `admin` / `hr` / `manager` / `viewer` | `/today` | The full admin portal                     |
+|  `super admin` /`admin` / `hr` / `manager` / `viewer` | `/today` | The full admin portal                     |
 | `employee`                    | `/me`    | Own attendance/pay snapshot + company policies    |
 
 `middleware.ts` refreshes the session and routes each role to its area (employees
 can't reach the portal; staff can't reach `/me`). Seed accounts (both `password123`):
 
-```
-admin@dalnex.test      → admin portal
-employee@dalnex.test   → employee dashboard (linked to DN001 Rajesh Kumar)
 ```
 
 Row Level Security (migration `0004`) tightens employee access: an employee reads

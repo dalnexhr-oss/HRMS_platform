@@ -19,7 +19,8 @@ export default async function LoginPage({
       <div className="login-card card">
         <div className="login-brand">
           <Brand priority />
-          <p className="muted">Sign in to your admin or employee account.</p>
+          <p className="muted">Sign in to your super admin or admin or employee account.</p>
+
         </div>
 
         <LoginForm initialError={initialError} />

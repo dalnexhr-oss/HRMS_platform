@@ -50,7 +50,7 @@ export function ReimbursementsScreen({
   /** Finance sign-off is admin-only — mirrors the server guard. */
   callerRole?: string | null;
 }) {
-  const canFinance = callerRole === 'admin';
+  const canFinance = callerRole === 'super_admin' || callerRole === 'admin';
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>('pending');
   const [busy, setBusy] = useState<string | null>(null);

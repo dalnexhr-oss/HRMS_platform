@@ -41,7 +41,7 @@ export interface CorrectionState {
  * Mirrored in src/app/(portal)/register/page.tsx (a 'use server' module may only
  * export async functions, so this cannot be shared from here).
  */
-const WRITE_ROLES: AppRole[] = ['admin', 'hr', 'manager'];
+const WRITE_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 /**
  * Statuses an admin may set from the register.

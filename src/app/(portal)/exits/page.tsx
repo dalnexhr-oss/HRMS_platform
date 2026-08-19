@@ -6,7 +6,7 @@ import type { AppRole } from '@/types/database';
 
 // Exits disable logins and move money — admin/HR only, matching the server
 // actions' requireRoles(['admin','hr']) gate.
-const EXIT_ADMIN_ROLES: AppRole[] = ['admin', 'hr'];
+const EXIT_ADMIN_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 export default async function ExitsPage() {
   const { profile } = await getSession();

@@ -38,7 +38,7 @@ function validYear(y: number): boolean {
  * re-running for the same year credits nobody twice — it just reports 0 created.
  */
 export async function provisionLeaveYear(year: number): Promise<ActionResult & { created?: number }> {
-  const gate = await requireRoles(['admin', 'hr'], 'Provisioning leave balances');
+  const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Provisioning leave balances');
   if (!gate.ok) return gate;
   if (!validYear(year)) return { ok: false, error: 'Enter a valid year.' };
 

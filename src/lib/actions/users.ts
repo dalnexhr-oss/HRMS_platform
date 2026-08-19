@@ -23,11 +23,11 @@ export interface ActionResult {
 }
 
 /** Roles allowed to administer users. */
-const USER_ADMIN_ROLES: readonly AppRole[] = ['admin', 'hr'];
+const USER_ADMIN_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
 // Roles that may be assigned through this screen. NOT exported: a 'use server'
 // module may only export async functions, so the UI keeps its own display list.
-const ASSIGNABLE_ROLES: readonly AppRole[] = ['admin', 'hr', 'manager', 'viewer', 'employee'];
+const ASSIGNABLE_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr', 'manager', 'viewer', 'employee'];
 
 const MIN_PASSWORD = 8;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -163,7 +163,12 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
   if (!fullName) return { ok: false, error: 'Enter the person’s full name.' };
   if (!ASSIGNABLE_ROLES.includes(role)) return { ok: false, error: 'Choose a role.' };
 
+  // Only a super admin may mint another super admin or admin.
+  if (role === 'super_admin' && gate.role !== 'super_admin') {
+    return { ok: false, error: 'Only a super admin can create another super admin account.' };
+  }
   // Only an admin may mint another admin.
+  
   if (role === 'admin' && gate.role !== 'admin') {
     return { ok: false, error: 'Only an admin can create another admin account.' };
   }
@@ -291,7 +296,10 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
       .eq('id', userId)
       .maybeSingle<{ id: string; role: AppRole; full_name: string | null }>();
     if (readErr) return { ok: false, error: `Could not read that account: ${readErr.message}` };
-
+    if (!target) return { ok: false, error: 'That account no longer exists.' };
+    if( target?.role === 'super_admin' && gate.role !== 'super_admin' ) {
+      return { ok: false, error: 'Only a super admin can delete a super admin account or delete the admin account.' };
+    }
     if (target?.role === 'admin') {
       if (gate.role !== 'admin') {
         return { ok: false, error: 'Only an admin can delete another admin account.' };

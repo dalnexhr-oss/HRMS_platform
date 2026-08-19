@@ -20,6 +20,7 @@ import type { AppRole } from '@/types/database';
 
 const ROLE_LABEL: Record<AppRole, string> = {
   admin: 'Admin',
+  super_admin: 'Super Admin',
   hr: 'HR',
   manager: 'Manager',
   viewer: 'Viewer (read-only)',
@@ -29,6 +30,7 @@ const ROLE_LABEL: Record<AppRole, string> = {
 const ROLE_ORDER: AppRole[] = ['admin', 'hr', 'manager', 'viewer', 'employee'];
 
 function rolePillStyle(role: AppRole | null): React.CSSProperties {
+  if (role === 'super_admin') return { borderColor: 'var(--brand)', color: 'var(--brand)' };
   if (role === 'admin') return { borderColor: 'var(--brand)', color: 'var(--brand)' };
   if (role === 'hr' || role === 'manager') return { borderColor: 'var(--brass)', color: 'var(--brass)' };
   if (role === 'employee') return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };

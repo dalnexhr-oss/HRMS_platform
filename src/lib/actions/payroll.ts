@@ -28,7 +28,7 @@ import type { AppRole, PayrollStatus } from '@/types/database';
  * success and changes nothing. Mirroring is_staff() exactly turns that into an
  * honest, explained refusal.
  */
-const PAYROLL_ROLES: readonly AppRole[] = ['admin', 'hr', 'manager'];
+const PAYROLL_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
 /** A run in one of these states is history; recompute/adjust must refuse. */
 const FROZEN: readonly PayrollStatus[] = ['locked', 'paid'];

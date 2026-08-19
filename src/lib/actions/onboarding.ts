@@ -24,7 +24,7 @@ export interface ActionResult {
   error?: string;
 }
 
-const ONBOARDING_ROLES: AppRole[] = ['admin', 'hr'];
+const ONBOARDING_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 const TASK_STATUSES = ['pending', 'done', 'blocked'] as const;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

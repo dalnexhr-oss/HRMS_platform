@@ -111,7 +111,7 @@ export async function exportAttendanceTemplateXlsx(periodMonth: string): Promise
 }
 
 /** Roles that may import the register — mirrors IMPORT_ROLES in actions/import. */
-const IMPORT_ROLES: AppRole[] = ['admin', 'hr', 'manager'];
+const IMPORT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr', ];
 
 /** 'YYYY-MM' — the same shape /register and /payroll accept in their ?m= param. */
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;

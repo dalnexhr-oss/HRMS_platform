@@ -54,7 +54,7 @@ export type CommitResult =
  * is_staff() (migration 0003) is only ('admin','hr','manager'). Gating on the
  * wider set would let a viewer through the UI and into an RLS denial.
  */
-const IMPORT_ROLES: AppRole[] = ['admin', 'hr', 'manager'];
+const IMPORT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr', ];
 
 const UPSERT_CHUNK = 500;
 const SELECT_PAGE = 1000;

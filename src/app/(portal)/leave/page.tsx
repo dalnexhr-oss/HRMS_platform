@@ -9,7 +9,7 @@ import type { AppRole } from '@/types/database';
 
 // The leave-salary working writes salaries and money — admin/HR only, matching
 // the server actions' requireRoles(['admin','hr']) gate.
-const LEAVE_ADMIN_ROLES: AppRole[] = ['admin', 'hr'];
+const LEAVE_ADMIN_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 const YEAR_RE = /^\d{4}$/;
 

@@ -20,7 +20,7 @@ export type PayrollStatus = 'draft' | 'in_review' | 'locked' | 'paid';
 export type PayslipStatus = 'draft' | 'queued' | 'generated' | 'paid';
 export type NoticeChannel = 'app' | 'whatsapp' | 'both';
 export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
-export type AppRole = 'admin' | 'hr' | 'manager' | 'viewer' | 'employee';
+export type AppRole = "super_admin" | "admin" | "hr" | "manager" | "viewer" | "employee";
 export type ReimbursementPurpose = 'travel' | 'material_purchase' | 'other';
 // 'finance_review' added in migration 0035 — the optional second (Finance)
 // approval stage that sits between HR approval and the payroll credit.

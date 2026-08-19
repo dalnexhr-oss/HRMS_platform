@@ -9,7 +9,7 @@ import type { AppRole } from '@/types/database';
 export const dynamic = 'force-dynamic';
 
 // HR management is admin/HR only, mirroring NAV_ROLE_GATED.hr.
-const HR_ROLES: AppRole[] = ['admin', 'hr'];
+const HR_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 /** Active-roster headcount; null when it cannot be counted (shown as —). */
 async function getHeadcount(): Promise<number | null> {

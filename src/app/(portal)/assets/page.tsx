@@ -6,7 +6,7 @@ import type { AppRole } from '@/types/database';
 
 // Asset Management is admin/HR only. Anyone else is bounced (the nav link is also
 // hidden for them via NAV_ROLE_GATED).
-const ASSET_ADMIN_ROLES: AppRole[] = ['admin', 'hr'];
+const ASSET_ADMIN_ROLES: AppRole[] = ["super_admin", "admin", "hr"];
 
 export default async function AssetsPage() {
   const { profile } = await getSession();

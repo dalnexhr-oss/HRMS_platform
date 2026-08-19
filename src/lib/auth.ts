@@ -5,7 +5,7 @@ import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import type { AppRole, Profile } from '@/types/database';
 
-export const STAFF_ROLES: AppRole[] = ['admin', 'hr', 'manager', 'viewer'];
+export const STAFF_ROLES: AppRole[] = ['super_admin', 'admin', 'hr', 'manager', 'viewer'];
 
 export function isStaffRole(role: AppRole | null | undefined): boolean {
   return !!role && STAFF_ROLES.includes(role);

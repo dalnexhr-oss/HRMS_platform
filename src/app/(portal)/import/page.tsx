@@ -11,7 +11,7 @@ import type { AppRole } from '@/types/database';
  * This is a UI affordance only. commitImport re-checks server-side, and RLS
  * enforces it again in the database.
  */
-const IMPORT_ROLES: AppRole[] = ['admin', 'hr', 'manager'];
+const IMPORT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 export default async function ImportPage() {
   const { profile } = await getSession();

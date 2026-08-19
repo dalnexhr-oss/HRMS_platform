@@ -123,6 +123,7 @@ function visibleNav(role?: string | null): NavItem[] {
 /** Turn a role slug into a human label for the sidebar footer. */
 const ROLE_LABEL: Record<string, string> = {
   admin: 'Administrator',
+  super_admin: 'Super Admin',
   hr: 'HR',
   manager: 'Manager',
   viewer: 'Viewer (read-only)',

@@ -11,6 +11,7 @@ const OWNER_LABEL: Record<string, string> = {
   hr: 'HR',
   it: 'IT',
   admin: 'Admin',
+  super_admin: 'Super Admin',
   manager: 'Your manager',
   employee: 'You',
 };

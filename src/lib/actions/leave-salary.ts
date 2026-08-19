@@ -73,7 +73,7 @@ export async function saveLeaveSalaryWorking(input: {
   calendarDaysP1Override?: number | null;
   calendarDaysP2Override?: number | null;
 }): Promise<ActionResult> {
-  const gate = await requireRoles(['admin', 'hr'], 'Saving a leave-salary working');
+  const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Saving a leave-salary working');
   if (!gate.ok) return gate;
 
   const year = Number(input.year);

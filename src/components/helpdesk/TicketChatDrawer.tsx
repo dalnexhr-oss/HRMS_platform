@@ -18,6 +18,8 @@ type TicketStatus = TicketView['status'];
 /** 'admin' -> 'Admin', 'hr' -> 'HR', etc. — labels a chat message's author. */
 function roleLabel(role: string | null | undefined): string {
   switch (role) {
+    case 'super_admin':
+      return 'Super Admin';
     case 'admin':
       return 'Admin';
     case 'hr':

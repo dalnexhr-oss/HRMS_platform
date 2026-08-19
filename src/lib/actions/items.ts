@@ -9,7 +9,7 @@ import { requireRoles, wroteNothing } from './_guard';
 import type { AppRole } from '@/types/database';
 
 // Item Management is admin/HR only — same gate as assets and user admin.
-const ITEM_ADMIN_ROLES: AppRole[] = ['admin', 'hr'];
+const ITEM_ADMIN_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 /** Pull the item columns from the form; blank strings become null. */
 function itemFields(formData: FormData) {

@@ -9,7 +9,7 @@ import { SettingsScreen } from '@/components/settings/SettingsScreen';
 export default async function SettingsPage() {
   const { profile } = await getSession();
   const role = (profile?.role ?? '').toLowerCase();
-  if (role !== 'admin' && role !== 'hr') redirect('/today');
+  if (role !== 'admin' && role !== 'hr' && role !== 'super_admin') redirect('/today');
 
   const [settings, branches] = await Promise.all([getSettings(), getBranches()]);
   return <SettingsScreen settings={settings} branches={branches} />;
