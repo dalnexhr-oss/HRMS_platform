@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { LeaveHistory } from '@/components/hr/LeaveHistory';
+import { LeaveHistory } from '@/components/Leave_Management/LeaveHistory';
 import { getOnLeaveToday, getRequests } from '@/lib/queries';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth';
