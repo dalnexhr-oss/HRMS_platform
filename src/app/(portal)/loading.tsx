@@ -63,15 +63,15 @@ export default function PortalLoading() {
 
       <style>{`
         .plx {
-          --plx-base: rgba(127, 127, 127, 0.14);
-          --plx-sheen: rgba(127, 127, 127, 0.26);
-          --plx-edge: rgba(127, 127, 127, 0.16);
+          --plx-base: rgba(143, 164, 197, 0.22);
+          --plx-sheen: rgba(23, 165, 190, 0.30);
+          --plx-edge: rgba(255, 255, 255, 0.70);
           padding: 24px 22px 20px;
         }
 
         /* Shimmering skeleton blocks */
         .plx-bone {
-          border-radius: 6px;
+          border-radius: 8px;
           background: linear-gradient(
             90deg,
             var(--plx-base) 25%,
@@ -85,7 +85,7 @@ export default function PortalLoading() {
         /* Thin indeterminate bar — picks up your brand color if --accent exists */
         .plx-bar {
           position: relative;
-          height: 2px;
+          height: 3px;
           margin-bottom: 22px;
           border-radius: 999px;
           background: var(--plx-base);
@@ -97,8 +97,8 @@ export default function PortalLoading() {
           inset: 0;
           width: 40%;
           border-radius: inherit;
-          background: var(--accent, currentColor);
-          opacity: 0.55;
+          background: var(--brand, currentColor);
+          opacity: 1;
           animation: plx-sweep 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
         }
 
@@ -127,7 +127,7 @@ export default function PortalLoading() {
 
         /* Rows */
         .plx-row { display: flex; align-items: center; gap: 12px; padding: 12px 2px; }
-        .plx-row + .plx-row { border-top: 1px solid rgba(127, 127, 127, 0.1); }
+        .plx-row + .plx-row { border-top: 1px solid var(--line, rgba(15,42,68,.09)); }
         .plx-avatar { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; }
         .plx-row-text { flex: 1; min-width: 0; }
         .plx-line { height: 12px; }
