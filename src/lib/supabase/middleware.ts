@@ -31,8 +31,7 @@ export async function updateSession(request: NextRequest) {
   if (!url || !key) {
     // No Supabase env: fail closed, never open.
     return new NextResponse(
-      'Server is not configured: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ' +
-        '(or NEXT_PUBLIC_SUPABASE_ANON_KEY) must be set at build time.',
+      'Server is not configured properly',
       { status: 503 },
     );
   }

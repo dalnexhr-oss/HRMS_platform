@@ -52,6 +52,7 @@ import { MyAssets } from '@/components/employee/MyAssets';
 import { MyItems } from '@/components/employee/MyItems';
 import { MyDocuments } from '@/components/employee/MyDocuments';
 import { MyOnboarding } from '@/components/employee/MyOnboarding';
+import { Punch } from '@/components/employee/Punch';
 import { inr } from '@/lib/format';
 import type { DayCell, PayslipRow } from '@/types/domain';
 
@@ -336,6 +337,9 @@ export default async function MePage() {
 
       {/* own document locker — upload what HR asked for, track verification */}
       <MyDocuments documents={myDocuments} id="documents" />
+
+      {/* live clock — the one thing done every day, so it sits above the strip */}
+      <Punch id="punch" />
 
       {/* own month strip */}
       <MyAttendance days={attendance} periodMonth={periodMonth} id="attendance" />

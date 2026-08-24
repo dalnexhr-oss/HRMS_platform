@@ -383,6 +383,62 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 .st-AB{color:var(--ab);background:var(--ab-bg);border-color:var(--ab-line)}
 .st-OD{color:var(--od);background:var(--od-bg);border-color:var(--od-line)}
 
+/* ============ employee punch & TV dashboard ---------------------------- */
+.punch-section{scroll-margin-top:96px}
+.punch-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,420px);gap:16px;align-items:start}
+.punch-container{
+  width:100%;margin:0;padding:28px;
+  background:var(--sheen-card);border:1px solid var(--edge);
+  border-radius:var(--radius);box-shadow:var(--shadow-lift);
+  animation:dx-rise .28s var(--ease-out)}
+.punch-container h1{
+  margin:0 0 22px;color:var(--ink);font:700 25px/1.15 var(--display)}
+.punch-container > div{
+  display:grid;gap:10px;padding:18px;
+  background:var(--card-2);border:1px solid var(--line);
+  border-radius:var(--radius-s);box-shadow:var(--nu-press)}
+.punch-container p{margin:0;color:var(--ink-2)}
+.punch-container p:first-child{font-weight:700;color:var(--brand-deep)}
+.punch-container button{
+  width:100%;margin-top:10px;padding:12px 18px;border:1px solid rgba(255,255,255,.30);
+  border-radius:12px;background:linear-gradient(180deg,var(--brand-lift),var(--brand));
+  color:#fff;font-weight:700;box-shadow:0 6px 16px rgba(14,122,143,.30),inset 0 1px 0 rgba(255,255,255,.35);
+  transition:transform var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease),opacity var(--t-fast) var(--ease)}
+.punch-container button:hover{transform:translateY(-1px);box-shadow:0 10px 22px rgba(14,122,143,.38),inset 0 1px 0 rgba(255,255,255,.40)}
+.punch-container button:active{transform:translateY(1px);box-shadow:var(--nu-press)}
+.punch-container button:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}
+.punch-loading{padding:18px;margin:0;background:var(--card-2);border:1px solid var(--line);border-radius:var(--radius-s);color:var(--ink-3)}
+.punch-history{padding:22px;background:var(--sheen-card);border:1px solid var(--edge);border-radius:var(--radius);box-shadow:var(--shadow)}
+.punch-history-head{display:flex;align-items:center;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.punch-history-head h3{margin:0;font:700 15px/1.2 var(--sans)}
+.punch-history-head .folio{margin-left:auto;font:600 10px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.punch-history > p{margin:16px 0 0;font-size:13px}
+.punch-history-list{max-height:360px;overflow:auto}
+.punch-history-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-size:12px}
+.punch-history-row:last-child{border-bottom:0}
+.punch-kind{min-width:76px;padding:4px 8px;border-radius:8px;text-align:center;font:600 10px var(--mono);text-transform:uppercase}
+.punch-kind.in{color:var(--p);background:var(--p-bg);border:1px solid var(--p-line)}
+.punch-kind.out{color:var(--ab);background:var(--ab-bg);border:1px solid var(--ab-line)}
+
+.employee-card{
+  width:min(100% - 32px,760px);margin:32px auto;padding:32px;
+  background:linear-gradient(145deg,#FFFFFF,#EAF4F6);border:1px solid rgba(14,122,143,.20);
+  border-radius:var(--radius);box-shadow:var(--shadow-lift);animation:dx-rise .32s var(--ease-out)}
+.employee-card h2{margin:0 0 22px;color:var(--brand-deep);font:700 32px/1.1 var(--display)}
+.employee-card p{
+  margin:0;padding:14px 0;border-bottom:1px solid var(--line);
+  color:var(--ink-2);font-size:15px}
+.employee-card p:last-child{border-bottom:0;padding-bottom:0}
+
+@media (max-width:600px){
+  .punch-layout{grid-template-columns:1fr;gap:12px}
+  .punch-container{margin:14px auto;padding:20px}
+  .punch-container h1{font-size:22px}
+  .employee-card{width:calc(100% - 20px);margin:18px auto;padding:22px}
+  .employee-card h2{font-size:26px}
+  .employee-card p{padding:11px 0}
+}
+
 /* ============ dashboard ============ */
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
 .kpi{padding:18px 20px}
@@ -699,6 +755,125 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 @keyframes dx-mark{from{transform:scaleY(.2);opacity:0}}
 @keyframes dx-veil{from{opacity:0}}
 
+/* ============ attendance clock (employee punch card) ============ */
+.punch-face{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.punch-read{flex:1;min-width:200px}
+/* The state chip is the first thing read, so presence is carried by the word,
+   the dot colour AND the fill — never colour alone. */
+.punch-state{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border-radius:99px;
+  font:600 11.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-2);background:var(--card-2);border:1px solid var(--edge)}
+.punch-state .dot{background:var(--ink-3)}
+.punch-state.on{color:var(--p);background:var(--p-bg);border-color:var(--p-line)}
+.punch-state.on .dot{background:var(--p);box-shadow:0 0 0 3px rgba(23,114,69,.18);animation:punch-pulse 2.4s var(--ease) infinite}
+@keyframes punch-pulse{50%{box-shadow:0 0 0 6px rgba(23,114,69,0)}}
+.punch-elapsed{font:700 34px/1.05 var(--display);letter-spacing:-.035em;color:var(--ink);margin-top:10px}
+.punch-meta{margin-top:4px;font-size:12.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.punch-geo{font:600 9.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:99px;border:1px solid}
+.punch-geo.at-office{color:var(--p);background:var(--p-bg);border-color:var(--p-line)}
+.punch-geo.off-site{color:var(--lm);background:var(--lm-bg);border-color:var(--lm-line)}
+/* The day's single most-used control: oversized on every viewport, not just
+   touch ones, because it is tapped in a hurry on the way in. */
+.punch-btn{min-width:172px;min-height:52px;justify-content:center;font-size:15px;border-radius:14px}
+.punch-note{margin:14px 0 0;font-size:12px;line-height:1.55}
+/* Location state. A blocked permission is the one thing that stops a punch
+   dead, so it gets a full alert block rather than muted helper text — it has to
+   be impossible to press the button without having seen it. */
+.punch-alert{margin:16px 0 0;padding:12px 14px;border-radius:12px;
+  font-size:12.5px;line-height:1.6;border:1px solid}
+.punch-alert b{font-weight:700}
+.punch-alert.is-bad{color:var(--ab);background:var(--ab-bg);border-color:var(--ab-line)}
+.punch-alert.is-warn{color:var(--lm);background:var(--lm-bg);border-color:var(--lm-line)}
+.punch-alert.is-info{color:var(--ink-2);background:var(--card-2);border-color:var(--edge)}
+
+.punch-history{padding:0 20px 18px}
+.punch-history .fold{margin-top:0}
+.punch-day{margin-bottom:14px}
+.punch-day:last-child{margin-bottom:0}
+.punch-day-hd{font:600 10px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
+.punch-day-rows{display:flex;flex-direction:column;gap:6px}
+.punch-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:10px;
+  background:var(--card-2);border:1px solid var(--edge)}
+.punch-kind{font:600 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;
+  padding:3px 9px;border-radius:99px;border:1px solid;min-width:52px;text-align:center}
+.punch-kind.in{color:var(--p);background:var(--p-bg);border-color:var(--p-line)}
+.punch-kind.out{color:var(--ink-2);background:#fff;border-color:var(--line-2)}
+.punch-row-time{font-size:13px;color:var(--ink)}
+
+/* ============ TV attendance board (/tv) ============ */
+/* Everything here is sized in clamp() against the viewport: the same markup has
+   to be legible on a laptop preview and across a room on a 4K wall panel. */
+.tv-shell{min-height:100dvh;background:var(--paper)}
+.tv{min-height:100dvh;display:flex;flex-direction:column;padding:clamp(16px,2.2vw,34px)}
+.tv-head{display:flex;align-items:flex-start;gap:clamp(16px,2.5vw,40px);flex-wrap:wrap;
+  padding-bottom:clamp(12px,1.4vw,20px);border-bottom:2px solid var(--line-2)}
+/* The board uses the real <Brand> mark, like the sidebar and login card. It is
+   the largest instance in the app — this is read from across a room — so the
+   logo and the "HRMS." wordmark are scaled together against the viewport. */
+.tv-head-brand .brandmark{gap:clamp(8px,.7vw,14px);align-items:center}
+.tv-head-brand .brandmark-img{height:clamp(30px,3vw,60px);width:auto}
+.tv-head-brand .brandmark-txt{font-size:clamp(20px,2vw,40px);color:var(--ink);letter-spacing:-.03em}
+.tv-head-brand .brandmark-txt span{color:var(--brand)}
+.tv-head-brand h1{margin:0;font:800 clamp(24px,2.6vw,46px)/1 var(--display);letter-spacing:-.04em;color:var(--ink)}
+.tv-head-brand p{margin:6px 0 0;font:600 clamp(11px,.85vw,15px) var(--mono);letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink-3)}
+.tv-exit{display:inline-block;margin-top:8px;font:500 12px var(--sans);color:var(--ink-3);opacity:.75}
+.tv-exit:hover{color:var(--brand);opacity:1;text-decoration:underline}
+.tv-kpis{display:flex;gap:clamp(12px,1.8vw,30px);margin-left:auto;flex-wrap:wrap}
+.tv-kpi{display:flex;flex-direction:column;align-items:flex-end;line-height:1}
+.tv-kpi-val{font:800 clamp(26px,3vw,58px)/1 var(--display);letter-spacing:-.04em;color:var(--ink);
+  font-variant-numeric:tabular-nums}
+.tv-kpi.is-in .tv-kpi-val{color:var(--p)}
+.tv-kpi-lab{margin-top:6px;font:600 clamp(9px,.7vw,13px) var(--mono);letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-3)}
+.tv-clock{display:flex;flex-direction:column;align-items:flex-end;line-height:1}
+.tv-time{font:700 clamp(26px,3vw,58px)/1 var(--display);letter-spacing:-.03em;color:var(--ink);
+  font-variant-numeric:tabular-nums}
+.tv-date{margin-top:6px;font:600 clamp(10px,.78vw,14px) var(--mono);letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3)}
+.tv-stale{margin:14px 0 0;padding:10px 16px;border-radius:12px;font:600 13px var(--sans);
+  color:var(--lm);background:var(--lm-bg);border:1px solid var(--lm-line)}
+.tv-body{flex:1;padding-top:clamp(14px,1.6vw,26px)}
+.tv-empty{padding:60px 20px;text-align:center;color:var(--ink-3);font-size:16px}
+.tv-band{margin-bottom:clamp(18px,2vw,32px)}
+.tv-band-hd{display:flex;align-items:center;gap:10px;margin:0 0 clamp(8px,1vw,14px);
+  font:600 clamp(11px,.9vw,16px) var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+.tv-band-n{font:700 clamp(11px,.9vw,16px) var(--mono);color:var(--ink);background:var(--card-2);
+  border:1px solid var(--edge);border-radius:99px;padding:2px 10px;letter-spacing:0}
+.tv-grid{display:grid;gap:clamp(10px,1vw,18px);
+  grid-template-columns:repeat(auto-fill,minmax(clamp(200px,15vw,300px),1fr))}
+
+.tv-card{padding:clamp(12px,1vw,20px);border-radius:16px;border:1px solid var(--edge);
+  background:#fff;box-shadow:var(--shadow)}
+.tv-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tv-mono{display:grid;place-items:center;width:clamp(34px,2.6vw,48px);height:clamp(34px,2.6vw,48px);
+  border-radius:50%;font:700 clamp(12px,.95vw,17px) var(--mono);color:#fff;
+  background:linear-gradient(155deg,var(--brand-lift),var(--brand))}
+.tv-state{display:inline-flex;align-items:center;gap:6px;font:600 clamp(9px,.68vw,12px) var(--mono);
+  letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.tv-state .dot{background:var(--ink-3)}
+.tv-name{margin:clamp(10px,.9vw,16px) 0 0;font:700 clamp(15px,1.25vw,24px)/1.2 var(--display);
+  letter-spacing:-.025em;color:var(--ink);overflow-wrap:anywhere}
+.tv-sub{margin:3px 0 0;font-size:clamp(11px,.8vw,15px);color:var(--ink-3)}
+.tv-foot{margin:clamp(8px,.7vw,14px) 0 0;font-size:clamp(11px,.78vw,15px);color:var(--ink-2)}
+.tv-flag{margin-left:7px;font:600 9px var(--mono);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--lm);background:var(--lm-bg);border:1px solid var(--lm-line);padding:2px 7px;border-radius:99px}
+/* Presence tints. Each pairs with the spelled-out label in .tv-state, so the
+   board still parses on a washed-out projector or in greyscale. */
+.tv-card.is-in{background:linear-gradient(155deg,#F1F9F4,#E8F4EC);border-color:var(--p-line)}
+.tv-card.is-in .tv-state{color:var(--p)}
+.tv-card.is-in .tv-state .dot{background:var(--p);box-shadow:0 0 0 3px rgba(23,114,69,.18)}
+.tv-card.is-out .tv-state .dot{background:var(--lv)}
+.tv-card.is-awaited{background:#FDFBF6;border-color:var(--lm-line)}
+.tv-card.is-awaited .tv-state{color:var(--lm)}
+.tv-card.is-awaited .tv-state .dot{background:var(--lm)}
+/* Approved leave is a decision, not an absence — it keeps its own colour rather
+   than being dimmed away like a week off. */
+.tv-card.is-leave{background:linear-gradient(155deg,#F4F6FB,#E9ECF5);border-color:var(--lv-line)}
+.tv-card.is-leave .tv-state{color:var(--lv)}
+.tv-card.is-leave .tv-state .dot{background:var(--lv)}
+.tv-card.is-off{opacity:.62}
+
 /* ============ responsive ============ */
 /* Content reflow for narrower windows — the sidebar stays full-width here. */
 @media (max-width:1120px){
@@ -707,27 +882,117 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
   .exp-col{border-right:0;border-bottom:1px dashed var(--line-2)}
 }
 
-/* Sidebar collapses to an icon rail only on genuinely narrow (tablet)
-   viewports. The old 1120px breakpoint fired on ordinary laptops once Windows
-   display scaling is applied (a 1536px panel at 150% = 1024 CSS px < 1120), so
-   the sidebar looked like it "closed itself". 860px only triggers on real
-   tablet/split-screen widths. In the rail, only the compact logo shows — the
-   "HRMS." wordmark and labels are hidden so nothing overflows the column. */
+/* Stop iOS inflating text in rotated/narrow columns, which silently breaks
+   every carefully-set size below. */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+
+/* The menu button and its scrim exist only below the drawer breakpoint. */
+.nav-toggle{display:none}
+.nav-scrim{display:none}
+
+/* --------------------------------------------------------------------------
+   Below 860px the sidebar stops being furniture and becomes a drawer.
+
+   It used to collapse to a 64px icon rail. On a phone that rail ate a sixth of
+   the screen to show nothing but glyphs — and the labels were hidden, so the
+   nav was unusable to anyone who did not already know the icons. A real
+   off-canvas drawer gives the content the full width AND brings the labels
+   back. Sidebar.tsx owns the .open flag and the scrim.
+
+   860px (not 1120px) because Windows display scaling makes an ordinary laptop
+   report ~1024 CSS px, and the sidebar used to look like it had closed itself.
+   -------------------------------------------------------------------------- */
 @media (max-width:860px){
-  /* tightening the one gutter re-insets the sidebar, topbar and screen
-     together — nothing else needs a per-element override */
   :root{--gutter:10px}
-  .shell{grid-template-columns:calc(66px + var(--gutter)) 1fr}
-  .sidebar{border-radius:16px}
-  .brand h1,.brand .brandmark-txt,.nav .group,.nav .txt,.side-foot{display:none}
-  .brand{padding:14px 0;text-align:center}
-  .brand .brandmark{justify-content:center;gap:0}
-  .brand .brandmark-img{height:26px}
-  .brand .eyebrow{writing-mode:vertical-rl;letter-spacing:.3em}
-  .nav a{justify-content:center;padding:11px 0}
-  .nav a:hover{transform:none}
+
+  .shell{grid-template-columns:1fr}
+  .sidebar{
+    position:fixed;left:0;top:0;bottom:0;
+    width:min(288px,84vw);height:100dvh;margin:0;
+    border-radius:0 22px 22px 0;
+    transform:translateX(-104%);
+    transition:transform .28s var(--ease-out);
+    z-index:71;overscroll-behavior:contain}
+  .sidebar.open{transform:none}
+
+  .nav-scrim{display:block;position:fixed;inset:0;z-index:70;
+    background:rgba(16,46,80,.42);
+    opacity:0;visibility:hidden;
+    transition:opacity var(--t-med) var(--ease),visibility var(--t-med) var(--ease)}
+  .nav-scrim.on{opacity:1;visibility:visible}
+
+  /* Sits inside the topbar's reserved left gutter, so it reads as part of the
+     bar. 44px square — the minimum comfortable touch target. */
+  .nav-toggle{display:inline-flex;align-items:center;justify-content:center;
+    position:fixed;top:calc(var(--gutter) + 7px);left:calc(var(--gutter) + 7px);
+    width:44px;height:44px;z-index:72;
+    border-radius:12px;border:1px solid var(--edge);color:var(--ink);
+    background:#fff;box-shadow:var(--nu-raise-sm)}
+  .nav-toggle svg{width:21px;height:21px}
+  .nav-toggle:active{box-shadow:var(--nu-press)}
+  .shell .topbar{padding-left:62px}
+
   .screen{padding:var(--gutter) 0 48px}
-  .topbar{padding:11px 15px}
+  .topbar{padding:11px 15px;gap:10px}
+  /* The subtitle is the first thing to go — the title alone still orients. */
+  .topbar .sub{display:none}
+  .topbar h2{font-size:17px}
+
+  /* A table cannot reflow, so let it scroll inside its own card rather than
+     stretch the page. Scoped with :has() so card bodies WITHOUT a table keep
+     overflow:visible and their popovers are not clipped. */
+  .card .bd:has(table){overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .card .bd:has(table) table{min-width:520px}
+  /* The register's frozen name column is 250px of a 390px screen. */
+  .reg-table,.rrow{grid-template-columns:150px 1fr}
+
+  /* Panels go full-bleed: a 470px drawer on a 390px screen is just a page. */
+  .drawer,.chat-drawer{width:100%;max-width:100%}
+  .modal-card{width:100%}
+  .toast-wrap{left:12px;right:12px;bottom:12px;max-width:none}
+
+  .me-hero{gap:12px}
+  .me-hero h2{font-size:19px}
+  .legend{margin-left:0;width:100%}
+  .search{max-width:none}
+  .reg-head{gap:10px}
+}
+
+/* Phones proper. */
+@media (max-width:640px){
+  .kpis,.totals{grid-template-columns:1fr}
+  .f-row{grid-template-columns:1fr}
+  .exp-grid{grid-template-columns:1fr}
+  .wrap.grid,.grid{gap:12px}
+
+  /* 16px is the threshold below which iOS Safari zooms the page on focus and
+     never zooms back — the single most disorienting mobile form bug there is.
+     Every text control gets it, not just .f input. */
+  .f input,.f select,.login-form input,.adj input,.search input,
+  .chat-composer textarea,.chat-status,.th-pop-find{font-size:16px}
+
+  /* Comfortable touch targets. 44px is the WCAG 2.2 / platform minimum. */
+  .btn{min-height:44px;padding:11px 16px}
+  .th-pop-item,.th-pop-opt{min-height:40px}
+  .nav a{padding:11px 12px;font-size:14.5px}
+
+  .card .hd{padding:13px 15px;flex-wrap:wrap;gap:6px}
+  .card .bd{padding:14px 15px}
+  .punch-history{padding:0 15px 15px}
+  .kpi{padding:15px 16px}
+  .kpi .val{font-size:30px}
+  .punch-face{gap:14px}
+  .punch-btn{width:100%}
+  .drawer .dhd,.drawer .dbd,.drawer .dft{padding-left:16px;padding-right:16px}
+  .modal-card .m-hd,.modal-card .m-bd,.modal-card .m-ft{padding-left:16px;padding-right:16px}
+  .chat-row{max-width:92%}
+
+  /* The board is a wall display, but it still has to survive being opened on a
+     phone to check the floor. */
+  .tv-head{gap:12px}
+  .tv-kpis{margin-left:0;width:100%;justify-content:space-between;gap:10px}
+  .tv-clock{align-items:flex-start}
+  .tv-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
 }
 
 /* Blur is the most expensive part of this theme, and iOS Safari in particular
@@ -737,14 +1002,25 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 @media (max-width:600px){
   .topbar,.modal-card,.toast,.avatar-pop,.th-pop{
     -webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(255,255,255,.95)}
-  .overlay,.modal{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(16,46,80,.48)}
+  .sidebar{-webkit-backdrop-filter:none;backdrop-filter:none}
+  .overlay,.nav-scrim,.modal{
+    -webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(16,46,80,.48)}
+}
+
+/* Coarse pointers get the larger targets regardless of viewport width — a
+   tablet in landscape is wide but still touched. */
+@media (pointer:coarse){
+  .btn{min-height:44px}
+  .nav a{padding:10px 12px}
+  .avatar-swatch{width:40px;height:40px}
 }
 
 /* ---- print — attendance registers & payslips ----------------------------- */
 /* Every glass/soft effect is flattened: blur and coloured shadow either vanish
    or turn to mud on paper, and toner should not be spent on an aurora. */
 @media print{
-  .sidebar,.topbar,.toast-wrap,.drawer,.overlay,.modal,.btn,.side-foot{
+  .sidebar,.topbar,.toast-wrap,.drawer,.overlay,.modal,.btn,.side-foot,
+  .nav-toggle,.nav-scrim,.punch-btn{
     display:none!important}
   html,body{background:#fff!important}
   .shell{display:block}

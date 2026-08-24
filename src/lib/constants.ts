@@ -212,6 +212,7 @@ export const NAV: NavItem[] = [
   { slug: 'register', label: 'Monthly register', group: GROUPS.ATTENDANCE },
   { slug: 'audit', label: 'Attendance audit', group: GROUPS.ATTENDANCE },
   { slug: 'approvals', label: 'Approvals', group: GROUPS.ATTENDANCE },
+  { slug: 'tv', label: 'TV board', group: GROUPS.ATTENDANCE },
 
   { slug: 'employees', label: 'Employees', group: GROUPS.WORKFORCE },
   { slug: 'onboarding', label: 'Onboarding', group: GROUPS.WORKFORCE },
@@ -252,6 +253,8 @@ export const NAV_ROLE_GATED: Record<string, readonly string[]> = {
   assets: ['super_admin', 'admin', 'hr'],
   items: ['super_admin', 'admin', 'hr'],
   users: ['super_admin', 'admin', 'hr'],
+  // Mirrors the isStaffRole() guard on /tv and /api/tv/board.
+  tv: ['super_admin', 'admin', 'hr'],
   // Mirrors IMPORT_ROLES in actions/import.ts (commitImport) — the widest
   // real write path. The nav used to say admin/hr while the action allowed
   // managers, so a manager could import by URL but saw no link.

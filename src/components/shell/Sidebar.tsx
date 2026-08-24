@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { usePathname } from 'next/navigation';
@@ -82,6 +83,14 @@ const EXTRA_ICONS: Record<string, React.ReactNode> = {
       <path d="M12 11v10" />
     </svg>
   ),
+  // Wide screen on a stand — the wall-mounted attendance board.
+  tv: (
+    <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <rect x="2.5" y="4" width="19" height="13" rx="2" />
+      <path d="M8 21h8" />
+      <path d="M12 17v4" />
+    </svg>
+  ),
   users: (
     <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
       <circle cx="9" cy="8" r="3.2" />
@@ -144,11 +153,60 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const active = pathname.split('/')[1] || 'today';
+  // Off-canvas on phones. On desktop the sidebar is always in flow and this
+  // flag does nothing — the CSS only honours .open below the rail breakpoint.
+  const [open, setOpen] = useState(false);
+
+  // Navigating is the end of the menu's job. Without this the drawer stays over
+  // the page the user just asked for.
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  // Escape closes it, matching every other overlay in the app.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
 
   const items = visibleNav(role, access);
 
   return (
-    <aside className="sidebar">
+    <>
+      {/* Sits over the topbar's reserved left gutter on mobile, so it reads as
+          part of the bar rather than as a floating button. */}
+      <button
+        type="button"
+        className="nav-toggle"
+        aria-label={open ? 'Close menu' : 'Open menu'}
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+          {open ? (
+            <>
+              <path d="M6 6l12 12" />
+              <path d="M18 6L6 18" />
+            </>
+          ) : (
+            <>
+              <path d="M3.5 7h17" />
+              <path d="M3.5 12h17" />
+              <path d="M3.5 17h17" />
+            </>
+          )}
+        </svg>
+      </button>
+      <div
+        className={`nav-scrim${open ? ' on' : ''}`}
+        onClick={() => setOpen(false)}
+        aria-hidden="true"
+      />
+      <aside className={`sidebar${open ? ' open' : ''}`}>
       <div className="brand">
         <Brand priority />
       </div>
@@ -184,11 +242,12 @@ export function Sidebar({
           );
         })}
       </nav>
-      <div className="side-foot">
-        <b>{name || 'Signed in'}</b>
-        <br />
-        {role ? ROLE_LABEL[role] ?? role : 'Dalnex HRMS'}
-      </div>
-    </aside>
+        <div className="side-foot">
+          <b>{name || 'Signed in'}</b>
+          <br />
+          {role ? ROLE_LABEL[role] ?? role : 'Dalnex HRMS'}
+        </div>
+      </aside>
+    </>
   );
 }

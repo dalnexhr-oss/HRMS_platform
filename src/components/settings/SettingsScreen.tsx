@@ -188,6 +188,9 @@ const KNOWN_KINDS: Record<string, SettingKind> = {
   default_notice_period_days: 'number',
   auto_punch_out_time: 'text',
   night_sweep_time: 'text',
+  office_lat: 'number',
+  office_lng: 'number',
+  geofence_radius_m: 'number',
 };
 
 function kindOf(value: unknown): SettingKind {
