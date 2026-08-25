@@ -221,8 +221,7 @@ export function TodayBoard({
         {/* Punch log */}
         <div className="card">
           <div className="hd">
-            <h3>Punch log — today</h3>
-            <span className="folio">Live · from mobile app</span>
+            <h3>Punch log — Today</h3>
             <span style={{ flex: 1 }} />
             <NightSweepButton date={today} />
             <ExportButton

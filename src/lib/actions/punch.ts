@@ -6,6 +6,9 @@ export interface PunchStatusResponse {
   lastPunchAt: string | null;
   lastKind: 'in' | 'out' | null;
   lastWithinGeofence: boolean | null;
+  /** Where that punch was taken, when the device shared it. */
+  lastLat: number | null;
+  lastLng: number | null;
   workedMinutes: number;
   geofenceConfigured: boolean;
   /** Server policy: refuse a punch that shares no location at all. */
@@ -16,6 +19,9 @@ export interface PunchRecord {
   type: 'in' | 'out';
   timestamp: string;
   withinGeofence: boolean | null;
+  /** Coordinates of the punch, or null when the device shared none. */
+  lat: number | null;
+  lng: number | null;
 }
 
 export interface PunchResult {

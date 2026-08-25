@@ -40,6 +40,9 @@ export interface PunchStatus {
   lastKind: PunchKind | null;
   /** true / false / null — null means "not classified" (no coords or no office). */
   lastWithinGeofence: boolean | null;
+  /** Where that punch was taken, when the device shared it. Drives the map link. */
+  lastLat: number | null;
+  lastLng: number | null;
   /** Minutes closed out today. An open session is not counted until punch out. */
   workedMinutes: number;
   /** Whether an office location is configured at all. */
@@ -52,6 +55,9 @@ export interface PunchRecord {
   type: PunchKind;
   timestamp: string;
   withinGeofence: boolean | null;
+  /** Coordinates of the punch, or null when the device shared none. */
+  lat: number | null;
+  lng: number | null;
 }
 
 // ------------------------------------------------------------ time helpers --
@@ -226,6 +232,19 @@ async function employeeContext() {
   return { profile, employeeId: profile.employee_id };
 }
 
+/**
+ * A stored coordinate, or null.
+ *
+ * lat/lng are numeric(9,6). PostgREST usually hands those back as numbers, but
+ * a driver or view that returns them as strings would sail straight into the
+ * Google Maps URL and produce a broken link, so the read is narrowed here once
+ * rather than guarded at every call site.
+ */
+function finite(value: unknown): number | null {
+  const parsed = typeof value === 'string' ? Number(value) : value;
+  return typeof parsed === 'number' && Number.isFinite(parsed) ? parsed : null;
+}
+
 function validCoords(coords: PunchCoords | null): PunchCoords | null {
   if (!coords) return null;
   const { latitude, longitude } = coords;
@@ -244,7 +263,7 @@ export async function readPunchStatus(): Promise<PunchStatus> {
   const [events, policy] = await Promise.all([
     supabase
       .from('punch_events')
-      .select('kind, punched_at, within_geofence')
+      .select('kind, punched_at, within_geofence, lat, lng')
       .eq('employee_id', employeeId)
       .gte('punched_at', dayFloorUtc(today))
       .order('punched_at', { ascending: true }),
@@ -264,6 +283,8 @@ export async function readPunchStatus(): Promise<PunchStatus> {
     lastPunchAt: last?.punched_at ?? null,
     lastKind: (last?.kind as PunchKind | undefined) ?? null,
     lastWithinGeofence: last?.within_geofence ?? null,
+    lastLat: finite(last?.lat),
+    lastLng: finite(last?.lng),
     workedMinutes: sumWorkedMinutes(todays),
     geofenceConfigured: policy.office != null,
     requireLocation: policy.requireLocation,
@@ -275,7 +296,7 @@ export async function readPunchHistory(): Promise<PunchRecord[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('punch_events')
-    .select('kind, punched_at, within_geofence')
+    .select('kind, punched_at, within_geofence, lat, lng')
     .eq('employee_id', employeeId)
     .order('punched_at', { ascending: false })
     .limit(100);
@@ -284,6 +305,10 @@ export async function readPunchHistory(): Promise<PunchRecord[]> {
     type: punch.kind as PunchKind,
     timestamp: punch.punched_at,
     withinGeofence: punch.within_geofence,
+    // numeric(9,6) comes back as a number, but a string would silently break
+    // the map link — coerce and drop anything that is not a finite number.
+    lat: finite(punch.lat),
+    lng: finite(punch.lng),
   }));
 }
 

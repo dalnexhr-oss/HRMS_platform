@@ -3,8 +3,13 @@
 // The punch trail under the attendance clock. Grouped by day, newest first,
 // so a multi-session day (in, lunch, back, out) reads as one block rather than
 // four loose rows.
+//
+// The list scrolls inside its own box: the API returns the last 100 punches,
+// which unchecked runs to several screens of history below a card that is
+// mostly read for *today*.
 import { useEffect, useState } from 'react';
 import { getPunchHistory, type PunchRecord } from '@/lib/actions/punch';
+import { GeoChip } from './GeoChip';
 
 const DAY_FMT: Intl.DateTimeFormatOptions = {
   weekday: 'short',
@@ -70,31 +75,37 @@ export function PunchHistory({ refreshKey = 0 }: { refreshKey?: number }) {
         <p className="muted">No punches recorded yet.</p>
       ) : null}
 
-      {days.map(([day, rows]) => (
-        <div className="punch-day" key={day}>
-          <div className="punch-day-hd mono">
-            {new Intl.DateTimeFormat('en-IN', DAY_FMT).format(new Date(`${day}T12:00:00`))}
-          </div>
-          <div className="punch-day-rows">
-            {rows.map((punch, index) => (
-              <div className="punch-row" key={`${punch.timestamp}-${index}`}>
-                <span className={`punch-kind ${punch.type}`}>
-                  {punch.type === 'in' ? 'In' : 'Out'}
-                </span>
-                <span className="mono punch-row-time">
-                  {new Intl.DateTimeFormat('en-IN', TIME_FMT).format(new Date(punch.timestamp))}
-                </span>
-                {punch.withinGeofence === true ? (
-                  <span className="punch-geo at-office">At office</span>
-                ) : null}
-                {punch.withinGeofence === false ? (
-                  <span className="punch-geo off-site">Off-site</span>
-                ) : null}
+      {days.length > 0 ? (
+        <div className="punch-scroll">
+          {days.map(([day, rows]) => (
+            <div className="punch-day" key={day}>
+              <div className="punch-day-hd mono">
+                {new Intl.DateTimeFormat('en-IN', DAY_FMT).format(new Date(`${day}T12:00:00`))}
               </div>
-            ))}
-          </div>
+              <div className="punch-day-rows">
+                {rows.map((punch, index) => (
+                  <div className="punch-row" key={`${punch.timestamp}-${index}`}>
+                    <span className={`punch-kind ${punch.type}`}>
+                      {punch.type === 'in' ? 'In' : 'Out'}
+                    </span>
+                    <span className="mono punch-row-time">
+                      {new Intl.DateTimeFormat('en-IN', TIME_FMT).format(new Date(punch.timestamp))}
+                    </span>
+                    {/* Pushed to the right edge so the stamps line up into a
+                        column instead of trailing whatever the time happened
+                        to be. */}
+                    <GeoChip
+                      withinGeofence={punch.withinGeofence}
+                      lat={punch.lat}
+                      lng={punch.lng}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      ) : null}
     </div>
   );
 }
