@@ -214,8 +214,13 @@ a{color:inherit;text-decoration:none}
    content scrolling past. This cap is a child, so it travels with the bar and
    keeps that strip opaque. */
 .topbar::before{content:"";position:absolute;left:0;right:0;bottom:100%;height:var(--gutter-top);background:var(--paper)}
-.topbar h2{margin:0;font:700 21px/1.15 var(--display);color:var(--ink);letter-spacing:-.024em}
-.topbar .sub{color:var(--ink-3);font:500 12px var(--mono)}
+/* Titles run to "Inventory management"; on a phone that used to wrap to two
+   lines and push the bar to 88px tall. It truncates instead — the bar keeps one
+   height on every screen, which is the whole point of a fixed chrome. */
+.topbar h2{margin:0;font:700 21px/1.15 var(--display);color:var(--ink);letter-spacing:-.024em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar .sub{color:var(--ink-3);font:500 12px var(--mono);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .topbar .grow{flex:1}
 /* The bar is a single nowrap row, so when it runs out of width something has to
    give — and by default that was the last child, which is now the punch button.
@@ -241,7 +246,7 @@ a{color:inherit;text-decoration:none}
 .punch-top-read.on .dot{background:var(--p);box-shadow:0 0 0 3px rgba(23,114,69,.18);
   animation:punch-pulse 2.4s var(--ease) infinite}
 .punch-top-read b{font-weight:700;letter-spacing:-.01em}
-.punch-top-btn{min-width:108px;justify-content:center;white-space:nowrap}
+.punch-top-btn{min-width:108px;justify-content:center}
 
 /* ---- page foot -----------------------------------------------------------
    Sign out ends the session, is wanted once a day at most, and is now the last
@@ -353,6 +358,9 @@ a{color:inherit;text-decoration:none}
   display:inline-flex;align-items:center;gap:8px;
   padding:10px 16px;border-radius:12px;
   font-weight:600;font-size:13px;letter-spacing:-.005em;
+  /* A two-line button is always a layout bug, never a design: "Sign out" and
+     "Night sweep" were both breaking in half in a squeezed mobile bar. */
+  white-space:nowrap;
   border:1px solid var(--edge);
   background:linear-gradient(180deg,#FFFFFF,#E9EEF6);
   color:var(--ink);
@@ -965,6 +973,10 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
     background:#fff;box-shadow:var(--nu-raise-sm)}
   .nav-toggle svg{width:21px;height:21px}
   .nav-toggle:active{box-shadow:var(--nu-press)}
+  /* The toggle keeps one position in both states so it stays where the thumb
+     learned it — which means the open drawer's brand has to start after it,
+     rather than underneath it with the logo half covered. */
+  .sidebar .brand{padding-left:calc(var(--gutter) + 58px)}
   .shell .topbar{padding-left:62px}
 
   .screen{padding:var(--gutter) 0 48px}
