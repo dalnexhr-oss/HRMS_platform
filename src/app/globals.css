@@ -217,13 +217,23 @@ a{color:inherit;text-decoration:none}
 .topbar h2{margin:0;font:700 21px/1.15 var(--display);color:var(--ink);letter-spacing:-.024em}
 .topbar .sub{color:var(--ink-3);font:500 12px var(--mono)}
 .topbar .grow{flex:1}
+/* The bar is a single nowrap row, so when it runs out of width something has to
+   give — and by default that was the last child, which is now the punch button.
+   Everything on the right is a control and cannot shrink, so the brand is made
+   the only flexible thing in the row: it scales down (object-fit keeps the
+   aspect) and, on a phone, drops its wordmark rather than shoving the punch
+   button off the edge. */
+.topbar > div:first-child{min-width:0}
+.topbar .brandmark{min-width:0;overflow:hidden}
+.topbar .brandmark-img{flex:0 1 auto;min-width:0;object-position:left center}
+.topbar .who{flex:none}
 .who{display:flex;align-items:center;gap:10px;font-weight:600;font-size:13px;color:var(--ink)}
 /* ---- the punch clock in the top bar --------------------------------------
    The most-pressed control in the employee app, and the reason Sign out is no
    longer up here: the two sat a few pixels apart and one slip ended the
    session instead of starting the day. It is the only filled button in the
    bar, so it cannot be mistaken for anything else. */
-.punch-top{display:flex;align-items:center;gap:10px}
+.punch-top{display:flex;align-items:center;gap:10px;flex:none}
 .punch-top-read{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:99px;
   font:600 11.5px var(--mono);color:var(--ink-2);background:var(--card-2);border:1px solid var(--edge)}
 .punch-top-read .dot{background:var(--ink-3)}
@@ -231,7 +241,7 @@ a{color:inherit;text-decoration:none}
 .punch-top-read.on .dot{background:var(--p);box-shadow:0 0 0 3px rgba(23,114,69,.18);
   animation:punch-pulse 2.4s var(--ease) infinite}
 .punch-top-read b{font-weight:700;letter-spacing:-.01em}
-.punch-top-btn{min-width:108px;justify-content:center}
+.punch-top-btn{min-width:108px;justify-content:center;white-space:nowrap}
 
 /* ---- page foot -----------------------------------------------------------
    Sign out ends the session, is wanted once a day at most, and is now the last
@@ -961,10 +971,6 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   .topbar{padding:11px 15px;gap:10px}
   /* The subtitle is the first thing to go — the title alone still orients. */
   .topbar .sub{display:none}
-  /* Then the running total: the button is the point of the control, and the
-     same number is on the clock card a scroll away. */
-  .punch-top-read{display:none}
-  .punch-top-btn{min-width:0;padding:11px 14px}
   .topbar h2{font-size:17px}
 
   /* A table cannot reflow, so let it scroll inside its own card rather than
@@ -1002,6 +1008,20 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 
   /* Comfortable touch targets. 44px is the WCAG 2.2 / platform minimum. */
   .btn{min-height:44px;padding:11px 16px}
+
+  /* The employee bar carries four things on a 360px screen: brand, bell,
+     avatar, punch. In that order of expendability — the wordmark goes (the
+     logo still identifies the app), then the running total (the button is the
+     point of the control, and the same number is on the clock card a scroll
+     away), then the padding. The height stays at the 44px target throughout.
+     .topbar-scoped so these beat the generic .btn padding directly above. */
+  .topbar{padding:10px 12px;gap:8px}
+  .topbar .brandmark-txt{display:none}
+  .topbar .brandmark-img{height:24px}
+  .topbar .btn{padding:11px 13px}
+  .punch-top{gap:8px}
+  .punch-top-read{display:none}
+  .topbar .punch-top-btn{min-width:0;padding:11px 14px}
   .th-pop-item,.th-pop-opt{min-height:40px}
   .nav a{padding:11px 12px;font-size:14.5px}
 
