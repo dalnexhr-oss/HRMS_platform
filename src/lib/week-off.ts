@@ -5,7 +5,7 @@
 // Saturdays are week-offs, and every Sunday is off. Both halves are settings
 // (migration 0010) so the rule can change without a code deploy.
 //
-// This module is the single implementation. It is PURE — no Supabase, no React —
+// This module is the single implementation. It is PURE — no database, no React —
 // so the register, the comp-off check and any future scheduler all agree.
 // ============================================================================
 

@@ -11,7 +11,7 @@
 // only from server code that imports them (reviewRequest).
 // ============================================================================
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
 import { requireOpenPayrollMonth } from '@/lib/actions/_guard';
 
 /**
@@ -21,12 +21,30 @@ import { requireOpenPayrollMonth } from '@/lib/actions/_guard';
  *
  * Returns a warning string when the side-effects failed, so the caller can tell
  * the user the decision saved but the follow-up did not.
+ *
+ * NOT TRANSACTIONAL, and the ORDER is what makes that acceptable. These are two
+ * writes to two collections — mongo.ts names "comp-off settle" as a case
+ * withTransaction exists for — but they run through the pgcompat builder, which
+ * has no way to carry a session. So the ordering carries the safety instead:
+ *
+ *   stamp the day FIRST, close the credit second. An interruption between them
+ *   leaves the day stamped 'CO' and the credit still 'applied'. A credit is only
+ *   ever claimed from 'available' (actions/compoff.ts), so an 'applied' one
+ *   cannot be spent again — it is STRANDED, which HR can correct, not
+ *   double-spendable.
+ *
+ *   The reverse order fails badly: the credit is consumed and the employee never
+ *   gets the day.
+ *
+ * Making this genuinely atomic means giving pgcompat session support, or porting
+ * this file to the native scoped repository. Until then the ordering is the
+ * guarantee, and it is deliberate.
  */
 export async function settleApprovedCompOff(requestId: string): Promise<string | null> {
   try {
-    const supabase = await createClient();
+    const dbc = await createClient();
 
-    const { data: credit, error } = await supabase
+    const { data: credit, error } = await dbc
       .from('comp_offs')
       .select('id, employee_id, used_date')
       .eq('request_id', requestId)
@@ -38,13 +56,13 @@ export async function settleApprovedCompOff(requestId: string): Promise<string |
     if (!takeDate) return 'The comp-off credit has no date to apply.';
 
     // Never stamp a day inside a locked/paid month — the payslips are final.
-    const monthOpen = await requireOpenPayrollMonth(supabase, takeDate);
+    const monthOpen = await requireOpenPayrollMonth(dbc, takeDate);
     if (!monthOpen.ok) return `Approved, but the day was not stamped: ${monthOpen.error}`;
 
     // Preserve any real punches already on that day. The previous version
     // upserted punch_in/punch_out to null, so approving a comp off for a date
     // the employee had actually worked ERASED their punches and worked minutes.
-    const { data: existing, error: readErr } = await supabase
+    const { data: existing, error: readErr } = await dbc
       .from('attendance_days')
       .select('punch_in, punch_out, worked_minutes')
       .eq('employee_id', credit.employee_id)
@@ -52,7 +70,7 @@ export async function settleApprovedCompOff(requestId: string): Promise<string |
       .maybeSingle<{ punch_in: string | null; punch_out: string | null; worked_minutes: number }>();
     if (readErr) return `Approved, but the existing day could not be read: ${readErr.message}`;
 
-    const { error: dayErr } = await supabase.from('attendance_days').upsert(
+    const { error: dayErr } = await dbc.from('attendance_days').upsert(
       {
         employee_id: credit.employee_id,
         work_date: takeDate,
@@ -67,7 +85,7 @@ export async function settleApprovedCompOff(requestId: string): Promise<string |
 
     // Only an 'applied' credit may become 'used' — a credit that is already
     // 'used' must not be re-consumed.
-    const { error: useErr } = await supabase
+    const { error: useErr } = await dbc
       .from('comp_offs')
       .update({ status: 'used' })
       .eq('id', credit.id)
@@ -90,8 +108,8 @@ export async function settleApprovedCompOff(requestId: string): Promise<string |
  */
 export async function releaseCompOff(requestId: string): Promise<void> {
   try {
-    const supabase = await createClient();
-    await supabase
+    const dbc = await createClient();
+    await dbc
       .from('comp_offs')
       .update({ status: 'available', used_date: null, request_id: null })
       .eq('request_id', requestId)

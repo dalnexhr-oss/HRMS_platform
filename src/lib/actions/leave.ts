@@ -8,14 +8,15 @@
 // PL/CL/SL screen; the annual payout is handled by actions/leave-salary.ts.
 // The leave_encashment table itself remains (exit full-and-final reads it).
 //
-// Every write here is staff-gated at the app layer AND by RLS; the SQL
-// function carries its own in-body authorisation (0036 header) because
-// SECURITY DEFINER routines are reachable over PostgREST.
+// Every write here is staff-gated at the app layer AND by the collection's
+// write policy. The settle routine carries its own authorisation check in the
+// body as well, because it runs with the caller's scope already resolved.
 // ============================================================================
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { requireRoles, wroteNothing } from '@/lib/actions/_guard';
+import { toDecimal } from '@/lib/db/money';
 import { notifyEmployee } from '@/lib/notify';
 
 export interface ActionResult {
@@ -42,18 +43,15 @@ export async function provisionLeaveYear(year: number): Promise<ActionResult & {
   if (!gate.ok) return gate;
   if (!validYear(year)) return { ok: false, error: 'Enter a valid year.' };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc('fn_provision_leave_balances', { p_year: year });
-  if (error) {
-    if (error.code === 'PGRST202' || error.code === '42883') {
-      return { ok: false, error: 'Leave provisioning is not set up on the database yet — apply migration 0036.' };
-    }
-    return { ok: false, error: error.message };
-  }
+  const dbc = await createClient();
+  const { data, error } = await dbc.rpc('fn_provision_leave_balances', { p_year: year });
+  // An rpc with no registered implementation returns a MESSAGE and no code
+  // (pgcompat.rpc), so there is no "function missing" code left to branch on.
+  if (error) return { ok: false, error: error.message };
 
   const created = Number(data ?? 0);
   const { profile } = await getSession();
-  await supabase.from('activity_log').insert({
+  await dbc.from('activity_log').insert({
     actor_id: gate.profileId,
     event_type: 'leave_provision',
     message: `${profile?.full_name ?? 'A staff user'} provisioned ${created} paid-leave balance row(s) for ${year}`,
@@ -94,26 +92,33 @@ export async function adjustLeaveBalance(input: {
   if (Math.abs(delta) > 365) return { ok: false, error: 'That adjustment is implausibly large.' };
   if (!reason) return { ok: false, error: 'A reason is required for a manual adjustment.' };
 
-  const supabase = await createClient();
+  const dbc = await createClient();
   const year = Number(input.year);
 
   // Audit row first: if the balance write then fails, we have a record of the
   // attempt rather than a silent change with no explanation.
-  const { data: adj, error: adjErr } = await supabase
+  const { data: adj, error: adjErr } = await dbc
     .from('leave_balance_adjustments')
-    .insert({ employee_id: input.employeeId, year, type: 'PL', delta, reason, actor_id: gate.profileId })
+    // `delta` and `balance` below are `decimal` columns, so they are written
+    // as Decimal128 — a JS number is serialised as a double or an int32 and
+    // rejected by the validator.
+    .insert({
+      employee_id: input.employeeId,
+      year,
+      type: 'PL',
+      delta: toDecimal(delta),
+      reason,
+      actor_id: gate.profileId,
+    })
     .select('id');
   if (adjErr) {
-    if (adjErr.code === '42P01' || adjErr.code === 'PGRST205') {
-      return { ok: false, error: 'Leave adjustments are not set up on the database yet — apply migration 0036.' };
-    }
     return { ok: false, error: adjErr.message };
   }
   if (wroteNothing(adj)) {
     return { ok: false, error: 'The adjustment was not recorded — your role may lack permission.' };
   }
 
-  const { data: existing } = await supabase
+  const { data: existing } = await dbc
     .from('leave_balances')
     .select('id, balance')
     .eq('employee_id', input.employeeId)
@@ -123,10 +128,10 @@ export async function adjustLeaveBalance(input: {
 
   const next = Math.round(((Number(existing?.balance ?? 0) || 0) + delta) * 10) / 10;
   const { error: balErr } = existing
-    ? await supabase.from('leave_balances').update({ balance: next }).eq('id', existing.id)
-    : await supabase
+    ? await dbc.from('leave_balances').update({ balance: toDecimal(next) }).eq('id', existing.id)
+    : await dbc
         .from('leave_balances')
-        .insert({ employee_id: input.employeeId, year, type: 'PL', balance: next });
+        .insert({ employee_id: input.employeeId, year, type: 'PL', balance: toDecimal(next) });
 
   if (balErr) {
     return {

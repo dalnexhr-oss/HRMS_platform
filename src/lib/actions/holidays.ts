@@ -1,20 +1,10 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
 import { requireStaff, wroteNothing } from '@/lib/actions/_guard';
 import { fetchPublicHolidays } from '@/lib/holidays/googleCalendar';
-
-/** Resolve a branch name to its id, or null for "all branches". */
-async function resolveBranchId(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  branch: string,
-): Promise<string | null> {
-  const name = branch.trim();
-  if (!name) return null;
-  const { data } = await supabase.from('branches').select('id').eq('name', name).maybeSingle();
-  return data?.id ?? null;
-}
+import { ALL_BRANCHES, resolveBranchScope } from '@/lib/actions/_branch';
 
 /** Add an official holiday. Blank branch = all branches (branch_id null). */
 export async function addHoliday(formData: FormData) {
@@ -28,11 +18,11 @@ export async function addHoliday(formData: FormData) {
   const gate = await requireStaff('Adding a holiday');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
-  const branch_id = await resolveBranchId(supabase, branch);
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const scope = await resolveBranchScope(dbc, branch);
+  const { data, error } = await dbc
     .from('holidays')
-    .insert({ holiday_date, name, branch_id })
+    .insert({ holiday_date, name, ...scope })
     .select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
@@ -68,13 +58,13 @@ export async function importHolidaysFromGoogle(year: number): Promise<ImportHoli
       return { ok: false, error: `Google's calendar lists no public holidays for ${year}.` };
     }
 
-    const supabase = await createClient();
+    const dbc = await createClient();
 
     // Skip dates already present (any branch) so the import never duplicates or
     // overwrites a hand-entered holiday.
-    const { data: existing, error: readErr } = await supabase
+    const { data: existing, error: readErr } = await dbc
       .from('holidays')
-      .select('holiday_date')
+      .select<{ holiday_date: string }[]>('holiday_date')
       .gte('holiday_date', `${year}-01-01`)
       .lte('holiday_date', `${year}-12-31`);
     if (readErr) return { ok: false, error: `Could not read existing holidays: ${readErr.message}` };
@@ -85,7 +75,7 @@ export async function importHolidaysFromGoogle(year: number): Promise<ImportHoli
 
     const rows = holidays
       .filter((h) => !taken.has(h.date))
-      .map((h) => ({ holiday_date: h.date, name: h.name, branch_id: null }));
+      .map((h) => ({ holiday_date: h.date, name: h.name, ...ALL_BRANCHES }));
 
     const skipped = holidays.length - rows.length;
 
@@ -93,7 +83,7 @@ export async function importHolidaysFromGoogle(year: number): Promise<ImportHoli
       return { ok: true, imported: 0, skipped, tentative: [], year };
     }
 
-    const { data, error } = await supabase.from('holidays').insert(rows).select('id');
+    const { data, error } = await dbc.from('holidays').insert(rows).select('id');
     if (error) return { ok: false, error: error.message };
     if (wroteNothing(data)) {
       return { ok: false, error: 'No holidays were added — your role may lack permission.' };
@@ -115,8 +105,8 @@ export async function deleteHoliday(id: string) {
   const gate = await requireStaff('Deleting a holiday');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('holidays').delete().eq('id', id).select('id');
+  const dbc = await createClient();
+  const { data, error } = await dbc.from('holidays').delete().eq('id', id).select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
     return {

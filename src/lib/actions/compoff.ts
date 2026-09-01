@@ -12,11 +12,12 @@
 //            the credit is closed with its used_date. See reviewRequest().
 // ============================================================================
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { getWeekOffPolicy } from '@/lib/queries';
 import { isScheduledWeekOff } from '@/lib/week-off';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/_guard';
+import { toDecimal } from '@/lib/db/money';
 import { notifyApprovers, notifyEmployee } from '@/lib/notify';
 
 export interface ActionResult {
@@ -44,10 +45,10 @@ export async function grantCompOff(employeeId: string, earnedDate: string): Prom
 
   if (!ISO_DATE.test(earnedDate)) return { ok: false, error: 'Invalid date for the comp off.' };
 
-  const supabase = await createClient();
+  const dbc = await createClient();
 
   // The day must actually be a worked off-day — never take the client's word.
-  const { data: day, error: dayErr } = await supabase
+  const { data: day, error: dayErr } = await dbc
     .from('attendance_days')
     .select('status, punch_in, worked_minutes')
     .eq('employee_id', employeeId)
@@ -71,7 +72,7 @@ export async function grantCompOff(employeeId: string, earnedDate: string): Prom
     };
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('comp_offs')
     .insert({ employee_id: employeeId, earned_date: earnedDate, granted_by: gate.profileId })
     .select('id');
@@ -87,7 +88,7 @@ export async function grantCompOff(employeeId: string, earnedDate: string): Prom
     return { ok: false, error: 'The comp off was not granted — your role may lack permission.' };
   }
 
-  await supabase.from('activity_log').insert({
+  await dbc.from('activity_log').insert({
     actor_id: gate.profileId,
     employee_id: employeeId,
     event_type: 'comp_off_granted',
@@ -128,7 +129,7 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
     return { ok: false, error: 'Your login is not linked to an employee record. Ask HR to link it.' };
   }
 
-  const supabase = await createClient();
+  const dbc = await createClient();
 
   // FIFO (0036): with no explicit credit chosen, spend the one that expires
   // SOONEST — oldest expiry first, then oldest earned. Letting the employee
@@ -136,7 +137,7 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
   // ones get used, which is the whole reason expiry dates exist.
   let compOffId = requestedId;
   if (!compOffId) {
-    const { data: oldest, error: fifoErr } = await supabase
+    const { data: oldest, error: fifoErr } = await dbc
       .from('comp_offs')
       .select('id')
       .eq('employee_id', employeeId)
@@ -149,30 +150,15 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
       .order('earned_date', { ascending: true })
       .limit(1)
       .maybeSingle<{ id: string }>();
-    // A missing expires_on/is_applicable column (0036/0041 unapplied) still
-    // falls back to plain earned-date FIFO.
-    if (fifoErr && fifoErr.code === '42703') {
-      const { data: fallback } = await supabase
-        .from('comp_offs')
-        .select('id')
-        .eq('employee_id', employeeId)
-        .eq('status', 'available')
-        .order('earned_date', { ascending: true })
-        .limit(1)
-        .maybeSingle<{ id: string }>();
-      compOffId = fallback?.id ?? '';
-    } else if (fifoErr) {
-      return { ok: false, error: fifoErr.message };
-    } else {
-      compOffId = oldest?.id ?? '';
-    }
+    if (fifoErr) return { ok: false, error: fifoErr.message };
+    compOffId = oldest?.id ?? '';
     if (!compOffId) return { ok: false, error: 'You have no usable comp off to apply for.' };
   }
 
   // Claim the credit first: the status predicate means two concurrent
   // applications for the same credit cannot both succeed, and the
   // is_applicable predicate refuses a credit staff put on hold.
-  let claim = await supabase
+  const claim = await dbc
     .from('comp_offs')
     .update({ status: 'applied' })
     .eq('id', compOffId)
@@ -180,16 +166,6 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
     .eq('status', 'available')
     .eq('is_applicable', true)
     .select('id, earned_date');
-  // is_applicable arrives with 0041 — claim without the predicate until then.
-  if (claim.error?.code === '42703') {
-    claim = (await supabase
-      .from('comp_offs')
-      .update({ status: 'applied' })
-      .eq('id', compOffId)
-      .eq('employee_id', employeeId)
-      .eq('status', 'available')
-      .select('id, earned_date')) as typeof claim;
-  }
   const { data: claimed, error: claimErr } = claim;
   if (claimErr) return { ok: false, error: claimErr.message };
   if (wroteNothing(claimed)) {
@@ -200,14 +176,16 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
     };
   }
 
-  const { data: req, error: reqErr } = await supabase
+  const { data: req, error: reqErr } = await dbc
     .from('requests')
     .insert({
       employee_id: employeeId,
       type: 'comp_off',
       start_date: takeDate,
       end_date: takeDate,
-      days: 1,
+      // requests.days is a `decimal` column, so even a whole 1 goes in as
+      // Decimal128 — an int32 is rejected by the validator.
+      days: toDecimal(1),
       reason,
       status: 'pending',
     })
@@ -215,12 +193,12 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
 
   if (reqErr || wroteNothing(req)) {
     // Release the credit so a failed application doesn't strand it.
-    await supabase.from('comp_offs').update({ status: 'available' }).eq('id', compOffId);
+    await dbc.from('comp_offs').update({ status: 'available' }).eq('id', compOffId);
     return { ok: false, error: reqErr?.message ?? 'The comp-off request was not filed.' };
   }
 
   // Link the credit to the request so approval can close the loop.
-  await supabase
+  await dbc
     .from('comp_offs')
     .update({ request_id: req![0].id, used_date: takeDate })
     .eq('id', compOffId);
@@ -253,24 +231,16 @@ export async function setCompOffApplicability(
   if (!gate.ok) return gate;
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { ok: false, error: 'Unknown comp off.' };
 
-  const supabase = await createClient();
+  const dbc = await createClient();
   // Only an available credit can be toggled: an applied one is already in the
   // approvals queue, and used/expired credits are history.
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('comp_offs')
     .update({ is_applicable: applicable })
     .eq('id', id)
     .eq('status', 'available')
     .select('id, employee_id, earned_date');
-  if (error) {
-    if (error.code === 'PGRST204' || error.code === '42703') {
-      return {
-        ok: false,
-        error: 'Comp-off applicability needs migration 0041_payslip_compoff_leave.sql — apply it first.',
-      };
-    }
-    return { ok: false, error: error.message };
-  }
+  if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
     return {
       ok: false,
@@ -279,7 +249,7 @@ export async function setCompOffApplicability(
   }
 
   const row = data![0] as { employee_id: string; earned_date: string };
-  await supabase.from('activity_log').insert({
+  await dbc.from('activity_log').insert({
     actor_id: gate.profileId,
     employee_id: row.employee_id,
     event_type: 'comp_off_applicability',

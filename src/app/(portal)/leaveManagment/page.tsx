@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
 import { LeaveHistory } from '@/components/Leave_Management/LeaveHistory';
 import { getOnLeaveToday, getRequests } from '@/lib/queries';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
+import { todayIST } from '@/lib/format';
 import type { AppRole } from '@/types/database';
 
 // The HR dashboard aggregates live queues — never prerender a stale one.
@@ -14,12 +15,12 @@ const HR_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 /** Active-roster headcount; null when it cannot be counted (shown as —). */
 async function getHeadcount(): Promise<number | null> {
   try {
-    const supabase = await createClient();
-    const { count, error } = await supabase
+    const dbc = await createClient();
+    const { count, error } = await dbc
       .from('employees')
       .select('id', { count: 'exact', head: true })
       .in('status', ['active', 'on_notice']);
-    return error ? null : count;
+    return error ? null : (count ?? null);
   } catch {
     return null;
   }
@@ -40,7 +41,7 @@ export default async function HrDashboardPage() {
   // stay on /approvals and the register.
   const leaves = requests.filter((r) => r.type === 'leave');
   const pendingLeaves = leaves.filter((r) => r.status === 'pending').length;
-  const thisMonth = new Date().toISOString().slice(0, 7);
+  const thisMonth = todayIST().slice(0, 7);
   const approvedThisMonth = leaves.filter(
     (r) => r.status === 'approved' && r.reviewedAt?.slice(0, 7) === thisMonth,
   ).length;

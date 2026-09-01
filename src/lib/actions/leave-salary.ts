@@ -12,11 +12,12 @@
 // inputs; reopen (finalized → draft) exists for corrections; paid is terminal.
 // ============================================================================
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
 import { requireRoles, wroteNothing } from '@/lib/actions/_guard';
 import { notifyEmployee } from '@/lib/notify';
 import { computeLeaveSalary, presenceByMonth } from '@/lib/leave-salary';
 import { inr } from '@/lib/format';
+import { toMoney } from '@/lib/db/money';
 
 export interface ActionResult {
   ok: boolean;
@@ -31,20 +32,16 @@ function validYear(y: number): boolean {
   return Number.isInteger(y) && y >= 2000 && y <= 2100;
 }
 
-function notMigrated(code?: string): boolean {
-  return code === '42P01' || code === 'PGRST205';
-}
-
 /**
  * One employee-year of attendance, credit-weighted per month. ≤366 rows, so no
  * paging is needed here (the page-wide sweep in queries.ts is the paged one).
  */
 async function loadPresence(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  dbc: Awaited<ReturnType<typeof createClient>>,
   employeeId: string,
   year: number,
 ): Promise<number[]> {
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('attendance_days')
     .select('work_date, status')
     .eq('employee_id', employeeId)
@@ -108,20 +105,17 @@ export async function saveLeaveSalaryWorking(input: {
     return { ok: false, error: 'Pick the month the increment takes effect.' };
   }
 
-  const supabase = await createClient();
+  const dbc = await createClient();
 
   // The lock check. A separate read rather than a predicated upsert because the
   // caller deserves "reopen it first", not a silent no-op.
-  const { data: existing, error: readErr } = await supabase
+  const { data: existing, error: readErr } = await dbc
     .from('leave_salary_workings')
     .select('id, status')
     .eq('employee_id', input.employeeId)
     .eq('year', year)
     .maybeSingle<{ id: string; status: string }>();
   if (readErr) {
-    if (notMigrated(readErr.code)) {
-      return { ok: false, error: 'Leave salary is not set up on the database yet — apply migration 0038.' };
-    }
     return { ok: false, error: readErr.message };
   }
   if (existing && existing.status !== 'draft') {
@@ -130,7 +124,7 @@ export async function saveLeaveSalaryWorking(input: {
 
   let monthlyPresence: number[];
   try {
-    monthlyPresence = await loadPresence(supabase, input.employeeId, year);
+    monthlyPresence = await loadPresence(dbc, input.employeeId, year);
   } catch (e) {
     return { ok: false, error: `Saving a leave-salary working: ${(e as Error).message}` };
   }
@@ -148,8 +142,9 @@ export async function saveLeaveSalaryWorking(input: {
   const snapshot = {
     employee_id: input.employeeId,
     year,
-    salary_before: salaryBefore,
-    salary_after: salaryAfter,
+    // `decimal` columns.
+    salary_before: toMoney(salaryBefore),
+    salary_after: toMoney(salaryAfter),
     increment_effective: `${year}-${String(incrementMonth).padStart(2, '0')}-01`,
     present_p1: result.p1.presentDays,
     present_p2: result.p2.presentDays,
@@ -157,30 +152,18 @@ export async function saveLeaveSalaryWorking(input: {
     calendar_days_p2: result.p2.calendarDays,
     amount_p1: result.p1.payable,
     amount_p2: result.p2.payable,
-    total_amount: result.total,
+    total_amount: toMoney(result.total),
     remarks: String(input.remarks ?? '').trim() || null,
     calendar_days_p1_override: calendarDaysP1Override,
     calendar_days_p2_override: calendarDaysP2Override,
     updated_by: gate.profileId,
   };
 
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('leave_salary_workings')
     .upsert(snapshot, { onConflict: 'employee_id,year' })
     .select('id');
-  if (error) {
-    if (notMigrated(error.code)) {
-      return { ok: false, error: 'Leave salary is not set up on the database yet — apply migration 0038.' };
-    }
-    // PGRST204/42703 = the override columns don't exist yet (0041 pending).
-    if (error.code === 'PGRST204' || error.code === '42703') {
-      return {
-        ok: false,
-        error: 'Editable day counts need migration 0041_payslip_compoff_leave.sql — apply it, then save again.',
-      };
-    }
-    return { ok: false, error: error.message };
-  }
+  if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
     return { ok: false, error: 'The working was not saved — your role may lack permission.' };
   }
@@ -198,7 +181,7 @@ export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
   if (!gate.ok) return gate;
   if (!UUID_RE.test(id)) return { ok: false, error: 'Unknown working.' };
 
-  const supabase = await createClient();
+  const dbc = await createClient();
   type WorkingRead = {
     employee_id: string;
     year: number;
@@ -209,7 +192,7 @@ export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
     calendar_days_p1_override?: number | string | null;
     calendar_days_p2_override?: number | string | null;
   };
-  let read = await supabase
+  const read = await dbc
     .from('leave_salary_workings')
     .select(
       'id, employee_id, year, salary_before, salary_after, increment_effective, status, calendar_days_p1_override, calendar_days_p2_override',
@@ -217,13 +200,6 @@ export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
     .eq('id', id)
     .maybeSingle<WorkingRead>();
   // Override columns arrive with 0041 — finalize must still work without them.
-  if (read.error?.code === '42703') {
-    read = (await supabase
-      .from('leave_salary_workings')
-      .select('id, employee_id, year, salary_before, salary_after, increment_effective, status')
-      .eq('id', id)
-      .maybeSingle<WorkingRead>()) as typeof read;
-  }
   const { data: row, error: readErr } = read;
   if (readErr) return { ok: false, error: readErr.message };
   if (!row) return { ok: false, error: 'That working no longer exists.' };
@@ -232,7 +208,7 @@ export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
   const year = Number(row.year);
   let monthlyPresence: number[];
   try {
-    monthlyPresence = await loadPresence(supabase, row.employee_id, year);
+    monthlyPresence = await loadPresence(dbc, row.employee_id, year);
   } catch (e) {
     return { ok: false, error: `Finalizing a leave-salary working: ${(e as Error).message}` };
   }
@@ -250,7 +226,7 @@ export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
       row.calendar_days_p2_override != null ? Number(row.calendar_days_p2_override) : null,
   });
 
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('leave_salary_workings')
     .update({
       present_p1: result.p1.presentDays,
@@ -269,7 +245,7 @@ export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) return { ok: false, error: 'Only a draft working can be finalized.' };
 
-  await supabase.from('activity_log').insert({
+  await dbc.from('activity_log').insert({
     actor_id: gate.profileId,
     employee_id: row.employee_id,
     event_type: 'leave_salary',
@@ -287,8 +263,8 @@ export async function reopenLeaveSalary(id: string): Promise<ActionResult> {
   if (!gate.ok) return gate;
   if (!UUID_RE.test(id)) return { ok: false, error: 'Unknown working.' };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('leave_salary_workings')
     .update({ status: 'draft', updated_by: gate.profileId })
     .eq('id', id)
@@ -309,8 +285,8 @@ export async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
   if (!gate.ok) return gate;
   if (!UUID_RE.test(id)) return { ok: false, error: 'Unknown working.' };
 
-  const supabase = await createClient();
-  const { data: row, error: readErr } = await supabase
+  const dbc = await createClient();
+  const { data: row, error: readErr } = await dbc
     .from('leave_salary_workings')
     .select('id, employee_id, year, total_amount, status')
     .eq('id', id)
@@ -324,11 +300,11 @@ export async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
     };
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('leave_salary_workings')
     .update({
       status: 'paid',
-      paid_at: new Date().toISOString(),
+      paid_at: new Date(),
       paid_by: gate.profileId,
       updated_by: gate.profileId,
     })
@@ -347,7 +323,7 @@ export async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
     // truthful destination for a payout notification.
     link: '/me#payslips',
   });
-  await supabase.from('activity_log').insert({
+  await dbc.from('activity_log').insert({
     actor_id: gate.profileId,
     employee_id: row.employee_id,
     event_type: 'leave_salary',
