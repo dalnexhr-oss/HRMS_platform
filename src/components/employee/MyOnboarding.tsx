@@ -12,7 +12,6 @@ const OWNER_LABEL: Record<string, string> = {
   it: 'IT',
   admin: 'Admin',
   super_admin: 'Super Admin',
-  manager: 'Your manager',
   employee: 'You',
 };
 

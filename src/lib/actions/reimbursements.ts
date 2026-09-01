@@ -12,11 +12,12 @@
 // recomputed, so an approved claim is paid with salary.
 // ============================================================================
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { getReimbursementRate, getReimbursementEvents } from '@/lib/queries';
 import { uploadFile, signedUrl, resolveUploadType } from '@/lib/storage';
 import { requireDb, requireRoles, requireStaff, wroteNothing } from '@/lib/actions/_guard';
+import { toDecimal, toMoney } from '@/lib/db/money';
 import { notifyApprovers, notifyEmployee } from '@/lib/notify';
 import type { ReimbursementPurpose } from '@/types/database';
 
@@ -35,11 +36,11 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
  * Append one row to the claim's timeline (migration 0035).
  *
  * BEST-EFFORT, exactly like notify.ts: the business write is already committed
- * and PostgREST gives us no transaction across the two, so a failed event must
- * never turn a successful approval into an error. It is logged instead.
+ * and there is no transaction across the two, so a failed event must never turn
+ * a successful approval into an error. It is logged instead.
  */
 async function logClaimEvent(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  dbc: Awaited<ReturnType<typeof createClient>>,
   claimId: string,
   input: {
     action: string;
@@ -51,7 +52,7 @@ async function logClaimEvent(
     actorName?: string | null;
   },
 ): Promise<void> {
-  const { error } = await supabase.from('reimbursement_events').insert({
+  const { error } = await dbc.from('reimbursement_events').insert({
     claim_id: claimId,
     actor_id: input.actorId ?? null,
     actor_name: input.actorName ?? null,
@@ -61,20 +62,19 @@ async function logClaimEvent(
     remark: input.remark ?? null,
     metadata: input.metadata ?? {},
   });
+  // Logged, never surfaced: the claim action itself already succeeded and the
+  // audit row is a side-effect. (The 42P01/PGRST205 exemption that used to wrap
+  // this is gone — pgcompat cannot emit either code.)
   if (error) {
-    // 42P01/PGRST205 = migration 0035 not applied yet; that is not an error the
-    // user needs to see, the claim action itself succeeded.
-    if (error.code !== '42P01' && error.code !== 'PGRST205') {
-      console.warn(`[dalnex-hrms] claim event (${input.action}) failed:`, error.message);
-    }
+    console.warn(`[dalnex-hrms] claim event (${input.action}) failed:`, error.message);
   }
 }
 
 /** True when the optional Finance second-approval stage is switched on (0035). */
 async function financeStageEnabled(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  dbc: Awaited<ReturnType<typeof createClient>>,
 ): Promise<boolean> {
-  const { data } = await supabase
+  const { data } = await dbc
     .from('settings')
     .select('value')
     .eq('key', 'reimbursement_finance_stage')
@@ -133,8 +133,8 @@ export async function createReimbursement(formData: FormData): Promise<ActionRes
     };
   }
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('reimbursement_claims')
     .insert({
       employee_id: employeeId,
@@ -142,9 +142,10 @@ export async function createReimbursement(formData: FormData): Promise<ActionRes
       description,
       purpose,
       source_medium: sourceMedium,
-      kms,
+      // kms and amount are `decimal` columns — never a JS number.
+      kms: kms === null ? null : toDecimal(kms),
       mode_of_payment: modeOfPayment,
-      amount,
+      amount: toMoney(amount),
       remarks,
       status: 'pending',
     })
@@ -155,7 +156,7 @@ export async function createReimbursement(formData: FormData): Promise<ActionRes
     return { ok: false, error: 'The claim was not filed — your account may not have permission.' };
   }
 
-  await logClaimEvent(supabase, (data![0] as { id: string }).id, {
+  await logClaimEvent(dbc, (data![0] as { id: string }).id, {
     action: 'submitted',
     toStatus: 'pending',
     actorId: profile?.id ?? null,
@@ -184,14 +185,14 @@ export async function createReimbursement(formData: FormData): Promise<ActionRes
  * applied (no run yet, run locked, …) — the approval itself still stands.
  */
 async function addToPayroll(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  dbc: Awaited<ReturnType<typeof createClient>>,
   employeeId: string,
   claimDate: string,
   amount: number,
 ): Promise<string | null> {
   const periodStart = `${claimDate.slice(0, 7)}-01`;
 
-  const { data: run, error: runErr } = await supabase
+  const { data: run, error: runErr } = await dbc
     .from('payroll_runs')
     .select('id, status')
     .eq('period_month', periodStart)
@@ -204,7 +205,7 @@ async function addToPayroll(
     return `Approved, but the ${periodStart.slice(0, 7)} payroll run is ${run.status}, so it could not be added to that payslip. Pay it separately.`;
   }
 
-  const { data: payslip, error: psErr } = await supabase
+  const { data: payslip, error: psErr } = await dbc
     .from('payslips')
     .select('id')
     .eq('payroll_run_id', run.id)
@@ -222,7 +223,7 @@ async function addToPayroll(
   // and retries.
   let applied = false;
   for (let attempt = 0; attempt < 3 && !applied; attempt++) {
-    const { data: existing, error: adjErr } = await supabase
+    const { data: existing, error: adjErr } = await dbc
       .from('payslip_adjustments')
       .select('id, reimbursement_bonus')
       .eq('id', payslip.id)
@@ -235,9 +236,9 @@ async function addToPayroll(
     if (!existing) {
       // No adjustments row yet — insert it; a 23505 means someone else just
       // created it, so loop and retry as an update.
-      const { error: insErr } = await supabase
+      const { error: insErr } = await dbc
         .from('payslip_adjustments')
-        .insert({ id: payslip.id, reimbursement_bonus: next, updated_at: new Date().toISOString() });
+        .insert({ id: payslip.id, reimbursement_bonus: toMoney(next), updated_at: new Date() });
       if (insErr && insErr.code !== '23505') {
         return `Approved, but the payslip adjustment failed: ${insErr.message}`;
       }
@@ -245,11 +246,11 @@ async function addToPayroll(
       continue;
     }
 
-    const casQuery = supabase
+    const casQuery = dbc
       .from('payslip_adjustments')
-      .update({ reimbursement_bonus: next, updated_at: new Date().toISOString() })
+      .update({ reimbursement_bonus: toMoney(next), updated_at: new Date() })
       .eq('id', payslip.id);
-    // Null needs `is`, a number needs `eq` — PostgREST distinguishes them.
+    // Null needs `is`, a number needs `eq` — the query builder distinguishes them.
     const { data: casRows, error: upErr } = await (existing.reimbursement_bonus == null
       ? casQuery.is('reimbursement_bonus', null)
       : casQuery.eq('reimbursement_bonus', existing.reimbursement_bonus)
@@ -261,7 +262,7 @@ async function addToPayroll(
     return 'Approved, but the payslip adjustment was contended and could not be applied. Add it manually from the payroll page.';
   }
 
-  const { error: recomputeErr } = await supabase.rpc('fn_compute_payslip', {
+  const { error: recomputeErr } = await dbc.rpc('fn_compute_payslip', {
     p_employee_id: employeeId,
     p_run_id: run.id,
   });
@@ -287,22 +288,22 @@ export async function reviewReimbursement(
     return { ok: false, error: 'Enter a reason for rejecting this claim.' };
   }
 
-  const supabase = await createClient();
+  const dbc = await createClient();
 
   // With the optional Finance stage on (0035), a staff approval does NOT credit
   // payroll — it hands the claim to Finance for the final say. Off, the flow is
   // unchanged: approve → payroll.
-  const twoStage = decision === 'approved' && (await financeStageEnabled(supabase));
+  const twoStage = decision === 'approved' && (await financeStageEnabled(dbc));
   const nextStatus = decision === 'approved' ? (twoStage ? 'finance_review' : 'approved') : 'rejected';
 
   const patch: Record<string, unknown> = {
     status: nextStatus,
     reviewed_by: gate.profileId,
-    reviewed_at: new Date().toISOString(),
+    reviewed_at: new Date(),
   };
   if (decision === 'rejected') patch.review_remark = cleanRemark;
 
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('reimbursement_claims')
     .update(patch)
     .eq('id', id)
@@ -310,12 +311,6 @@ export async function reviewReimbursement(
     .select('id, employee_id, claim_date, amount, purpose, kms');
 
   if (error) {
-    if (error.code === '42703') {
-      return {
-        ok: false,
-        error: 'Rejection remarks aren’t set up on the database yet — apply migration 0020.',
-      };
-    }
     return { ok: false, error: error.message };
   }
   if (wroteNothing(data)) {
@@ -335,19 +330,20 @@ export async function reviewReimbursement(
   };
 
   // Re-derive a travel claim's amount at approval so an employee who edited the
-  // pending claim's kms/amount (RLS can't restrict columns) can't inflate pay.
+  // pending claim's kms/amount (a policy scopes rows, not columns) can't inflate pay.
   let finalAmount = Number(row.amount);
   if (decision === 'approved' && row.purpose === 'travel' && row.kms != null) {
     const rate = await getReimbursementRate();
     const corrected = Math.round(Number(row.kms) * rate * 100) / 100;
     if (corrected !== finalAmount) {
       finalAmount = corrected;
-      await supabase.from('reimbursement_claims').update({ amount: corrected }).eq('id', id);
+      // amount is a `decimal` column — Decimal128, never a JS number.
+      await dbc.from('reimbursement_claims').update({ amount: toMoney(corrected) }).eq('id', id);
     }
   }
 
   const { profile } = await getSession();
-  await logClaimEvent(supabase, id, {
+  await logClaimEvent(dbc, id, {
     action: decision === 'approved' ? (twoStage ? 'sent_to_finance' : 'approved') : 'rejected',
     fromStatus: 'pending',
     toStatus: nextStatus,
@@ -382,7 +378,7 @@ export async function reviewReimbursement(
   // a success — the claim IS approved either way.
   if (decision === 'approved' && !twoStage) {
     const warning = await addToPayroll(
-      supabase,
+      dbc,
       row.employee_id,
       String(row.claim_date).slice(0, 10),
       finalAmount,
@@ -424,15 +420,15 @@ export async function financeReviewReimbursement(
     return { ok: false, error: 'Enter a reason for rejecting this claim.' };
   }
 
-  const supabase = await createClient();
+  const dbc = await createClient();
   const patch: Record<string, unknown> = {
     status: decision === 'approved' ? 'approved' : 'rejected',
     finance_reviewed_by: gate.profileId,
-    finance_reviewed_at: new Date().toISOString(),
+    finance_reviewed_at: new Date(),
   };
   if (decision === 'rejected') patch.review_remark = cleanRemark;
 
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('reimbursement_claims')
     .update(patch)
     .eq('id', id)
@@ -447,7 +443,7 @@ export async function financeReviewReimbursement(
   const amount = Number(row.amount);
   const { profile } = await getSession();
 
-  await logClaimEvent(supabase, id, {
+  await logClaimEvent(dbc, id, {
     action: decision === 'approved' ? 'finance_approved' : 'finance_rejected',
     fromStatus: 'finance_review',
     toStatus: String(patch.status),
@@ -471,7 +467,7 @@ export async function financeReviewReimbursement(
   });
 
   if (decision === 'approved') {
-    const warning = await addToPayroll(supabase, row.employee_id, String(row.claim_date).slice(0, 10), amount);
+    const warning = await addToPayroll(dbc, row.employee_id, String(row.claim_date).slice(0, 10), amount);
     if (warning) return { ok: true, warning };
   }
 
@@ -479,9 +475,9 @@ export async function financeReviewReimbursement(
 }
 
 /**
- * Employee edits their OWN still-pending claim. RLS (0020) restricts the write
- * to own + pending rows; travel amount is recomputed server-side, exactly as at
- * creation, so it never trusts the browser.
+ * Employee edits their OWN still-pending claim. The write policy restricts it
+ * to own + pending/rejected rows; the travel amount is recomputed server-side,
+ * exactly as at creation, so it never trusts the browser.
  */
 export async function updateReimbursement(id: string, formData: FormData): Promise<ActionResult> {
   const description = String(formData.get('description') ?? '').trim();
@@ -514,13 +510,13 @@ export async function updateReimbursement(id: string, formData: FormData): Promi
   const db = requireDb('Editing a reimbursement claim');
   if (!db.ok) return db;
 
-  const supabase = await createClient();
+  const dbc = await createClient();
 
   // Edit & resubmit (0035): a REJECTED claim may be corrected and re-filed. The
   // row must land back in 'pending' with every review stamp cleared, so a
-  // resubmission never carries a stale approval (the RLS with-check enforces the
-  // same rule in Postgres — this is the friendly half).
-  const { data: before } = await supabase
+  // resubmission never carries a stale approval. The write policy enforces the
+  // same rule underneath — this is the friendly half.
+  const { data: before } = await dbc
     .from('reimbursement_claims')
     .select('status')
     .eq('id', id)
@@ -546,7 +542,7 @@ export async function updateReimbursement(id: string, formData: FormData): Promi
     patch.finance_reviewed_at = null;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('reimbursement_claims')
     .update(patch)
     .eq('id', id)
@@ -562,7 +558,7 @@ export async function updateReimbursement(id: string, formData: FormData): Promi
   }
 
   const { profile } = await getSession();
-  await logClaimEvent(supabase, id, {
+  await logClaimEvent(dbc, id, {
     action: wasRejected ? 'resubmitted' : 'edited',
     fromStatus: before?.status ?? null,
     toStatus: wasRejected ? 'pending' : before?.status ?? null,
@@ -588,13 +584,13 @@ export async function updateReimbursement(id: string, formData: FormData): Promi
   return { ok: true };
 }
 
-/** Employee withdraws their OWN still-pending claim. RLS restricts it to that. */
+/** Employee withdraws their OWN still-pending claim. The write policy restricts it to that. */
 export async function deleteReimbursement(id: string): Promise<ActionResult> {
   const db = requireDb('Withdrawing a reimbursement claim');
   if (!db.ok) return db;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('reimbursement_claims')
     .delete()
     .eq('id', id)
@@ -623,16 +619,16 @@ export async function markReimbursementPaid(id: string, paymentRef?: string): Pr
   const gate = await requireStaff('Marking a claim paid');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
+  const dbc = await createClient();
   const ref = (paymentRef ?? '').trim() || null;
   const patch: Record<string, unknown> = {
     status: 'paid',
-    paid_at: new Date().toISOString(),
+    paid_at: new Date(),
     paid_by: gate.profileId,
     payment_ref: ref,
   };
 
-  let { data, error } = await supabase
+  let { data, error } = await dbc
     .from('reimbursement_claims')
     .update(patch)
     .eq('id', id)
@@ -641,15 +637,6 @@ export async function markReimbursementPaid(id: string, paymentRef?: string): Pr
 
   // Migration 0035 not applied yet — fall back to the status-only write rather
   // than refusing a legitimate action.
-  if (error?.code === '42703') {
-    ({ data, error } = await supabase
-      .from('reimbursement_claims')
-      .update({ status: 'paid' })
-      .eq('id', id)
-      .eq('status', 'approved')
-      .select('id, employee_id, amount'));
-  }
-
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
     return { ok: false, error: 'Only an approved claim can be marked paid.' };
@@ -657,7 +644,7 @@ export async function markReimbursementPaid(id: string, paymentRef?: string): Pr
 
   const row = data![0] as { employee_id: string; amount: number | string };
   const { profile } = await getSession();
-  await logClaimEvent(supabase, id, {
+  await logClaimEvent(dbc, id, {
     action: 'paid',
     fromStatus: 'approved',
     toStatus: 'paid',
@@ -682,7 +669,7 @@ export async function markReimbursementPaid(id: string, paymentRef?: string): Pr
 /**
  * Attach (or replace) a receipt on a claim the employee owns and that is still
  * open. The file goes to the private reimbursement-receipts bucket (0032) under
- * the employee's own folder, so storage RLS keeps it to them + staff.
+ * the employee's own folder, which is what limits it to them + staff.
  */
 export async function uploadReimbursementReceipt(id: string, formData: FormData): Promise<ActionResult> {
   const db = requireDb('Attaching a receipt');
@@ -700,10 +687,10 @@ export async function uploadReimbursementReceipt(id: string, formData: FormData)
 
   // Verify the claim BEFORE uploading — uploading first orphans an object in
   // the bucket whenever the attach is then refused. Only a pending claim can
-  // take a receipt (the storage-era RLS agrees: reviewed claims are frozen);
-  // a rejected claim must be edited first, which resets it to pending.
-  const supabase = await createClient();
-  const { data: claim, error: claimError } = await supabase
+  // take a receipt — a reviewed claim is frozen; a rejected one must be edited
+  // first, which resets it to pending.
+  const dbc = await createClient();
+  const { data: claim, error: claimError } = await dbc
     .from('reimbursement_claims')
     .select('id, status')
     .eq('id', id)
@@ -719,7 +706,6 @@ export async function uploadReimbursementReceipt(id: string, formData: FormData)
   }
 
   const up = await uploadFile(
-    supabase,
     'reimbursement-receipts',
     employeeId,
     file.name,
@@ -728,7 +714,7 @@ export async function uploadReimbursementReceipt(id: string, formData: FormData)
   );
   if (!up.ok) return { ok: false, error: up.error ?? 'The receipt could not be uploaded.' };
 
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('reimbursement_claims')
     .update({ receipt_path: up.path })
     .eq('id', id)
@@ -739,7 +725,7 @@ export async function uploadReimbursementReceipt(id: string, formData: FormData)
     return { ok: false, error: 'The receipt was not attached — the claim may already have been reviewed.' };
   }
 
-  await logClaimEvent(supabase, id, {
+  await logClaimEvent(dbc, id, {
     action: 'receipt_attached',
     actorId: profile?.id ?? null,
     actorName: profile?.full_name ?? null,
@@ -751,13 +737,13 @@ export async function uploadReimbursementReceipt(id: string, formData: FormData)
   return { ok: true };
 }
 
-/** Mint a short-lived signed URL for a claim's receipt (owner or staff via RLS). */
+/** Resolve a claim receipt's file URL. The row read scopes it to owner or staff. */
 export async function getReceiptUrl(claimId: string): Promise<{ ok: boolean; url?: string; error?: string }> {
   const db = requireDb('Opening a receipt');
   if (!db.ok) return db;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('reimbursement_claims')
     .select('receipt_path')
     .eq('id', claimId)
@@ -765,7 +751,7 @@ export async function getReceiptUrl(claimId: string): Promise<{ ok: boolean; url
   if (error) return { ok: false, error: error.message };
   if (!data?.receipt_path) return { ok: false, error: 'This claim has no receipt attached.' };
 
-  const signed = await signedUrl(supabase, 'reimbursement-receipts', data.receipt_path);
+  const signed = await signedUrl('reimbursement-receipts', data.receipt_path);
   return signed.ok ? { ok: true, url: signed.url } : { ok: false, error: signed.error };
 }
 

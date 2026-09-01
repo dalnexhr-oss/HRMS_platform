@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getSession } from '@/lib/auth';
+import { todayIST } from '@/lib/format';
 import { AvatarMenu } from '@/components/shell/AvatarMenu';
 import {
   currentPeriodMonth,
@@ -24,7 +25,7 @@ import {
   getOnLeaveToday,
   getReadNoticeIds,
   getWeekOffPolicy,
-  isSupabaseConfigured,
+  isMongoConfigured,
   type CompOffRow,
   type HolidayView,
   type LeaveBalanceRow,
@@ -118,9 +119,11 @@ export default async function MePage() {
   // Notices are company announcements — every employee sees all PUBLISHED ones
   // (drafts stay staff-only), with the branch tag shown on each. They expire off
   // the dashboard 30 days after publication (and are hard-deleted from the DB by
-  // the daily pg_cron job in migration 0015 / the purge on the staff page).
-  // Compare epoch millis, not raw strings: PostgREST emits '…+00:00' timestamps
-  // while toISOString() emits '…Z', so a lexicographic compare is unreliable.
+  // the scheduled purge in /api/cron, and by the opportunistic one that runs
+  // when staff publish a notice).
+  // Compare epoch millis, not raw strings: a stored timestamp may serialise as
+  // '…+00:00' while toISOString() emits '…Z', so a lexicographic compare is
+  // unreliable.
   // Ticket follow-up threads depend on the loaded ticket ids, so fetch after.
   const ticketComments = await getTicketComments(tickets.map((t) => t.id));
 
@@ -136,7 +139,7 @@ export default async function MePage() {
   const visibleHolidays: HolidayView[] = holidays.filter(
     (h) => !h.branch || h.branch === myBranch,
   );
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todayIST();
   const upcomingHolidayCount = visibleHolidays.filter((h) => h.date >= todayStr).length;
 
   const unread = policies.filter((p) => !p.acknowledged).length;
@@ -152,14 +155,14 @@ export default async function MePage() {
 
   // createTicket writes `employee_id: profile.employee_id`, so an unlinked login
   // would file a ticket that never appears in "My tickets" below; and with no
-  // Supabase it returns {ok:true} without writing at all. Gate the form on both
+  // the database it returns {ok:true} without writing at all. Gate the form on both
   // rather than render a control that green-ticks over nothing.
   // getEmployeeOverview returns name:'' for an unlinked login with no full_name,
   // which would render "Hi, " and a blank avatar.
   const displayName = overview.name.trim() || profile?.full_name?.trim() || 'there';
 
-  const canRaiseTicket = isSupabaseConfigured() && !!employeeId;
-  const ticketBlockedReason = !isSupabaseConfigured()
+  const canRaiseTicket = isMongoConfigured() && !!employeeId;
+  const ticketBlockedReason = !isMongoConfigured()
     ? 'The database is not configured, so a ticket cannot be saved.'
     : 'Your login is not linked to an employee record, so a ticket could not be traced back to you. Ask HR to link it.';
 

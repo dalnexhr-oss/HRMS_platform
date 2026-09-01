@@ -403,7 +403,7 @@ function ClaimForm({
 /**
  * Attach (or replace) a receipt on an existing claim. Uploads straight to the
  * private reimbursement-receipts bucket via the server action, which puts it in
- * the employee's own folder so storage RLS keeps it to them + staff.
+ * the employee's own folder, which is what limits it to them + staff.
  */
 function ReceiptUpload({
   claimId,

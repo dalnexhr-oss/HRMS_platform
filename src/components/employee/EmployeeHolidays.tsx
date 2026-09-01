@@ -1,5 +1,6 @@
 import type { HolidayView } from '@/lib/queries';
 import { describePolicy, type WeekOffPolicy } from '@/lib/week-off';
+import { todayIST } from '@/lib/format';
 
 // Read-only holiday calendar for the employee dashboard. Leads with the weekly
 // off schedule (Sundays + which Saturdays), then holidays split into upcoming and
@@ -11,7 +12,7 @@ export function EmployeeHolidays({
   holidays: HolidayView[];
   policy?: WeekOffPolicy;
 }) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIST();
   const upcoming = holidays.filter((h) => h.date >= today);
   const past = holidays.filter((h) => h.date < today).reverse(); // most recent first
 

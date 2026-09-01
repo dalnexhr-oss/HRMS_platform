@@ -4,7 +4,7 @@
 // The signed-in user's own profile edits. Currently just the avatar.
 // ============================================================================
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { requireDb, wroteNothing } from '@/lib/actions/_guard';
 import { isAvatarPresetId } from '@/lib/avatar-presets';
@@ -51,25 +51,18 @@ export async function updateAvatar(value: string | null): Promise<ActionResult> 
   const { userId } = await getSession();
   if (!userId) return { ok: false, error: 'You must be signed in to change your picture.' };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('profiles')
     .update({ avatar: value })
     .eq('id', userId)
     .select('id');
 
-  if (error) {
-    // 42703 = undefined_column: migration 0014 (profiles.avatar) isn't applied.
-    if (error.code === '42703' || /column .*avatar.* does not exist/i.test(error.message)) {
-      return {
-        ok: false,
-        error:
-          'Avatar storage isn’t set up on the database yet. Apply the latest migration ' +
-          '(supabase db push) and try again.',
-      };
-    }
-    return { ok: false, error: error.message };
-  }
+  // The "avatar column is missing" branch is gone with Postgres: `avatar` is a
+  // plain field on the user document, there is no column to be undefined, and
+  // neither the 42703 code nor a "column ... does not exist" message can reach
+  // here from the Mongo driver.
+  if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
     return { ok: false, error: 'Your picture was not saved — your account may lack permission.' };
   }

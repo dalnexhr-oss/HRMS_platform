@@ -6,7 +6,7 @@ import { AvatarMenu } from '@/components/shell/AvatarMenu';
 // The employee's own account page: picture, identity and password. Staff have
 // the equivalent at /account; employees reach this from the topbar "My account".
 export default async function EmployeeAccountPage() {
-  const { profile, email,  } = await getSession();
+  const { profile, email } = await getSession();
 
   return (
     <div className="wrap grid">
