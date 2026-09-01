@@ -23,6 +23,7 @@ import {
 } from '@/lib/week-off';
 import { PRESENT_CREDIT } from '@/lib/leave-salary';
 import type { TopbarStats } from '@/lib/constants';
+import { REQUIRED_DOCUMENT_CATEGORIES } from '@/lib/constants';
 import type {
   RegisterEmployee, PayslipRow, DayCell, TodayKpis, Celebration, PunchLogRow,
 } from '@/types/domain';
@@ -401,6 +402,27 @@ export async function getMyAcknowledgements(employeeId: string): Promise<Acknowl
 }
 
 // -------------------------------------------------------------- documents ---
+
+/**
+ * Where a document's file came from.
+ *
+ * 'issued' rows are the relieving / experience / F&F PDFs generateExitDocument
+ * produces into the generated-documents bucket. They are already verified, they
+ * are never replaced through the register, and 'experience' means a different
+ * thing on one than on an upload — see GENERATED_DOCUMENT_CATEGORIES.
+ */
+export type DocumentSource = 'uploaded' | 'issued';
+
+/**
+ * What the register shows in its Status column.
+ *
+ *   awaiting   filed, not yet looked at
+ *   returned   HR sent it back with a remark; the employee must replace it
+ *   verified   accepted
+ *   superseded a newer version exists — history, not a live document
+ */
+export type DocumentStatus = 'awaiting' | 'returned' | 'verified' | 'superseded';
+
 export interface EmployeeDocumentRow {
   id: string;
   employeeId: string;
@@ -411,10 +433,25 @@ export interface EmployeeDocumentRow {
   uploadedAt: string;
   verifiedAt: string | null;
   verifyRemark: string | null;
+  source: DocumentSource;
+  status: DocumentStatus;
+  version: number;
+  /** The first version's id — every version of one document shares it. */
+  docGroup: string;
+  supersededAt: string | null;
+  /** True when this row is the live version. */
+  isCurrent: boolean;
 }
 
 const DOCUMENT_FIELDS =
-  'id, employee_id, category, title, uploaded_at, verified_at, verify_remark, employees(code, full_name)';
+  'id, employee_id, category, title, uploaded_at, verified_at, verify_remark, bucket, ' +
+  'doc_group, version, replaces_id, replaced_by_id, superseded_at, employees(code, full_name)';
+
+function documentStatus(r: any): DocumentStatus {
+  if (r.superseded_at) return 'superseded';
+  if (r.verified_at) return 'verified';
+  return r.verify_remark ? 'returned' : 'awaiting';
+}
 
 function mapDocument(r: any): EmployeeDocumentRow {
   return {
@@ -427,16 +464,32 @@ function mapDocument(r: any): EmployeeDocumentRow {
     uploadedAt: iso(r.uploaded_at),
     verifiedAt: isoOrNull(r.verified_at),
     verifyRemark: r.verify_remark,
+    source: r.bucket === 'generated-documents' ? 'issued' : 'uploaded',
+    status: documentStatus(r),
+    // A row written before versioning existed carries none of these fields,
+    // which is exactly "version 1, its own group, current" — so the defaults
+    // here are the backfill, and no data migration is needed.
+    version: Number(r.version ?? 1),
+    docGroup: r.doc_group ?? r.id,
+    supersededAt: isoOrNull(r.superseded_at),
+    isCurrent: !r.superseded_at,
   };
 }
 
-/** One employee's filed documents, newest first. Never returns storage paths. */
+/**
+ * One employee's CURRENT documents, newest first. Never returns storage paths.
+ *
+ * Superseded versions are excluded: this feeds the employee's own dashboard,
+ * where showing three copies of an ID proof they replaced twice is noise. The
+ * staff drill-down uses getEmployeeDocumentHistory() to see everything.
+ */
 export async function getEmployeeDocuments(employeeId: string): Promise<EmployeeDocumentRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('employee_documents')
     .select(DOCUMENT_FIELDS)
     .eq('employee_id', employeeId)
+    .is('superseded_at', null)
     .order('uploaded_at', { ascending: false });
   if (error) {
     fail('getEmployeeDocuments: could not load documents', error);
@@ -444,18 +497,120 @@ export async function getEmployeeDocuments(employeeId: string): Promise<Employee
   return (data ?? []).map(mapDocument);
 }
 
-/** Documents awaiting HR verification, across everyone — the review queue. */
+/**
+ * EVERY version of every document for one employee, newest first — the staff
+ * drill-down. Superseded rows are included; `isCurrent` and `docGroup` are what
+ * the panel groups on.
+ */
+export async function getEmployeeDocumentHistory(
+  employeeId: string,
+): Promise<EmployeeDocumentRow[]> {
+  const dbc = await createClient();
+  const { data, error } = await dbc
+    .from('employee_documents')
+    .select(DOCUMENT_FIELDS)
+    .eq('employee_id', employeeId)
+    .order('uploaded_at', { ascending: false });
+  if (error) {
+    fail('getEmployeeDocumentHistory: could not load the document history', error);
+  }
+  return (data ?? []).map(mapDocument);
+}
+
+/**
+ * The register: the CURRENT version of every document, for every employee.
+ *
+ * Superseded rows are left out — the register is what the company holds now,
+ * and history belongs behind the document it belongs to.
+ */
+export async function getDocumentRegister(): Promise<EmployeeDocumentRow[]> {
+  const dbc = await createClient();
+  const { data, error } = await dbc
+    .from('employee_documents')
+    .select(DOCUMENT_FIELDS)
+    .is('superseded_at', null)
+    .order('uploaded_at', { ascending: false });
+  if (error) {
+    fail('getDocumentRegister: could not load the document register', error);
+  }
+  return (data ?? []).map(mapDocument);
+}
+
+/**
+ * Documents awaiting HR verification, across everyone — the review queue.
+ *
+ * CURRENT versions only. A superseded row is unverified for ever by
+ * definition — it was replaced before anyone got to it — and leaving those in
+ * would grow the queue with work that can never be done.
+ */
 export async function getUnverifiedDocuments(): Promise<EmployeeDocumentRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('employee_documents')
     .select(DOCUMENT_FIELDS)
     .is('verified_at', null)
+    .is('superseded_at', null)
     .order('uploaded_at', { ascending: true });
   if (error) {
     fail('getUnverifiedDocuments: could not load the verification queue', error);
   }
   return (data ?? []).map(mapDocument);
+}
+
+export interface DocumentStats {
+  /** Current documents on file, all employees. */
+  total: number;
+  awaiting: number;
+  returned: number;
+  /** HR-generated letters (relieving / experience / F&F). */
+  issued: number;
+  /**
+   * Required categories not on file, summed over ACTIVE employees.
+   *
+   * Counts gaps, not people: an employee missing three of the four required
+   * categories contributes three. `employeesMissing` is the headcount.
+   */
+  missing: number;
+  employeesMissing: number;
+}
+
+/**
+ * The KPI band on /documents.
+ *
+ * Derived from the register rather than counted with five round trips: the
+ * register is already loaded for the table on the same request, but this is
+ * exported separately so a caller that only wants the numbers does not have to
+ * know that.
+ */
+export function documentStats(
+  register: EmployeeDocumentRow[],
+  activeEmployeeIds: string[],
+): DocumentStats {
+  let awaiting = 0, returned = 0, issued = 0;
+  const heldByEmployee = new Map<string, Set<string>>();
+
+  for (const d of register) {
+    if (d.source === 'issued') issued++;
+    if (d.status === 'awaiting') awaiting++;
+    if (d.status === 'returned') returned++;
+    // Only a VERIFIED upload counts as held: an unverified or returned scan is
+    // exactly the gap the missing count is meant to surface.
+    if (d.status === 'verified' && d.category) {
+      let held = heldByEmployee.get(d.employeeId);
+      if (!held) heldByEmployee.set(d.employeeId, (held = new Set()));
+      held.add(d.category);
+    }
+  }
+
+  let missing = 0, employeesMissing = 0;
+  for (const id of activeEmployeeIds) {
+    const held = heldByEmployee.get(id);
+    const gaps = REQUIRED_DOCUMENT_CATEGORIES.filter((c) => !held?.has(c)).length;
+    if (gaps > 0) employeesMissing++;
+    missing += gaps;
+  }
+
+  return { total: register.length, awaiting, returned, issued, missing, employeesMissing };
 }
 
 // ------------------------------------------------------------- onboarding ---

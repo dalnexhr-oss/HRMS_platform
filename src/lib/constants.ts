@@ -89,13 +89,87 @@ export function branchColorAt(i: number): string {
  * plain const there fails the build.
  */
 export const DOCUMENT_CATEGORIES = [
+  // --- onboarding ---------------------------------------------------------
   'offer_letter',
+  'contract',
+  'joining_form',
   'id_proof',
   'education',
   'experience',
   'bank',
+  'nda',
+  'onboarding_other',
+  // --- exit -----------------------------------------------------------------
+  'resignation',
+  'clearance',
+  // --- anything else --------------------------------------------------------
   'other',
 ] as const;
+
+export type DocumentCategory = (typeof DOCUMENT_CATEGORIES)[number];
+
+/**
+ * Categories the system ISSUES rather than accepts.
+ *
+ * generateExitDocument writes these into employee_documents itself, against the
+ * `generated-documents` bucket and already stamped verified — an HR-issued
+ * letter is authoritative the moment it is produced. They appear in the
+ * register alongside uploads but are never offered in an upload form, and
+ * nothing may replace one: reissuing means generating it again from /exits.
+ *
+ * NOTE the overlap: 'experience' is BOTH an uploadable category (the
+ * certificate from a previous employer) and the letter this company issues on
+ * exit. The category alone cannot tell them apart — the BUCKET can, which is
+ * why the register carries `source` and labels an issued row accordingly.
+ */
+export const GENERATED_DOCUMENT_CATEGORIES = ['relieving', 'experience', 'settlement'] as const;
+
+/** Display names for every category, uploaded or issued. */
+export const DOCUMENT_CATEGORY_LABEL: Record<string, string> = {
+  offer_letter: 'Offer letter',
+  contract: 'Contract / agreement',
+  joining_form: 'Joining form',
+  id_proof: 'ID proof',
+  education: 'Education',
+  experience: 'Experience',
+  bank: 'Bank details',
+  nda: 'NDA / confidentiality',
+  onboarding_other: 'Other onboarding',
+  resignation: 'Resignation',
+  clearance: 'Clearance / exit',
+  other: 'Other',
+  // Issued by HR, display only.
+  relieving: 'Relieving letter',
+  settlement: 'Full & final statement',
+};
+
+/**
+ * The label to show for a row, given where its file came from.
+ *
+ * Only 'experience' needs the distinction — see the note on
+ * GENERATED_DOCUMENT_CATEGORIES — but routing every row through one function
+ * means a future overlap is handled in one place rather than at each table.
+ */
+export function documentCategoryLabel(category: string | null, issued = false): string {
+  if (!category) return '—';
+  if (issued && category === 'experience') return 'Experience letter';
+  return DOCUMENT_CATEGORY_LABEL[category] ?? category;
+}
+
+/**
+ * What every employee is expected to have on file.
+ *
+ * Drives the "missing" count on /documents and the gaps listed in an
+ * employee's drill-down. Deliberately short: it is the joining paperwork the
+ * company cannot operate without, not everything it might ever want. A category
+ * outside this list is welcome on file but never reported as missing.
+ */
+export const REQUIRED_DOCUMENT_CATEGORIES: readonly string[] = [
+  'offer_letter',
+  'contract',
+  'id_proof',
+  'bank',
+];
 
 /**
  * Every Indian state and union territory a branch may be registered in.
@@ -216,6 +290,7 @@ export const NAV: NavItem[] = [
 
   { slug: 'employees', label: 'Employees', group: GROUPS.WORKFORCE },
   { slug: 'onboarding', label: 'Onboarding', group: GROUPS.WORKFORCE },
+  { slug: 'documents', label: 'Documents', group: GROUPS.WORKFORCE },
   { slug: 'exits', label: 'Exits', group: GROUPS.WORKFORCE },
 
   { slug: 'leaveManagment', label: 'Leave Management', group: GROUPS.HR },
@@ -247,20 +322,15 @@ export const NAV: NavItem[] = [
 export const NAV_ROLE_GATED: Record<string, readonly string[]> = {
   audit: ['super_admin', 'admin', 'hr'],
   onboarding: ['super_admin', 'admin', 'hr'],
+  documents: ['super_admin', 'admin', 'hr'],
   exits: ['super_admin', 'admin', 'hr'],
-  // The KEY is the nav slug; the values are roles. Only the slug was renamed
-  // from 'hr' — 'hr' the role still appears on the right of every line here.
   leaveManagment: ['super_admin', 'admin', 'hr'],
   leave: ['super_admin', 'admin', 'hr'],
   assets: ['super_admin', 'admin', 'hr'],
   items: ['super_admin', 'admin', 'hr'],
   users: ['super_admin', 'admin', 'hr'],
-  // Mirrors the isStaffRole() guard on /tv and /api/tv/board.
   tv: ['super_admin', 'admin', 'hr'],
-  // Mirrors IMPORT_ROLES in actions/import.ts (commitImport) — the widest
-  // real write path. The nav used to say admin/hr while the action allowed
   import: ['super_admin', 'admin', 'hr'],
-  // Mirrors the /settings page guard and updateSetting/updateBranch.
   settings: ['super_admin', 'admin', 'hr'],
 };
 
@@ -277,6 +347,7 @@ export const TITLES: Record<string, [string, string]> = {
   leave: ['Leave salary', '15-day paid leave & annual payout'],
   exits: ['Exits', 'Clearance, settlement & documents'],
   onboarding: ['Onboarding', 'Joiner checklists by owner'],
+  documents: ['Documents', 'Employee document register'],
   payroll: ['Payroll', 'Salary runs & payslips'],
   reimbursements: ['Reimbursements', 'Expense claims · approve & pay'],
   employees: ['Employees', 'Staff directory'],
@@ -289,7 +360,6 @@ export const TITLES: Record<string, [string, string]> = {
   helpdesk: ['Helpdesk', 'Employee tickets'],
   settings: ['Settings', 'Rules & thresholds'],
   users: ['Users', 'Login accounts & roles'],
-  // Was missing entirely, so the Import page rendered a blank header.
   import: ['Import', 'Bulk upload employees & attendance'],
   account: ['My account', 'Your profile & password'],
 };

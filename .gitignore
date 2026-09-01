@@ -38,3 +38,4 @@ supabase/seed.sql
 supabase/APPLY_*.sql
 # typescript
 *.tsbuildinfo
+schema.mjs

@@ -451,6 +451,11 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 
 /* ============ dashboard ============ */
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+/* Five-across, for a band that genuinely has five figures (the document
+   register). Without it the fifth card drops onto a row of its own and reads
+   as an afterthought rather than part of the set. Narrower windows fall back
+   through the same two breakpoints as .kpis. */
+.kpis.five{grid-template-columns:repeat(5,1fr)}
 .kpi{padding:18px 20px}
 .kpi:hover{box-shadow:var(--shadow-lift),inset 0 1px 0 rgba(255,255,255,.65);transform:translateY(-2px)}
 .kpi .lab{font:600 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
@@ -920,7 +925,7 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 /* ============ responsive ============ */
 /* Content reflow for narrower windows — the sidebar stays full-width here. */
 @media (max-width:1120px){
-  .kpis,.totals{grid-template-columns:repeat(2,1fr)}
+  .kpis,.totals,.kpis.five{grid-template-columns:repeat(2,1fr)}
   .two-col,.appr,.exp-grid{grid-template-columns:1fr}
   .exp-col{border-right:0;border-bottom:1px dashed var(--line-2)}
 }
@@ -1007,7 +1012,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 
 /* Phones proper. */
 @media (max-width:640px){
-  .kpis,.totals{grid-template-columns:1fr}
+  .kpis,.totals,.kpis.five{grid-template-columns:1fr}
   .f-row{grid-template-columns:1fr}
   .exp-grid{grid-template-columns:1fr}
   .wrap.grid,.grid{gap:12px}
