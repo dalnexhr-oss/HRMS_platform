@@ -1,37 +1,30 @@
 'use server';
 
 // Server Actions for mutating employees. The Add/Edit-employee drawer submits its
-// <form> here. All are staff-only (admin/hr/manager).
+// <form> here. All are staff-only (admin/hr).
 import { revalidatePath } from 'next/cache';
-import { createClient, createServiceClient, isServiceRoleConfigured } from '@/lib/supabase/server';
+import type { Decimal128 } from 'mongodb';
+import { createClient, createServiceClient, isServiceRoleConfigured } from '@/lib/db/server';
 import { requireStaff, wroteNothing } from '@/lib/actions/_guard';
+import { usersCollection } from '@/lib/db/collections';
+import { formatMoney, fromPaise, toPaise } from '@/lib/db/money';
 import { getEmployeeForEdit, type EmployeeEditRow } from '@/lib/queries';
 import { INDIAN_STATES } from '@/lib/constants';
 import { sendEmail, isEmailConfigured } from '@/lib/email';
 import { buildWelcomeEmail } from '@/lib/documents/templates';
 import { startOnboarding } from '@/lib/actions/onboarding';
 
-// Ban duration handed to Supabase's admin API to block sign-in. ~100 years is
-// "indefinite" in practice; 'none' lifts the ban. Existing access tokens are
-// re-validated against the auth server on every request (getSession →
-// supabase.auth.getUser), so a ban blocks the very next request rather than
-// waiting for the current token to expire.
-const BAN_INDEFINITE = '876000h';
-const BAN_NONE = 'none';
+/** Transient failures worth a second try; a missing account is not one. */
+const LOGIN_UPDATE_ATTEMPTS = 3;
 
 /**
  * Enable or disable sign-in for every login account linked to an employee.
  *
- * Logins are `profiles` rows (profiles.id === auth.users.id) with
- * employee_id === the given employee. Banning/unbanning the auth user is
- * reversible, so it mirrors deactivate/reactivate exactly and leaves the
- * profile → employee link intact for when they come back.
+ * Reversible by design: it mirrors deactivate/reactivate and leaves the
+ * login → employee link intact for when they come back.
  *
- * Managing auth users needs the service-role key. When it isn't configured no
- * employee login could have been created in the first place (the Users screen
- * requires it), so there is nothing to revoke — this returns ok and does
- * nothing. A real failure to reach or update an existing account IS reported,
- * so the caller never claims to have removed access it couldn't remove.
+ * A real failure to update an existing account IS reported, so the caller never
+ * claims to have removed access it could not remove.
  */
 async function setEmployeeLoginAccess(
   employeeId: string,
@@ -59,51 +52,50 @@ async function setEmployeeLoginAccess(
       return { ok: true };
     }
 
-    const banDuration = enabled ? BAN_NONE : BAN_INDEFINITE;
+    const users = await usersCollection();
 
     for (const p of profiles) {
       let lastError = 'Could not update login access.';
 
-      // Retry transient Supabase Auth failures.
-      for (let attempt = 1; attempt <= 3; attempt++) {
+      for (let attempt = 1; attempt <= LOGIN_UPDATE_ATTEMPTS; attempt++) {
         try {
-          const { error: banErr } =
-            await admin.auth.admin.updateUserById(
-              p.id as string,
-              {
-                ban_duration: banDuration,
-              },
-            );
+          // Access is users.disabled, which getSession() re-checks on every
+          // request.
+          //
+          // Disabling ALSO bumps token_version, and that half matters more here
+          // than the flag does: these sessions last a year, so without the bump
+          // a revoked employee would keep a working cookie long after their
+          // access was withdrawn. Enabling does not bump — restoring access
+          // should not sign the person out of a device they still hold.
+          const result = await users.updateOne(
+            { _id: p.id as string },
+            enabled
+              ? { $set: { disabled: false, updated_at: new Date() } }
+              : { $set: { disabled: true, updated_at: new Date() }, $inc: { token_version: 1 } },
+          );
 
-          // Success.
-          if (!banErr) {
+          if (result.matchedCount > 0) {
             lastError = '';
             break;
           }
 
-          lastError = banErr.message;
+          // TERMINAL, not transient: the account is gone, and asking again
+          // twice more cannot bring it back. The retry loop is here for a
+          // dropped connection, and treating "no such row" as retryable just
+          // spent three seconds arriving at the same answer.
+          lastError = 'That login account no longer exists.';
+          break;
         } catch (e) {
-          lastError =
-            e instanceof Error
-              ? e.message
-              : 'Could not update login access.';
+          lastError = e instanceof Error ? e.message : 'Could not update login access.';
         }
 
         // Don't delay after the final attempt.
-        if (attempt < 3) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, attempt * 1000),
-          );
+        if (attempt < LOGIN_UPDATE_ATTEMPTS) {
+          await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
         }
       }
 
-      // All retries failed.
-      if (lastError) {
-        return {
-          ok: false,
-          error: lastError,
-        };
-      }
+      if (lastError) return { ok: false, error: lastError };
     }
 
     return { ok: true };
@@ -118,21 +110,20 @@ async function setEmployeeLoginAccess(
   }
 }
 
-function isMissingMigration(error: { code?: string }): boolean {
-  return error.code === '42703';
-}
-
-function migrationError() {
-  return {
-    ok: false as const,
-    error:
-      'The employee record could not be saved because a required system update is missing. Please contact your administrator.',
-  };
-}
-
-/** Parse '30,000' / '₹30,000' -> 30000. */
-function money(v: FormDataEntryValue | null): number {
-  return Number(String(v ?? '0').replace(/[^0-9.-]/g, '')) || 0;
+/**
+ * A money form field as whole paise.
+ *
+ * Returns null when the text is not a number at all, so the caller can say so
+ * instead of silently storing a zero — the old `|| 0` turned a typo in the
+ * salary box into a real salary of nothing.
+ */
+function moneyPaise(v: FormDataEntryValue | null): number | null {
+  const cleaned = String(v ?? '').replace(/[^0-9.-]/g, '');
+  if (cleaned === '' || cleaned === '-' || cleaned === '.') return 0;
+  // toPaise() accepts only this shape; anything else throws, and a thrown
+  // TypeError inside a Server Action reaches the user as an unhandled 500.
+  if (!/^-?\d*(?:\.\d*)?$/.test(cleaned)) return null;
+  return toPaise(cleaned);
 }
 
 /**
@@ -160,6 +151,27 @@ function parseIfsc(
   if (!raw) return { ok: true, value: null };
   if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(raw)) {
     return { ok: false, error: 'IFSC must be 11 characters: 4 letters, a 0, then 6 letters/digits (e.g. HDFC0001234).' };
+  }
+  return { ok: true, value: raw };
+}
+
+/**
+ * Normalise a PAN: strip spaces, upper-case, require the standard 10-char shape
+ * (5 letters + 4 digits + 1 letter). Empty is allowed (null).
+ *
+ * Mirrors the format CHECK from migration 0001, which the employees validator
+ * enforces as `^[A-Z]{5}[0-9]{4}[A-Z]$`. Without this the raw field went
+ * straight to the database, so a lower-case or half-typed PAN — 'abcde1234f',
+ * or a stray trailing space — was refused there and surfaced as the unhelpful
+ * "new row violates check constraint".
+ */
+function parsePan(
+  v: FormDataEntryValue | null,
+): { ok: true; value: string | null } | { ok: false; error: string } {
+  const raw = String(v ?? '').replace(/\s/g, '').toUpperCase().trim();
+  if (!raw) return { ok: true, value: null };
+  if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(raw)) {
+    return { ok: false, error: 'PAN must be 10 characters: 5 letters, 4 digits, then a letter (e.g. ABCDE1234F).' };
   }
   return { ok: true, value: raw };
 }
@@ -209,28 +221,51 @@ function parseBankAndEmergency(
   };
 }
 
-/** Shared salary parse: derives special to satisfy the DB CHECK (basic+hra+special=gross). */
+/**
+ * Shared salary parse: derives special so the components always total gross.
+ *
+ * Amounts are computed in PAISE and returned as Decimal128, which is what the
+ * employees validator requires. It rejects a write on two counts, and a plain
+ * JS number fails both: every component is declared `bsonType: "decimal"`, and
+ * a `$expr` re-checks gross == basic_da + hra + special_allowance, which float
+ * subtraction cannot be trusted to satisfy once paise are involved. MongoDB
+ * reports either as error 121, which pgcompat surfaces as "new row violates
+ * check constraint".
+ */
 function parseSalary(
   formData: FormData,
-): { ok: true; gross: number; basic: number; hra: number; special: number } | { ok: false; error: string } {
-  const gross = money(formData.get('gross_monthly'));
-  const basic = money(formData.get('basic_da'));
-  const hra = money(formData.get('hra'));
+):
+  | { ok: true; gross: Decimal128; basic: Decimal128; hra: Decimal128; special: Decimal128 }
+  | { ok: false; error: string } {
+  const gross = moneyPaise(formData.get('gross_monthly'));
+  const basic = moneyPaise(formData.get('basic_da'));
+  const hra = moneyPaise(formData.get('hra'));
+  if (gross === null || basic === null || hra === null) {
+    return { ok: false, error: 'Enter the salary amounts as plain numbers, e.g. 30000 or 30000.50.' };
+  }
   if (gross <= 0) return { ok: false, error: 'Gross monthly must be greater than zero.' };
   if (basic + hra > gross) {
     return {
       ok: false,
-      error: `Basic + DA (₹${basic}) plus HRA (₹${hra}) exceed gross (₹${gross}). Adjust the salary structure.`,
+      error:
+        `Basic + DA (${formatMoney(fromPaise(basic))}) plus HRA (${formatMoney(fromPaise(hra))}) ` +
+        `exceed gross (${formatMoney(fromPaise(gross))}). Adjust the salary structure.`,
     };
   }
-  return { ok: true, gross, basic, hra, special: gross - basic - hra };
+  return {
+    ok: true,
+    gross: fromPaise(gross),
+    basic: fromPaise(basic),
+    hra: fromPaise(hra),
+    special: fromPaise(gross - basic - hra),
+  };
 }
 
 /**
  * Load one employee's full editable fields for the edit drawer. Although this
  * is a read, it returns Aadhaar, PAN, bank details and salary — so it is gated
- * like the write that follows it, not left to RLS alone (which lets every
- * portal reader read all employees).
+ * like the write that follows it, not left to the employees read policy alone
+ * (which lets every portal reader read all employees).
  */
 export async function fetchEmployeeForEdit(code: string): Promise<EmployeeEditRow | null> {
   const gate = await requireStaff('Loading an employee for editing');
@@ -245,36 +280,41 @@ type DbClient = Awaited<ReturnType<typeof createClient>>;
  * creating the department if it doesn't exist yet. Empty name → null (optional field).
  * Matches case-insensitively first so 'sales'/'Sales' don't spawn duplicates.
  */
+
 /**
  * Sentinel the drawer's branch <select> submits when "+ Add new branch…" is
  * chosen. Kept out of any real branch's namespace by the leading underscores.
  */
 const NEW_BRANCH = '__new__';
 
-
 /**
- * Resolve the drawer's branch selection to a branch id, creating the branch
- * when "+ Add new branch…" was chosen — the same pick-or-create shape as
- * resolveDepartmentId, except creation is an explicit option rather than
- * free text, because a branch also needs a state and mistyping a name must
- * not silently spawn a new branch.
+ * Resolve the submitted branch to its id AND its canonical name.
+ *
+ * Pick-or-create, the same shape as resolveDepartmentId — except creation is an
+ * explicit option rather than free text, because a branch also needs a state
+ * and mistyping a name must not silently spawn a new branch.
+ *
+ * The name is returned because employees.branch_name is denormalised — see
+ * the write sites below — and reading it back from the branch row rather than
+ * echoing the form value is what keeps 'pune' from being stored where the
+ * branch is really called 'Pune'.
  */
 async function resolveBranch(
-  supabase: DbClient,
+  dbc: DbClient,
   formData: FormData,
-): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; id: string; name: string } | { ok: false; error: string }> {
   const selected = String(formData.get('branch') ?? '').trim();
 
   if (selected !== NEW_BRANCH) {
     if (!selected) return { ok: false, error: 'Pick a branch.' };
-    const { data, error } = await supabase
+    const { data, error } = await dbc
       .from('branches')
-      .select('id')
+      .select('id, name')
       .eq('name', selected)
       .maybeSingle();
     if (error) return { ok: false, error: error.message };
     if (!data) return { ok: false, error: `Unknown branch: ${selected}` };
-    return { ok: true, id: data.id };
+    return { ok: true, id: data.id, name: data.name };
   }
 
   const name = String(formData.get('branch_new_name') ?? '').trim();
@@ -288,63 +328,58 @@ async function resolveBranch(
 
   // Case-insensitive match first so 'pune'/'Pune' can't spawn duplicates
   // (branches.name is unique, but only case-sensitively).
-  const { data: found, error: findError } = await supabase
+  const { data: found, error: findError } = await dbc
     .from('branches')
-    .select('id')
+    .select('id, name')
     .ilike('name', name)
     .maybeSingle();
   if (findError) return { ok: false, error: findError.message };
-  if (found) return { ok: true, id: found.id };
+  if (found) return { ok: true, id: found.id, name: found.name };
 
-  const { data: created, error } = await supabase
+  const { data: created, error } = await dbc
     .from('branches')
     .insert({ name, state })
-    .select('id')
+    .select('id, name')
     .single();
   if (error) {
     // Unique race: someone created it between our lookup and insert — use theirs.
     if (error.code === '23505') {
-      const { data: raced } = await supabase
+      const { data: raced } = await dbc
         .from('branches')
-        .select('id')
+        .select('id, name')
         .ilike('name', name)
         .maybeSingle();
-      if (raced) return { ok: true, id: raced.id };
+      if (raced) return { ok: true, id: raced.id, name: raced.name };
     }
-    // invalid enum input: the database's indian_state enum doesn't know this
-    // state yet — the full list arrived in migration 0040.
-    if (error.code === '22P02') {
-      return {
-        ok: false,
-        error: `The database does not accept '${state}' as a state yet — apply migration 0040.`,
-      };
-    }
+    // The 22P02 (invalid enum input) branch is gone with Postgres: an
+    // unknown state now fails the collection validator as 23514, and its
+    // message already says which value was rejected.
     return { ok: false, error: `Could not create the branch: ${error.message}` };
   }
-  return { ok: true, id: created!.id };
+  return { ok: true, id: created!.id, name: created!.name };
 }
 
-async function resolveDepartmentId(
-  supabase: DbClient,
+async function resolveDepartment(
+  dbc: DbClient,
   name: string,
   branchId: string,
-): Promise<string | null> {
+): Promise<{ id: string; name: string } | null> {
   const dept = name.trim();
   if (!dept) return null;
-  const { data: found } = await supabase
+  const { data: found } = await dbc
     .from('departments')
-    .select('id')
+    .select('id, name')
     .eq('branch_id', branchId)
     .ilike('name', dept)
     .maybeSingle();
-  if (found) return found.id;
-  const { data: created, error } = await supabase
+  if (found) return { id: found.id, name: found.name };
+  const { data: created, error } = await dbc
     .from('departments')
     .insert({ name: dept, branch_id: branchId })
-    .select('id')
+    .select('id, name')
     .single();
   if (error) throw error;
-  return created!.id;
+  return { id: created!.id, name: created!.name };
 }
 
 /**
@@ -357,13 +392,13 @@ async function resolveDepartmentId(
  * employee; the /leave pool card still shows the gap and its button closes it.
  */
 async function provisionCurrentLeaveYear(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  dbc: Awaited<ReturnType<typeof createClient>>,
 ): Promise<void> {
   // Business year in IST, matching the provisioning cron — not the server TZ.
   const year = Number(
     new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric' }).format(new Date()),
   );
-  await supabase.rpc('fn_provision_leave_balances', { p_year: year });
+  await dbc.rpc('fn_provision_leave_balances', { p_year: year });
 }
 
 export async function createEmployee(formData: FormData) {
@@ -384,30 +419,43 @@ export async function createEmployee(formData: FormData) {
   const aadhaar = parseAadhaar(formData.get('aadhaar'));
   if (!aadhaar.ok) return aadhaar;
 
+  const pan = parsePan(formData.get('pan'));
+  if (!pan.ok) return pan;
+
   const extra = parseBankAndEmergency(formData);
   if (!extra.ok) return extra;
 
-  const supabase = await createClient();
+  const dbc = await createClient();
 
   // The branch arrives as a NAME (or the add-new sentinel); resolve to an id,
   // creating the branch when that was explicitly requested.
-  const branch = await resolveBranch(supabase, formData);
+  const branch = await resolveBranch(dbc, formData);
   if (!branch.ok) return branch;
 
-  let departmentId: string | null;
+  let department: { id: string; name: string } | null;
   try {
-    departmentId = await resolveDepartmentId(supabase, String(formData.get('department') ?? ''), branch.id);
+    department = await resolveDepartment(dbc, String(formData.get('department') ?? ''), branch.id);
   } catch (e: any) {
     return { ok: false, error: e?.message ?? 'Could not save the department.' };
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('employees')
     .insert({
       code,
       full_name: fullName,
       branch_id: branch.id,
-      department_id: departmentId,
+      department_id: department?.id ?? null,
+      // DENORMALISED, and written on every create and update.
+      //
+      // The port replaced the branches/departments join with these columns —
+      // views.ts groups the board by branch_name, fn_on_leave_today reads it,
+      // and getEmployees renders `branch_name ?? ''` with no join to fall back
+      // on. Nothing wrote them: only renaming a branch back-filled the column
+      // (actions/branches.ts), so until someone renamed a branch every
+      // employee had null and the whole company grouped under 'Unassigned'.
+      branch_name: branch.name,
+      department_name: department?.name ?? null,
       designation: (formData.get('designation') as string) || null,
       gender: String(formData.get('gender') ?? 'Male') as 'Male' | 'Female' | 'Other',
       date_of_joining: dateOfJoining,
@@ -418,7 +466,7 @@ export async function createEmployee(formData: FormData) {
       email_official: (formData.get('email_official') as string) || null,
       email_personal: (formData.get('email_personal') as string) || null,
       aadhaar: aadhaar.value,
-      pan: (formData.get('pan') as string) || null,
+      pan: pan.value,
       pf_uan: (formData.get('pf_uan') as string) || null,
       esic_number: (formData.get('esic_number') as string) || null,
       ...extra.fields,
@@ -430,9 +478,6 @@ export async function createEmployee(formData: FormData) {
     .select('id');
 
   if (error) {
-    if (isMissingMigration(error)) {
-      return migrationError();
-    }
     if (error.code === '23505') {
       const dup = /aadhaar/i.test(error.message)
         ? 'That Aadhaar number is already registered to another employee.'
@@ -456,7 +501,7 @@ export async function createEmployee(formData: FormData) {
 
   // Their 15-day paid-leave pool, so approving their first leave deducts from a
   // real balance instead of warning "no balance on record".
-  await provisionCurrentLeaveYear(supabase).catch(() => undefined);
+  await provisionCurrentLeaveYear(dbc).catch(() => undefined);
 
   // Welcome email — BEST-EFFORT and last: it is sent through our own SMTP
   // (src/lib/email.ts) and a mail failure must never undo a saved employee. When
@@ -507,27 +552,40 @@ export async function updateEmployee(formData: FormData) {
   const aadhaar = parseAadhaar(formData.get('aadhaar'));
   if (!aadhaar.ok) return aadhaar;
 
+  const pan = parsePan(formData.get('pan'));
+  if (!pan.ok) return pan;
+
   const extra = parseBankAndEmergency(formData);
   if (!extra.ok) return extra;
 
-  const supabase = await createClient();
+  const dbc = await createClient();
 
-  const branch = await resolveBranch(supabase, formData);
+  const branch = await resolveBranch(dbc, formData);
   if (!branch.ok) return branch;
 
-  let departmentId: string | null;
+  let department: { id: string; name: string } | null;
   try {
-    departmentId = await resolveDepartmentId(supabase, String(formData.get('department') ?? ''), branch.id);
+    department = await resolveDepartment(dbc, String(formData.get('department') ?? ''), branch.id);
   } catch (e: any) {
     return { ok: false, error: e?.message ?? 'Could not save the department.' };
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('employees')
     .update({
       full_name: fullName,
       branch_id: branch.id,
-      department_id: departmentId,
+      department_id: department?.id ?? null,
+      // DENORMALISED, and written on every create and update.
+      //
+      // The port replaced the branches/departments join with these columns —
+      // views.ts groups the board by branch_name, fn_on_leave_today reads it,
+      // and getEmployees renders `branch_name ?? ''` with no join to fall back
+      // on. Nothing wrote them: only renaming a branch back-filled the column
+      // (actions/branches.ts), so until someone renamed a branch every
+      // employee had null and the whole company grouped under 'Unassigned'.
+      branch_name: branch.name,
+      department_name: department?.name ?? null,
       designation: (formData.get('designation') as string) || null,
       gender: String(formData.get('gender') ?? 'Male') as 'Male' | 'Female' | 'Other',
       date_of_joining: dateOfJoining,
@@ -538,7 +596,7 @@ export async function updateEmployee(formData: FormData) {
       email_official: (formData.get('email_official') as string) || null,
       email_personal: (formData.get('email_personal') as string) || null,
       aadhaar: aadhaar.value,
-      pan: (formData.get('pan') as string) || null,
+      pan: pan.value,
       pf_uan: (formData.get('pf_uan') as string) || null,
       esic_number: (formData.get('esic_number') as string) || null,
       ...extra.fields,
@@ -551,9 +609,6 @@ export async function updateEmployee(formData: FormData) {
     .select('id');
 
   if (error) {
-    if (isMissingMigration(error)) {
-      return migrationError();
-    }
     if (error.code === '23505') {
       const dup = /aadhaar/i.test(error.message)
         ? 'That Aadhaar number is already registered to another employee.'
@@ -581,8 +636,8 @@ export async function deactivateEmployee(code: string) {
   const gate = await requireStaff('Deactivating an employee');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('employees')
     .update({ status: 'inactive' })
     .eq('code', code)
@@ -617,8 +672,8 @@ export async function reactivateEmployee(code: string) {
   const gate = await requireStaff('Reactivating an employee');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('employees')
     .update({ status: 'active' })
     .eq('code', code)
@@ -644,7 +699,7 @@ export async function reactivateEmployee(code: string) {
 
   // A rehire was invisible to provisioning while inactive — fill the missing
   // paid-leave row for the current year. Idempotent and best-effort (above).
-  await provisionCurrentLeaveYear(supabase).catch(() => undefined);
+  await provisionCurrentLeaveYear(dbc).catch(() => undefined);
 
   revalidatePath('/employees');
   revalidatePath('/leave');

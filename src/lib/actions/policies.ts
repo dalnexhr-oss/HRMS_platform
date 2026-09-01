@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/_guard';
 import { notifyEveryone } from '@/lib/notify';
@@ -16,20 +16,20 @@ export async function acknowledgePolicy(policyId: string) {
 
   const { profile } = await getSession();
   if (!profile?.employee_id) {
-    // Not a transient failure: the RLS insert policy pins employee_id to
-    // current_employee_id(), so an account with no linked employee record has no
-    // way to file a receipt at all. Say so rather than failing vaguely.
+    // Not a transient failure: the insert rule pins employee_id to the
+    // caller's own, so an account with no linked employee record has no way to
+    // file a receipt at all. Say so rather than failing vaguely.
     return {
       ok: false,
       error: 'Your login is not linked to an employee record, so the receipt could not be filed. Ask HR to link it.',
     };
   }
 
-  const supabase = await createClient();
+  const dbc = await createClient();
   // .select('id') is what makes a silent no-op detectable — without it a write
   // that inserted nothing is indistinguishable from one that worked. Reading the
   // row back is permitted: acks_portal_read allows employee_id = current_employee_id().
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('policy_acknowledgements')
     .insert({ policy_id: policyId, employee_id: profile.employee_id })
     .select('id');
@@ -43,9 +43,6 @@ export async function acknowledgePolicy(policyId: string) {
       revalidatePath('/policies');
       return { ok: true };
     }
-    if (error.code === '42P01' || error.code === 'PGRST205') {
-      return { ok: false, error: 'Company policies are not set up on the database yet — apply migration 0004.' };
-    }
     if (error.code === '42501') {
       return {
         ok: false,
@@ -58,7 +55,7 @@ export async function acknowledgePolicy(policyId: string) {
     return { ok: false, error: 'The policy was not marked as read — nothing was saved. Reload and try again.' };
   }
 
-  await clearPolicyNag(supabase, policyId);
+  await clearPolicyNag(dbc, policyId);
 
   // 'layout' scope, not just '/me': the notification bell is rendered by the
   // route-group LAYOUT, so revalidating only the page would leave the nag we
@@ -77,25 +74,26 @@ export async function acknowledgePolicy(policyId: string) {
  * on "the nag for THIS policy" is the exact title notifyEveryone wrote (see
  * createPolicy / setPolicyPublished below). Renaming a policy after publishing
  * orphans its nag; that is the cost of not having an entity id, and it fails
- * safe (a stale nag, never a wrongly-cleared one). RLS scopes the UPDATE to the
- * caller's own rows, so this cannot touch anyone else's notifications.
+ * safe (a stale nag, never a wrongly-cleared one). The notifications policy
+ * scopes the UPDATE to the caller's own rows, so this cannot touch anyone
+ * else's notifications.
  *
  * Best-effort: a failure here must not fail the acknowledgement itself.
  */
 async function clearPolicyNag(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  dbc: Awaited<ReturnType<typeof createClient>>,
   policyId: string,
 ): Promise<void> {
-  const { data: policy } = await supabase
+  const { data: policy } = await dbc
     .from('policies')
     .select('title')
     .eq('id', policyId)
     .maybeSingle<{ title: string }>();
   if (!policy?.title) return;
 
-  await supabase
+  await dbc
     .from('notifications')
-    .update({ read_at: new Date().toISOString() })
+    .update({ read_at: new Date() })
     .eq('kind', 'policy')
     .eq('title', `New policy to read: ${policy.title}`)
     .is('read_at', null);
@@ -111,8 +109,8 @@ export async function createPolicy(formData: FormData) {
   if (!title) return { ok: false, error: 'Please enter a title.' };
   if (!body) return { ok: false, error: 'Please enter the policy body.' };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('policies')
     .insert({
       title,
@@ -151,8 +149,8 @@ export async function setPolicyPublished(policyId: string, published: boolean) {
   const gate = await requireStaff('Publishing a policy');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('policies')
     .update({ published })
     .eq('id', policyId)
@@ -168,7 +166,7 @@ export async function setPolicyPublished(policyId: string, published: boolean) {
   // Publishing an existing draft is the moment it becomes readable, so it
   // notifies then too — un-publishing deliberately does not.
   if (published) {
-    const { data: policy } = await supabase
+    const { data: policy } = await dbc
       .from('policies')
       .select('title')
       .eq('id', policyId)
@@ -199,8 +197,8 @@ export async function updatePolicy(id: string, formData: FormData) {
   if (!title) return { ok: false, error: 'Please enter a title.' };
   if (!body) return { ok: false, error: 'Please enter the policy body.' };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('policies')
     .update({
       title,
@@ -226,8 +224,8 @@ export async function deletePolicy(id: string) {
   const gate = await requireStaff('Deleting a policy');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('policies').delete().eq('id', id).select('id');
+  const dbc = await createClient();
+  const { data, error } = await dbc.from('policies').delete().eq('id', id).select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
     return { ok: false, error: 'The policy was not removed — it may already be gone, or your role lacks permission.' };

@@ -1,12 +1,13 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { getItemAssignments, type ItemAssignmentRow } from '@/lib/queries';
 import { notifyEmployee } from '@/lib/notify';
 import { requireRoles, wroteNothing } from './_guard';
 import type { AppRole } from '@/types/database';
+import { todayIST } from '@/lib/format';
 
 // Item Management is super-admin/admin/HR — same gate as assets and user admin.
 const ITEM_ADMIN_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
@@ -40,8 +41,8 @@ export async function createItem(formData: FormData) {
   const fields = itemFields(formData);
   if (!fields.item_name) return { ok: false, error: 'Item name is required.' };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('items').insert(fields).select('id');
+  const dbc = await createClient();
+  const { data, error } = await dbc.from('items').insert(fields).select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
     return { ok: false, error: 'The item was not added — your account may not have permission.' };
@@ -60,8 +61,8 @@ export async function updateItem(formData: FormData) {
   const fields = itemFields(formData);
   if (!fields.item_name) return { ok: false, error: 'Item name is required.' };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('items').update(fields).eq('id', id).select('id');
+  const dbc = await createClient();
+  const { data, error } = await dbc.from('items').update(fields).eq('id', id).select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
     return {
@@ -77,8 +78,8 @@ export async function deleteItem(id: string) {
   const gate = await requireRoles(ITEM_ADMIN_ROLES, 'Deleting an item');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('items').delete().eq('id', id).select('id');
+  const dbc = await createClient();
+  const { data, error } = await dbc.from('items').delete().eq('id', id).select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
     return {
@@ -106,10 +107,10 @@ export async function assignItem(formData: FormData) {
     return { ok: false, error: 'Enter a quantity greater than zero.' };
   }
 
-  const supabase = await createClient();
+  const dbc = await createClient();
 
   // How much is still available? Read the derived remaining from v_items.
-  const { data: item, error: itemErr } = await supabase
+  const { data: item, error: itemErr } = await dbc
     .from('v_items')
     .select('item_name, quantity_remaining')
     .eq('id', itemId)
@@ -124,7 +125,7 @@ export async function assignItem(formData: FormData) {
   }
 
   // Snapshot the employee's name + code so the log survives if they are removed.
-  const { data: emp, error: empErr } = await supabase
+  const { data: emp, error: empErr } = await dbc
     .from('employees')
     .select('code, full_name')
     .eq('id', employeeId)
@@ -146,7 +147,7 @@ export async function assignItem(formData: FormData) {
   // Omit assigned_date when blank so the column default (current_date) applies.
   if (assignedDate) row.assigned_date = assignedDate;
 
-  const { data, error } = await supabase.from('item_assignments').insert(row).select('id');
+  const { data, error } = await dbc.from('item_assignments').insert(row).select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
     return { ok: false, error: 'The assignment was not saved — your role may lack permission.' };
@@ -167,10 +168,10 @@ export async function returnAssignment(id: string) {
   const gate = await requireRoles(ITEM_ADMIN_ROLES, 'Returning an item');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('item_assignments')
-    .update({ returned: true, returned_date: new Date().toISOString().slice(0, 10) })
+    .update({ returned: true, returned_date: todayIST() })
     .eq('id', id)
     .eq('returned', false)
     .select('id, quantity, employee_id, items(item_name)');
@@ -199,8 +200,8 @@ export async function deleteAssignment(id: string) {
   const gate = await requireRoles(ITEM_ADMIN_ROLES, 'Deleting an assignment');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('item_assignments')
     .delete()
     .eq('id', id)

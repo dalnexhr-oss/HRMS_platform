@@ -15,8 +15,8 @@
 // mistake the old single button made.
 // ============================================================================
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
-import { getSession } from '@/lib/auth';
+import { toMoney } from '@/lib/db/money';
+import { createClient } from '@/lib/db/server';
 import { requireRoles, wroteNothing } from '@/lib/actions/_guard';
 import {
   getClearanceItems as readClearanceItems,
@@ -76,9 +76,9 @@ export async function initiateExit(input: {
     return { ok: false, error: 'The last working day cannot be before the resignation date.' };
   }
 
-  const supabase = await createClient();
+  const dbc = await createClient();
 
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('exit_cases')
     .insert({
       employee_id: input.employeeId,
@@ -95,9 +95,6 @@ export async function initiateExit(input: {
     if (error.code === '23505') {
       return { ok: false, error: 'This employee already has an exit in progress.' };
     }
-    if (error.code === '42P01' || error.code === 'PGRST205') {
-      return { ok: false, error: 'The exit workflow is not set up on the database yet — apply migration 0037.' };
-    }
     return { ok: false, error: error.message };
   }
   if (wroteNothing(data)) return { ok: false, error: 'The exit was not started — your role may lack permission.' };
@@ -109,7 +106,7 @@ export async function initiateExit(input: {
   const noticeDays = Math.round(
     (Date.parse(`${input.lastWorkingDay}T00:00:00Z`) - Date.parse(`${input.resignationDate}T00:00:00Z`)) / 86_400_000,
   );
-  const { data: mirrored, error: mirrorErr } = await supabase
+  const { data: mirrored, error: mirrorErr } = await dbc
     .from('employees')
     .update({
       status: 'on_notice',
@@ -127,7 +124,7 @@ export async function initiateExit(input: {
       : null;
 
   const caseId = (data![0] as { id: string }).id;
-  const seedProblem = await seedClearance(supabase, caseId, input.employeeId);
+  const seedProblem = await seedClearance(dbc, caseId, input.employeeId);
 
   revalidatePath('/exits');
   revalidatePath('/employees');
@@ -144,7 +141,7 @@ export async function initiateExit(input: {
  * means a second call after a return does not duplicate rows.
  */
 async function seedClearance(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  dbc: Awaited<ReturnType<typeof createClient>>,
   exitCaseId: string,
   employeeId: string,
 ): Promise<string | null> {
@@ -152,7 +149,7 @@ async function seedClearance(
 
   // A failed read must NOT seed an empty checklist — an empty checklist reads
   // as "clearance complete" and lets the exit advance with assets outstanding.
-  const { data: assets, error: assetErr } = await supabase
+  const { data: assets, error: assetErr } = await dbc
     .from('assets')
     .select('id, desktop_name')
     .eq('assigned_employee_id', employeeId);
@@ -166,7 +163,7 @@ async function seedClearance(
     });
   }
 
-  const { data: items, error: itemErr } = await supabase
+  const { data: items, error: itemErr } = await dbc
     .from('item_assignments')
     .select('id, quantity, items(item_name)')
     .eq('employee_id', employeeId)
@@ -183,7 +180,7 @@ async function seedClearance(
 
   if (rows.length === 0) return null;
   // Ignore duplicate-key noise: re-seeding is the expected workflow.
-  const { error: seedErr } = await supabase.from('exit_clearance_items').upsert(rows, {
+  const { error: seedErr } = await dbc.from('exit_clearance_items').upsert(rows, {
     onConflict: 'exit_case_id,area,reference_id',
     ignoreDuplicates: true,
   });
@@ -220,15 +217,12 @@ export async function ensureExitInterview(exitCaseId: string): Promise<ActionRes
   const gate = await requireRoles(EXIT_ROLES, 'Opening the exit interview');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
-  const { count, error: countErr } = await supabase
+  const dbc = await createClient();
+  const { count, error: countErr } = await dbc
     .from('exit_interviews')
     .select('id', { count: 'exact', head: true })
     .eq('exit_case_id', exitCaseId);
   if (countErr) {
-    if (countErr.code === '42P01' || countErr.code === 'PGRST205') {
-      return { ok: false, error: 'The exit workflow is not set up on the database yet — apply migration 0037.' };
-    }
     return { ok: false, error: countErr.message };
   }
   if ((count ?? 0) > 0) return { ok: true }; // already open
@@ -238,7 +232,7 @@ export async function ensureExitInterview(exitCaseId: string): Promise<ActionRes
     question,
     interviewer_id: gate.profileId,
   }));
-  const { error } = await supabase.from('exit_interviews').insert(rows);
+  const { error } = await dbc.from('exit_interviews').insert(rows);
   if (error) return { ok: false, error: error.message };
 
   revalidatePath('/exits');
@@ -259,13 +253,13 @@ export async function saveExitInterview(
   const clean = (Array.isArray(answers) ? answers : []).filter((a) => UUID_RE.test(String(a?.id ?? '')));
   if (clean.length === 0) return { ok: false, error: 'Nothing to save.' };
 
-  const supabase = await createClient();
-  const now = new Date().toISOString();
+  const dbc = await createClient();
+  const now = new Date();
   // Per-row updates: an upsert would need the full row and could overwrite the
   // question text, which is exactly what must stay immutable here.
   for (const a of clean) {
     const answer = String(a.answer ?? '').trim();
-    const { error } = await supabase
+    const { error } = await dbc
       .from('exit_interviews')
       .update({
         answer: answer || null,
@@ -309,8 +303,8 @@ export async function addKtItem(input: {
 
   const handoverTo = input.handoverTo && UUID_RE.test(input.handoverTo) ? input.handoverTo : null;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('knowledge_transfer_items')
     .insert({
       exit_case_id: input.exitCaseId,
@@ -320,9 +314,6 @@ export async function addKtItem(input: {
     })
     .select('id');
   if (error) {
-    if (error.code === '42P01' || error.code === 'PGRST205') {
-      return { ok: false, error: 'The exit workflow is not set up on the database yet — apply migration 0037.' };
-    }
     return { ok: false, error: error.message };
   }
   if (wroteNothing(data)) return { ok: false, error: 'The item was not added — your role may lack permission.' };
@@ -339,8 +330,8 @@ export async function setKtStatus(id: string, status: string): Promise<ActionRes
     return { ok: false, error: `Invalid status: ${status || '(missing)'}` };
   }
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('knowledge_transfer_items')
     .update({ status })
     .eq('id', id)
@@ -357,8 +348,8 @@ export async function deleteKtItem(id: string): Promise<ActionResult> {
   const gate = await requireRoles(EXIT_ROLES, 'Deleting a handover item');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('knowledge_transfer_items')
     .delete()
     .eq('id', id)
@@ -380,15 +371,15 @@ export async function refreshExitClearance(exitCaseId: string): Promise<ActionRe
   const gate = await requireRoles(EXIT_ROLES, 'Refreshing clearance');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
-  const { data: kase } = await supabase
+  const dbc = await createClient();
+  const { data: kase } = await dbc
     .from('exit_cases')
     .select('id, employee_id')
     .eq('id', exitCaseId)
     .maybeSingle<{ id: string; employee_id: string }>();
   if (!kase) return { ok: false, error: 'That exit case no longer exists.' };
 
-  const seedProblem = await seedClearance(supabase, kase.id, kase.employee_id);
+  const seedProblem = await seedClearance(dbc, kase.id, kase.employee_id);
   if (seedProblem) return { ok: false, error: `Clearance could not be refreshed — ${seedProblem}.` };
   revalidatePath('/exits');
   return { ok: true };
@@ -399,13 +390,13 @@ export async function setClearanceItemCleared(id: string, cleared: boolean): Pro
   const gate = await requireRoles(EXIT_ROLES, 'Clearing an exit item');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('exit_clearance_items')
     .update({
       cleared,
       cleared_by: cleared ? gate.profileId : null,
-      cleared_at: cleared ? new Date().toISOString() : null,
+      cleared_at: cleared ? new Date() : null,
     })
     .eq('id', id)
     .select('id');
@@ -424,15 +415,16 @@ export async function setExitStage(
   const gate = await requireRoles(EXIT_ROLES, 'Changing the exit stage');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
+  const dbc = await createClient();
 
   // Guard the two transitions that must not be taken on trust. FAIL CLOSED:
   // the view (0037 §7) emits a row for EVERY exit case, so a missing row means
-  // the case is gone, RLS filtered it, or the read failed — never "all clear".
+  // the case is gone, the policy filtered it, or the read failed — never
+  // "all clear".
   // The old check only blocked when a row said not-complete, which let an exit
   // advance past an unreturned laptop whenever the read came back empty.
   if (stage === 'settlement' || stage === 'completed') {
-    const { data: pending, error: pendingErr } = await supabase
+    const { data: pending, error: pendingErr } = await dbc
       .from('v_exit_clearance_pending')
       .select('assets_outstanding, items_outstanding, clearance_items_open, clearance_complete')
       .eq('exit_case_id', exitCaseId)
@@ -464,7 +456,7 @@ export async function setExitStage(
   }
 
   if (stage === 'completed') {
-    const { data: fnf } = await supabase
+    const { data: fnf } = await dbc
       .from('full_and_final')
       .select('status')
       .eq('exit_case_id', exitCaseId)
@@ -474,9 +466,9 @@ export async function setExitStage(
     }
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('exit_cases')
-    .update({ stage, completed_at: stage === 'completed' ? new Date().toISOString() : null })
+    .update({ stage, completed_at: stage === 'completed' ? new Date() : null })
     .eq('id', exitCaseId)
     .select('id, employee_id');
   if (error) return { ok: false, error: error.message };
@@ -487,7 +479,7 @@ export async function setExitStage(
   // that keep alumni logins alive; anything but an explicit false deactivates.
   let warning: string | undefined;
   if (stage === 'completed') {
-    const { data: autoSetting } = await supabase
+    const { data: autoSetting } = await dbc
       .from('settings')
       .select('value')
       .eq('key', 'exit_auto_deactivate')
@@ -496,7 +488,7 @@ export async function setExitStage(
 
     if (autoDeactivate) {
       const { employee_id } = data![0] as { employee_id: string };
-      const { data: emp } = await supabase
+      const { data: emp } = await dbc
         .from('employees')
         .select('code')
         .eq('id', employee_id)
@@ -529,8 +521,8 @@ export async function prepareFullAndFinal(exitCaseId: string): Promise<ActionRes
   const gate = await requireRoles(EXIT_ROLES, 'Preparing the settlement');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
-  const { data: kase } = await supabase
+  const dbc = await createClient();
+  const { data: kase } = await dbc
     .from('exit_cases')
     .select('id, employee_id')
     .eq('id', exitCaseId)
@@ -538,7 +530,7 @@ export async function prepareFullAndFinal(exitCaseId: string): Promise<ActionRes
   if (!kase) return { ok: false, error: 'That exit case no longer exists.' };
 
   // Approved but not yet paid reimbursements follow the employee out.
-  const { data: claims } = await supabase
+  const { data: claims } = await dbc
     .from('reimbursement_claims')
     .select('amount, status')
     .eq('employee_id', kase.employee_id)
@@ -548,7 +540,7 @@ export async function prepareFullAndFinal(exitCaseId: string): Promise<ActionRes
     0,
   );
 
-  const { data: enc } = await supabase
+  const { data: enc } = await dbc
     .from('leave_encashment')
     .select('amount, status')
     .eq('employee_id', kase.employee_id)
@@ -558,18 +550,20 @@ export async function prepareFullAndFinal(exitCaseId: string): Promise<ActionRes
   const round2 = (n: number) => Math.round(n * 100) / 100;
   const netPayable = round2(pendingReimbursements + leaveEncashment);
 
-  const { error } = await supabase.from('full_and_final').upsert(
+  const { error } = await dbc.from('full_and_final').upsert(
     {
       exit_case_id: exitCaseId,
-      salary_payable: 0,
-      leave_encashment: round2(leaveEncashment),
-      pending_reimbursements: round2(pendingReimbursements),
-      asset_recovery: 0,
-      other_deductions: 0,
-      net_payable: netPayable,
+      // Every figure here is a `decimal` column, so each goes in as
+      // Decimal128 — an int32 0 fails the validator just as a double does.
+      salary_payable: toMoney(0),
+      leave_encashment: toMoney(round2(leaveEncashment)),
+      pending_reimbursements: toMoney(round2(pendingReimbursements)),
+      asset_recovery: toMoney(0),
+      other_deductions: toMoney(0),
+      net_payable: toMoney(netPayable),
       status: 'draft',
       prepared_by: gate.profileId,
-      updated_at: new Date().toISOString(),
+      updated_at: new Date(),
     },
     { onConflict: 'exit_case_id' },
   );
@@ -604,17 +598,17 @@ export async function updateFullAndFinal(
   const deductions = n(fields.otherDeductions);
   const net = Math.round((salary + leave + reimb - recovery - deductions) * 100) / 100;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('full_and_final')
     .update({
-      salary_payable: salary,
-      leave_encashment: leave,
-      pending_reimbursements: reimb,
-      asset_recovery: recovery,
-      other_deductions: deductions,
-      net_payable: net,
-      updated_at: new Date().toISOString(),
+      salary_payable: toMoney(salary),
+      leave_encashment: toMoney(leave),
+      pending_reimbursements: toMoney(reimb),
+      asset_recovery: toMoney(recovery),
+      other_deductions: toMoney(deductions),
+      net_payable: toMoney(net),
+      updated_at: new Date(),
     })
     .eq('exit_case_id', exitCaseId)
     .eq('status', 'draft')
@@ -637,14 +631,14 @@ export async function setFullAndFinalStatus(
   if (!gate.ok) return gate;
 
   const from = status === 'approved' ? 'draft' : 'approved';
-  const supabase = await createClient();
-  const patch: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
+  const dbc = await createClient();
+  const patch: Record<string, unknown> = { status, updated_at: new Date() };
   if (status === 'approved') {
     patch.approved_by = gate.profileId;
-    patch.approved_at = new Date().toISOString();
+    patch.approved_at = new Date();
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('full_and_final')
     .update(patch)
     .eq('exit_case_id', exitCaseId)
@@ -673,8 +667,8 @@ export async function generateExitDocument(
   const gate = await requireRoles(EXIT_ROLES, 'Generating an exit document');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
-  const { data: kase } = await supabase
+  const dbc = await createClient();
+  const { data: kase } = await dbc
     .from('exit_cases')
     .select('id, employee_id, last_working_day, employees(code, full_name, date_of_joining, designation)')
     .eq('id', exitCaseId)
@@ -704,7 +698,7 @@ export async function generateExitDocument(
     spec = buildExperienceLetter(base);
     filename = `experience-${base.employeeCode}.pdf`;
   } else {
-    const { data: fnf } = await supabase
+    const { data: fnf } = await dbc
       .from('full_and_final')
       .select('salary_payable, leave_encashment, pending_reimbursements, asset_recovery, other_deductions, net_payable')
       .eq('exit_case_id', exitCaseId)
@@ -738,7 +732,7 @@ export async function generateExitDocument(
   // The PDF went to generated-documents, NOT the employee-documents bucket the
   // register historically assumed. Recording the bucket is what lets
   // getDocumentUrl sign it against the right one (0039).
-  const { data: docRow, error: docErr } = await supabase
+  const { data: docRow, error: docErr } = await dbc
     .from('employee_documents')
     .insert({
       employee_id: kase.employee_id,
@@ -751,7 +745,7 @@ export async function generateExitDocument(
       // it here keeps it out of getUnverifiedDocuments, which is HR's "an
       // employee filed something, please check it" queue — not a self-review one.
       verified_by: gate.profileId,
-      verified_at: new Date().toISOString(),
+      verified_at: new Date(),
     })
     .select('id');
   if (docErr) {

@@ -1,12 +1,13 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { notifyEmployee } from '@/lib/notify';
 import { getAssetAssignments, getAssetMaintenance } from '@/lib/queries';
 import { requireRoles, wroteNothing } from './_guard';
 import type { AppRole } from '@/types/database';
+import { todayIST } from '@/lib/format';
 
 /** Client-callable wrappers for the per-asset drawer (queries.ts is server-only). */
 export async function fetchAssetAssignments(assetId: string) {
@@ -50,8 +51,8 @@ export async function createAsset(formData: FormData) {
   const fields = assetFields(formData);
   if (!fields.desktop_name) return { ok: false, error: 'Desktop name is required.' };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('assets').insert(fields).select('id');
+  const dbc = await createClient();
+  const { data, error } = await dbc.from('assets').insert(fields).select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
     return { ok: false, error: 'The asset was not added — your account may not have permission.' };
@@ -70,8 +71,8 @@ export async function updateAsset(formData: FormData) {
   const fields = assetFields(formData);
   if (!fields.desktop_name) return { ok: false, error: 'Desktop name is required.' };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('assets').update(fields).eq('id', id).select('id');
+  const dbc = await createClient();
+  const { data, error } = await dbc.from('assets').update(fields).eq('id', id).select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
     return {
@@ -93,10 +94,10 @@ export async function assignAsset(formData: FormData) {
   if (!assetId) return { ok: false, error: 'Which asset to assign is missing.' };
   if (!employeeId) return { ok: false, error: 'Choose an employee to assign to.' };
 
-  const supabase = await createClient();
+  const dbc = await createClient();
 
   // Snapshot the employee's name + code so the record survives their removal.
-  const { data: emp, error: empErr } = await supabase
+  const { data: emp, error: empErr } = await dbc
     .from('employees')
     .select('code, full_name')
     .eq('id', employeeId)
@@ -106,8 +107,8 @@ export async function assignAsset(formData: FormData) {
 
   const { profile } = await getSession();
 
-  const assignedDate = new Date().toISOString().slice(0, 10);
-  const { data, error } = await supabase
+  const assignedDate = todayIST();
+  const { data, error } = await dbc
     .from('assets')
     .update({
       assigned_employee_id: employeeId,
@@ -127,7 +128,7 @@ export async function assignAsset(formData: FormData) {
   // on the asset row is the source of truth for the CURRENT holder; a failed
   // history insert must not fail the assignment, so it is logged, not fatal.
   const remarks = String(formData.get('remarks') ?? '').trim() || null;
-  const { error: histErr } = await supabase.from('asset_assignments').insert({
+  const { error: histErr } = await dbc.from('asset_assignments').insert({
     asset_id: assetId,
     employee_id: employeeId,
     person_name: emp.full_name,
@@ -155,10 +156,10 @@ export async function unassignAsset(id: string) {
   const gate = await requireRoles(ASSET_ADMIN_ROLES, 'Unassigning an asset');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
+  const dbc = await createClient();
 
   // Read the prior holder BEFORE clearing it — the update would null it out.
-  const { data: before, error: readErr } = await supabase
+  const { data: before, error: readErr } = await dbc
     .from('assets')
     .select('assigned_employee_id, desktop_name, brand')
     .eq('id', id)
@@ -169,7 +170,7 @@ export async function unassignAsset(id: string) {
     return { ok: false, error: 'Nothing to unassign — the asset is not assigned.' };
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('assets')
     .update({
       assigned_employee_id: null,
@@ -186,9 +187,9 @@ export async function unassignAsset(id: string) {
   }
 
   // Close the open history row for this holder (best-effort).
-  const { error: histErr } = await supabase
+  const { error: histErr } = await dbc
     .from('asset_assignments')
-    .update({ returned: true, returned_date: new Date().toISOString().slice(0, 10) })
+    .update({ returned: true, returned_date: todayIST() })
     .eq('asset_id', id)
     .eq('employee_id', before.assigned_employee_id)
     .eq('returned', false);
@@ -219,12 +220,12 @@ export async function createAssetMaintenance(formData: FormData) {
   if (cost != null && !Number.isFinite(cost)) return { ok: false, error: 'Cost must be a number.' };
 
   const { profile } = await getSession();
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('asset_maintenance')
     .insert({
       asset_id: assetId,
-      maint_date: text('maint_date') ?? new Date().toISOString().slice(0, 10),
+      maint_date: text('maint_date') ?? todayIST(),
       maint_type: text('maint_type'),
       cost,
       vendor: text('vendor'),
@@ -245,8 +246,8 @@ export async function deleteAsset(id: string) {
   const gate = await requireRoles(ASSET_ADMIN_ROLES, 'Deleting an asset');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('assets').delete().eq('id', id).select('id');
+  const dbc = await createClient();
+  const { data, error } = await dbc.from('assets').delete().eq('id', id).select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
     return {

@@ -10,7 +10,7 @@
 // correction is auditable rather than invisible.
 // ============================================================================
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
 import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/_guard';
 import {
   autoCloseDay,
@@ -43,17 +43,17 @@ export async function runNightSweep(dateISO?: string): Promise<SweepResult> {
       dateISO ??
       new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
 
-    const supabase = await createClient();
+    const dbc = await createClient();
 
     // The date is caller-supplied, so without this a staff user could sweep an
     // arbitrary PAST date and mass-rewrite punch_out values behind an already
     // locked/paid payroll month.
-    const monthOpen = await requireOpenPayrollMonth(supabase, date);
+    const monthOpen = await requireOpenPayrollMonth(dbc, date);
     if (!monthOpen.ok) return { ok: false, error: monthOpen.error };
 
     const autoOutMin = await getAutoPunchOutMinutes();
 
-    const { data, error } = await supabase
+    const { data, error } = await dbc
       .from('attendance_days')
       .select('id, employee_id, work_date, punch_in')
       .eq('work_date', date)
@@ -74,7 +74,7 @@ export async function runNightSweep(dateISO?: string): Promise<SweepResult> {
       const result = autoCloseDay(inMin, null, autoOutMin);
       if (!result) continue; // unparseable punch-in — leave it for a human
 
-      const { error: updErr, data: updated } = await supabase
+      const { error: updErr, data: updated } = await dbc
         .from('attendance_days')
         .update({
           punch_out: minutesToClock(result.outMin),
@@ -96,7 +96,7 @@ export async function runNightSweep(dateISO?: string): Promise<SweepResult> {
     }
 
     if (closed > 0) {
-      await supabase.from('activity_log').insert({
+      await dbc.from('activity_log').insert({
         actor_id: gate.profileId,
         event_type: 'night_sweep',
         message: `Night sweep closed ${closed} open session${closed === 1 ? '' : 's'} for ${date} — auto punched-out at ${minutesToClock(autoOutMin)}.`,

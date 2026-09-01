@@ -1,12 +1,13 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
-import { isSupabaseConfigured, getWeekOffPolicy, getHolidays } from '@/lib/queries';
+import { createClient } from '@/lib/db/server';
+import { isMongoConfigured, getWeekOffPolicy, getHolidays } from '@/lib/queries';
 import { countLeaveDays, isScheduledWeekOff } from '@/lib/week-off';
 import { getSession } from '@/lib/auth';
 import { requireStaff } from '@/lib/actions/_guard';
 import { releaseCompOff, settleApprovedCompOff } from '@/lib/compoff-settle';
+import { toDecimal } from '@/lib/db/money';
 import { notifyApprovers, notifyEmployee } from '@/lib/notify';
 import type { LeaveType, RequestType } from '@/types/database';
 
@@ -79,8 +80,8 @@ async function leaveDayCount(startISO: string, endISO: string, start: Date, end:
 /** The configurable sandwich-leave toggle (settings key seeded by 0036). */
 async function getSandwichPolicy(): Promise<boolean> {
   try {
-    const supabase = await createClient();
-    const { data } = await supabase
+    const dbc = await createClient();
+    const { data } = await dbc
       .from('settings')
       .select('value')
       .eq('key', 'leave_sandwich_policy')
@@ -96,7 +97,7 @@ async function getSandwichPolicy(): Promise<boolean> {
 function revalidateRequestViews(): void {
   revalidatePath('/me');
   revalidatePath('/approvals');
-  revalidatePath('/hr');
+  revalidatePath('/leaveManagment');
 }
 
 /** Every 'YYYY-MM-DD' in an inclusive span (small spans only — capped upstream). */
@@ -127,7 +128,7 @@ function enumerateDays(startISO: string, endISO: string): string[] {
  * itself already stands.
  */
 async function stampLeaveOnRegister(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  dbc: Awaited<ReturnType<typeof createClient>>,
   employeeId: string,
   startISO: string,
   endISO: string,
@@ -147,7 +148,7 @@ async function stampLeaveOnRegister(
     }). Mark the day(s) L from the register.`;
   }
 
-  const { data: existing, error: readErr } = await supabase
+  const { data: existing, error: readErr } = await dbc
     .from('attendance_days')
     .select('work_date, status')
     .eq('employee_id', employeeId)
@@ -164,7 +165,7 @@ async function stampLeaveOnRegister(
   // Check each involved month's payroll state once, not per day.
   const lockedMonths = new Set<string>();
   for (const month of new Set(days.map((d) => d.slice(0, 7)))) {
-    const gate = await requireOpenPayrollMonthShim(supabase, `${month}-01`);
+    const gate = await requireOpenPayrollMonthShim(dbc, `${month}-01`);
     if (!gate.ok) lockedMonths.add(month);
   }
 
@@ -185,7 +186,7 @@ async function stampLeaveOnRegister(
 
   const problems: string[] = [];
   if (toUpdate.length > 0) {
-    const { error } = await supabase
+    const { error } = await dbc
       .from('attendance_days')
       .update({ status: 'L' })
       .eq('employee_id', employeeId)
@@ -194,7 +195,7 @@ async function stampLeaveOnRegister(
     if (error) problems.push(`could not restamp AB day(s): ${error.message}`);
   }
   if (toInsert.length > 0) {
-    const { error } = await supabase
+    const { error } = await dbc
       .from('attendance_days')
       .insert(toInsert.map((work_date) => ({ employee_id: employeeId, work_date, status: 'L' })));
     // 23505 = someone stamped the day concurrently — that is fine, not a problem.
@@ -214,14 +215,15 @@ async function stampLeaveOnRegister(
 
 /** Local month gate — mirrors requireOpenPayrollMonth but never throws. */
 async function requireOpenPayrollMonthShim(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  dbc: Awaited<ReturnType<typeof createClient>>,
   periodMonth: string,
 ): Promise<{ ok: boolean }> {
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('payroll_runs')
     .select('status, month_closed_at')
     .eq('period_month', periodMonth)
-    .maybeSingle<{ status: string; month_closed_at: string | null }>();
+    // month_closed_at is a BSON date; only its presence is tested below.
+    .maybeSingle<{ status: string; month_closed_at: Date | null }>();
   if (error) return { ok: false }; // fail closed — don't stamp a month we can't check
   if (data?.status === 'locked' || data?.status === 'paid') return { ok: false };
   if (data?.month_closed_at) return { ok: false };
@@ -246,23 +248,19 @@ type ChainOutcome =
  * request-level guard does.
  */
 async function decideApprovalStep(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  dbc: Awaited<ReturnType<typeof createClient>>,
   requestId: string,
   decision: 'approved' | 'rejected',
   profileId: string,
   remark: string | null,
 ): Promise<ChainOutcome> {
-  const { data: steps, error } = await supabase
+  const { data: steps, error } = await dbc
     .from('approval_steps')
     .select('id, step_no, status')
     .eq('request_id', requestId)
     .order('step_no', { ascending: true });
 
-  // No chain table (0036 unapplied) or no rows for this request: original path.
-  if (error) {
-    if (error.code === '42P01' || error.code === 'PGRST205') return { ok: true, stage: 'none' };
-    return { ok: false, error: error.message };
-  }
+  if (error) return { ok: false, error: error.message };
   if (!steps || steps.length === 0) return { ok: true, stage: 'none' };
 
   const rows = steps as { id: string; step_no: number; status: string }[];
@@ -272,12 +270,12 @@ async function decideApprovalStep(
     return { ok: true, stage: 'final' };
   }
 
-  const { data: claimed, error: claimErr } = await supabase
+  const { data: claimed, error: claimErr } = await dbc
     .from('approval_steps')
     .update({
       status: decision,
       approver_id: profileId,
-      decided_at: new Date().toISOString(),
+      decided_at: new Date(),
       remark,
     })
     .eq('id', current.id)
@@ -306,8 +304,8 @@ async function decideApprovalStep(
  * `status='pending'` is part of the predicate so two reviewers racing on the
  * same request cannot silently overwrite each other's decision — the loser gets
  * an error instead of a green tick. As in `cancelRequest`, the updated rows are
- * selected back because RLS-blocked and already-reviewed updates both match zero
- * rows, which PostgREST reports as a success rather than an error.
+ * selected back because a policy-blocked update and an already-reviewed one
+ * both match zero rows, which is reported as a success rather than an error.
  */
 export async function reviewRequest(
   id: string,
@@ -321,7 +319,7 @@ export async function reviewRequest(
 
   const cleanRemark = String(remark ?? '').trim().slice(0, 500) || null;
 
-  const supabase = await createClient();
+  const dbc = await createClient();
 
   // --- approval chain (0036) ------------------------------------------------
   // A request may carry an ordered chain of approval_steps. Decide the LOWEST
@@ -331,7 +329,7 @@ export async function reviewRequest(
   // A request with NO steps — anything filed before 0036, or with the levels
   // setting at 1 and the seed skipped — falls straight through to the original
   // one-shot path, so in-flight approvals cannot break.
-  const chain = await decideApprovalStep(supabase, id, decision, gate.profileId, cleanRemark);
+  const chain = await decideApprovalStep(dbc, id, decision, gate.profileId, cleanRemark);
   if (!chain.ok) return { ok: false, error: chain.error };
   if (chain.stage === 'intermediate') {
     // More approvals to go: the request stays pending on purpose.
@@ -348,26 +346,18 @@ export async function reviewRequest(
     return { ok: true };
   }
 
-  let res = await supabase
+  const res = await dbc
     .from('requests')
     .update({
       status: decision,
       reviewed_by: gate.profileId,
-      reviewed_at: new Date().toISOString(),
+      reviewed_at: new Date(),
       review_remark: cleanRemark,
     })
     .eq('id', id)
     .eq('status', 'pending')
     .select('id, type, leave_kind, days, employee_id, start_date, end_date');
   // review_remark arrives with 0041 — decide without it until it is applied.
-  if (res.error?.code === 'PGRST204' || res.error?.code === '42703') {
-    res = (await supabase
-      .from('requests')
-      .update({ status: decision, reviewed_by: gate.profileId, reviewed_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('status', 'pending')
-      .select('id, type, leave_kind, days, employee_id, start_date, end_date')) as typeof res;
-  }
   const { data, error } = res;
   if (error) return { ok: false, error: error.message };
 
@@ -417,7 +407,7 @@ export async function reviewRequest(
     // (A plain read-modify-write silently lost one deduction.)
     let deducted = false;
     for (let attempt = 0; attempt < 3 && !deducted; attempt++) {
-      const { data: bal, error: balReadErr } = await supabase
+      const { data: bal, error: balReadErr } = await dbc
         .from('leave_balances')
         .select('id, balance')
         .eq('employee_id', reviewed.employee_id)
@@ -437,10 +427,12 @@ export async function reviewRequest(
         break;
       }
       const next = Number(bal.balance) - Number(reviewed.days ?? 0);
-      const { data: casRows, error: balErr } = await supabase
+      const { data: casRows, error: balErr } = await dbc
         .from('leave_balances')
-        .update({ balance: next })
+        .update({ balance: toDecimal(next) })
         .eq('id', bal.id)
+        // The compare-and-swap is against the value as READ, unconverted: it
+        // has to match what is stored, not a re-rounded version of it.
         .eq('balance', bal.balance)
         .select('id');
       if (balErr) {
@@ -466,7 +458,7 @@ export async function reviewRequest(
   // silently diverge (the /register mismatch card exists because they used to).
   if (reviewed.type === 'leave' && decision === 'approved') {
     const stampWarning = await stampLeaveOnRegister(
-      supabase,
+      dbc,
       reviewed.employee_id,
       reviewed.start_date,
       reviewed.end_date ?? reviewed.start_date,
@@ -476,7 +468,7 @@ export async function reviewRequest(
 
   // Tell the employee the outcome. Look the owner up rather than trusting the
   // caller — the reviewer is not the recipient.
-  const { data: owner } = await supabase
+  const { data: owner } = await dbc
     .from('requests')
     .select('employee_id, type, start_date, end_date')
     .eq('id', id)
@@ -510,8 +502,9 @@ export async function reviewRequest(
  * Raise a leave / duty request for the signed-in employee.
  *
  * Employee-only: the employee_id comes from the session profile, never from the
- * form, so one employee cannot file against another. RLS policy
- * `requests_employee_insert` (migration 0004) enforces the same rule server-side.
+ * form, so one employee cannot file against another. The requests insert rule
+ * enforces the same thing underneath, comparing employee_id against the caller's
+ * own rather than trusting the payload.
  */
 export async function createRequest(formData: FormData): Promise<ActionResult> {
   // --- validate the form before touching auth or the network -----------------
@@ -560,10 +553,10 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
   const reason = String(formData.get('reason') ?? '').trim() || null;
 
   // --- a write with no database is a failure, not a success ------------------
-  if (!isSupabaseConfigured()) {
+  if (!isMongoConfigured()) {
     return {
       ok: false,
-      error: 'Supabase is not configured, so this request cannot be saved. Nothing was submitted.',
+      error: 'The database is not configured, so this request cannot be saved. Nothing was submitted.',
     };
   }
 
@@ -576,8 +569,8 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
     };
   }
 
-  const supabase = await createClient();
-  const { data: inserted, error } = await supabase
+  const dbc = await createClient();
+  const { data: inserted, error } = await dbc
     .from('requests')
     .insert({
       employee_id: employeeId,
@@ -585,7 +578,9 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
       leave_kind: leaveKind,
       start_date: startRaw,
       end_date: endRaw,
-      days,
+      // `decimal` column — see toDecimal(). Filing any request at all failed
+      // on the validator while this was a plain number.
+      days: toDecimal(days),
       reason,
       status: 'pending',
     })
@@ -597,10 +592,10 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
   // original single-step path, so a failure here never blocks a filed request.
   const newId = (inserted?.[0] as { id: string } | undefined)?.id;
   if (newId) {
-    const { error: chainErr } = await supabase.rpc('fn_init_approval_steps', { p_request_id: newId });
-    if (chainErr && chainErr.code !== 'PGRST202' && chainErr.code !== '42883') {
-      console.warn('[dalnex-hrms] approval chain seed failed:', chainErr.message);
-    }
+    const { error: chainErr } = await dbc.rpc('fn_init_approval_steps', { p_request_id: newId });
+    // Logged, never surfaced — see above. (The PGRST202/42883 exemption that
+    // used to wrap this is gone: pgcompat cannot emit either code.)
+    if (chainErr) console.warn('[dalnex-hrms] approval chain seed failed:', chainErr.message);
   }
 
   // Put it in front of the approvers rather than waiting for them to check.
@@ -623,16 +618,16 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
  * Withdraw one of your own still-pending requests.
  *
  * The `employee_id` / `status` predicates are belt-and-braces: they scope the
- * write even if RLS is permissive. We ask for the updated rows back so a
- * no-op UPDATE (wrong owner, already reviewed, or blocked by RLS — all of which
- * PostgREST reports as a silent success) is surfaced as an error instead of a
- * green tick over an unchanged row.
+ * write even if the collection policy is permissive. We ask for the updated
+ * rows back so a no-op UPDATE (wrong owner, already reviewed, or refused by the
+ * policy — all of which read as a silent success) is surfaced as an error
+ * instead of a green tick over an unchanged row.
  */
 export async function cancelRequest(id: string): Promise<ActionResult> {
-  if (!isSupabaseConfigured()) {
+  if (!isMongoConfigured()) {
     return {
       ok: false,
-      error: 'Supabase is not configured, so this request cannot be cancelled.',
+      error: 'The database is not configured, so this request cannot be cancelled.',
     };
   }
 
@@ -642,8 +637,8 @@ export async function cancelRequest(id: string): Promise<ActionResult> {
     return { ok: false, error: 'Your login is not linked to an employee record.' };
   }
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('requests')
     .update({ status: 'cancelled' })
     .eq('id', id)

@@ -18,7 +18,6 @@ import {
   ensureExitInterview,
   saveExitInterview,
   fetchExitInterview,
-  addKtItem,
   setKtStatus,
   deleteKtItem,
   fetchKtItems,
