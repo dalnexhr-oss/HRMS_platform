@@ -2,7 +2,7 @@
 
 // Shared in-app error boundary UI, styled with the prototype's tokens. Used by
 // the (portal) and (employee) segment error.tsx files. Surfaces the real thrown
-// message (e.g. a getSession/RLS failure) and offers recovery: retry, or sign out
+// message (e.g. a session or permission failure) and offers recovery: retry, or sign out
 // and return to /login.
 import { SignOutButton } from '@/components/auth/SignOutButton';
 

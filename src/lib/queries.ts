@@ -13,9 +13,9 @@
 // empty array — that is an empty state, not an error.
 // ============================================================================
 import type { TabAccess } from '@/lib/access';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
 import { minutesToHHMM, trimTime } from '@/lib/format';
-import { isSupabaseConfigured } from '@/lib/supabase/env';
+import { isMongoConfigured } from '@/lib/db/mongo';
 import {
   DEFAULT_WEEK_OFF_POLICY,
   policyFromSettings,
@@ -26,13 +26,52 @@ import type { TopbarStats } from '@/lib/constants';
 import type {
   RegisterEmployee, PayslipRow, DayCell, TodayKpis, Celebration, PunchLogRow,
 } from '@/types/domain';
-import type { Policy, LeaveType, RequestType, AppRole } from '@/types/database';
+import type { Policy, LeaveType, RequestType } from '@/types/database';
+import {
+  COLLECTIONS,
+  type BranchDoc,
+  type DepartmentDoc,
+  type EmployeeDoc,
+  type UserDoc,
+} from '@/lib/db/collections';
+import { afterParentCheck, NotSignedInError, scoped } from '@/lib/db/repo';
+import { toNumber } from '@/lib/db/money';
+import { deleteExpiredNotices } from '@/lib/db/scheduler';
 
-// Re-exported: ~8 action files already import isSupabaseConfigured from here.
-// The implementation now lives in @/lib/supabase/env (single source of truth).
-export { isSupabaseConfigured };
+// Re-exported: ~8 action files already import isMongoConfigured from here.
+// The implementation lives in @/lib/db/mongo (single source of truth).
+export { isMongoConfigured };
 
 // ------------------------------------------------------------------ utils ---
+
+/**
+ * A BSON Date as the ISO string the view layer expects.
+ *
+ * Postgres returned timestamptz already serialised; the driver returns a real
+ * Date. Every mapper that used to pass a timestamp straight through goes via
+ * this, so a Date never reaches a client component (React cannot serialise one
+ * across the boundary without turning it back into a string anyway).
+ *
+ * Calendar days do NOT come through here — they are stored as strings on
+ * purpose and are already in the right shape.
+ */
+function iso(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  return (value as string | null) ?? '';
+}
+
+/**
+ * The same, but null stays null.
+ *
+ * Use wherever the target field is nullable — a read_at, a published_at.
+ * Flattening those to '' would make "never read" render as an empty date
+ * instead of being absent, and `publishedAt != null` checks would start
+ * returning true for unpublished rows.
+ */
+function isoOrNull(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  return iso(value);
+}
 
 /**
  * First day of the CURRENT month in IST — the default period everywhere.
@@ -53,42 +92,14 @@ interface QueryError {
 }
 
 /**
- * Turn a PostgrestError into a real, debuggable Error and throw it. Supabase
- * errors are plain objects; throwing them raw loses the stack and renders as
- * "{}" in Next's error overlay.
+ * Turn a query error into a real, debuggable Error and throw it. The query
+ * layer reports failures as plain objects; throwing one raw loses the stack and
+ * renders as "{}" in Next's error overlay.
  */
 function fail(context: string, error: QueryError): never {
   const detail = [error.message, error.details, error.hint].filter(Boolean).join(' — ');
   const code = error.code ? ` (${error.code})` : '';
   throw new Error(`${context}: ${detail}${code}`);
-}
-
-/**
- * True when the error is "this relation does not exist" — i.e. a migration has
- * not been applied to this database yet.
- *
- *   PGRST205  PostgREST: table not found in the schema cache
- *   42P01     Postgres:  undefined_table
- *
- * This is deliberately NARROW and is the one exception to the house rule that a
- * real Supabase error must never be swallowed. It distinguishes "the query
- * failed" (a real fault worth surfacing) from "this feature is not deployed in
- * this environment", which is a deployment state, not a fault. Only the tables
- * added by later migrations use it, so a half-migrated database degrades the
- * affected card instead of taking down the whole dashboard. Every other error —
- * permissions, RLS, network — still throws.
- */
-function isMissingTable(error: QueryError): boolean {
-  return error.code === 'PGRST205' || error.code === '42P01';
-}
-
-/** Log once, loudly, so an un-migrated deployment is obvious in the server logs. */
-function warnNotMigrated(context: string, migration: string): void {
-  console.warn(
-    `[dalnex-hrms] ${context}: table missing — apply ${migration} ` +
-      '(npx supabase db push, or paste it in the Supabase SQL Editor). ' +
-      'Returning no rows so the rest of the page still renders.',
-  );
 }
 
 /** '2026-06-01' -> { start: '2026-06-01', end: '2026-06-30' } */
@@ -133,8 +144,8 @@ const PAYSLIP_FIELDS = `id, payable_days, earned_gross, shortfall_amount, per_da
   esic_employer, professional_tax, net_payable, shortfall_minutes, payslip_adjustments(*)`;
 
 function mapPayslip(p: any): PayslipRow {
-  // The 1:1 embed's shape (object vs single-element array) depends on how
-  // PostgREST resolved the FK — accept both, and null when no row exists.
+  // The 1:1 embed's shape (object vs single-element array) depends on how the
+  // relationship is declared — accept both, and null when no row exists.
   const adj = Array.isArray(p.payslip_adjustments)
     ? p.payslip_adjustments[0]
     : p.payslip_adjustments;
@@ -179,14 +190,14 @@ export async function getRegister(
   branch?: string | null,
 ): Promise<RegisterEmployee[]> {
   const { start, end } = monthRange(periodMonth);
-  const supabase = await createClient();
+  const dbc = await createClient();
 
   // Branch scoping: resolve the branch name to its id and filter on the FK, so
   // employees are actually excluded (filtering on an embedded column would only
   // null the join, not drop the parent row). Blank/absent branch = all branches.
   let branchId: string | null = null;
   if (branch) {
-    const { data: b } = await supabase
+    const { data: b } = await dbc
       .from('branches')
       .select('id')
       .eq('name', branch)
@@ -195,7 +206,7 @@ export async function getRegister(
     branchId = b?.id ?? '__none__';
   }
 
-  let employeeQuery = supabase
+  let employeeQuery = dbc
     .from('employees')
     .select('id, code, full_name, gender, date_of_joining, branches(name)')
     .eq('status', 'active')
@@ -206,7 +217,7 @@ export async function getRegister(
   if (error) fail('getRegister: could not load employees', error);
   if (!employees?.length) return [];
 
-  const { data: days, error: daysError } = await supabase
+  const { data: days, error: daysError } = await dbc
     .from('attendance_days')
     .select('employee_id, work_date, status, punch_in, punch_out, worked_minutes')
     .gte('work_date', start)
@@ -215,7 +226,7 @@ export async function getRegister(
   if (daysError) fail('getRegister: could not load attendance', daysError);
 
   // The run carries the month's target minutes; without one there is no target.
-  const { data: run, error: runError } = await supabase
+  const { data: run, error: runError } = await dbc
     .from('payroll_runs')
     .select('target_minutes')
     .eq('period_month', start)
@@ -305,10 +316,10 @@ export async function getLeaveRegisterMismatches(
   branch?: string | null,
 ): Promise<LeaveRegisterMismatch[]> {
   const { start, end } = monthRange(periodMonth);
-  const supabase = await createClient();
+  const dbc = await createClient();
 
   // Approved leave requests overlapping the month.
-  const { data: reqs, error: reqErr } = await supabase
+  const { data: reqs, error: reqErr } = await dbc
     .from('requests')
     .select('employee_id, leave_kind, start_date, end_date, employees(code, full_name, branch_id, branches(name))')
     .eq('type', 'leave')
@@ -319,7 +330,7 @@ export async function getLeaveRegisterMismatches(
   if (!reqs?.length) return [];
 
   // Register rows for the month, keyed employee|date.
-  const { data: days, error: dayErr } = await supabase
+  const { data: days, error: dayErr } = await dbc
     .from('attendance_days')
     .select('employee_id, work_date, status')
     .gte('work_date', start)
@@ -371,14 +382,13 @@ export interface AcknowledgementRow {
  * request's IP, and are append-only evidence.
  */
 export async function getMyAcknowledgements(employeeId: string): Promise<AcknowledgementRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('acknowledgements')
     .select('id, document_kind, document_id, signed_name, signed_at')
     .eq('employee_id', employeeId)
     .order('signed_at', { ascending: false });
   if (error) {
-    if (isMissingTable(error)) return [];
     fail('getMyAcknowledgements: could not load signatures', error);
   }
   return (data ?? []).map((r: any) => ({
@@ -386,7 +396,7 @@ export async function getMyAcknowledgements(employeeId: string): Promise<Acknowl
     documentKind: r.document_kind,
     documentId: r.document_id,
     signedName: r.signed_name,
-    signedAt: r.signed_at,
+    signedAt: iso(r.signed_at),
   }));
 }
 
@@ -414,22 +424,21 @@ function mapDocument(r: any): EmployeeDocumentRow {
     name: r.employees?.full_name ?? '',
     category: r.category,
     title: r.title,
-    uploadedAt: r.uploaded_at,
-    verifiedAt: r.verified_at,
+    uploadedAt: iso(r.uploaded_at),
+    verifiedAt: isoOrNull(r.verified_at),
     verifyRemark: r.verify_remark,
   };
 }
 
 /** One employee's filed documents, newest first. Never returns storage paths. */
 export async function getEmployeeDocuments(employeeId: string): Promise<EmployeeDocumentRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('employee_documents')
     .select(DOCUMENT_FIELDS)
     .eq('employee_id', employeeId)
     .order('uploaded_at', { ascending: false });
   if (error) {
-    if (isMissingTable(error)) return [];
     fail('getEmployeeDocuments: could not load documents', error);
   }
   return (data ?? []).map(mapDocument);
@@ -437,14 +446,13 @@ export async function getEmployeeDocuments(employeeId: string): Promise<Employee
 
 /** Documents awaiting HR verification, across everyone — the review queue. */
 export async function getUnverifiedDocuments(): Promise<EmployeeDocumentRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('employee_documents')
     .select(DOCUMENT_FIELDS)
     .is('verified_at', null)
     .order('uploaded_at', { ascending: true });
   if (error) {
-    if (isMissingTable(error)) return [];
     fail('getUnverifiedDocuments: could not load the verification queue', error);
   }
   return (data ?? []).map(mapDocument);
@@ -494,14 +502,13 @@ function mapOnboardingTask(r: any): OnboardingTaskRow {
  * not outrank a step that is actually late.
  */
 export async function getOnboardingBoard(): Promise<OnboardingTaskRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('onboarding_tasks')
     .select(ONBOARDING_TASK_FIELDS)
     .order('due_date', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true });
   if (error) {
-    if (isMissingTable(error)) return [];
     fail('getOnboardingBoard: could not load onboarding tasks', error);
   }
   return (data ?? []).map(mapOnboardingTask);
@@ -509,15 +516,14 @@ export async function getOnboardingBoard(): Promise<OnboardingTaskRow[]> {
 
 /** One employee's own checklist — the read-only card on /me. */
 export async function getMyOnboardingTasks(employeeId: string): Promise<OnboardingTaskRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('onboarding_tasks')
     .select(ONBOARDING_TASK_FIELDS)
     .eq('employee_id', employeeId)
     .order('due_date', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true });
   if (error) {
-    if (isMissingTable(error)) return [];
     fail('getMyOnboardingTasks: could not load your onboarding checklist', error);
   }
   return (data ?? []).map(mapOnboardingTask);
@@ -531,13 +537,12 @@ export async function getMyOnboardingTasks(employeeId: string): Promise<Onboardi
  * "(0 steps)" label in the picker should say.
  */
 export async function getOnboardingTemplates(): Promise<OnboardingTemplateRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('onboarding_templates')
     .select('id, name, active, onboarding_template_items(count)')
     .order('name');
   if (error) {
-    if (isMissingTable(error)) return [];
     fail('getOnboardingTemplates: could not load onboarding templates', error);
   }
   return (data ?? []).map((r: any) => ({
@@ -570,15 +575,14 @@ export interface ExitCaseRow {
 
 /** Every exit case with its clearance and settlement state — the HR exits board. */
 export async function getExitCases(): Promise<ExitCaseRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('exit_cases')
     .select(
       'id, employee_id, stage, resignation_date, last_working_day, reason, employees(code, full_name)',
     )
     .order('last_working_day', { ascending: false });
   if (error) {
-    if (isMissingTable(error)) return [];
     fail('getExitCases: could not load exit cases', error);
   }
   const cases = (data ?? []) as any[];
@@ -587,10 +591,10 @@ export async function getExitCases(): Promise<ExitCaseRow[]> {
   // The clearance view and the settlement are separate reads: a missing view
   // (migration not applied) must degrade to zeroes, not break the board.
   const [{ data: pending }, { data: fnfs }] = await Promise.all([
-    supabase
+    dbc
       .from('v_exit_clearance_pending')
       .select('exit_case_id, assets_outstanding, items_outstanding, clearance_items_open, clearance_complete'),
-    supabase.from('full_and_final').select('exit_case_id, status, net_payable'),
+    dbc.from('full_and_final').select('exit_case_id, status, net_payable'),
   ]);
   const byCase = new Map((pending ?? []).map((p: any) => [p.exit_case_id, p]));
   const fnfByCase = new Map((fnfs ?? []).map((f: any) => [f.exit_case_id, f]));
@@ -633,21 +637,20 @@ export interface ExitInterviewRow {
  * intended sequence.
  */
 export async function getExitInterview(exitCaseId: string): Promise<ExitInterviewRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('exit_interviews')
     .select('id, question, answer, submitted_at, created_at')
     .eq('exit_case_id', exitCaseId)
     .order('created_at', { ascending: true });
   if (error) {
-    if (isMissingTable(error)) return [];
     fail('getExitInterview: could not load the exit interview', error);
   }
   return (data ?? []).map((r: any) => ({
     id: r.id,
     question: r.question,
     answer: r.answer,
-    submittedAt: r.submitted_at,
+    submittedAt: isoOrNull(r.submitted_at),
   }));
 }
 
@@ -662,14 +665,13 @@ export interface KtItemRow {
 
 /** One exit case's knowledge-transfer items. */
 export async function getKtItems(exitCaseId: string): Promise<KtItemRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('knowledge_transfer_items')
     .select('id, task, handover_to, status, notes, created_at, employees(full_name)')
     .eq('exit_case_id', exitCaseId)
     .order('created_at', { ascending: true });
   if (error) {
-    if (isMissingTable(error)) return [];
     fail('getKtItems: could not load handover items', error);
   }
   return (data ?? []).map((r: any) => ({
@@ -691,14 +693,13 @@ export interface ClearanceItemRow {
 
 /** The clearance checklist for one exit case. */
 export async function getClearanceItems(exitCaseId: string): Promise<ClearanceItemRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('exit_clearance_items')
     .select('id, area, description, cleared')
     .eq('exit_case_id', exitCaseId)
     .order('area');
   if (error) {
-    if (isMissingTable(error)) return [];
     fail('getClearanceItems: could not load clearance items', error);
   }
   return (data ?? []) as unknown as ClearanceItemRow[];
@@ -720,15 +721,14 @@ export interface LeaveBalanceAdminRow {
 
 /** Every employee's PAID-LEAVE pool for a year — the pool card on /leave. */
 export async function getLeaveBalancesForYear(year: number): Promise<LeaveBalanceAdminRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('leave_balances')
     .select('employee_id, year, type, balance, employees(code, full_name)')
     .eq('year', year)
     // One pool now. Historic CL/SL rows stay in the table but not on screen.
     .eq('type', 'PL');
   if (error) {
-    if (isMissingTable(error)) return [];
     fail('getLeaveBalancesForYear: could not load balances', error);
   }
   return (data ?? [])
@@ -777,8 +777,8 @@ export interface LeaveSalaryWorkingRow {
 export async function getLeaveSalaryWorkings(
   year: number,
 ): Promise<LeaveSalaryWorkingRow[] | null> {
-  const supabase = await createClient();
-  let res = await supabase
+  const dbc = await createClient();
+  const res = await dbc
     .from('leave_salary_workings')
     .select(
       `id, employee_id, year, salary_before, salary_after, increment_effective,
@@ -787,22 +787,7 @@ export async function getLeaveSalaryWorkings(
        calendar_days_p1_override, calendar_days_p2_override`,
     )
     .eq('year', year);
-  // The override columns arrive with 0041 — retry without them so the page
-  // keeps working (days simply aren't editable) until it is applied.
-  if (res.error?.code === '42703') {
-    res = (await supabase
-      .from('leave_salary_workings')
-      .select(
-        `id, employee_id, year, salary_before, salary_after, increment_effective,
-         present_p1, present_p2, calendar_days_p1, calendar_days_p2,
-         amount_p1, amount_p2, total_amount, status, remarks, paid_at, updated_at`,
-      )
-      .eq('year', year)) as typeof res;
-  }
-  if (res.error) {
-    if (isMissingTable(res.error)) return null;
-    fail('getLeaveSalaryWorkings: could not load workings', res.error);
-  }
+  if (res.error) fail('getLeaveSalaryWorkings: could not load workings', res.error);
   return (res.data ?? []).map((r: any) => ({
     id: r.id,
     employeeId: r.employee_id,
@@ -819,8 +804,8 @@ export async function getLeaveSalaryWorkings(
     totalAmount: Number(r.total_amount ?? 0),
     status: r.status,
     remarks: r.remarks,
-    paidAt: r.paid_at,
-    updatedAt: r.updated_at,
+    paidAt: isoOrNull(r.paid_at),
+    updatedAt: iso(r.updated_at),
     calendarDaysP1Override:
       r.calendar_days_p1_override != null ? Number(r.calendar_days_p1_override) : null,
     calendarDaysP2Override:
@@ -843,9 +828,9 @@ export interface LeaveSalaryEmployee {
  * leaver's payout row must not vanish the day HR marks them inactive.
  */
 export async function getLeaveSalaryRoster(year: number): Promise<LeaveSalaryEmployee[]> {
-  const supabase = await createClient();
+  const dbc = await createClient();
 
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('employees')
     .select('id, code, full_name, gross_monthly, date_of_joining, status')
     .in('status', ['active', 'on_notice'])
@@ -855,19 +840,13 @@ export async function getLeaveSalaryRoster(year: number): Promise<LeaveSalaryEmp
   const rows = new Map<string, any>((data ?? []).map((e: any) => [e.id, e]));
 
   // Inactive employees with a saved working for this year still belong.
-  const { data: saved, error: savedError } = await supabase
+  const { data: saved, error: savedError } = await dbc
     .from('leave_salary_workings')
     .select('employee_id, employees(id, code, full_name, gross_monthly, date_of_joining, status)')
     .eq('year', year);
-  if (savedError) {
-    // Table missing = 0038 not applied; the roster is still useful without it.
-    if (!isMissingTable(savedError)) {
-      fail('getLeaveSalaryRoster: could not load saved workings', savedError);
-    }
-  } else {
-    for (const r of (saved ?? []) as any[]) {
-      if (r.employees && !rows.has(r.employees.id)) rows.set(r.employees.id, r.employees);
-    }
+  if (savedError) fail('getLeaveSalaryRoster: could not load saved workings', savedError);
+  for (const r of (saved ?? []) as any[]) {
+    if (r.employees && !rows.has(r.employees.id)) rows.set(r.employees.id, r.employees);
   }
 
   return [...rows.values()]
@@ -885,19 +864,19 @@ export async function getLeaveSalaryRoster(year: number): Promise<LeaveSalaryEmp
 /**
  * Credit-weighted presence per employee per month for a whole year, in ONE
  * paged sweep of attendance_days. A full roster-year (~210 × 365 ≈ 77k rows)
- * far exceeds PostgREST's page cap, so this pages exactly like the importer:
+ * far exceeds any single page, so this pages exactly like the importer:
  * ordered by the unique key — without an ORDER BY, .range() may repeat and
  * omit rows between pages, silently corrupting the presence sums.
  */
 export async function getLeaveSalaryPresence(
   year: number,
 ): Promise<Record<string, number[]>> {
-  const supabase = await createClient();
+  const dbc = await createClient();
   const PAGE = 1000;
   const byEmployee: Record<string, number[]> = {};
 
   for (let offset = 0; ; offset += PAGE) {
-    const { data, error } = await supabase
+    const { data, error } = await dbc
       .from('attendance_days')
       .select('employee_id, work_date, status')
       .gte('work_date', `${year}-01-01`)
@@ -933,25 +912,60 @@ export interface AuditEntry {
 
 /** Attendance-related audit trail (corrections, imports, night sweeps), newest
  *  first. Reads activity_log; messages are rendered as TEXT only (stored-XSS
- *  safe). Staff-gated by RLS on activity_log. */
+ *  safe). Staff-gated by the activity_log read policy. */
 export async function getAttendanceAudit(limit = 200): Promise<AuditEntry[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('activity_log')
-    .select('id, event_type, message, occurred_at, actor:profiles(full_name), employee:employees(code, full_name)')
-    .in('event_type', ['attendance_correction', 'register_import', 'night_sweep'])
-    .order('occurred_at', { ascending: false })
-    .limit(limit);
-  if (error) fail('getAttendanceAudit: could not load the audit log', error);
-  return (data ?? []).map((r: any) => ({
-    id: r.id,
-    eventType: r.event_type,
-    message: r.message,
-    actor: r.actor?.full_name ?? null,
-    employeeCode: r.employee?.code ?? null,
-    employeeName: r.employee?.full_name ?? null,
-    occurredAt: r.occurred_at,
-  }));
+  const log = await scoped(COLLECTIONS.activityLog);
+  const rows = await log.find(
+    { event_type: { $in: ['attendance_correction', 'register_import', 'night_sweep'] } },
+    { sort: { occurred_at: -1 }, limit },
+  );
+  if (rows.length === 0) return [];
+
+  // The names are RESOLVED here, not read off the row.
+  //
+  // The port planned to denormalise actor_name / employee_code / employee_name
+  // at write time and declared them on the collection, but no insert ever wrote
+  // them — so both columns on the audit screen were blank. Back-filling the
+  // writers would still leave every existing entry blank, whereas this restores
+  // exactly what the old SQL join showed. Two batched lookups for the whole
+  // page, not the per-row join the comment worried about.
+  const actorIds = [...new Set(rows.map((r) => r.actor_id).filter(Boolean))] as string[];
+  const employeeIds = [...new Set(rows.map((r) => r.employee_id).filter(Boolean))] as string[];
+
+  const [actors, employees] = await Promise.all([
+    actorIds.length
+      ? (await scoped<UserDoc>(COLLECTIONS.users)).find(
+          { _id: { $in: actorIds } },
+          { projection: { full_name: 1, email: 1 } },
+        )
+      : Promise.resolve([]),
+    employeeIds.length
+      ? (await scoped<EmployeeDoc>(COLLECTIONS.employees)).find(
+          { _id: { $in: employeeIds } },
+          { projection: { full_name: 1, code: 1 } },
+        )
+      : Promise.resolve([]),
+  ]);
+
+  const actorById = new Map(actors.map((a) => [a._id, a.full_name ?? a.email ?? null]));
+  const employeeById = new Map(
+    employees.map((e) => [e._id, { name: e.full_name ?? null, code: e.code ?? null }]),
+  );
+
+  return rows.map((r) => {
+    const employee = r.employee_id ? employeeById.get(r.employee_id as string) : undefined;
+    return {
+      id: r._id as string,
+      eventType: r.event_type as string,
+      message: r.message as string,
+      // A row written before this, or by a deleted account, still falls back to
+      // whatever was denormalised at the time rather than showing nothing.
+      actor: actorById.get(r.actor_id as string) ?? ((r.actor_name as string | null) ?? null),
+      employeeCode: employee?.code ?? ((r.employee_code as string | null) ?? null),
+      employeeName: employee?.name ?? ((r.employee_name as string | null) ?? null),
+      occurredAt: iso(r.occurred_at),
+    };
+  });
 }
 
 // --------------------------------------------------------------- payroll ---
@@ -959,9 +973,9 @@ export async function getPayslips(
   periodMonth: string = currentPeriodMonth(),
 ): Promise<PayslipRow[]> {
   const { start } = monthRange(periodMonth);
-  const supabase = await createClient();
+  const dbc = await createClient();
 
-  const { data: run, error: runError } = await supabase
+  const { data: run, error: runError } = await dbc
     .from('payroll_runs')
     .select('id')
     .eq('period_month', start)
@@ -969,7 +983,7 @@ export async function getPayslips(
   if (runError) fail('getPayslips: could not load the payroll run', runError);
   if (!run) return []; // no run for this month yet — a real empty state
 
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('payslips')
     .select(`${PAYSLIP_FIELDS}, employees(code, full_name, branches(name, state))`)
     .eq('payroll_run_id', run.id);
@@ -998,43 +1012,31 @@ export interface PayrollRunView {
 
 function mapRun(r: any): PayrollRunView {
   return {
-    id: r.id,
+    id: r._id ?? r.id,
     periodMonth: r.period_month,
     status: r.status,
     workingDays: r.working_days,
     targetMinutes: r.target_minutes,
-    monthClosedAt: r.month_closed_at,
-    draftsComputedAt: r.drafts_computed_at,
-    lockedAt: r.locked_at,
-    paidAt: r.paid_at,
+    monthClosedAt: isoOrNull(r.month_closed_at),
+    draftsComputedAt: isoOrNull(r.drafts_computed_at),
+    lockedAt: isoOrNull(r.locked_at),
+    paidAt: isoOrNull(r.paid_at),
   };
 }
 
-const RUN_FIELDS = `id, period_month, status, working_days, target_minutes,
-  month_closed_at, drafts_computed_at, locked_at, paid_at`;
-
 /** Every payroll run, newest month first. */
 export async function getPayrollRuns(): Promise<PayrollRunView[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('payroll_runs')
-    .select(RUN_FIELDS)
-    .order('period_month', { ascending: false });
-  if (error) fail('getPayrollRuns: could not load payroll runs', error);
-  return (data ?? []).map(mapRun);
+  const runs = await scoped(COLLECTIONS.payrollRuns);
+  const rows = await runs.find({}, { sort: { period_month: -1 } });
+  return rows.map(mapRun);
 }
 
 /** A single run by month, or null when that month has no run yet. */
 export async function getPayrollRun(periodMonth: string): Promise<PayrollRunView | null> {
   const { start } = monthRange(periodMonth);
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('payroll_runs')
-    .select(RUN_FIELDS)
-    .eq('period_month', start)
-    .maybeSingle();
-  if (error) fail('getPayrollRun: could not load the payroll run', error);
-  return data ? mapRun(data) : null;
+  const runs = await scoped(COLLECTIONS.payrollRuns);
+  const row = await runs.findOne({ period_month: start });
+  return row ? mapRun(row) : null;
 }
 
 // --------------------------------------------------------------- branches ---
@@ -1046,20 +1048,19 @@ export interface BranchRow {
 
 /** All branches, alphabetical. */
 export async function getBranches(): Promise<BranchRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('branches')
-    .select('id, name, state')
-    .order('name');
-  if (error) fail('getBranches: could not load branches', error);
-  return (data ?? []).map((b: any) => ({ id: b.id, name: b.name, state: b.state }));
+  const branches = await scoped<BranchDoc>(COLLECTIONS.branches);
+  const rows = await branches.find(
+    {},
+    { projection: { name: 1, state: 1 }, sort: { name: 1 } },
+  );
+  return rows.map((b) => ({ id: b._id, name: b.name, state: b.state }));
 }
 
 // ------------------------------------------------------------ today board ---
 /** Today's headcount / attendance KPIs, aggregated from v_today_board. */
 export async function getTodayBoard(): Promise<TodayKpis> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('v_today_board')
     .select('branch, headcount, present, field, absent')
     .order('branch');
@@ -1084,8 +1085,8 @@ export async function getTodayBoard(): Promise<TodayKpis> {
 // ---------------------------------------------------------- punch log ---
 /** Today's punch log, earliest punch first. */
 export async function getPunchLogToday(): Promise<PunchLogRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('attendance_days')
     .select('status, punch_in, punch_out, worked_minutes, employees(code, full_name, branches(name))')
     .eq('work_date', todayISO());
@@ -1128,8 +1129,8 @@ export async function getPunchLogToday(): Promise<PunchLogRow[]> {
 // ------------------------------------------------------------ celebrations ---
 /** Today's birthdays and work anniversaries, from v_celebrations. */
 export async function getCelebrationsToday(): Promise<Celebration[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('v_celebrations')
     .select('id, full_name, branch, department, kind, years');
   if (error) fail('getCelebrationsToday: could not load celebrations', error);
@@ -1153,18 +1154,15 @@ export interface ActivityRow {
 
 /** The dashboard activity feed, newest first. */
 export async function getActivityFeed(limit = 20): Promise<ActivityRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('activity_log')
-    .select('id, message, occurred_at')
-    .order('occurred_at', { ascending: false })
-    .limit(limit);
-  if (error) fail('getActivityFeed: could not load the activity feed', error);
-
-  return (data ?? []).map((a: any) => ({
-    id: a.id,
-    when: clockTime(a.occurred_at),
-    message: a.message,
+  const log = await scoped(COLLECTIONS.activityLog);
+  const rows = await log.find(
+    {},
+    { projection: { message: 1, occurred_at: 1 }, sort: { occurred_at: -1 }, limit },
+  );
+  return rows.map((a) => ({
+    id: a._id as string,
+    when: clockTime(iso(a.occurred_at)),
+    message: a.message as string,
   }));
 }
 
@@ -1176,8 +1174,8 @@ export async function getMyAttendance(
   periodMonth: string = currentPeriodMonth(),
 ): Promise<DayCell[]> {
   const { start, end } = monthRange(periodMonth);
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('attendance_days')
     .select('work_date, status, punch_in, punch_out, worked_minutes')
     .eq('employee_id', employeeId)
@@ -1198,8 +1196,8 @@ export async function getMyAttendance(
 
 /** One employee's payslips, newest month first. */
 export async function getMyPayslips(employeeId: string): Promise<PayslipRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('payslips')
     .select(
       `${PAYSLIP_FIELDS}, payroll_runs(period_month),
@@ -1219,43 +1217,28 @@ export async function getMyPayslips(employeeId: string): Promise<PayslipRow[]> {
 
 /** One employee's leave / duty requests, newest first. */
 export async function getMyRequests(employeeId: string): Promise<RequestView[]> {
-  const supabase = await createClient();
-  let res = await supabase
+  const dbc = await createClient();
+  const res = await dbc
     .from('requests')
     .select(REQUEST_FIELDS)
     .eq('employee_id', employeeId)
     .order('created_at', { ascending: false });
   // review_remark arrives with 0041 — retry without it until then.
-  if (res.error?.code === '42703') {
-    res = (await supabase
-      .from('requests')
-      .select(REQUEST_FIELDS_LEGACY)
-      .eq('employee_id', employeeId)
-      .order('created_at', { ascending: false })) as typeof res;
-  }
   if (res.error) fail('getMyRequests: could not load requests', res.error);
   return (res.data ?? []).map(mapRequest);
 }
 
 /** One employee's helpdesk tickets, newest first. */
 const TICKET_COLS = 'id, subject, body, category, status, created_at, resolution_note, employees(code, full_name)';
-const TICKET_COLS_LEGACY = 'id, subject, body, category, status, created_at, employees(code, full_name)';
 
 export async function getMyTickets(employeeId: string): Promise<TicketView[]> {
-  const supabase = await createClient();
-  let res = await supabase
+  const dbc = await createClient();
+  const res = await dbc
     .from('helpdesk_tickets')
     .select(TICKET_COLS)
     .eq('employee_id', employeeId)
     .order('created_at', { ascending: false });
   // Migration 0018 (resolution_note) not applied yet → retry without the column.
-  if (res.error?.code === '42703') {
-    res = (await supabase
-      .from('helpdesk_tickets')
-      .select(TICKET_COLS_LEGACY)
-      .eq('employee_id', employeeId)
-      .order('created_at', { ascending: false })) as typeof res;
-  }
   if (res.error) fail('getMyTickets: could not load tickets', res.error);
   return (res.data ?? []).map(mapTicket);
 }
@@ -1272,46 +1255,54 @@ export interface LeaveBalanceRow {
  * render retired pills on the dashboard.
  */
 export async function getLeaveBalances(employeeId: string): Promise<LeaveBalanceRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('leave_balances')
-    .select('type, balance')
-    .eq('employee_id', employeeId)
-    .eq('year', Number(todayISO().slice(0, 4)))
-    .eq('type', 'PL');
-  if (error) fail('getLeaveBalances: could not load leave balances', error);
-  return (data ?? []).map((b: any) => ({ type: b.type, balance: Number(b.balance) }));
+  const balances = await scoped(COLLECTIONS.leaveBalances);
+  const rows = await balances.find({
+    employee_id: employeeId,
+    year: Number(todayISO().slice(0, 4)),
+    type: 'PL',
+  });
+  return rows.map((b) => ({ type: b.type as LeaveType, balance: toNumber(b.balance) }));
 }
 
 // ------------------------------------------------------- employee code map ---
 /** employees.code -> employees.id, for the Excel importer. */
 export async function getEmployeeCodeMap(): Promise<Record<string, string>> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('employees').select('id, code');
-  if (error) fail('getEmployeeCodeMap: could not load employees', error);
-  return Object.fromEntries((data ?? []).map((e: any) => [e.code, e.id]));
+  const employees = await scoped<EmployeeDoc>(COLLECTIONS.employees);
+  const rows = await employees.find({}, { projection: { code: 1 } });
+  return Object.fromEntries(rows.map((e) => [e.code, e._id]));
 }
 
 // ------------------------------------------------------------- employees ---
 export interface EmployeeListRow {
   code: string; name: string; branch: string; gender: string;
-  doj: string; gross: number; uan: string; esic_no: string | null;
+  // uan was declared non-nullable, but employees.pf_uan is nullable and the old
+  // mapper returned null through an `any`. Corrected rather than coerced: the
+  // register shows a blank UAN column for employees who have none.
+  doj: string; gross: number; uan: string | null; esic_no: string | null;
   active: boolean;
 }
 
 /** Employee roster. Active-only by default; pass includeInactive to also return
  *  deactivated employees (so the UI can offer a "reactivate"). */
 export async function getEmployees(includeInactive = false): Promise<EmployeeListRow[]> {
-  const supabase = await createClient();
-  let query = supabase
-    .from('employees')
-    .select('code, full_name, gender, date_of_joining, gross_monthly, pf_uan, esic_number, status, branches(name)');
-  if (!includeInactive) query = query.eq('status', 'active');
-  const { data, error } = await query.order('code');
-  if (error) fail('getEmployees: could not load employees', error);
-  return (data ?? []).map((e: any) => ({
-    code: e.code, name: e.full_name, branch: e.branches?.name ?? '', gender: e.gender,
-    doj: e.date_of_joining, gross: Number(e.gross_monthly), uan: e.pf_uan, esic_no: e.esic_number,
+  const employees = await scoped<EmployeeDoc>(COLLECTIONS.employees);
+  // No join: branch_name is denormalised onto the employee (see EmployeeDoc).
+  // This used to be an embedded PostgREST select, i.e. a join on every read of
+  // a list that renders constantly.
+  const rows = await employees.find(includeInactive ? {} : { status: 'active' }, {
+    sort: { code: 1 },
+  });
+  return rows.map((e) => ({
+    code: e.code,
+    name: e.full_name,
+    branch: e.branch_name ?? '',
+    gender: e.gender,
+    doj: e.date_of_joining,
+    // toNumber, not Number(): the stored value is Decimal128, and this is the
+    // display edge. Never feed the result back into a calculation.
+    gross: toNumber(e.gross_monthly),
+    uan: e.pf_uan,
+    esic_no: e.esic_number,
     active: e.status === 'active',
   }));
 }
@@ -1328,46 +1319,49 @@ export interface NotificationRow {
 }
 
 /**
- * The signed-in user's notifications, newest first. RLS (0012) restricts this to
- * `recipient_id = auth.uid()`, so no caller-supplied id is needed or accepted.
+ * The signed-in user's notifications, newest first. policies.ts restricts this
+ * to `recipient_id` = the caller, so no caller-supplied id is needed or accepted.
+ *
+ * ONLY a missing session is absorbed, and only because of an ordering problem
+ * in the layouts: both await this in the same Promise.all as getSession(), so a
+ * NotSignedInError out of here rejected the batch before the
+ * `if (!profile) redirect('/login')` underneath it could run — a revoked or
+ * disabled account, which auth/middleware.ts documents as being caught by
+ * exactly that redirect, got the error boundary instead of the login screen.
+ *
+ * Every other failure is rethrown. A catch-all here is worse than the crash it
+ * prevents: a dropped connection or a mis-declared policy would render as "you
+ * have no notifications" on every page, with nothing in the logs to say the
+ * bell had stopped working.
  */
 export async function getMyNotifications(limit = 20): Promise<NotificationRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('id, kind, title, body, link, read_at, created_at')
-    .order('created_at', { ascending: false })
-    .limit(limit);
-  if (error) {
-    if (isMissingTable(error)) {
-      warnNotMigrated('getMyNotifications', 'migration 0012_notifications.sql');
-      return [];
-    }
-    fail('getMyNotifications: could not load notifications', error);
+  try {
+    const notifications = await scoped(COLLECTIONS.notifications);
+    const rows = await notifications.find({}, { sort: { created_at: -1 }, limit });
+    return rows.map((n) => ({
+      id: n._id as string,
+      kind: n.kind as string,
+      title: n.title as string,
+      body: (n.body as string | null) ?? null,
+      link: (n.link as string | null) ?? null,
+      readAt: isoOrNull(n.read_at),
+      createdAt: iso(n.created_at),
+    }));
+  } catch (error) {
+    if (error instanceof NotSignedInError) return [];
+    throw error;
   }
-  return (data ?? []).map((n: any) => ({
-    id: n.id,
-    kind: n.kind,
-    title: n.title,
-    body: n.body,
-    link: n.link,
-    readAt: n.read_at,
-    createdAt: n.created_at,
-  }));
 }
 
-/** Unread count for the topbar badge. */
+/** Unread count for the topbar badge. Absorbs a missing session only — see above. */
 export async function getUnreadNotificationCount(): Promise<number> {
-  const supabase = await createClient();
-  const { count, error } = await supabase
-    .from('notifications')
-    .select('id', { count: 'exact', head: true })
-    .is('read_at', null);
-  if (error) {
-    if (isMissingTable(error)) return 0;
-    return 0; // the badge must never break the shell
+  try {
+    const notifications = await scoped(COLLECTIONS.notifications);
+    return await notifications.countDocuments({ read_at: null });
+  } catch (error) {
+    if (error instanceof NotSignedInError) return 0;
+    throw error;
   }
-  return count ?? 0;
 }
 
 // ------------------------------------------------------- week-off policy ---
@@ -1378,8 +1372,8 @@ export async function getUnreadNotificationCount(): Promise<number> {
  * its week-off columns over a missing row.
  */
 export async function getWeekOffPolicy(): Promise<WeekOffPolicy> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('settings')
     .select('key, value')
     .in('key', ['week_off_weekdays', 'working_saturdays']);
@@ -1398,14 +1392,12 @@ export interface EmployeeOption {
 
 /** Active employees as {id, code, name} — for "link this login to an employee". */
 export async function getEmployeeOptions(): Promise<EmployeeOption[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('employees')
-    .select('id, code, full_name')
-    .eq('status', 'active')
-    .order('code');
-  if (error) fail('getEmployeeOptions: could not load employees', error);
-  return (data ?? []).map((e: any) => ({ id: e.id, code: e.code, name: e.full_name }));
+  const employees = await scoped<EmployeeDoc>(COLLECTIONS.employees);
+  const rows = await employees.find(
+    { status: 'active' },
+    { projection: { code: 1, full_name: 1 }, sort: { code: 1 } },
+  );
+  return rows.map((e) => ({ id: e._id, code: e.code, name: e.full_name }));
 }
 
 // --------------------------------------------------------- reimbursements ---
@@ -1433,18 +1425,9 @@ export interface ReimbursementView {
   financeReviewedAt: string | null;
 }
 
-// Full (0035) → 0020 (review_remark only) → pre-0020. Each tier is retried on a
-// 42703 so the screen renders on whichever migrations are actually applied.
 const REIMBURSEMENT_FIELDS = `id, employee_id, claim_date, description, purpose, source_medium,
   kms, mode_of_payment, amount, remarks, review_remark, status, created_at,
   receipt_path, paid_at, payment_ref, finance_reviewed_at,
-  employees(code, full_name)`;
-const REIMBURSEMENT_FIELDS_NO_WORKFLOW = `id, employee_id, claim_date, description, purpose, source_medium,
-  kms, mode_of_payment, amount, remarks, review_remark, status, created_at,
-  employees(code, full_name)`;
-// Before migration 0020 (review_remark) is applied, retry without that column.
-const REIMBURSEMENT_FIELDS_LEGACY = `id, employee_id, claim_date, description, purpose, source_medium,
-  kms, mode_of_payment, amount, remarks, status, created_at,
   employees(code, full_name)`;
 
 function mapReimbursement(r: any): ReimbursementView {
@@ -1463,11 +1446,11 @@ function mapReimbursement(r: any): ReimbursementView {
     remarks: r.remarks,
     reviewRemark: r.review_remark ?? null,
     status: r.status,
-    createdAt: r.created_at,
+    createdAt: iso(r.created_at),
     receiptPath: r.receipt_path ?? null,
-    paidAt: r.paid_at ?? null,
+    paidAt: isoOrNull(r.paid_at),
     paymentRef: r.payment_ref ?? null,
-    financeReviewedAt: r.finance_reviewed_at ?? null,
+    financeReviewedAt: isoOrNull(r.finance_reviewed_at),
   };
 }
 
@@ -1484,14 +1467,13 @@ export interface ReimbursementEvent {
 
 /** A claim's timeline, oldest first (reads as a story). */
 export async function getReimbursementEvents(claimId: string): Promise<ReimbursementEvent[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('reimbursement_events')
     .select('id, action, from_status, to_status, remark, actor_name, occurred_at')
     .eq('claim_id', claimId)
     .order('occurred_at', { ascending: true });
   if (error) {
-    if (isMissingTable(error)) return [];
     fail('getReimbursementEvents: could not load the claim timeline', error);
   }
   return (data ?? []).map((r: any) => ({
@@ -1501,36 +1483,18 @@ export async function getReimbursementEvents(claimId: string): Promise<Reimburse
     toStatus: r.to_status,
     remark: r.remark,
     actorName: r.actor_name,
-    occurredAt: r.occurred_at,
+    occurredAt: iso(r.occurred_at),
   }));
 }
 
 /** Every claim, newest first — the staff review queue. */
 export async function getReimbursements(): Promise<ReimbursementView[]> {
-  const supabase = await createClient();
-  let res = await supabase
+  const dbc = await createClient();
+  const res = await dbc
     .from('reimbursement_claims')
     .select(REIMBURSEMENT_FIELDS)
     .order('created_at', { ascending: false });
-  // Migration 0035 (workflow columns) not applied yet → drop them.
-  if (res.error?.code === '42703') {
-    res = (await supabase
-      .from('reimbursement_claims')
-      .select(REIMBURSEMENT_FIELDS_NO_WORKFLOW)
-      .order('created_at', { ascending: false })) as typeof res;
-  }
-  // Migration 0020 (review_remark) not applied yet → retry without the column.
-  if (res.error?.code === '42703') {
-    res = (await supabase
-      .from('reimbursement_claims')
-      .select(REIMBURSEMENT_FIELDS_LEGACY)
-      .order('created_at', { ascending: false })) as typeof res;
-  }
   if (res.error) {
-    if (isMissingTable(res.error)) {
-      warnNotMigrated('getReimbursements', 'migration 0009_reimbursements_compoff_sweep.sql');
-      return [];
-    }
     fail('getReimbursements: could not load claims', res.error);
   }
   return (res.data ?? []).map(mapReimbursement);
@@ -1538,31 +1502,13 @@ export async function getReimbursements(): Promise<ReimbursementView[]> {
 
 /** One employee's own claims, newest first. */
 export async function getMyReimbursements(employeeId: string): Promise<ReimbursementView[]> {
-  const supabase = await createClient();
-  let res = await supabase
+  const dbc = await createClient();
+  const res = await dbc
     .from('reimbursement_claims')
     .select(REIMBURSEMENT_FIELDS)
     .eq('employee_id', employeeId)
     .order('created_at', { ascending: false });
-  if (res.error?.code === '42703') {
-    res = (await supabase
-      .from('reimbursement_claims')
-      .select(REIMBURSEMENT_FIELDS_NO_WORKFLOW)
-      .eq('employee_id', employeeId)
-      .order('created_at', { ascending: false })) as typeof res;
-  }
-  if (res.error?.code === '42703') {
-    res = (await supabase
-      .from('reimbursement_claims')
-      .select(REIMBURSEMENT_FIELDS_LEGACY)
-      .eq('employee_id', employeeId)
-      .order('created_at', { ascending: false })) as typeof res;
-  }
   if (res.error) {
-    if (isMissingTable(res.error)) {
-      warnNotMigrated('getMyReimbursements', 'migration 0009_reimbursements_compoff_sweep.sql');
-      return [];
-    }
     fail('getMyReimbursements: could not load claims', res.error);
   }
   return (res.data ?? []).map(mapReimbursement);
@@ -1571,8 +1517,8 @@ export async function getMyReimbursements(employeeId: string): Promise<Reimburse
 /** The ₹/km rate used to auto-calculate travel claims (settings-driven). */
 export async function getReimbursementRate(): Promise<number> {
   const FALLBACK = 3.5;
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('settings')
     .select('value')
     .eq('key', 'reimbursement_rate_per_km')
@@ -1597,7 +1543,6 @@ export interface CompOffRow {
 // The two newer columns (expires_on: 0036, is_applicable: 0041) may be missing
 // on an un-migrated database; both selects retry without them and default.
 const COMP_OFF_FIELDS = 'id, employee_id, earned_date, status, used_date, expires_on, is_applicable';
-const COMP_OFF_FIELDS_LEGACY = 'id, employee_id, earned_date, status, used_date';
 
 function mapCompOff(c: any): CompOffRow {
   return {
@@ -1620,24 +1565,13 @@ export async function getCompOffsForMonth(
   periodMonth: string = currentPeriodMonth(),
 ): Promise<CompOffRow[]> {
   const { start, end } = monthRange(periodMonth);
-  const supabase = await createClient();
-  let res = await supabase
+  const dbc = await createClient();
+  const res = await dbc
     .from('comp_offs')
     .select(COMP_OFF_FIELDS)
     .gte('earned_date', start)
     .lte('earned_date', end);
-  if (res.error?.code === '42703') {
-    res = (await supabase
-      .from('comp_offs')
-      .select(COMP_OFF_FIELDS_LEGACY)
-      .gte('earned_date', start)
-      .lte('earned_date', end)) as typeof res;
-  }
   if (res.error) {
-    if (isMissingTable(res.error)) {
-      warnNotMigrated('getCompOffsForMonth', 'migration 0009_reimbursements_compoff_sweep.sql');
-      return [];
-    }
     fail('getCompOffsForMonth: could not load comp offs', res.error);
   }
   return (res.data ?? []).map(mapCompOff);
@@ -1645,24 +1579,13 @@ export async function getCompOffsForMonth(
 
 /** One employee's comp-off credits, newest earned first. */
 export async function getMyCompOffs(employeeId: string): Promise<CompOffRow[]> {
-  const supabase = await createClient();
-  let res = await supabase
+  const dbc = await createClient();
+  const res = await dbc
     .from('comp_offs')
     .select(COMP_OFF_FIELDS)
     .eq('employee_id', employeeId)
     .order('earned_date', { ascending: false });
-  if (res.error?.code === '42703') {
-    res = (await supabase
-      .from('comp_offs')
-      .select(COMP_OFF_FIELDS_LEGACY)
-      .eq('employee_id', employeeId)
-      .order('earned_date', { ascending: false })) as typeof res;
-  }
   if (res.error) {
-    if (isMissingTable(res.error)) {
-      warnNotMigrated('getMyCompOffs', 'migration 0009_reimbursements_compoff_sweep.sql');
-      return [];
-    }
     fail('getMyCompOffs: could not load comp offs', res.error);
   }
   return (res.data ?? []).map(mapCompOff);
@@ -1680,25 +1603,14 @@ export interface CompOffAdminRow extends CompOffRow {
  * applicable/not-applicable switch per credit.
  */
 export async function getCompOffAdmin(): Promise<CompOffAdminRow[]> {
-  const supabase = await createClient();
+  const dbc = await createClient();
   const FIELDS = (cols: string) => `${cols}, employees(code, full_name)`;
-  let res = await supabase
+  const res = await dbc
     .from('comp_offs')
     .select(FIELDS(COMP_OFF_FIELDS))
     .in('status', ['available', 'applied'])
     .order('earned_date', { ascending: true });
-  if (res.error?.code === '42703') {
-    res = (await supabase
-      .from('comp_offs')
-      .select(FIELDS(COMP_OFF_FIELDS_LEGACY))
-      .in('status', ['available', 'applied'])
-      .order('earned_date', { ascending: true })) as typeof res;
-  }
   if (res.error) {
-    if (isMissingTable(res.error)) {
-      warnNotMigrated('getCompOffAdmin', 'migration 0009_reimbursements_compoff_sweep.sql');
-      return [];
-    }
     fail('getCompOffAdmin: could not load comp offs', res.error);
   }
   return (res.data ?? [])
@@ -1742,8 +1654,7 @@ export interface EmployeeEditRow {
 }
 
 export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow | null> {
-  const supabase = await createClient();
-  // Migration 0019 (contact columns) may not be applied — retry without them.
+  const dbc = await createClient();
   const FULL_COLS =
     `code, full_name, designation, gender, date_of_joining, date_of_birth, whatsapp,
      mobile_official, mobile_personal, email_official, email_personal, aadhaar,
@@ -1751,13 +1662,8 @@ export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow 
      bank_name, bank_account_number, bank_ifsc,
      emergency_contact_name, emergency_contact_relation, emergency_contact_phone,
      gross_monthly, basic_da, hra, special_allowance, branches(name), departments(name)`;
-  const LEGACY_COLS =
-    `code, full_name, designation, gender, date_of_joining, date_of_birth, whatsapp,
-     pan, pf_uan, esic_number, gross_monthly, basic_da, hra, special_allowance, branches(name), departments(name)`;
-  let res = await supabase.from('employees').select(FULL_COLS).eq('code', code).maybeSingle();
-  if (res.error?.code === '42703') {
-    res = await supabase.from('employees').select(LEGACY_COLS).eq('code', code).maybeSingle();
-  }
+
+  const res = await dbc.from('employees').select(FULL_COLS).eq('code', code).maybeSingle();
   const { data, error } = res;
   if (error) fail('getEmployeeForEdit: could not load employee', error);
   if (!data) return null;
@@ -1795,14 +1701,14 @@ export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow 
 
 /** Distinct department names — suggestions for the Add/Edit Employee combobox. */
 export async function getDepartments(): Promise<string[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('departments')
-    .select('name')
-    .order('name');
-  if (error) fail('getDepartments: could not load departments', error);
-  const names = (data ?? []).map((d: any) => d.name as string);
-  return Array.from(new Set(names));
+  const departments = await scoped<DepartmentDoc>(COLLECTIONS.departments);
+  const rows = await departments.find(
+    {},
+    { projection: { name: 1 }, sort: { name: 1 } },
+  );
+  // The same department name can exist under several branches, so the list is
+  // deduplicated — callers want the set of names, not the rows.
+  return Array.from(new Set(rows.map((d) => d.name)));
 }
 
 // ----------------------------------------------------------------- items ---
@@ -1824,8 +1730,8 @@ export interface ItemRow {
 }
 
 export async function getItems(): Promise<ItemRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('v_items')
     .select(
       `id, item_code, item_name, category, brand, size_spec, total_quantity, unit,
@@ -1833,7 +1739,6 @@ export async function getItems(): Promise<ItemRow[]> {
     )
     .order('item_name');
   if (error) {
-    if (error.code === 'PGRST205' || error.code === '42P01') return [];
     fail('getItems: could not load items', error);
   }
   return (data ?? []) as unknown as ItemRow[];
@@ -1854,8 +1759,8 @@ export interface ItemAssignmentRow {
 }
 
 export async function getItemAssignments(itemId: string): Promise<ItemAssignmentRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('item_assignments')
     .select(
       `id, item_id, person_name, employee_code, quantity, assigned_date, assigned_by,
@@ -1864,7 +1769,6 @@ export async function getItemAssignments(itemId: string): Promise<ItemAssignment
     .eq('item_id', itemId)
     .order('assigned_date', { ascending: false });
   if (error) {
-    if (error.code === 'PGRST205' || error.code === '42P01') return [];
     fail('getItemAssignments: could not load assignments', error);
   }
   return (data ?? []) as unknown as ItemAssignmentRow[];
@@ -1894,33 +1798,15 @@ export interface AssetRow {
   assigned_date: string | null;
 }
 
-// Full (0034: + asset_category). Falls back to no-category (0028 only), then to
-// pre-0028 (no assignment columns), so the tab renders on any applied version.
 const ASSET_COLS =
   `id, desktop_name, asset_category, brand, serial_no, model_no, warranty_upto, warranty_renew,
    product_id, device_id, processor, ram, graphics_card, storage, antivirus,
    assigned_employee_id, assigned_person_name, assigned_employee_code, assigned_date`;
-const ASSET_COLS_NO_CATEGORY =
-  `id, desktop_name, brand, serial_no, model_no, warranty_upto, warranty_renew,
-   product_id, device_id, processor, ram, graphics_card, storage, antivirus,
-   assigned_employee_id, assigned_person_name, assigned_employee_code, assigned_date`;
-const ASSET_COLS_LEGACY =
-  `id, desktop_name, brand, serial_no, model_no, warranty_upto, warranty_renew,
-   product_id, device_id, processor, ram, graphics_card, storage, antivirus`;
 
 export async function getAssets(): Promise<AssetRow[]> {
-  const supabase = await createClient();
-  let res = await supabase.from('assets').select(ASSET_COLS).order('desktop_name');
-  if (res.error?.code === '42703') {
-    res = (await supabase.from('assets').select(ASSET_COLS_NO_CATEGORY).order('desktop_name')) as typeof res;
-  }
-  if (res.error?.code === '42703') {
-    res = (await supabase.from('assets').select(ASSET_COLS_LEGACY).order('desktop_name')) as typeof res;
-  }
+  const dbc = await createClient();
+  const res = await dbc.from('assets').select(ASSET_COLS).order('desktop_name');
   if (res.error) {
-    // Tolerate the table not existing yet (migration 0025 not applied) so the
-    // tab renders empty instead of crashing.
-    if (res.error.code === 'PGRST205' || res.error.code === '42P01') return [];
     fail('getAssets: could not load assets', res.error);
   }
   return (res.data ?? []) as unknown as AssetRow[];
@@ -1936,12 +1822,11 @@ export interface AssetSummaryRow {
 }
 
 export async function getAssetSummary(): Promise<AssetSummaryRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('v_asset_summary')
     .select('category, total, assigned, available, warranty_expiring');
   if (error) {
-    if (error.code === 'PGRST205' || error.code === '42P01') return [];
     fail('getAssetSummary: could not load the asset summary', error);
   }
   return (data ?? []).map((r: any) => ({
@@ -1967,14 +1852,13 @@ export interface AssetAssignmentRow {
 }
 
 export async function getAssetAssignments(assetId: string): Promise<AssetAssignmentRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('asset_assignments')
     .select('id, asset_id, person_name, employee_code, assigned_date, assigned_by, returned, returned_date, remarks')
     .eq('asset_id', assetId)
     .order('assigned_date', { ascending: false });
   if (error) {
-    if (error.code === 'PGRST205' || error.code === '42P01') return [];
     fail('getAssetAssignments: could not load history', error);
   }
   return (data ?? []) as unknown as AssetAssignmentRow[];
@@ -1994,14 +1878,13 @@ export interface AssetMaintenanceRow {
 }
 
 export async function getAssetMaintenance(assetId: string): Promise<AssetMaintenanceRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('asset_maintenance')
     .select('id, asset_id, maint_date, maint_type, cost, vendor, notes, next_due, created_by')
     .eq('asset_id', assetId)
     .order('maint_date', { ascending: false });
   if (error) {
-    if (error.code === 'PGRST205' || error.code === '42P01') return [];
     fail('getAssetMaintenance: could not load maintenance', error);
   }
   return (data ?? []).map((r: any) => ({ ...r, cost: r.cost == null ? null : Number(r.cost) })) as AssetMaintenanceRow[];
@@ -2019,15 +1902,14 @@ export interface MyAssetRow {
 }
 
 export async function getMyAssets(employeeId: string): Promise<MyAssetRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('assets')
     .select('id, desktop_name, brand, serial_no, model_no, assigned_date')
     .eq('assigned_employee_id', employeeId)
     .order('desktop_name');
   if (error) {
     // Table/column not migrated yet, or no read access — show nothing, don't crash.
-    if (['PGRST205', '42P01', '42703'].includes(error.code ?? '')) return [];
     fail('getMyAssets: could not load assigned assets', error);
   }
   return (data ?? []) as unknown as MyAssetRow[];
@@ -2046,14 +1928,13 @@ export interface MyItemRow {
 }
 
 export async function getMyItems(employeeId: string): Promise<MyItemRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('item_assignments')
     .select('id, quantity, assigned_date, returned, returned_date, items(item_name, category, unit)')
     .eq('employee_id', employeeId)
     .order('assigned_date', { ascending: false });
   if (error) {
-    if (['PGRST205', '42P01', '42703'].includes(error.code ?? '')) return [];
     fail('getMyItems: could not load assigned items', error);
   }
   return (data ?? []).map((r: any) => ({
@@ -2103,9 +1984,9 @@ export async function getEmployeeOverview(
   }
 
   const { start, end } = monthRange(periodMonth);
-  const supabase = await createClient();
+  const dbc = await createClient();
 
-  const { data: emp, error: empError } = await supabase
+  const { data: emp, error: empError } = await dbc
     .from('employees')
     .select('code, full_name, branches(name)')
     .eq('id', employeeId)
@@ -2113,7 +1994,7 @@ export async function getEmployeeOverview(
   if (empError) fail('getEmployeeOverview: could not load the employee', empError);
   if (!emp) throw new Error(`getEmployeeOverview: no employee with id ${employeeId}`);
 
-  const { data: days, error: daysError } = await supabase
+  const { data: days, error: daysError } = await dbc
     .from('attendance_days')
     .select('work_date, status, worked_minutes')
     .eq('employee_id', employeeId)
@@ -2141,7 +2022,7 @@ export async function getEmployeeOverview(
     workedToDate += d.worked_minutes ?? 0;
   }
   let fullDayMin = 555;
-  const { data: fdm } = await supabase
+  const { data: fdm } = await dbc
     .from('settings')
     .select('value')
     .eq('key', 'full_day_minutes')
@@ -2151,7 +2032,7 @@ export async function getEmployeeOverview(
   const targetMin = Math.round(workingCredit * fullDayMin);
   const pendingMin = Math.max(0, targetMin - workedToDate);
 
-  const { data: slip, error: slipError } = await supabase
+  const { data: slip, error: slipError } = await dbc
     .from('payslips')
     .select('net_payable, payroll_runs!inner(period_month)')
     .eq('employee_id', employeeId)
@@ -2186,8 +2067,8 @@ export interface PolicyView {
 
 /** Published policies for an employee, flagged with whether they've acknowledged. */
 export async function getEmployeePolicies(employeeId: string | null): Promise<PolicyView[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('policies')
     .select('id, title, category, version, effective_date, body, published')
     .eq('published', true)
@@ -2196,7 +2077,7 @@ export async function getEmployeePolicies(employeeId: string | null): Promise<Po
 
   let acked = new Set<string>();
   if (employeeId) {
-    const { data: acks, error: acksError } = await supabase
+    const { data: acks, error: acksError } = await dbc
       .from('policy_acknowledgements')
       .select('policy_id')
       .eq('employee_id', employeeId);
@@ -2215,42 +2096,30 @@ export async function getEmployeePolicies(employeeId: string | null): Promise<Po
  * to see the receipts the policies screen promises are being recorded.
  */
 export async function getPolicyAckCounts(): Promise<Record<string, number>> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('policy_acknowledgements').select('policy_id');
-  if (error) {
-    if (isMissingTable(error)) {
-      warnNotMigrated('getPolicyAckCounts', '0004_auth_policies.sql');
-      return {};
-    }
-    fail('getPolicyAckCounts: could not load acknowledgements', error);
-  }
-  const out: Record<string, number> = {};
-  for (const row of (data ?? []) as { policy_id: string }[]) {
-    out[row.policy_id] = (out[row.policy_id] ?? 0) + 1;
-  }
-  return out;
+  const acks = await scoped(COLLECTIONS.policyAcknowledgements);
+  // Counted in the database rather than by pulling every receipt across and
+  // tallying them in JavaScript, which is what the row-by-row version did.
+  const rows = await acks.aggregate<{ _id: string; n: number }>([
+    { $group: { _id: '$policy_id', n: { $sum: 1 } } },
+  ]);
+  return Object.fromEntries(rows.map((r) => [r._id, r.n]));
 }
 
 /** Active headcount — the denominator for "n/N read". */
 export async function getActiveEmployeeCount(): Promise<number> {
-  const supabase = await createClient();
-  const { count, error } = await supabase
-    .from('employees')
-    .select('code', { count: 'exact', head: true })
-    .eq('status', 'active');
-  if (error) return 0;
-  return count ?? 0;
+  try {
+    const employees = await scoped<EmployeeDoc>(COLLECTIONS.employees);
+    return await employees.countDocuments({ status: 'active' });
+  } catch {
+    return 0;
+  }
 }
 
 /** All policies for the admin management screen. */
 export async function getAllPolicies(): Promise<Policy[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('policies')
-    .select('*')
-    .order('updated_at', { ascending: false });
-  if (error) fail('getAllPolicies: could not load policies', error);
-  return (data ?? []) as Policy[];
+  const policies = await scoped(COLLECTIONS.policies);
+  const rows = await policies.find({}, { sort: { updated_at: -1 } });
+  return rows.map((r) => ({ ...r, id: r._id })) as unknown as Policy[];
 }
 
 // --------------------------------------------------------------- holidays ---
@@ -2263,17 +2132,14 @@ export interface HolidayView {
 
 /** Company holidays, sorted ascending by date. */
 export async function getHolidays(): Promise<HolidayView[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('holidays')
-    .select('id, holiday_date, name, branches(name)')
-    .order('holiday_date', { ascending: true });
-  if (error) fail('getHolidays: could not load holidays', error);
-  return (data ?? []).map((h: any) => ({
-    id: h.id,
-    date: h.holiday_date,
-    name: h.name,
-    branch: h.branches?.name ?? null,
+  const holidays = await scoped(COLLECTIONS.holidays);
+  const rows = await holidays.find({}, { sort: { holiday_date: 1 } });
+  return rows.map((h) => ({
+    id: h._id as string,
+    date: h.holiday_date as string,
+    name: h.name as string,
+    // A null branch still means "all branches", same as before.
+    branch: (h.branch_name as string | null) ?? null,
   }));
 }
 
@@ -2293,57 +2159,47 @@ export interface NoticeView {
 
 /** Notices, newest first. */
 export async function getNotices(): Promise<NoticeView[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('notices')
-    .select('id, title, body, channel, pdf_url, published_at, created_at, branches(name)')
-    .order('created_at', { ascending: false });
-  if (error) fail('getNotices: could not load notices', error);
-  return (data ?? []).map((n: any) => ({
-    id: n.id,
-    title: n.title,
-    body: n.body,
-    channel: n.channel,
-    branch: n.branches?.name ?? null,
+  const notices = await scoped(COLLECTIONS.notices);
+  const rows = await notices.find({}, { sort: { created_at: -1 } });
+  return rows.map((n) => ({
+    id: n._id as string,
+    title: n.title as string,
+    body: (n.body as string | null) ?? null,
+    channel: n.channel as NoticeView['channel'],
+    branch: (n.branch_name as string | null) ?? null,
     published: n.published_at != null,
-    publishedAt: n.published_at,
-    createdAt: n.created_at,
-    pdfPath: n.pdf_url ?? null,
+    publishedAt: isoOrNull(n.published_at),
+    createdAt: iso(n.created_at),
+    pdfPath: (n.pdf_url as string | null) ?? null,
   }));
 }
 
 /** The ids of notices this employee has marked read (for the dashboard). */
 export async function getReadNoticeIds(employeeId: string | null): Promise<string[]> {
   if (!employeeId) return [];
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('notice_reads')
-    .select('notice_id')
+    .select<{ notice_id: string }[]>('notice_id')
     .eq('employee_id', employeeId);
-  if (error) {
-    // Only the pre-migration case (table absent) is benign → treat all as unread.
-    // A real error (RLS/permission/network) must surface, not be swallowed.
-    if (isMissingTable(error)) return [];
-    fail('getReadNoticeIds: could not load read receipts', error);
-  }
+  if (error) fail('getReadNoticeIds: could not load read receipts', error);
   return (data ?? []).map((r: { notice_id: string }) => r.notice_id);
 }
 
 /**
- * Best-effort: hard-delete notices older than 30 days (published 30d ago, or a
- * draft created 30d ago). Called from the staff Notices page so the table is
- * cleaned even without pg_cron; employees never see expired notices regardless
- * (the dashboard filters them out). Staff hold the delete grant; errors are
- * swallowed so a cleanup hiccup never breaks the page.
+ * Best-effort sweep of expired notices, run whenever staff publish one, so the
+ * table stays clean on a deployment with nothing scheduling the nightly job.
+ * Employees never see expired notices regardless (the dashboard filters them
+ * out). Errors are swallowed: this is opportunistic cleanup, and a hiccup here
+ * must never break the page that triggered it.
+ *
+ * The retention rule itself lives in ONE place — db/scheduler.ts — because it
+ * used to live in two, with a different window in each. See
+ * NOTICE_RETENTION_DAYS.
  */
 export async function purgeExpiredNotices(): Promise<void> {
-  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   try {
-    const supabase = await createClient();
-    await supabase
-      .from('notices')
-      .delete()
-      .or(`published_at.lt.${cutoff},and(published_at.is.null,created_at.lt.${cutoff})`);
+    await deleteExpiredNotices();
   } catch {
     // ignore — this is opportunistic cleanup, not required for correctness
   }
@@ -2372,23 +2228,17 @@ function mapTicket(t: any): TicketView {
     employeeName: t.employees?.full_name ?? null,
     employeeCode: t.employees?.code ?? null,
     resolutionNote: t.resolution_note ?? null,
-    createdAt: t.created_at,
+    createdAt: iso(t.created_at),
   };
 }
 
 /** Helpdesk tickets, open first then newest. */
 export async function getTickets(): Promise<TicketView[]> {
-  const supabase = await createClient();
-  let res = await supabase
+  const dbc = await createClient();
+  const res = await dbc
     .from('helpdesk_tickets')
     .select(TICKET_COLS)
     .order('created_at', { ascending: false });
-  if (res.error?.code === '42703') {
-    res = (await supabase
-      .from('helpdesk_tickets')
-      .select(TICKET_COLS_LEGACY)
-      .order('created_at', { ascending: false })) as typeof res;
-  }
   if (res.error) fail('getTickets: could not load tickets', res.error);
   // Open tickets first, otherwise preserve newest-first ordering.
   return (res.data ?? [])
@@ -2419,48 +2269,58 @@ function mapComment(c: any): TicketComment {
     authorName: c.author_name ?? null,
     authorRole: c.author_role ?? null,
     authorIsStaff: !!c.author_is_staff,
-    createdAt: c.created_at,
+    // created_at is a BSON date, and TicketComment.createdAt is a string that
+    // crosses into a client component — iso() is the one place that conversion
+    // is decided.
+    createdAt: iso(c.created_at),
   };
 }
 
 /**
  * Follow-up comments for the given tickets, grouped by ticket id and ordered
- * oldest-first. Returns `{}` when migration 0021 isn't applied (missing table)
- * so the ticket screens keep rendering. RLS scopes visibility (staff read all,
- * an employee reads their own tickets' threads).
+ * oldest-first. Staff read every thread; an employee reads the threads of the
+ * tickets they raised. That scoping is done by the parent-ticket check below,
+ * not by the comment collection's own policy — see the comment there.
  */
 export async function getTicketComments(
   ticketIds: string[],
 ): Promise<Record<string, TicketComment[]>> {
   if (ticketIds.length === 0) return {};
 
-  const supabase = await createClient();
-  const COLS = 'id, ticket_id, body, author_id, author_name, author_role, author_is_staff, created_at';
-  const COLS_LEGACY = 'id, ticket_id, body, author_id, author_name, author_is_staff, created_at';
-  let res = await supabase
-    .from('helpdesk_ticket_comments')
-    .select(COLS)
-    .in('ticket_id', ticketIds)
-    .order('created_at', { ascending: true });
-  // Migration 0030 (author_role) not applied yet → retry without the column.
-  if (res.error?.code === '42703') {
-    res = (await supabase
-      .from('helpdesk_ticket_comments')
-      .select(COLS_LEGACY)
-      .in('ticket_id', ticketIds)
-      .order('created_at', { ascending: true })) as typeof res;
-  }
-  const { data, error } = res;
-  if (error) {
-    if (isMissingTable(error)) {
-      warnNotMigrated('getTicketComments', 'migration 0021_helpdesk_thread.sql');
-      return {};
-    }
-    fail('getTicketComments: could not load comments', error);
-  }
+  // THE PARENT-TICKET CHECK, which is what decides who may read a comment.
+  //
+  // The SQL policy was `exists (select 1 from helpdesk_tickets t where
+  // t.id = ticket_id and (is_portal() or t.employee_id = current_employee_id()))`.
+  // A Mongo filter cannot join, and the port replaced that join with a filter
+  // on the comment's own author_id — which is a different rule with two
+  // failures: an employee could no longer read the STAFF replies on their own
+  // ticket (the drawer showed only their own messages after a reload), and the
+  // rule said nothing about whether they may see the ticket at all.
+  //
+  // So the join is done here instead: narrow the ids to the tickets this
+  // caller can actually see, then read the comments for exactly those.
+  const tickets = await scoped<{ _id: string }>(COLLECTIONS.helpdeskTickets);
+  const visible = await tickets.find(
+    { _id: { $in: ticketIds } },
+    { projection: { _id: 1 } },
+  );
+  const allowed = visible.map((t) => String(t._id));
+  if (allowed.length === 0) return {};
+
+  // Unscoped, because the rule above IS the collection's access rule and it has
+  // just been applied. afterParentCheck() rather than systemCollection(): this
+  // runs on a request, and the name says where to find the check.
+  const comments = afterParentCheck<{ _id: string; ticket_id: string; created_at: Date }>(
+    COLLECTIONS.helpdeskTicketComments,
+  );
+  const rows = await comments.find(
+    { ticket_id: { $in: allowed } },
+    { sort: { created_at: 1 } },
+  );
+
   const byTicket: Record<string, TicketComment[]> = {};
-  for (const row of data ?? []) {
-    const c = mapComment(row);
+  for (const row of rows) {
+    const c = mapComment({ ...row, id: row._id });
     (byTicket[c.ticketId] ??= []).push(c);
   }
   return byTicket;
@@ -2518,21 +2378,21 @@ export async function getTopbarStats(): Promise<TopbarStats> {
     nightSweep: null,
   };
 
-  if (!isSupabaseConfigured()) return base;
+  if (!isMongoConfigured()) return base;
 
   try {
-    const supabase = await createClient();
+    const dbc = await createClient();
     const periodMonth = `${todayISO().slice(0, 7)}-01`;
     const [employees, branches, approvals, run, sweep] = await Promise.all([
-      supabase.from('employees').select('code', { count: 'exact', head: true }).eq('status', 'active'),
-      supabase.from('branches').select('name').order('name'),
-      supabase.from('requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-      supabase
+      dbc.from('employees').select('code', { count: 'exact', head: true }).eq('status', 'active'),
+      dbc.from('branches').select('name').order('name'),
+      dbc.from('requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      dbc
         .from('payroll_runs')
         .select('status')
         .eq('period_month', periodMonth)
         .maybeSingle<{ status: string }>(),
-      supabase
+      dbc
         .from('settings')
         .select('value')
         .eq('key', 'night_sweep_time')
@@ -2553,8 +2413,8 @@ export async function getTopbarStats(): Promise<TopbarStats> {
 }
 
 export async function getSettings(): Promise<SettingView[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('settings')
     .select('key, value, label, description')
     .order('key');
@@ -2604,30 +2464,20 @@ function mapRequest(r: any): RequestView {
     status: r.status,
     balanceAfter: r.balance_after != null ? Number(r.balance_after) : null,
     reviewRemark: r.review_remark ?? null,
-    createdAt: r.created_at ?? '',
-    reviewedAt: r.reviewed_at ?? null,
+    createdAt: iso(r.created_at),
+    reviewedAt: isoOrNull(r.reviewed_at),
   };
 }
-
-// review_remark arrives with 0041 — every request select retries without it.
 const REQUEST_FIELDS = `id, type, leave_kind, start_date, end_date, days, reason, status,
   balance_after, review_remark, created_at, reviewed_at, employees(code, full_name, branches(name))`;
-const REQUEST_FIELDS_LEGACY = `id, type, leave_kind, start_date, end_date, days, reason, status,
-  balance_after, created_at, reviewed_at, employees(code, full_name, branches(name))`;
 
 /** Leave / duty requests, pending first then reviewed. */
 export async function getRequests(): Promise<RequestView[]> {
-  const supabase = await createClient();
-  let res = await supabase
+  const dbc = await createClient();
+  const res = await dbc
     .from('requests')
     .select(REQUEST_FIELDS)
     .order('created_at', { ascending: false });
-  if (res.error?.code === '42703') {
-    res = (await supabase
-      .from('requests')
-      .select(REQUEST_FIELDS_LEGACY)
-      .order('created_at', { ascending: false })) as typeof res;
-  }
   if (res.error) fail('getRequests: could not load requests', res.error);
   // Pending first, otherwise preserve newest-first ordering.
   return (res.data ?? [])
@@ -2650,16 +2500,12 @@ export interface OnLeaveTodayRow {
  * Returns [] when the function is not installed yet.
  */
 export async function getOnLeaveToday(): Promise<OnLeaveTodayRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc('fn_on_leave_today');
-  if (error) {
-    // PGRST202/42883 = 0041 not applied yet — an empty strip, not a crash.
-    if (error.code === 'PGRST202' || error.code === '42883') {
-      warnNotMigrated('getOnLeaveToday', 'migration 0041_payslip_compoff_leave.sql');
-      return [];
-    }
-    fail('getOnLeaveToday: could not load who is on leave', error);
-  }
+  const dbc = await createClient();
+  const { data, error } = await dbc.rpc('fn_on_leave_today');
+  // An unregistered rpc comes back with a MESSAGE and no code (pgcompat.rpc),
+  // so there is no "function not installed" code to branch on any more — and
+  // fn_on_leave_today is registered by db/server.ts regardless.
+  if (error) fail('getOnLeaveToday: could not load who is on leave', error);
   return ((data ?? []) as any[]).map((r) => ({
     employeeId: r.employee_id,
     name: r.full_name ?? '',
@@ -2675,8 +2521,8 @@ export async function getOnLeaveToday(): Promise<OnLeaveTodayRow[]> {
  * Which tabs the SIGNED-IN account may open — migration 0045.
  *
  * Only explicit decisions are stored, so a missing entry means "allowed"; see
- * lib/access.ts for the rule that consumes it. RLS limits the rows to your own,
- * so this stays a single indexed lookup on every portal request.
+ * lib/access.ts for the rule that consumes it. The read is scoped to the
+ * caller's own account, so it stays a single indexed lookup per portal request.
  *
  * Degrades to an empty map when 0045 has not been applied, which reproduces the
  * behaviour before this feature existed (every tab allowed) rather than locking
@@ -2684,22 +2530,11 @@ export async function getOnLeaveToday(): Promise<OnLeaveTodayRow[]> {
  */
 export async function getMyTabAccess(userId: string | null): Promise<TabAccess> {
   if (!userId) return {};
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('user_tab_access')
-    .select('slug, allowed')
-    .eq('user_id', userId);
-  if (error) {
-    if (isMissingTable(error)) {
-      warnNotMigrated('getMyTabAccess', 'migration 0045_user_tab_access.sql');
-      return {};
-    }
-    fail('getMyTabAccess: could not load tab access', error);
-  }
-
-  const map: TabAccess = {};
-  for (const row of (data ?? []) as { slug: string; allowed: boolean }[]) {
-    map[row.slug] = row.allowed;
-  }
-  return map;
+  // user_tab_access was a row-per-(user, slug) table. It is now a map embedded
+  // on the user document, because the portal layout reads it on EVERY request —
+  // as a table that was a second query per page load, and as an embedded field
+  // it costs nothing beyond the session lookup that was happening anyway.
+  const users = await scoped<UserDoc>(COLLECTIONS.users);
+  const user = await users.findOne({ _id: userId }, { projection: { tab_access: 1 } });
+  return (user?.tab_access as TabAccess) ?? {};
 }

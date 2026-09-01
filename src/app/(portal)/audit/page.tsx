@@ -4,7 +4,7 @@ import { getSession } from '@/lib/auth';
 import { formatDate } from '@/lib/format';
 import type { AppRole } from '@/types/database';
 
-// Attendance audit trail is staff-only (admin/HR/manager) — the same set that
+// Attendance audit trail is staff-only (admin/HR) — the same set that
 // may write attendance. Others are bounced; the nav link is hidden via NAV_ROLE_GATED.
 const AUDIT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 

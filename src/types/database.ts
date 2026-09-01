@@ -1,22 +1,14 @@
 // ============================================================================
-// Stable type barrel — import app types from '@/types/database' as before.
+// Stable type barrel — import app types from '@/types/database'.
 //
-// WHY THIS FILE EXISTS: `npm run db:types` regenerates the Supabase schema types
-// by OVERWRITING its output file. This file used to BE that output target while
-// also holding ~250 lines of hand-written app types (AppRole, AttendanceStatus,
-// Policy, …), so every regeneration silently deleted them and broke every
-// import in the app. That happened twice.
+// This used to re-export a 59KB file of Supabase-generated schema types
+// alongside the hand-written ones. Nothing imported the generated half (no
+// Database, Tables<>, Enums<> or Json anywhere in the app), and there is no
+// generator any more, so it went with the migration. Document shapes now live
+// in src/lib/db/collections.ts, next to the collections they describe.
 //
-// The two concerns are now separated and this barrel keeps the import path
-// unchanged:
-//   * src/types/supabase.ts — GENERATED. `npm run db:types` overwrites it.
-//                             Never hand-edit; your edits will be lost.
-//   * src/types/app.ts      — HAND-WRITTEN. Domain unions/row shapes the app
-//                             uses. Regeneration never touches it.
+// The import path is unchanged so no call site had to move.
 // ============================================================================
 
 // Hand-written domain types (AppRole, AttendanceStatus, LeaveType, Policy, …).
 export * from './app';
-
-// Generated Supabase schema types (Database, Tables<>, Enums<>, Json, …).
-export * from './supabase';

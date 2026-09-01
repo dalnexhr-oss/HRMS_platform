@@ -218,7 +218,7 @@ export const NAV: NavItem[] = [
   { slug: 'onboarding', label: 'Onboarding', group: GROUPS.WORKFORCE },
   { slug: 'exits', label: 'Exits', group: GROUPS.WORKFORCE },
 
-  { slug: 'hr', label: 'Leave Management', group: GROUPS.HR },
+  { slug: 'leaveManagment', label: 'Leave Management', group: GROUPS.HR },
   { slug: 'leave', label: 'Leave salary', group: GROUPS.HR },
   { slug: 'payroll', label: 'Payroll', group: GROUPS.HR },
   { slug: 'reimbursements', label: 'Reimbursements', group: GROUPS.HR },
@@ -248,7 +248,9 @@ export const NAV_ROLE_GATED: Record<string, readonly string[]> = {
   audit: ['super_admin', 'admin', 'hr'],
   onboarding: ['super_admin', 'admin', 'hr'],
   exits: ['super_admin', 'admin', 'hr'],
-  hr: ['super_admin', 'admin', 'hr'],
+  // The KEY is the nav slug; the values are roles. Only the slug was renamed
+  // from 'hr' — 'hr' the role still appears on the right of every line here.
+  leaveManagment: ['super_admin', 'admin', 'hr'],
   leave: ['super_admin', 'admin', 'hr'],
   assets: ['super_admin', 'admin', 'hr'],
   items: ['super_admin', 'admin', 'hr'],
@@ -257,7 +259,6 @@ export const NAV_ROLE_GATED: Record<string, readonly string[]> = {
   tv: ['super_admin', 'admin', 'hr'],
   // Mirrors IMPORT_ROLES in actions/import.ts (commitImport) — the widest
   // real write path. The nav used to say admin/hr while the action allowed
-  // managers, so a manager could import by URL but saw no link.
   import: ['super_admin', 'admin', 'hr'],
   // Mirrors the /settings page guard and updateSetting/updateBranch.
   settings: ['super_admin', 'admin', 'hr'],
@@ -272,7 +273,7 @@ export const TITLES: Record<string, [string, string]> = {
   today: ['Today', 'Live attendance · IST'],
   register: ['Monthly register', 'Attendance by month'],
   audit: ['Attendance audit', 'Who edited attendance & why'],
-  hr: ['Leave Management', 'Manage employee leave requests'],
+  leaveManagment: ['Leave Management', 'Manage employee leave requests'],
   leave: ['Leave salary', '15-day paid leave & annual payout'],
   exits: ['Exits', 'Clearance, settlement & documents'],
   onboarding: ['Onboarding', 'Joiner checklists by owner'],
@@ -372,3 +373,14 @@ export function pageHeader(slug: string, stats?: TopbarStats | null): [string, s
       return [title, fallback];
   }
 }
+/**
+ * How long a notice lives before it is hard-deleted (migration 0015).
+ *
+ * ONE number, because there used to be two. The nightly job defaulted to 90
+ * days while the purge that runs whenever staff publish used 30 — and since
+ * the 30-day sweep always ran first, everything older was already gone by the
+ * time the 90-day job looked, so the 90 was dead code describing a policy the
+ * app did not have. 30 is what migration 0015 declares and what the employee
+ * dashboard's date filter has always matched.
+ */
+export const NOTICE_RETENTION_DAYS = 30;

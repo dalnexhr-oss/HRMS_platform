@@ -8,29 +8,23 @@
 // only reliable answer. attendance_days is still read, for the day's HR status
 // (leave, week off, holiday) and the worked total.
 // ============================================================================
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
+import { todayIST } from '@/lib/format';
+// The board reads punch_events, so it uses the punch module's own definitions
+// of "the day floor" and "the instant this row holds" rather than keeping a
+// second copy. The copy is what broke it: this file's dayFloorUtc still
+// returned an ISO STRING after punched_at became a BSON date, and MongoDB
+// brackets comparisons by type — so `punched_at >= '<string>'` matched nothing
+// and the wall board showed an empty floor all day.
+import { dayFloorUtc, punchInstant } from '@/lib/punch';
 import type { BoardData, EmployeeData, Presence } from '@/lib/types/employee';
 
 const BUSINESS_TZ = 'Asia/Kolkata';
 
-function todayISO(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: BUSINESS_TZ }).format(new Date());
-}
-
-function dayOf(timestamp: string): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: BUSINESS_TZ }).format(new Date(timestamp));
-}
-
-/**
- * A safe UTC floor for "events on this local day". punched_at is timestamptz,
- * so a bare `>= '2026-08-24T00:00:00'` is compared as UTC — 05:30 local in IST
- * — which would drop every punch made in the small hours. Going a full day back
- * is offset-agnostic; dayOf() below then narrows to the exact local day.
- */
-function dayFloorUtc(date: string): string {
-  const floor = new Date(`${date}T00:00:00Z`);
-  floor.setUTCDate(floor.getUTCDate() - 1);
-  return floor.toISOString();
+function dayOf(timestamp: Date | string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: BUSINESS_TZ }).format(
+    punchInstant(timestamp),
+  );
 }
 
 /**
@@ -42,22 +36,26 @@ const LEAVE_STATUSES = new Set(['L', 'CO']);
 const OFF_STATUSES = new Set(['WO', 'OH']);
 
 export async function readBoard(): Promise<BoardData> {
-  const supabase = await createClient();
-  const date = todayISO();
+  const dbc = await createClient();
+  const date = todayIST();
 
   const [employees, days, events] = await Promise.all([
-    supabase
+    dbc
       .from('employees')
       .select('id, code, full_name, designation, branches(name), departments(name)')
       .eq('status', 'active')
       .order('full_name'),
-    supabase
+    dbc
       .from('attendance_days')
-      .select('employee_id, status, worked_minutes')
+      .select<{ employee_id: string; status: string; worked_minutes: number }[]>(
+        'employee_id, status, worked_minutes',
+      )
       .eq('work_date', date),
-    supabase
+    dbc
       .from('punch_events')
-      .select('employee_id, kind, punched_at, within_geofence')
+      .select<{ employee_id: string; kind: string; punched_at: Date | string; within_geofence: boolean | null }[]>(
+        'employee_id, kind, punched_at, within_geofence',
+      )
       .gte('punched_at', dayFloorUtc(date))
       .order('punched_at', { ascending: true }),
   ]);
@@ -71,7 +69,7 @@ export async function readBoard(): Promise<BoardData> {
   );
 
   // Ascending order means the last write per employee wins — the latest punch.
-  const lastEvent = new Map<string, { kind: string; punched_at: string; within_geofence: boolean | null }>();
+  const lastEvent = new Map<string, { kind: string; punched_at: Date | string; within_geofence: boolean | null }>();
   for (const event of events.data ?? []) {
     if (dayOf(event.punched_at) !== date) continue;
     lastEvent.set(event.employee_id, event);
@@ -98,7 +96,8 @@ export async function readBoard(): Promise<BoardData> {
       department: employee.departments?.name ?? null,
       branch: employee.branches?.name ?? null,
       presence,
-      lastPunchAt: last?.punched_at ?? null,
+      // An ISO string for the client, not the raw column.
+      lastPunchAt: last ? punchInstant(last.punched_at).toISOString() : null,
       lastKind: (last?.kind as 'in' | 'out' | undefined) ?? null,
       withinGeofence: last?.within_geofence ?? null,
       workedMinutes: day?.worked_minutes ?? 0,

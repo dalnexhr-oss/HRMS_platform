@@ -52,7 +52,7 @@ export function trimTime(t: string | null): string | null {
 // import template).
 //
 // These live in format.ts — not queries.ts — deliberately: queries.ts imports
-// '@/lib/supabase/server', so a client component cannot touch it. These are
+// '@/lib/db/server', so a client component cannot touch it. These are
 // pure string/date arithmetic and are safe on both sides.
 // ---------------------------------------------------------------------------
 
