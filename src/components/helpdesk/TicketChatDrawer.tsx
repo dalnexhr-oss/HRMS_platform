@@ -2,12 +2,12 @@
 
 // A real-time conversation window for one ticket. Used by both the staff
 // helpdesk screen and the employee dashboard. Initial messages arrive as a prop
-// (server-fetched); new ones stream in over Supabase Realtime (postgres_changes
-// on helpdesk_ticket_comments, scoped to this ticket) — RLS is applied per
-// socket, so an employee only ever receives their own tickets' messages.
+// (server-fetched); new ones stream in over SSE from
+// /api/helpdesk/<id>/stream, which re-checks the session and the caller's
+// access to THIS ticket before it opens the stream — so an employee only ever
+// receives their own tickets' messages.
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import { AvatarInner } from '@/components/ui/Avatar';
 import { addTicketComment, setTicketStatus } from '@/lib/actions/helpdesk';
 import type { TicketComment, TicketView } from '@/lib/queries';
@@ -24,8 +24,6 @@ function roleLabel(role: string | null | undefined): string {
       return 'Admin';
     case 'hr':
       return 'HR';
-    case 'manager':
-      return 'Manager';
     case 'employee':
       return 'Employee';
     default:
@@ -94,28 +92,24 @@ export function TicketChatDrawer({
   }, [ticket?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Subscribe to live inserts for this ticket while the drawer is open.
+  //
+  // Supabase Realtime's postgres_changes became a plain EventSource against
+  // /api/helpdesk/<id>/stream, which tails a MongoDB change stream (or polls,
+  // on a standalone server). EventSource is built into the browser, reconnects
+  // by itself, and needs no client library — the whole subscription is the four
+  // lines below.
   useEffect(() => {
     if (!open || !ticket) return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`ticket:${ticket.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'helpdesk_ticket_comments',
-          filter: `ticket_id=eq.${ticket.id}`,
-        },
-        (payload) => {
-          const c = fromRow(payload.new);
-          setMessages((prev) => (prev.some((m) => m.id === c.id) ? prev : [...prev, c]));
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
+
+    const source = new EventSource(`/api/helpdesk/${ticket.id}/stream`);
+    source.addEventListener('comment', (event) => {
+      const c = fromRow(JSON.parse((event as MessageEvent).data));
+      // Still deduped by id: the sender appends optimistically, and the stream
+      // echoes the same row back a moment later.
+      setMessages((prev) => (prev.some((m) => m.id === c.id) ? prev : [...prev, c]));
+    });
+
+    return () => source.close();
   }, [open, ticket?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep the view pinned to the newest message.
