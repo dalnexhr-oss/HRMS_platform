@@ -10,8 +10,8 @@ import {
 import { getSession } from '@/lib/auth';
 import type { AppRole } from '@/types/database';
 
-// Onboarding is admin/HR only, matching the 0037 RLS (auth_role() in ('admin','hr'))
-// and the actions' requireRoles gate.
+// Onboarding is super-admin/admin/HR only, matching the onboarding policies and
+// the actions' own requireRoles gate.
 const ONBOARDING_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 export default async function OnboardingPage() {

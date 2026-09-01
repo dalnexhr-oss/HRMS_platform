@@ -1,7 +1,7 @@
 'use client';
 
 // The onboarding board: start a joiner's checklist from a template, then work
-// the tasks grouped by who owns them (HR / IT / Admin / manager / the employee).
+// the task group by owner (HR, IT, Admin, etc). Every action is a staff action; the joiner sees only the read-only MyOnboarding card on their dashboard.
 //
 // "assignee_role" is a free-text OWNER label, not an app role — 'it' and
 // 'employee' own steps without being portal roles (see the 0037 column comment).
@@ -28,7 +28,6 @@ const ROLE_LABEL: Record<string, string> = {
   it: 'IT',
   admin: 'Admin',
   super_admin: 'Super Admin',
-  manager: 'Manager',
   employee: 'Employee',
 };
 

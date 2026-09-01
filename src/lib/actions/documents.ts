@@ -5,13 +5,14 @@
 //
 // Files live in the private `employee-documents` bucket (0032) under
 // `<employee_id>/<uuid>-<filename>`; the row only ever carries the path, and
-// access is by short-lived signed URL. Two invariants come straight from the
-// migration and must not be bypassed here:
+// the bytes are served by /api/files, which re-checks the session on every
+// request. Two invariants come straight from the migration and must not be
+// bypassed here:
 //
 //   1. `employee_documents_path_scoped` — the row's storage_path MUST begin with
-//      its own employee_id. Signed URLs are minted server-side (bypassing
-//      storage RLS), so without the row being scoped too, a crafted path could
-//      read another employee's folder.
+//      its own employee_id. That prefix is what lib/db/gridfs.ts checks to
+//      decide who may open the object, so a row whose path points into another
+//      employee's folder would hand out that employee's file.
 //   2. No self-verification — the employee insert policy pins verified_by /
 //      verified_at to null; only an admin/HR UPDATE can stamp them.
 //
@@ -19,7 +20,7 @@
 // timestamp, and a remark that the subject can read.
 // ============================================================================
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { requireDb, requireRoles, wroteNothing } from '@/lib/actions/_guard';
 import { uploadFile, signedUrl, resolveUploadType, type StorageBucket } from '@/lib/storage';
@@ -80,9 +81,8 @@ export async function uploadEmployeeDocument(formData: FormData): Promise<Action
     return { ok: false, error: 'You can only upload documents against your own record.' };
   }
 
-  const supabase = await createClient();
+  const dbc = await createClient();
   const up = await uploadFile(
-    supabase,
     UPLOAD_BUCKET,
     employeeId,
     file.name,
@@ -91,7 +91,7 @@ export async function uploadEmployeeDocument(formData: FormData): Promise<Action
   );
   if (!up.ok) return { ok: false, error: up.error ?? 'The document could not be uploaded.' };
 
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('employee_documents')
     .insert({
       employee_id: employeeId,
@@ -102,9 +102,6 @@ export async function uploadEmployeeDocument(formData: FormData): Promise<Action
     })
     .select('id');
   if (error) {
-    if (error.code === '42P01' || error.code === 'PGRST205') {
-      return { ok: false, error: 'Document management is not set up on the database yet — apply migration 0037.' };
-    }
     // 23514 = the path-scoping check. Should be unreachable given the guard
     // above, but say something useful rather than leaking a constraint name.
     if (error.code === '23514') {
@@ -155,12 +152,12 @@ export async function verifyEmployeeDocument(
     return { ok: false, error: 'Enter what is wrong with the document.' };
   }
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('employee_documents')
     .update({
       verified_by: verified ? gate.profileId : null,
-      verified_at: verified ? new Date().toISOString() : null,
+      verified_at: verified ? new Date() : null,
       verify_remark: cleanRemark || null,
     })
     .eq('id', id)
@@ -188,8 +185,8 @@ export async function deleteEmployeeDocument(id: string): Promise<ActionResult> 
   const gate = await requireRoles(VERIFY_ROLES, 'Deleting a document');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('employee_documents')
     .delete()
     .eq('id', id)
@@ -205,32 +202,21 @@ export async function deleteEmployeeDocument(id: string): Promise<ActionResult> 
   return { ok: true };
 }
 
-/** Mint a short-lived signed URL. RLS on the row read scopes who may ask. */
+/** Resolve a document's file URL. The row read scopes who may ask. */
 export async function getDocumentUrl(
   id: string,
 ): Promise<{ ok: boolean; url?: string; error?: string }> {
   const db = requireDb('Opening a document');
   if (!db.ok) return db;
 
-  const supabase = await createClient();
-  // The SELECT is RLS-scoped (staff, or the owning employee), so a caller who
-  // cannot see the row gets nothing to sign.
-  let res = await supabase
+  const dbc = await createClient();
+  // The SELECT is policy-scoped (staff, or the owning employee), so a caller
+  // who cannot see the row gets nothing to open.
+  const res = await dbc
     .from('employee_documents')
     .select('storage_path, bucket')
     .eq('id', id)
     .maybeSingle<{ storage_path: string; bucket: string | null }>();
-  // `bucket` arrived with migration 0039. On a database still waiting for it,
-  // the select above 42703s and EVERY document open fails — so retry with just
-  // the path. Everything written before 0039 is an upload, so the upload
-  // bucket is the correct default.
-  if (res.error?.code === '42703') {
-    res = (await supabase
-      .from('employee_documents')
-      .select('storage_path')
-      .eq('id', id)
-      .maybeSingle<{ storage_path: string; bucket?: string | null }>()) as typeof res;
-  }
   const { data, error } = res;
   if (error) return { ok: false, error: error.message };
   if (!data?.storage_path) return { ok: false, error: 'That document is not available to you.' };
@@ -240,7 +226,7 @@ export async function getDocumentUrl(
   // former is what made every issued letter "Object not found". `bucket` arrived
   // in 0039; anything written before it is an upload.
   const bucket = (data.bucket ?? UPLOAD_BUCKET) as StorageBucket;
-  const signed = await signedUrl(supabase, bucket, data.storage_path);
+  const signed = await signedUrl(bucket, data.storage_path);
   return signed.ok ? { ok: true, url: signed.url } : { ok: false, error: signed.error };
 }
 

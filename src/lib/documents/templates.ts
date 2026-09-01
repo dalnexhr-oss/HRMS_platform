@@ -30,6 +30,8 @@
 //    back and that carry real legal weight for the firm.
 // ============================================================================
 import type { LetterSpec } from './letters';
+// One escaper for every HTML email body in the app, next to sendEmail().
+import { escapeHtml } from '@/lib/email';
 // Legal entity name used across every generated document.
 import { COMPANY } from '@/lib/brand/company';
 import { logoPngBytes } from '@/lib/brand/logo';
@@ -64,8 +66,8 @@ interface DateParts {
 /**
  * Split a 'YYYY-MM-DD' string into calendar parts, or null when unparseable.
  *
- * Deliberately string-based rather than `new Date(iso)`: Postgres `date` columns
- * often arrive through PostgREST as '2026-07-27T00:00:00+00:00', and Date would
+ * Deliberately string-based rather than `new Date(iso)`: a date can arrive as a
+ * bare '2026-07-27' or as '2026-07-27T00:00:00+00:00', and Date would
  * re-interpret that in the server's zone and hand back the previous day for any
  * negative-offset host. Matching the leading Y-M-D takes both shapes literally.
  */
@@ -177,16 +179,6 @@ function formatMoney(amount: number): string {
 /** Trim and collapse whitespace; '' when absent. Keeps stray DB spacing out of prose. */
 function clean(value: string | null | undefined): string {
   return (value ?? '').replace(/\s+/g, ' ').trim();
-}
-
-/** Escape the five XML entities for safe interpolation into an HTML email body. */
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 /** Shared identity/date fields of the two separation letters. */

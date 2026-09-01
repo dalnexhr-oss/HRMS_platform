@@ -13,8 +13,7 @@
 // (the 0037 table comment is explicit about this).
 // ============================================================================
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
-import { getSession } from '@/lib/auth';
+import { createClient } from '@/lib/db/server';
 import { requireRoles, wroteNothing } from '@/lib/actions/_guard';
 import { notifyEmployee } from '@/lib/notify';
 import type { AppRole } from '@/types/database';
@@ -27,11 +26,6 @@ export interface ActionResult {
 const ONBOARDING_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 const TASK_STATUSES = ['pending', 'done', 'blocked'] as const;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** Missing table = migration 0037 not applied. Say so instead of leaking a PG code. */
-function notMigrated(error: { code?: string }): boolean {
-  return error.code === '42P01' || error.code === 'PGRST205';
-}
 
 /**
  * Copy a template's items onto an employee as their checklist.
@@ -51,16 +45,13 @@ export async function startOnboarding(
   if (!gate.ok) return gate;
   if (!UUID_RE.test(String(employeeId ?? ''))) return { ok: false, error: 'Pick an employee.' };
 
-  const supabase = await createClient();
+  const dbc = await createClient();
 
-  const { count, error: countErr } = await supabase
+  const { count, error: countErr } = await dbc
     .from('onboarding_tasks')
     .select('id', { count: 'exact', head: true })
     .eq('employee_id', employeeId);
   if (countErr) {
-    if (notMigrated(countErr)) {
-      return { ok: false, error: 'Onboarding is not set up on the database yet — apply migration 0037.' };
-    }
     return { ok: false, error: countErr.message };
   }
   if ((count ?? 0) > 0) {
@@ -70,7 +61,7 @@ export async function startOnboarding(
   // Resolve the template: the one asked for, else the newest active one.
   let tpl = templateId ?? null;
   if (!tpl) {
-    const { data: newest } = await supabase
+    const { data: newest } = await dbc
       .from('onboarding_templates')
       .select('id')
       .eq('active', true)
@@ -81,7 +72,7 @@ export async function startOnboarding(
   }
   if (!tpl) return { ok: false, error: 'No active onboarding template — create one first.' };
 
-  const { data: items, error: itemsErr } = await supabase
+  const { data: items, error: itemsErr } = await dbc
     .from('onboarding_template_items')
     .select('title, assignee_role, seq')
     .eq('template_id', tpl)
@@ -92,7 +83,7 @@ export async function startOnboarding(
   // Due by the joining date: everything on this list is meant to be settled by
   // the time they walk in. A null due_date would also make them invisible to the
   // 0037 reminder job, which scans on due_date.
-  const { data: emp } = await supabase
+  const { data: emp } = await dbc
     .from('employees')
     .select('date_of_joining, full_name')
     .eq('id', employeeId)
@@ -107,7 +98,7 @@ export async function startOnboarding(
     due_date: dueDate,
   }));
 
-  const { data: made, error } = await supabase.from('onboarding_tasks').insert(rows).select('id');
+  const { data: made, error } = await dbc.from('onboarding_tasks').insert(rows).select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(made)) {
     return { ok: false, error: 'The checklist was not created — your role may lack permission.' };
@@ -131,7 +122,7 @@ export async function startOnboarding(
  * Move a step between pending / done / blocked.
  *
  * Reopening CLEARS done_by and done_at. Leaving them behind would leave a
- * pending task still naming a re and a completion time — the record would
+ * pending task still naming a reviewer and a completion time — the record would
  * claim someone signed off work that is once again outstanding.
  */
 export async function setOnboardingTaskStatus(
@@ -144,24 +135,21 @@ export async function setOnboardingTaskStatus(
   if (!TASK_STATUSES.includes(status)) return { ok: false, error: 'Pick a valid status.' };
 
   const done = status === 'done';
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('onboarding_tasks')
     .update({
       status,
       done_by: done ? gate.profileId : null,
-      done_at: done ? new Date().toISOString() : null,
+      done_at: done ? new Date() : null,
     })
     .eq('id', id)
     .select('id');
   if (error) {
-    if (notMigrated(error)) {
-      return { ok: false, error: 'Onboarding is not set up on the database yet — apply migration 0037.' };
-    }
     return { ok: false, error: error.message };
   }
-  // An RLS-blocked update matches zero rows and PostgREST still reports success,
-  // so a silent no-op has to be caught here rather than trusted.
+  // A policy-blocked update matches zero rows and is still reported as
+  // success, so a silent no-op has to be caught here rather than trusted.
   if (wroteNothing(data)) {
     return { ok: false, error: 'That step was not updated — it may have been removed.' };
   }
@@ -190,8 +178,8 @@ export async function addOnboardingTask(input: {
   const dueDate = String(input.dueDate ?? '').trim() || null;
   const assigneeRole = String(input.assigneeRole ?? '').trim() || null;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('onboarding_tasks')
     .insert({
       employee_id: input.employeeId,
@@ -202,9 +190,6 @@ export async function addOnboardingTask(input: {
     })
     .select('id');
   if (error) {
-    if (notMigrated(error)) {
-      return { ok: false, error: 'Onboarding is not set up on the database yet — apply migration 0037.' };
-    }
     return { ok: false, error: error.message };
   }
   if (wroteNothing(data)) {
@@ -222,16 +207,13 @@ export async function deleteOnboardingTask(id: string): Promise<ActionResult> {
   if (!gate.ok) return gate;
   if (!UUID_RE.test(String(id ?? ''))) return { ok: false, error: 'Unknown onboarding step.' };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('onboarding_tasks')
     .delete()
     .eq('id', id)
     .select('id');
   if (error) {
-    if (notMigrated(error)) {
-      return { ok: false, error: 'Onboarding is not set up on the database yet — apply migration 0037.' };
-    }
     return { ok: false, error: error.message };
   }
   if (wroteNothing(data)) {
