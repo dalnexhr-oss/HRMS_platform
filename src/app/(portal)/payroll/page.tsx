@@ -4,8 +4,8 @@ import { PayrollTable, RunActions } from '@/components/payroll/PayrollTable';
 import type { PayslipAdjustments } from '@/components/payroll/PayrollTable';
 import { getPayrollRun, getPayslips, currentPeriodMonth } from '@/lib/queries';
 import type { PayrollRunView } from '@/lib/queries';
-import { createClient } from '@/lib/supabase/server';
-import { isSupabaseConfigured } from '@/lib/supabase/env';
+import { createClient } from '@/lib/db/server';
+import { isMongoConfigured } from '@/lib/db/mongo';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { exportPayrollXlsx, exportAttendanceTemplateXlsx } from '@/lib/actions/export';
 import { StatutoryExports } from '@/components/payroll/StatutoryExports';
@@ -80,10 +80,10 @@ function dayLabel(date: string | null): string | null {
 async function loadAdjustmentWindow(
   runId: string | null,
 ): Promise<{ open: string | null; close: string | null }> {
-  if (!isSupabaseConfigured() || !runId) return { open: null, close: null };
+  if (!isMongoConfigured() || !runId) return { open: null, close: null };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('payroll_runs')
     .select('adjustments_open, adjustments_close')
     .eq('id', runId)
@@ -115,18 +115,18 @@ interface AdjustmentRow {
  *
  * Queried here rather than via @/lib/queries because the data contract has no
  * adjustments accessor and queries.ts is owned elsewhere. Same rule applies: a
- * failure when Supabase IS configured is surfaced, never swallowed into zeros —
+ * failure when the database IS reachable is surfaced, never swallowed into zeros —
  * blank adjustment boxes over a broken read would invite someone to "re-enter"
  * values that were already there and double-count them.
  */
 async function loadAdjustments(payslipIds: string[]): Promise<Record<string, PayslipAdjustments>> {
-  if (!isSupabaseConfigured() || payslipIds.length === 0) return {};
+  if (!isMongoConfigured() || payslipIds.length === 0) return {};
 
-  const supabase = await createClient();
+  const dbc = await createClient();
   // `*` on purpose: other_deductions (0041) and bonus (0042) may not exist yet
   // on this database, and naming them would 42703 the whole page. Missing
   // columns simply read as 0 below.
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('payslip_adjustments')
     .select('*')
     .in('id', payslipIds);

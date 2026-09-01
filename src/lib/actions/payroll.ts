@@ -5,29 +5,32 @@
 // adjustments that feed net_payable.
 //
 // Every function here talks to the real database or fails loudly. There is no
-// short-circuit that returns { ok: true } without writing: when Supabase is not
+// short-circuit that returns { ok: true } without writing: with no database
 // configured the run simply cannot happen, and we say so.
 //
-// Postgres is the authority on what is allowed. fn_compute_run / fn_lock_run /
-// fn_mark_run_paid RAISE on an illegal transition (migration 0005) and those
-// messages are passed through to the operator verbatim — they are the whole
-// point of the guard.
+// The run functions are the authority on what is allowed. fn_compute_run /
+// fn_lock_run / fn_mark_run_paid keep their SQL names and now live in
+// src/lib/db/payroll.ts, registered as RPCs; they refuse an illegal transition
+// with the same messages migration 0005 raised, and those are passed through to
+// the operator verbatim — they are the whole point of the guard.
 // ============================================================================
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
-import { isSupabaseConfigured } from '@/lib/supabase/env';
+import { createClient } from '@/lib/db/server';
+import { isMongoConfigured } from '@/lib/db/mongo';
 import { getSession } from '@/lib/auth';
 import { notifyEmployee } from '@/lib/notify';
+import type { Decimal128 } from 'mongodb';
+import { toMoney } from '@/lib/db/money';
 import type { AppRole, PayrollStatus } from '@/types/database';
 
 /**
  * Roles allowed to move money. Deliberately NOT `STAFF_ROLES` from @/lib/auth:
- * every UPDATE silently filtered to zero rows by RLS — a write that reports
- * success and changes nothing. An explicit set turns that into an honest,
- * explained refusal.
+ * that is the portal READ set, and gating on it let a reader through to writes
+ * the policy layer then filtered to zero rows — a write that reports success
+ * and changes nothing. An explicit set turns that into an honest, explained
+ * refusal.
  *
- * Matches _guard.ts WRITE_ROLES: super_admin/admin/hr. 'manager' is excluded at
- * the app layer even though the database's is_staff() (0043) still admits it.
+ * Matches _guard.ts WRITE_ROLES: super_admin, admin, hr.
  */
 const PAYROLL_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
@@ -42,8 +45,8 @@ interface PgError {
 }
 
 /**
- * Flatten a PostgrestError into one readable line. RAISE messages arrive in
- * `message`; schema/permission problems put the useful half in `hint`/`details`.
+ * Flatten a query error into one readable line. The summary arrives in
+ * `message`; some errors put the useful half in `hint`/`details` instead.
  */
 function pgMessage(error: PgError): string {
   return [error.message, error.details, error.hint].filter(Boolean).join(' — ');
@@ -53,12 +56,11 @@ type Gate = { ok: true; profileId: string } | { ok: false; error: string };
 
 /** Resolve the caller and prove they may run payroll. */
 async function gate(): Promise<Gate> {
-  if (!isSupabaseConfigured()) {
+  if (!isMongoConfigured()) {
     return {
       ok: false,
       error:
-        'Supabase is not configured, so payroll cannot run. Set NEXT_PUBLIC_SUPABASE_URL and ' +
-        'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, then reload.',
+        'The database is not configured, so payroll cannot run.',
     };
   }
 
@@ -67,7 +69,7 @@ async function gate(): Promise<Gate> {
   if (!PAYROLL_ROLES.includes(profile.role)) {
     return {
       ok: false,
-      error: `Payroll actions need an admin, HR or manager account — yours is "${profile.role}".`,
+      error: `Payroll actions need an admin or HR account — yours is "${profile.role}".`,
     };
   }
   return { ok: true, profileId: profile.id };
@@ -94,9 +96,9 @@ export async function openRun(periodMonth: string): Promise<{ ok: boolean; error
     if (!g.ok) return { ok: false, error: g.error };
 
     const start = `${periodMonth.slice(0, 7)}-01`;
-    const supabase = await createClient();
+    const dbc = await createClient();
 
-    const { data: existing, error: existErr } = await supabase
+    const { data: existing, error: existErr } = await dbc
       .from('payroll_runs')
       .select('id')
       .eq('period_month', start)
@@ -104,7 +106,7 @@ export async function openRun(periodMonth: string): Promise<{ ok: boolean; error
     if (existErr) return { ok: false, error: pgMessage(existErr) };
     if (existing) return { ok: false, error: `A payroll run for ${start} already exists.` };
 
-    const { data, error } = await supabase
+    const { data, error } = await dbc
       .from('payroll_runs')
       .insert({ period_month: start, status: 'draft' })
       .select('id');
@@ -134,8 +136,8 @@ async function callRunRpc(
     const g = await gate();
     if (!g.ok) return { ok: false, error: g.error };
 
-    const supabase = await createClient();
-    const { error } = await supabase.rpc(fn, { p_run_id: runId });
+    const dbc = await createClient();
+    const { error } = await dbc.rpc(fn, { p_run_id: runId });
     if (error) return { ok: false, error: pgMessage(error) };
 
     revalidatePath('/payroll');
@@ -165,13 +167,13 @@ export async function lockRun(runId: string): Promise<{ ok: boolean; error?: str
 /** Notify every employee who has a payslip in this run. */
 async function notifyPayslipsReady(runId: string): Promise<void> {
   try {
-    const supabase = await createClient();
-    const { data: run } = await supabase
+    const dbc = await createClient();
+    const { data: run } = await dbc
       .from('payroll_runs')
       .select('period_month')
       .eq('id', runId)
       .maybeSingle<{ period_month: string }>();
-    const { data: slips } = await supabase
+    const { data: slips } = await dbc
       .from('payslips')
       .select('employee_id')
       .eq('payroll_run_id', runId);
@@ -264,10 +266,10 @@ export async function saveAdjustments(
     }
     const remarksRaw = String(formData.get('remarks') ?? '').trim();
 
-    const supabase = await createClient();
+    const dbc = await createClient();
 
     // Which employee/run does this payslip belong to?
-    const { data: payslip, error: lookupError } = await supabase
+    const { data: payslip, error: lookupError } = await dbc
       .from('payslips')
       .select('id, employee_id, payroll_run_id')
       .eq('id', payslipId)
@@ -285,13 +287,13 @@ export async function saveAdjustments(
     // would rewrite an issued payslip behind the guard's back. Check here.
     //
     // Queried separately rather than as a `payroll_runs(status)` embed on the
-    // select above: an embed's shape (object vs single-element array) depends on
-    // PostgREST's view of the FK, and if it came back in an unexpected shape the
+    // select above: an embed's shape (object vs single-element array) depends
+    // on how the relationship is declared, and if it came back in an unexpected shape the
     // status would read `undefined` — which the previous `if (status && …)` form
     // treated as "not frozen" and wrote anyway. A guard standing in for a
     // missing database constraint must fail CLOSED, so this reads the column
     // directly and refuses when it cannot be established.
-    const { data: run, error: runError } = await supabase
+    const { data: run, error: runError } = await dbc
       .from('payroll_runs')
       .select('status')
       .eq('id', runId)
@@ -317,29 +319,25 @@ export async function saveAdjustments(
       };
     }
 
-    const { error: upsertError } = await supabase.from('payslip_adjustments').upsert(
+    const { error: upsertError } = await dbc.from('payslip_adjustments').upsert(
       {
         id: payslipId,
-        ...values,
+        // Parsed as numbers above so the range checks read naturally, then
+        // converted on the way out: every adjustment column is `decimal`, and
+        // a JS number is rejected by the validator.
+        ...(Object.fromEntries(
+          MONEY_FIELDS.map((field) => [field, toMoney(values[field])]),
+        ) as Record<MoneyField, Decimal128>),
         remarks: remarksRaw || null,
         updated_by: g.profileId,
-        updated_at: new Date().toISOString(),
+        updated_at: new Date(),
       },
       { onConflict: 'id' },
     );
-    if (upsertError) {
-      // PGRST204/42703 = an adjustments column is missing (0041/0042 pending).
-      if (upsertError.code === 'PGRST204' || upsertError.code === '42703') {
-        return {
-          ok: false,
-          error: `${context}: the database is missing an adjustments column — apply migrations 0041 and 0042.`,
-        };
-      }
-      return { ok: false, error: `${context}: ${pgMessage(upsertError)}` };
-    }
+    if (upsertError) return { ok: false, error: `${context}: ${pgMessage(upsertError)}` };
 
     // Recompute so the row the user is looking at tells the truth.
-    const { error: recomputeError } = await supabase.rpc('fn_compute_payslip', {
+    const { error: recomputeError } = await dbc.rpc('fn_compute_payslip', {
       p_employee_id: employeeId,
       p_run_id: runId,
     });

@@ -5,7 +5,7 @@
 // portals before submission — the wage bases follow the app's confirmed rules.
 // ============================================================================
 import ExcelJS from 'exceljs';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
 import { monthTitle } from '@/lib/excel/buildWorkbook';
 import { writeBrandHeader } from '@/lib/excel/brand';
 
@@ -35,14 +35,14 @@ function daysInMonth(periodMonth: string): number {
 }
 
 /**
- * Load the statutory rows for a month's locked/draft run. Requires Supabase —
- * callers gate on requireStaff() first, which guarantees it is configured.
+ * Load the statutory rows for a month's locked/draft run. Requires a database
+ * connection — callers gate on requireStaff() first, which guarantees one.
  */
 export async function getStatutoryRows(periodMonth: string): Promise<StatutoryRow[]> {
   const start = `${periodMonth.slice(0, 7)}-01`;
-  const supabase = await createClient();
+  const dbc = await createClient();
 
-  const { data: run, error: runErr } = await supabase
+  const { data: run, error: runErr } = await dbc
     .from('payroll_runs')
     .select('id')
     .eq('period_month', start)
@@ -50,7 +50,7 @@ export async function getStatutoryRows(periodMonth: string): Promise<StatutoryRo
   if (runErr) throw new Error(`Statutory: could not load the payroll run: ${runErr.message}`);
   if (!run) return [];
 
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('payslips')
     .select(
       `payable_days, basic_earned, earned_gross, pf_employee, pf_employer,
