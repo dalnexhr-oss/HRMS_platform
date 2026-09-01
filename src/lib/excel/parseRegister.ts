@@ -1,7 +1,7 @@
 // ============================================================================
 // Pure parser for the company's monthly attendance register (.xlsx).
 //
-// No Supabase, no React, no I/O beyond the buffer handed in — so it can be
+// No database, no React, no I/O beyond the buffer handed in — so it can be
 // unit-tested and run anywhere.
 //
 // LAYOUT (verified against "reference for desktop app (1).xlsx", Sheet1):

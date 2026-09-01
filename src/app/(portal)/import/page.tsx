@@ -5,11 +5,12 @@ import type { AppRole } from '@/types/database';
 
 /**
  * Roles allowed to import. Mirrors IMPORT_ROLES in '@/lib/actions/import',
- * which in turn mirrors the database's is_staff() (migration 0003) —
- * ('super_admin','admin','hr'), deliberately excluding  and 'manager'.
+ * which in turn mirrors is_staff() as of 0046 — super_admin, admin, hr.
  *
- * This is a UI affordance only. commitImport re-checks server-side, and RLS
- * enforces it again in the database.
+ * This is a UI affordance only: it decides whether the button is offered.
+ * commitImport re-checks the role server-side, and the attendance_days write
+ * policy checks it a third time, so hiding it here is convenience, not
+ * security.
  */
 const IMPORT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 

@@ -7,12 +7,12 @@
 // `attendance_days_write` / `activity_log_write` to is_staff(), so no
 // service-role key is needed (and none exists yet).
 //
-// Nothing here fakes a success. When Supabase is configured and a read or write
+// Nothing here fakes a success. When the database is reachable and a read or write
 // fails, the real error comes back to the caller.
 // ============================================================================
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
-import { isSupabaseConfigured, getEmployeeCodeMap } from '@/lib/queries';
+import { createClient } from '@/lib/db/server';
+import { isMongoConfigured, getEmployeeCodeMap } from '@/lib/queries';
 import { getSession } from '@/lib/auth';
 import {
   parseRegisterWorkbook,
@@ -49,11 +49,11 @@ export type CommitResult =
   | { ok: false; error: string };
 
 /**
- * Roles that may actually write. This is deliberately NOT isStaffRole() from
-  * @/lib/auth: that set includes 'viewer', who would pass an isStaffRole() check
-  * and then have every UPDATE silently filtered to zero rows by RLS — a write that
-  * reports success and changes nothing. An explicit set turns that into an honest,
-  * explained refusal.
+ * Roles that may actually write. Deliberately NOT isStaffRole() from
+ * @/lib/auth: that is the portal READ set, so gating on it would let a reader
+ * through to a write the policy layer then filters to zero rows — a write that
+ * reports success and changes nothing. An explicit set turns that into an
+ * honest, explained refusal.
  *
  * Mirrors _guard.ts WRITE_ROLES and IMPORT_ROLES in actions/export.ts.
  */
@@ -136,8 +136,8 @@ function buildResolver(codeMap: Record<string, string>) {
 
 /** code -> full_name, for a human-readable preview. */
 async function fetchNames(): Promise<Record<string, string>> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('employees').select('code, full_name');
+  const dbc = await createClient();
+  const { data, error } = await dbc.from('employees').select('code, full_name');
   if (error) {
     throw new Error(`Could not load employee names: ${error.message}${error.code ? ` (${error.code})` : ''}`);
   }
@@ -234,7 +234,7 @@ export async function previewImport(formData: FormData): Promise<PreviewResult> 
     // attacker-supplied .xlsx is the expensive part — leaving it ungated let any
     // authenticated user drive server CPU/memory with crafted workbooks, and
     // leaked the employee roster through the preview's matched/unmatched lists.
-    // Mirrors commitImport's IMPORT_ROLES (admin/hr/manager).
+    // Mirrors commitImport's IMPORT_ROLES (admin/hr).
     const gate = await requireStaff('Previewing the register');
     if (!gate.ok) return { ok: false, error: gate.error };
 
@@ -266,7 +266,7 @@ export async function previewImport(formData: FormData): Promise<PreviewResult> 
 
 /** Existing (employee_id, work_date) keys for the month, so we can report insert vs update. */
 async function fetchExistingKeys(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  dbc: Awaited<ReturnType<typeof createClient>>,
   periodMonth: string,
   daysInMonth: number,
 ): Promise<Set<string>> {
@@ -275,12 +275,12 @@ async function fetchExistingKeys(
   const keys = new Set<string>();
 
   for (let offset = 0; ; offset += SELECT_PAGE) {
-    // The order is load-bearing, not cosmetic: PostgREST gives no stability
-    // guarantee for .range() without an ORDER BY, so an unordered paged read of
+    // The order is load-bearing, not cosmetic: a paged read has no stability
+    // guarantee without an ORDER BY, so an unordered paged read of
     // a full roster (~210 employees x ~30 days = ~6300 rows, i.e. 7 pages) can
     // repeat and omit rows between pages. That would silently misreport the
     // inserted/updated split. Ordering by the unique key makes paging total.
-    const { data, error } = await supabase
+    const { data, error } = await dbc
       .from('attendance_days')
       .select('employee_id, work_date')
       .gte('work_date', from)
@@ -302,21 +302,15 @@ async function fetchExistingKeys(
 }
 
 function explainWriteError(message: string, code?: string): string {
-  if (/invalid input value for enum/i.test(message)) {
-    return (
-      `${message} — the register uses a status the database enum does not have yet. ` +
-      "If this is 'CO' (comp off), apply migration 0006_comp_off_and_import.sql, then re-run the import."
-    );
-  }
-  if (code === '42501' || /row-level security/i.test(message)) {
-    return `${message} — your account is not permitted to write attendance (needs admin, hr or manager).`;
+  if (/permission|not allowed to change/i.test(message)) {
+    return `${message} — your account is not permitted to write attendance (needs super admin, admin or HR).`;
   }
   return code ? `${message} (${code})` : message;
 }
 
 export async function commitImport(formData: FormData): Promise<CommitResult> {
   // 1. A write is impossible without a database. Never pretend otherwise.
-  if (!isSupabaseConfigured()) return { ok: false, error: 'Connect Supabase to import.' };
+  if (!isMongoConfigured()) return { ok: false, error: 'The database is not configured, so nothing can be imported.' };
 
   try {
     // 2. Staff only.
@@ -326,7 +320,7 @@ export async function commitImport(formData: FormData): Promise<CommitResult> {
     if (!role || !IMPORT_ROLES.includes(role)) {
       return {
         ok: false,
-        error: `Importing the register needs an admin, HR or manager account${role ? ` — yours is "${role}".` : '.'}`,
+        error: `Importing the register needs an admin or HR account${role ? ` — yours is "${role}".` : '.'}`,
       };
     }
 
@@ -354,16 +348,16 @@ export async function commitImport(formData: FormData): Promise<CommitResult> {
       };
     }
 
-    const supabase = await createClient();
+    const dbc = await createClient();
 
     // 3b. Never rewrite a month whose payroll is already locked or paid — the
     //     payslips are final and 0005 blocks the recompute, so the register and
     //     pay would silently diverge. Checked once for the sheet's own month.
-    const monthOpen = await requireOpenPayrollMonth(supabase, reg.periodMonth);
+    const monthOpen = await requireOpenPayrollMonth(dbc, reg.periodMonth);
     if (!monthOpen.ok) return { ok: false, error: monthOpen.error };
 
     // 4. Snapshot existing keys so inserted/updated are real, not guessed.
-    const existing = await fetchExistingKeys(supabase, reg.periodMonth, reg.daysInMonth);
+    const existing = await fetchExistingKeys(dbc, reg.periodMonth, reg.daysInMonth);
 
     // 5. Chunked upsert. Only count rows whose chunk actually committed.
     let inserted = 0;
@@ -372,7 +366,7 @@ export async function commitImport(formData: FormData): Promise<CommitResult> {
 
     for (let i = 0; i < rows.length; i += UPSERT_CHUNK) {
       const chunk = rows.slice(i, i + UPSERT_CHUNK);
-      const { error } = await supabase.from('attendance_days').upsert(chunk, { onConflict: ON_CONFLICT });
+      const { error } = await dbc.from('attendance_days').upsert(chunk, { onConflict: ON_CONFLICT });
 
       if (error) {
         failedRows += chunk.length;
@@ -399,7 +393,7 @@ export async function commitImport(formData: FormData): Promise<CommitResult> {
       `${inserted} inserted, ${updated} updated${skipped ? `, ${skipped} skipped` : ''}` +
       `${failedRows ? `, ${failedRows} failed` : ''}.`;
 
-    const { error: logError } = await supabase.from('activity_log').insert({
+    const { error: logError } = await dbc.from('activity_log').insert({
       actor_id: profile?.id ?? userId,
       event_type: 'register_import',
       message: summary,

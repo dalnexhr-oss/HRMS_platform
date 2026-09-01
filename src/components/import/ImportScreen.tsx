@@ -92,7 +92,7 @@ export function ImportScreen({
   // both the disabled state and its tooltip, so the two can never disagree.
   function blockedReason(p: ImportPreview): string | null {
     if (!canImport)
-      return `Importing the register needs an admin, HR or manager account${
+      return `Importing the register needs an admin or HR account${
         role ? ` — yours is “${role}”.` : '.'
       }`;
     if (!file) return 'Choose the register file again before importing.';
@@ -110,7 +110,7 @@ export function ImportScreen({
           </div>
           <div className="bd">
             <p className="muted" style={{ margin: 0 }}>
-              Importing the register needs an admin, HR or manager account
+              Importing the register needs an admin or HR account
               {role ? ` — yours is “${role}”.` : '.'} You can still upload a file to preview what
               it contains; the import button is disabled.
             </p>
