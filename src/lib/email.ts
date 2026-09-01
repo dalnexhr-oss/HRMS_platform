@@ -20,6 +20,25 @@
 // package is imported lazily so a missing config never affects the rest of the app.
 // ============================================================================
 
+/**
+ * Escape the five XML entities for safe interpolation into an HTML email body.
+ *
+ * Anything that came out of the database goes through this. A person's own
+ * full_name is set by whoever created the account, and it was being pasted
+ * straight into the password-reset body — so an admin could store
+ * `</p><a href="https://evil">click here</a>` and have it render as live markup
+ * in a genuine reset email from this system's own domain, above the real link,
+ * in the one message a recipient is primed to click.
+ */
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export interface SendEmailInput {
   to: string | string[];
   subject: string;

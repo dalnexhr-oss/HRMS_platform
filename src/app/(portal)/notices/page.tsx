@@ -2,8 +2,8 @@ import { NoticesScreen } from '@/components/notices/NoticesScreen';
 import { getNotices, getBranches } from '@/lib/queries';
 
 export default async function NoticesPage() {
-  // Old notices are removed by the daily pg_cron job (migration 0015) and by the
-  // opportunistic purge inside createNotice — never as a side effect of this GET.
+  // Old notices are removed by the scheduled purge in /api/cron and by the
+  // opportunistic one inside createNotice — never as a side effect of this GET.
   const [notices, branches] = await Promise.all([getNotices(), getBranches()]);
 
   return (

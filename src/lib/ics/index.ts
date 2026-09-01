@@ -14,7 +14,7 @@
 //      matter — CRLF line endings and 75-OCTET line folding — and both are
 //      easier to get right (and to unit test) in code we own than to debug
 //      through a dependency.
-//   3. It stays pure. No fetch, no Supabase, no next/*. That means an API route,
+//   3. It stays pure. No fetch, no database, no next/*. That means an API route,
 //      a server action, a cron job or a test can all import it, and the same
 //      inputs always produce byte-identical output (callers pass `timestamp`).
 //

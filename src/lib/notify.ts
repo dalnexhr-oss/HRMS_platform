@@ -1,16 +1,16 @@
 // ============================================================================
 // Notification dispatch. SERVER ONLY.
 //
-// Uses the SERVICE-ROLE client because a notification is addressed to SOMEONE
-// ELSE: an employee raising leave must notify approvers, and RLS (0012)
-// deliberately gives normal users no INSERT policy so nobody can forge a
+// Uses the SYSTEM client because a notification is addressed to SOMEONE ELSE:
+// an employee raising leave must notify approvers, and the notifications policy
+// deliberately gives normal users no way to insert one, so nobody can forge a
 // "your leave was approved" for another account.
 //
 // Every function here is BEST-EFFORT and never throws. A failed notification
 // must not roll back the business action that triggered it — approving leave
 // still succeeds if the notification insert fails; it is logged instead.
 // ============================================================================
-import { createServiceClient, isServiceRoleConfigured } from '@/lib/supabase/server';
+import { createServiceClient, isServiceRoleConfigured } from '@/lib/db/server';
 import type { AppRole } from '@/types/database';
 
 export type NotificationKind =
@@ -56,7 +56,7 @@ async function dispatch(recipientIds: string[], input: NotifyInput): Promise<voi
   if (unique.length === 0) return;
 
   if (!isServiceRoleConfigured()) {
-    warn(input.kind, 'SUPABASE_SECRET_KEY is not set, so notifications are disabled.');
+    warn(input.kind, 'MONGO_URI is not set, so notifications are disabled.');
     return;
   }
 
@@ -91,14 +91,14 @@ export async function notifyEmployee(
 ): Promise<void> {
   if (!employeeId) return;
   if (!isServiceRoleConfigured()) {
-    warn(input.kind, 'SUPABASE_SECRET_KEY is not set, so notifications are disabled.');
+    warn(input.kind, 'MONGO_URI is not set, so notifications are disabled.');
     return;
   }
   try {
     const admin = createServiceClient();
     const { data, error } = await admin
       .from('profiles')
-      .select('id')
+      .select<{ id: string }[]>('id')
       .eq('employee_id', employeeId);
     if (error) return warn(input.kind, error.message);
     await dispatch((data ?? []).map((p: { id: string }) => p.id), input);
@@ -110,14 +110,14 @@ export async function notifyEmployee(
 /** Notify everyone who can approve things — mirrors _guard.ts WRITE_ROLES. */
 export async function notifyApprovers(input: NotifyInput, exceptProfileId?: string): Promise<void> {
   if (!isServiceRoleConfigured()) {
-    warn(input.kind, 'SUPABASE_SECRET_KEY is not set, so notifications are disabled.');
+    warn(input.kind, 'MONGO_URI is not set, so notifications are disabled.');
     return;
   }
   try {
     const admin = createServiceClient();
     const { data, error } = await admin
       .from('profiles')
-      .select('id, role')
+      .select<{ id: string; role: string }[]>('id, role')
       .in('role', APPROVER_ROLES as unknown as string[]);
     if (error) return warn(input.kind, error.message);
     const ids = (data ?? [])
@@ -136,12 +136,12 @@ export async function notifyApprovers(input: NotifyInput, exceptProfileId?: stri
  */
 export async function notifyEveryone(input: NotifyInput, exceptProfileId?: string): Promise<void> {
   if (!isServiceRoleConfigured()) {
-    warn(input.kind, 'SUPABASE_SECRET_KEY is not set, so notifications are disabled.');
+    warn(input.kind, 'MONGO_URI is not set, so notifications are disabled.');
     return;
   }
   try {
     const admin = createServiceClient();
-    const { data, error } = await admin.from('profiles').select('id');
+    const { data, error } = await admin.from('profiles').select<{ id: string }[]>('id');
     if (error) return warn(input.kind, error.message);
     const ids = (data ?? [])
       .map((p: { id: string }) => p.id)

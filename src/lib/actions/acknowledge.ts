@@ -5,10 +5,10 @@
 //
 // A signature is only evidence if the signer controls neither WHEN nor FROM
 // WHERE it was recorded. So:
-//   * `signed_at` is NEVER sent from here — the column default (`now()`, the
-//     transaction clock) fires, and the RLS insert policy independently rejects
-//     anything outside ±5 minutes of `now()`. A crafted PostgREST call cannot
-//     backdate a signature even if it bypasses this file entirely.
+//   * `signed_at` is NEVER sent from here — the column default fires
+//     server-side, so the stored value is the server's clock and not the
+//     caller's. A crafted request cannot backdate a signature even if it
+//     bypasses this file entirely.
 //   * `ip` / `user_agent` are read from the REQUEST headers server-side, never
 //     accepted as arguments.
 //   * The table is append-only: no UPDATE or DELETE policy exists for any role,
@@ -19,7 +19,7 @@
 // ============================================================================
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { requireDb, wroteNothing } from '@/lib/actions/_guard';
 
@@ -82,8 +82,8 @@ export async function acknowledgeDocument(input: {
   const ip = h.get('x-forwarded-for') ?? h.get('x-real-ip') ?? null;
   const userAgent = h.get('user-agent') ?? null;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('acknowledgements')
     .insert({
       employee_id: employeeId,
@@ -97,9 +97,6 @@ export async function acknowledgeDocument(input: {
     .select('id');
 
   if (error) {
-    if (error.code === '42P01' || error.code === 'PGRST205') {
-      return { ok: false, error: 'E-signatures are not set up on the database yet — apply migration 0037.' };
-    }
     // The partial unique index: already signed.
     if (error.code === '23505') {
       return { ok: false, error: 'You have already signed this document.' };

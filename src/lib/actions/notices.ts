@@ -1,14 +1,15 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/_guard';
 import { notifyEveryone } from '@/lib/notify';
 import { purgeExpiredNotices } from '@/lib/queries';
 import { uploadSharedFile, signedUrl } from '@/lib/storage';
+import { resolveBranchScope } from '@/lib/actions/_branch';
 
-/** Postgres unique_violation. */
+/** The duplicate-key code pgcompat reports (it maps MongoDB's 11000 onto it). */
 const UNIQUE_VIOLATION = '23505';
 
 /** Notice attachments are PDFs only, capped like employee documents. */
@@ -33,11 +34,9 @@ function pdfField(formData: FormData): PdfParse {
 
 /** Upload a notice PDF and return its storage path. */
 async function uploadNoticePdf(
-  supabase: Awaited<ReturnType<typeof createClient>>,
   file: File,
 ): Promise<{ ok: true; path: string } | { ok: false; error: string }> {
   const up = await uploadSharedFile(
-    supabase,
     'notice-attachments',
     'notices',
     file.name,
@@ -45,14 +44,7 @@ async function uploadNoticePdf(
     'application/pdf',
   );
   if (!up.ok || !up.path) {
-    // "Bucket not found" = migration 0042 hasn't been applied yet.
-    const reason = up.error ?? 'unknown error';
-    return {
-      ok: false,
-      error: /bucket/i.test(reason)
-        ? 'The notice-attachments bucket is missing — apply migration 0042, then try again.'
-        : `The PDF could not be uploaded: ${reason}`,
-    };
+    return { ok: false, error: `The PDF could not be uploaded: ${up.error ?? 'unknown error'}` };
   }
   return { ok: true, path: up.path };
 }
@@ -65,35 +57,18 @@ export async function markNoticeRead(noticeId: string) {
   const { profile } = await getSession();
   if (!profile?.employee_id) return { ok: false, error: 'No employee linked to this account.' };
 
-  const supabase = await createClient();
-  const { error } = await supabase
+  const dbc = await createClient();
+  const { error } = await dbc
     .from('notice_reads')
     .insert({ notice_id: noticeId, employee_id: profile.employee_id });
 
-  // A duplicate (already read) is a benign unique-violation — detect by SQL code.
+  // Already read: the unique index on (notice_id, employee_id) rejected the
+  // second insert, which is exactly what "idempotent" means here.
   if (error && error.code !== UNIQUE_VIOLATION) {
-    // 42P01 = undefined_table: migration 0016 (notice_reads) isn't applied yet.
-    if (error.code === '42P01') {
-      return {
-        ok: false,
-        error: 'Notice read-tracking isn’t set up on the database yet — apply the latest migration.',
-      };
-    }
     return { ok: false, error: error.message };
   }
   revalidatePath('/me');
   return { ok: true };
-}
-
-/** Resolve a branch name to its id, or null for "all branches". */
-async function resolveBranchId(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  branch: string,
-): Promise<string | null> {
-  const name = branch.trim();
-  if (!name) return null;
-  const { data } = await supabase.from('branches').select('id').eq('name', name).maybeSingle();
-  return data?.id ?? null;
 }
 
 /**
@@ -118,27 +93,32 @@ export async function createNotice(formData: FormData) {
   const gate = await requireStaff('Publishing a notice');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
+  const dbc = await createClient();
 
   // Upload before the insert so a failed upload never leaves a notice whose
   // promised attachment does not exist.
   let pdfPath: string | null = null;
   if (pdf.file) {
-    const up = await uploadNoticePdf(supabase, pdf.file);
+    const up = await uploadNoticePdf(pdf.file);
     if (!up.ok) return up;
     pdfPath = up.path;
   }
 
-  const branch_id = await resolveBranchId(supabase, branch);
-  const { data, error } = await supabase
+  const branchScope = await resolveBranchScope(dbc, branch);
+  const { data, error } = await dbc
     .from('notices')
     .insert({
       title,
       body: body || null,
       channel,
-      branch_id,
+      ...branchScope,
       pdf_url: pdfPath,
-      published_at: publish ? new Date().toISOString() : null,
+      // A BSON Date, not an ISO string: the collection declares published_at as
+      // `["date","null"]`, so a string was refused outright — publishing a
+      // notice failed while saving it as a draft worked. It also has to be a
+      // Date for the retention sweep to compare against, since MongoDB only
+      // orders values within one BSON type.
+      published_at: publish ? new Date() : null,
     })
     .select('id');
   if (error) return { ok: false, error: error.message };
@@ -159,7 +139,7 @@ export async function createNotice(formData: FormData) {
     );
   }
 
-  // Opportunistic cleanup on write (best-effort; also covered daily by pg_cron).
+  // Opportunistic cleanup on write (best-effort; also covered by /api/cron).
   await purgeExpiredNotices();
 
   revalidatePath('/notices');
@@ -187,7 +167,7 @@ export async function updateNotice(id: string, formData: FormData) {
   const gate = await requireStaff('Editing a notice');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
+  const dbc = await createClient();
 
   // Only touch pdf_url when the user acted: a fresh file replaces, the remove
   // checkbox clears, otherwise the existing attachment is left alone. The old
@@ -195,16 +175,15 @@ export async function updateNotice(id: string, formData: FormData) {
   // the bucket is private and orphans are harmless.
   const patch: Record<string, unknown> = { title, body: body || null, channel };
   if (pdf.file) {
-    const up = await uploadNoticePdf(supabase, pdf.file);
+    const up = await uploadNoticePdf(pdf.file);
     if (!up.ok) return up;
     patch.pdf_url = up.path;
   } else if (removePdf) {
     patch.pdf_url = null;
   }
 
-  const branch_id = await resolveBranchId(supabase, branch);
-  patch.branch_id = branch_id;
-  const { data, error } = await supabase
+  Object.assign(patch, await resolveBranchScope(dbc, branch));
+  const { data, error } = await dbc
     .from('notices')
     .update(patch)
     .eq('id', id)
@@ -227,16 +206,16 @@ export async function setNoticePublished(id: string, published: boolean) {
   const gate = await requireStaff(published ? 'Publishing a notice' : 'Unpublishing a notice');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
+  const dbc = await createClient();
 
   if (published) {
     // Only a genuine draft -> published transition restamps published_at and
     // notifies. The `.is('published_at', null)` guard means re-clicking Publish
     // on an already-published notice is a benign no-op — it won't restart the
     // 30-day expiry clock or re-spam everyone.
-    const { data, error } = await supabase
+    const { data, error } = await dbc
       .from('notices')
-      .update({ published_at: new Date().toISOString() })
+      .update({ published_at: new Date() })
       .eq('id', id)
       .is('published_at', null)
       .select('id, title');
@@ -249,7 +228,7 @@ export async function setNoticePublished(id: string, published: boolean) {
       );
     }
   } else {
-    const { data, error } = await supabase
+    const { data, error } = await dbc
       .from('notices')
       .update({ published_at: null })
       .eq('id', id)
@@ -276,8 +255,8 @@ export async function getNoticePdfUrl(
   const db = requireDb('Opening a notice PDF');
   if (!db.ok) return db;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const dbc = await createClient();
+  const { data, error } = await dbc
     .from('notices')
     .select('pdf_url')
     .eq('id', id)
@@ -285,7 +264,7 @@ export async function getNoticePdfUrl(
   if (error) return { ok: false, error: error.message };
   if (!data?.pdf_url) return { ok: false, error: 'This notice has no PDF attached.' };
 
-  const signed = await signedUrl(supabase, 'notice-attachments', data.pdf_url);
+  const signed = await signedUrl('notice-attachments', data.pdf_url);
   return signed.ok ? { ok: true, url: signed.url } : { ok: false, error: signed.error };
 }
 
@@ -294,8 +273,8 @@ export async function deleteNotice(id: string) {
   const gate = await requireStaff('Deleting a notice');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('notices').delete().eq('id', id).select('id');
+  const dbc = await createClient();
+  const { data, error } = await dbc.from('notices').delete().eq('id', id).select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
     return {

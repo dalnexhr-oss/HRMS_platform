@@ -2,11 +2,11 @@
 
 // ============================================================================
 // Notification read-state. Marking read is the ONLY mutation a recipient may
-// perform, and RLS (0012) scopes it to their own rows — so these actions never
-// take a recipient id from the caller.
+// perform, and the notifications policy scopes it to `recipient_id` = the
+// caller — so these actions never take a recipient id from the caller.
 // ============================================================================
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
 import { requireDb } from '@/lib/actions/_guard';
 
 export interface ActionResult {
@@ -14,16 +14,16 @@ export interface ActionResult {
   error?: string;
 }
 
-/** Mark one notification read. RLS ensures it can only be your own. */
+/** Mark one notification read. The write policy ensures it can only be your own. */
 export async function markNotificationRead(id: string): Promise<ActionResult> {
   const db = requireDb('Marking a notification read');
   if (!db.ok) return db;
   if (!id) return { ok: false, error: 'No notification selected.' };
 
-  const supabase = await createClient();
-  const { error } = await supabase
+  const dbc = await createClient();
+  const { error } = await dbc
     .from('notifications')
-    .update({ read_at: new Date().toISOString() })
+    .update({ read_at: new Date() })
     .eq('id', id)
     .is('read_at', null);
   if (error) return { ok: false, error: error.message };
@@ -37,10 +37,10 @@ export async function markAllNotificationsRead(): Promise<ActionResult> {
   const db = requireDb('Marking notifications read');
   if (!db.ok) return db;
 
-  const supabase = await createClient();
-  const { error } = await supabase
+  const dbc = await createClient();
+  const { error } = await dbc
     .from('notifications')
-    .update({ read_at: new Date().toISOString() })
+    .update({ read_at: new Date() })
     .is('read_at', null);
   if (error) return { ok: false, error: error.message };
 
