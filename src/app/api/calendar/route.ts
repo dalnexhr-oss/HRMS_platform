@@ -13,12 +13,12 @@
 // practical consequence is that desktop calendar apps which do not carry the
 // session cookie will not auto-refresh; "Download .ics" always works.
 //
-// RLS does the real scoping: `requests` and `comp_offs` are already restricted
-// to the caller, so this route cannot return another employee's leave even if
-// the employee id were tampered with.
+// The collection policies do the real scoping: `requests` and `comp_offs` are
+// already restricted to the caller, so this route cannot return another
+// employee's leave even if the employee id were tampered with.
 // ============================================================================
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { getHolidays } from '@/lib/queries';
 import { buildIcs, type CalendarEvent } from '@/lib/ics';
@@ -33,7 +33,7 @@ export async function GET(): Promise<Response> {
   }
 
   const employeeId = profile.employee_id;
-  const supabase = await createClient();
+  const dbc = await createClient();
   const events: CalendarEvent[] = [];
 
   // --- company holidays (everyone sees these) -------------------------------
@@ -54,7 +54,7 @@ export async function GET(): Promise<Response> {
 
   if (employeeId) {
     // --- approved leave / duty ---------------------------------------------
-    const { data: reqs } = await supabase
+    const { data: reqs } = await dbc
       .from('requests')
       .select('id, type, leave_kind, start_date, end_date, status')
       .eq('employee_id', employeeId)
@@ -75,7 +75,7 @@ export async function GET(): Promise<Response> {
     }
 
     // --- comp-off credits still available ----------------------------------
-    const { data: credits } = await supabase
+    const { data: credits } = await dbc
       .from('comp_offs')
       .select('id, earned_date, status')
       .eq('employee_id', employeeId)

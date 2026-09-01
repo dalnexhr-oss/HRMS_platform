@@ -1,26 +1,24 @@
 // ============================================================================
-// Supabase Storage helpers. SERVER ONLY (used from server actions).
+// File storage helpers. SERVER ONLY (used from server actions).
 //
-// Buckets + RLS are defined in migration 0032. Objects are stored under
-// `<employeeId>/<uuid>-<filename>` so the storage RLS folder check
-// ((storage.foldername(name))[1] = current_employee_id()) resolves to the owner.
+// The bucket names and the `<employeeId>/<uuid>-<filename>` key shape are
+// unchanged, so every path already stored in the database still resolves. What
+// moved is the enforcement: the folder prefix used to be checked by a storage
+// policy in the database, and lib/db/gridfs.ts now checks it against the
+// caller's scope instead. Nothing here takes a client — who is asking comes
+// from the session.
 //
-// Uploads/reads go through the REQUEST-scoped client (the one createClient()
-// returns) so RLS is enforced — an employee can only write to their own folder.
-// System-generated documents (relieving/F&F letters) are written with the
-// service-role client via the *Service variants, because no employee is signed
-// in when a cron/HR job produces them.
+// The upload-type whitelist below is the interesting part of this file.
 // ============================================================================
-import type { createClient } from '@/lib/supabase/server';
-import { createServiceClient } from '@/lib/supabase/server';
+import {
+  objectUrl,
+  putObject,
+  statObject,
+  type StorageBucket as GridBucket,
+} from '@/lib/db/gridfs';
+import { SYSTEM_SCOPE } from '@/lib/db/scope';
 
-type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
-
-export type StorageBucket =
-  | 'employee-documents'
-  | 'reimbursement-receipts'
-  | 'generated-documents'
-  | 'notice-attachments';
+export type StorageBucket = GridBucket;
 
 /** Strip path separators and odd characters from a user-supplied filename. */
 function safeName(filename: string): string {
@@ -31,7 +29,7 @@ function safeName(filename: string): string {
 // ---------------------------------------------------------------------------
 // Upload-type whitelist. The browser's file.type is attacker-controlled: an
 // HTML file uploaded with type text/html would be SERVED as a rendered page
-// from the signed URL (stored XSS on the storage origin, reachable by HR via
+// from the file URL (stored XSS on the storage origin, reachable by HR via
 // the verification queue). So the stored contentType is derived from the file
 // EXTENSION against this whitelist, and file.type is never trusted.
 // ---------------------------------------------------------------------------
@@ -75,8 +73,13 @@ export function resolveUploadType(
   return { ok: true, contentType: EXTENSION_TYPES[ext] };
 }
 
-/** `<employeeId>/<uuid>-<safe filename>` — the RLS-checked object key. */
-export function objectPath(employeeId: string, filename: string): string {
+/**
+ * `<employeeId>/<uuid>-<safe filename>`.
+ *
+ * The leading folder is not decoration: gridfs.ts reads the employee id back
+ * out of the key to decide who may open the object.
+ */
+function objectPath(employeeId: string, filename: string): string {
   return `${employeeId}/${crypto.randomUUID()}-${safeName(filename)}`;
 }
 
@@ -87,12 +90,10 @@ export interface UploadResult {
 }
 
 /**
- * Upload bytes to a bucket under the employee's folder using the RLS-scoped
- * client. `body` is anything the Supabase JS upload accepts (File/Blob/
- * ArrayBuffer/Buffer). Returns the stored path (persist it on the owning row).
+ * Upload bytes to a bucket under the employee's own folder. Returns the stored
+ * path — persist it on the owning row.
  */
 export async function uploadFile(
-  supabase: SupabaseServerClient,
   bucket: StorageBucket,
   employeeId: string,
   filename: string,
@@ -100,21 +101,20 @@ export async function uploadFile(
   contentType?: string,
 ): Promise<UploadResult> {
   const path = objectPath(employeeId, filename);
-  const { error } = await supabase.storage.from(bucket).upload(path, body, {
-    contentType,
-    upsert: false,
-  });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, path };
+  try {
+    await putObject(bucket, path, body, contentType);
+    return { ok: true, path };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Upload failed.' };
+  }
 }
 
 /**
  * Upload under a fixed shared folder rather than an employee's own — used for
- * company-wide files (notice attachments), where the bucket's RLS is
- * staff-write / everyone-read instead of folder-scoped.
+ * company-wide files (notice attachments), where the rule is staff-write /
+ * everyone-read instead of folder-scoped.
  */
 export async function uploadSharedFile(
-  supabase: SupabaseServerClient,
   bucket: StorageBucket,
   folder: string,
   filename: string,
@@ -122,15 +122,21 @@ export async function uploadSharedFile(
   contentType?: string,
 ): Promise<UploadResult> {
   const path = `${folder}/${crypto.randomUUID()}-${safeName(filename)}`;
-  const { error } = await supabase.storage.from(bucket).upload(path, body, {
-    contentType,
-    upsert: false,
-  });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, path };
+  try {
+    await putObject(bucket, path, body, contentType);
+    return { ok: true, path };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Upload failed.' };
+  }
 }
 
-/** Service-role upload for system-generated files (no signed-in user). */
+/**
+ * System upload for generated files, where no employee is signed in.
+ *
+ * Runs under SYSTEM_SCOPE — the equivalent of the old service-role key, and the
+ * only way to write into generated-documents, which the employee it concerns
+ * must never be able to author.
+ */
 export async function uploadFileService(
   bucket: StorageBucket,
   employeeId: string,
@@ -139,37 +145,39 @@ export async function uploadFileService(
   contentType?: string,
 ): Promise<UploadResult> {
   const path = objectPath(employeeId, filename);
-  const admin = createServiceClient();
-  const { error } = await admin.storage.from(bucket).upload(path, body, {
-    contentType,
-    upsert: false,
-  });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, path };
+  try {
+    await putObject(bucket, path, body, contentType, SYSTEM_SCOPE);
+    return { ok: true, path };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Upload failed.' };
+  }
 }
 
 /**
- * Mint a short-lived signed URL for a private object. RLS is enforced against
- * the passed client, so an employee only signs their own files. Default TTL is
- * 5 minutes — long enough to open, short enough not to leak.
+ * The URL that serves a private object.
+ *
+ * The name is kept because ~7 call sites use it, but nothing is signed any
+ * more. A signed URL carried its own authorisation, so a leaked link was a
+ * leaked file for the lifetime of the token. This returns a plain app path;
+ * /api/files/... re-checks the session on every request, which makes a copied
+ * link useless to anyone else and removes the expiry question entirely.
+ *
+ * Ownership is verified here too, so a caller that cannot read the file gets an
+ * error at the point of asking rather than a URL that will 403 later.
  */
 export async function signedUrl(
-  supabase: SupabaseServerClient,
   bucket: StorageBucket,
   path: string,
-  expiresInSec = 300,
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
-  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresInSec);
-  if (error || !data) return { ok: false, error: error?.message ?? 'Could not sign the file URL.' };
-  return { ok: true, url: data.signedUrl };
-}
-
-/** Delete an object (staff cleanup / withdrawn claim). Best-effort, RLS-scoped. */
-export async function removeFile(
-  supabase: SupabaseServerClient,
-  bucket: StorageBucket,
-  path: string,
-): Promise<{ ok: boolean; error?: string }> {
-  const { error } = await supabase.storage.from(bucket).remove([path]);
-  return error ? { ok: false, error: error.message } : { ok: true };
+  try {
+    // statObject, not getObject: both run the same assertMayRead check and the
+    // same existence lookup, but getObject concatenates every GridFS chunk into
+    // a Buffer that is then thrown away. A document list resolving N URLs was
+    // pulling N whole PDFs through the server on each render.
+    const file = await statObject(bucket, path);
+    if (!file) return { ok: false, error: 'That file is no longer stored.' };
+    return { ok: true, url: objectUrl(bucket, path) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Could not open the file.' };
+  }
 }
