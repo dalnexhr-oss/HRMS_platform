@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
+import { useActionState, useEffect, useRef, useState, useTransition ,useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Stamp } from '@/components/ui/Stamp';
 import { DOW } from '@/lib/constants';
@@ -100,6 +100,10 @@ export function RegisterGrid({
   const [applying, startApply] = useTransition();
   const { confirm, confirmDialog } = useConfirm();
   const { toast, toastNode } = useToast();
+  const onWarning = useCallback(
+  (w: string) => toast(w, 'info'),
+  [toast]
+);
 
   function toggleSelect(employeeId: string, day: number) {
     const key = `${employeeId}|${dateFor(periodMonth, day)}`;
@@ -353,7 +357,7 @@ export function RegisterGrid({
           })}
         </div>
       </div>
-
+      
       {canCorrect && (
         <>
           <div
@@ -369,7 +373,7 @@ export function RegisterGrid({
                 key={`${target.employeeId}-${target.workDate}-${target.seq}`}
                 target={target}
                 onClose={() => setDrawerOpen(false)}
-                onWarning={(w) => toast(w, 'info')}
+                onWarning ={onWarning}
               />
             )}
           </aside>

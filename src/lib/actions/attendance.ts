@@ -13,8 +13,8 @@
 // write that did not write. A missing database is NOT a licence to fake a save.
 // ============================================================================
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
-import { isSupabaseConfigured } from '@/lib/queries';
+import { createClient } from '@/lib/db/server';
+import { isMongoConfigured } from '@/lib/queries';
 import { getSession } from '@/lib/auth';
 import { hhmmToMinutes } from '@/lib/format';
 import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/_guard';
@@ -31,12 +31,10 @@ export interface CorrectionState {
 /**
  * Roles that may WRITE attendance.
  *
- * Deliberately NOT isStaffRole(). That helper still includes '',
- * which mirrors SQL is_portal() — the READ gate. The write gate is the
- * attendance_days_write policy (0003), which is `using (is_staff())`. 0003's own
- * comment explains why it is not `is_portal()`: a portal reader can see all
- * wave them through the whole drawer only for Postgres to reject the row at the
- * last step. 'manager' is excluded at the app layer too — see _guard.ts.
+ * Deliberately NOT isStaffRole(): that helper is the READ gate (is_portal()),
+ * and the write gate is is_staff(). Checking the read gate here would wave a
+ * portal reader through the whole correction drawer only to have the write
+ * refused at the last step.
  *
  * Mirrored in src/app/(portal)/register/page.tsx (a 'use server' module may only
  * export async functions, so this cannot be shared from here).
@@ -62,8 +60,8 @@ function isAllowedStatus(v: string): v is AttendanceStatus {
  * '' | null -> null (blank is legitimate: no punch). 'HH:MM' / 'HH:MM:SS' ->
  * 'HH:MM'. Anything else is a parse FAILURE, not a blank — returning null for
  * garbage would silently record "no punch" for a value the user actually typed.
- * The range check matters too: '99:99' matches the shape but Postgres would
- * reject it with a cryptic type error.
+ * The range check matters too: '99:99' matches the shape but is not a time, and
+ * storing it would break every later comparison against it.
  */
 type TimeParse = { ok: true; value: string | null } | { ok: false };
 
@@ -85,8 +83,8 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Apply a manual correction to one employee/day and record it in the audit log.
- * Restricted to WRITE_ROLES (admin / hr / manager); the attendance_days_write
- * RLS policy enforces the identical rule in Postgres — this is the fast,
+ * Restricted to WRITE_ROLES (super admin / admin / HR); the attendance_days
+ * write policy enforces the identical rule underneath — this is the fast,
  * friendly rejection, not the security boundary.
  */
 export async function correctAttendance(formData: FormData): Promise<CorrectionState> {
@@ -140,10 +138,10 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
 
   // A write has no honest fallback: without a database there is nowhere to put
   // the row. Say so rather than faking a save.
-  if (!isSupabaseConfigured()) {
+  if (!isMongoConfigured()) {
     return {
       ok: false,
-      error: 'Supabase is not configured, so this correction cannot be saved.',
+      error: 'The database is not configured, so this correction cannot be saved.',
     };
   }
 
@@ -161,10 +159,10 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
     };
   }
 
-  const supabase = await createClient();
+  const dbc = await createClient();
 
   // Name the employee in the audit message, and prove the id is real.
-  const { data: employee, error: employeeError } = await supabase
+  const { data: employee, error: employeeError } = await dbc
     .from('employees')
     .select('id, code, full_name')
     .eq('id', employeeId)
@@ -181,11 +179,11 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
   // also honours month_closed_at — the attendance seal the auto-close cron
   // (0033) stamps. The old inline check here read only `status`, so a sealed
   // month refused by the BULK path was still editable one cell at a time.
-  const open = await requireOpenPayrollMonth(supabase, workDate);
+  const open = await requireOpenPayrollMonth(dbc, workDate);
   if (!open.ok) return open;
 
   // --------------------------------------------------------------- write ---
-  const { data: saved, error: saveError } = await supabase
+  const { data: saved, error: saveError } = await dbc
     .from('attendance_days')
     .upsert(
       {
@@ -207,7 +205,7 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
   if (saveError) {
     return { ok: false, error: `Could not save the correction: ${saveError.message}` };
   }
-  // No error but no row back = RLS silently filtered the write. That is a
+  // No error but no row back = the write policy filtered it out. That is a
   // failure, not a success.
   if (!saved) {
     return {
@@ -224,7 +222,7 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
   let compOffWarning: string | null = null;
   if (status === 'CO') {
     // Idempotence: re-saving the same day must not spend a second credit.
-    const { data: already } = await supabase
+    const { data: already } = await dbc
       .from('comp_offs')
       .select('id')
       .eq('employee_id', employeeId)
@@ -232,7 +230,7 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
       .in('status', ['applied', 'used'])
       .limit(1);
     if (!already || already.length === 0) {
-      let fifo = await supabase
+      let fifo = await dbc
         .from('comp_offs')
         .select('id')
         .eq('employee_id', employeeId)
@@ -243,18 +241,8 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
         .limit(1)
         .maybeSingle<{ id: string }>();
       // expires_on / is_applicable may predate 0036/0041 on this database.
-      if (fifo.error?.code === '42703') {
-        fifo = (await supabase
-          .from('comp_offs')
-          .select('id')
-          .eq('employee_id', employeeId)
-          .eq('status', 'available')
-          .order('earned_date', { ascending: true })
-          .limit(1)
-          .maybeSingle<{ id: string }>()) as typeof fifo;
-      }
       if (fifo.data?.id) {
-        const { error: spendErr } = await supabase
+        const { error: spendErr } = await dbc
           .from('comp_offs')
           .update({ status: 'used', used_date: workDate })
           .eq('id', fifo.data.id)
@@ -272,7 +260,7 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
   // ----------------------------------------------------------- audit log ---
   const punchText = punchIn && punchOut ? `${punchIn}–${punchOut}` : 'no punches';
   const actor = session.profile.full_name ?? session.email ?? 'A staff user';
-  const { error: logError } = await supabase.from('activity_log').insert({
+  const { error: logError } = await dbc.from('activity_log').insert({
     actor_id: session.profile.id,
     employee_id: employeeId,
     event_type: 'attendance_correction',
@@ -288,8 +276,8 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
     },
   });
 
-  // The attendance row is already committed (PostgREST gives us no transaction
-  // across the two writes). Surface the audit failure as a WARNING on a
+  // The attendance row is already committed — these are two separate writes
+  // with no transaction around them. Surface the audit failure as a WARNING on a
   // success — the correction itself is saved, and screens must show it as such.
   revalidatePath('/register');
   if (status === 'CO') revalidatePath('/me'); // the employee's balance moved
@@ -341,14 +329,14 @@ export async function correctAttendanceBulk(input: {
   const gate = await requireStaff('Bulk-correcting attendance');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
+  const dbc = await createClient();
 
   // Refuse the whole batch if ANY touched month is locked/paid/closed. One
   // check per MONTH, not per date — a 31-day sweep used to issue 31 identical
   // payroll_runs queries before writing a single row.
   const months = [...new Set(targets.map((t) => t.workDate.slice(0, 7)))];
   for (const month of months) {
-    const open = await requireOpenPayrollMonth(supabase, `${month}-01`);
+    const open = await requireOpenPayrollMonth(dbc, `${month}-01`);
     if (!open.ok) return open;
   }
 
@@ -364,7 +352,7 @@ export async function correctAttendanceBulk(input: {
     corrected_by: gate.profileId,
   }));
 
-  const { data: saved, error: saveError } = await supabase
+  const { data: saved, error: saveError } = await dbc
     .from('attendance_days')
     .upsert(rows, { onConflict: 'employee_id,work_date' })
     .select('id');
@@ -375,7 +363,7 @@ export async function correctAttendanceBulk(input: {
 
   const { profile } = await getSession();
   const actor = profile?.full_name ?? 'A staff user';
-  const { error: logError } = await supabase.from('activity_log').insert({
+  const { error: logError } = await dbc.from('activity_log').insert({
     actor_id: gate.profileId,
     employee_id: null,
     event_type: 'attendance_correction',

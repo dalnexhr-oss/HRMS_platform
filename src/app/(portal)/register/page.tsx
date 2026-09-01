@@ -24,9 +24,10 @@ const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 /**
  * Roles offered the correction UI — must match WRITE_ROLES in
- * src/lib/actions/attendance.ts, which in turn matches SQL is_staff() behind the
- * attendance_days_write policy. NOT isStaffRole(): that includes '', which
- * 0003 defines as read-only, so s would get a drawer Postgres then rejects.
+ * src/lib/actions/attendance.ts, which in turn matches is_staff() behind the
+ * attendance_days write policy. NOT isStaffRole(): that is the portal READ set,
+ * so using it here would open the drawer for someone whose save is then
+ * refused.
  */
 const CORRECTION_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 

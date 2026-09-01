@@ -8,8 +8,8 @@
 //   * the register import (uploaded sheets with a blank Out cell), and
 //   * the night sweep (live punches left open).
 // ============================================================================
-import { createClient } from '@/lib/supabase/server';
-import { isSupabaseConfigured } from '@/lib/supabase/env';
+import { createClient } from '@/lib/db/server';
+import { isMongoConfigured } from '@/lib/db/mongo';
 
 /** 18:00 in minutes since midnight — the documented default. */
 export const AUTO_PUNCH_OUT_DEFAULT_MIN = 18 * 60;
@@ -32,20 +32,40 @@ export function minutesToClock(mins: number): string {
 }
 
 /**
- * The configured auto punch-out time in minutes. Falls back to 18:00 when the
- * setting is missing, unparseable, or Supabase isn't configured.
+ * A stored `auto_punch_out_time` setting as minutes since midnight.
+ *
+ * Pure, and the ONE place the fallback lives. db/scheduler.ts had its own copy
+ * of this decision that defaulted to '19:00' instead: on a deployment where the
+ * settings row was never seeded, a day closed by the manual sweep got 18:00 and
+ * the same day closed by /api/cron got 19:00 — sixty phantom worked minutes on
+ * the register and in the payslip, depending on which path happened to fire.
+ *
+ * A setting can be stored either bare ('18:00') or JSON-quoted ('"18:00"'), so
+ * one layer of quotes is stripped. Anything else — a number, an object, a
+ * malformed string — falls back rather than becoming NaN, which would otherwise
+ * be written straight into worked_minutes.
+ */
+export function autoPunchOutMinutesFrom(value: unknown): number {
+  const raw = typeof value === 'string' ? value.trim().replace(/^"(.*)"$/, '$1') : value;
+  return clockToMinutes(raw) ?? AUTO_PUNCH_OUT_DEFAULT_MIN;
+}
+
+/**
+ * The configured auto punch-out time in minutes, read through the caller's own
+ * session. Falls back to 18:00 when the setting is missing, unreadable or
+ * unparseable.
  */
 export async function getAutoPunchOutMinutes(): Promise<number> {
-  if (!isSupabaseConfigured()) return AUTO_PUNCH_OUT_DEFAULT_MIN;
+  if (!isMongoConfigured()) return AUTO_PUNCH_OUT_DEFAULT_MIN;
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
+    const dbc = await createClient();
+    const { data, error } = await dbc
       .from('settings')
       .select('value')
       .eq('key', 'auto_punch_out_time')
       .maybeSingle<{ value: unknown }>();
     if (error || !data) return AUTO_PUNCH_OUT_DEFAULT_MIN;
-    return clockToMinutes(data.value) ?? AUTO_PUNCH_OUT_DEFAULT_MIN;
+    return autoPunchOutMinutesFrom(data.value);
   } catch {
     return AUTO_PUNCH_OUT_DEFAULT_MIN;
   }
