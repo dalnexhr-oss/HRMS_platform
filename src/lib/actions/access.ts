@@ -8,7 +8,8 @@
 // button only being rendered for a super admin proves nothing about the caller.
 // ============================================================================
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { usersCollection } from '@/lib/db/collections';
+import { createClient } from '@/lib/db/server';
 import { requireRoles } from '@/lib/actions/_guard';
 import { NAV } from '@/lib/constants';
 import { isConfigurableRole, staticallyAllowed, type TabAccess } from '@/lib/access';
@@ -22,19 +23,12 @@ export interface ActionResult {
 /** Only a super admin administers access — never admin or HR themselves. */
 const ACCESS_ADMIN_ROLES: readonly AppRole[] = ['super_admin'];
 
-const MIGRATION_HINT =
-  'Tab access needs migration 0045_user_tab_access.sql — apply it first.';
-
-function isMissingTable(code?: string): boolean {
-  return code === 'PGRST205' || code === '42P01';
-}
-
 /** The target's role, so both the caller and the rules can be checked against it. */
 async function targetRole(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  dbc: Awaited<ReturnType<typeof createClient>>,
   userId: string,
 ): Promise<{ ok: true; role: AppRole } | { ok: false; error: string }> {
-  const { data, error } = await supabase
+  const { data, error } = await dbc
     .from('profiles')
     .select('role')
     .eq('id', userId)
@@ -51,22 +45,14 @@ export async function fetchUserTabAccess(
   const gate = await requireRoles(ACCESS_ADMIN_ROLES, 'Viewing tab access');
   if (!gate.ok) return { ok: false, error: gate.error };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('user_tab_access')
-    .select('slug, allowed')
-    .eq('user_id', userId);
-
-  if (error) {
-    if (isMissingTable(error.code)) return { ok: false, error: MIGRATION_HINT };
-    return { ok: false, error: error.message };
+  try {
+    const users = await usersCollection();
+    const user = await users.findOne({ _id: userId }, { projection: { tab_access: 1 } });
+    if (!user) return { ok: false, error: 'That account no longer exists.' };
+    return { ok: true, access: (user.tab_access as TabAccess) ?? {} };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Could not read tab access.' };
   }
-
-  const access: TabAccess = {};
-  for (const row of (data ?? []) as { slug: string; allowed: boolean }[]) {
-    access[row.slug] = row.allowed;
-  }
-  return { ok: true, access };
 }
 
 /**
@@ -86,8 +72,8 @@ export async function setUserTabAccess(
 
   if (!NAV.some((n) => n.slug === slug)) return { ok: false, error: 'That is not a tab.' };
 
-  const supabase = await createClient();
-  const target = await targetRole(supabase, userId);
+  const dbc = await createClient();
+  const target = await targetRole(dbc, userId);
   if (!target.ok) return target;
 
   if (!isConfigurableRole(target.role)) {
@@ -96,8 +82,8 @@ export async function setUserTabAccess(
       error: `Tab access can only be set for admin and HR accounts — this one is "${target.role}".`,
     };
   }
-  // Granting past the static gate would render a page whose queries then fail on
-  // RLS. This table narrows; it never widens.
+  // Granting past the static gate would render a page whose queries the
+  // collection policies then refuse. This table narrows; it never widens.
   if (!staticallyAllowed(target.role, slug)) {
     return {
       ok: false,
@@ -105,14 +91,17 @@ export async function setUserTabAccess(
     };
   }
 
-  const { error } = await supabase.from('user_tab_access').upsert(
-    { user_id: userId, slug, allowed, updated_at: new Date().toISOString(), updated_by: gate.profileId },
-    { onConflict: 'user_id,slug' },
-  );
-
-  if (error) {
-    if (isMissingTable(error.code)) return { ok: false, error: MIGRATION_HINT };
-    return { ok: false, error: error.message };
+  try {
+    const users = await usersCollection();
+    // A dotted $set writes one key of the map and leaves the rest alone, which
+    // is what the row-level upsert did. Replacing the whole object would drop
+    // every other switch on the account.
+    await users.updateOne(
+      { _id: userId },
+      { $set: { [`tab_access.${slug}`]: allowed, updated_at: new Date() } },
+    );
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Could not save tab access.' };
   }
 
   // Every portal page reads the map through the shared layout, so the whole
@@ -126,11 +115,13 @@ export async function resetUserTabAccess(userId: string): Promise<ActionResult> 
   const gate = await requireRoles(ACCESS_ADMIN_ROLES, 'Resetting tab access');
   if (!gate.ok) return gate;
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('user_tab_access').delete().eq('user_id', userId);
-  if (error) {
-    if (isMissingTable(error.code)) return { ok: false, error: MIGRATION_HINT };
-    return { ok: false, error: error.message };
+  try {
+    const users = await usersCollection();
+    // Clearing the map restores every tab the ROLE is statically entitled to,
+    // because an absent key means allowed — same as deleting the rows did.
+    await users.updateOne({ _id: userId }, { $set: { tab_access: {}, updated_at: new Date() } });
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Could not reset tab access.' };
   }
 
   revalidatePath('/', 'layout');

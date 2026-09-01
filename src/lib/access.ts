@@ -14,9 +14,9 @@
 //     effective = NAV_ROLE_GATED (static, in code)  AND  the user's map (DB)
 //
 // It can only NARROW. Handing an account a tab its ROLE was never entitled to
-// would render a page whose every query then fails, because RLS gates the data
-// underneath and knows nothing about this table. So the map's only real power is
-// to switch a tab off.
+// would render a page whose every query then fails, because the collection
+// policies gate the data underneath and know nothing about this table. So the
+// map's only real power is to switch a tab off.
 // ============================================================================
 import { NAV_ROLE_GATED } from '@/lib/constants';
 import type { AppRole } from '@/types/database';

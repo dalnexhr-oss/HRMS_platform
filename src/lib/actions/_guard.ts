@@ -3,33 +3,34 @@
 //
 // These centralise the three things every mutating action must do, and which
 // the older actions were doing inconsistently (or not at all):
-//   1. Refuse when Supabase is not configured — a write with no database is a FAILURE, not a
-//      silent {ok:true} over nothing persisted.
-//   2. Gate on a real staff role at the app layer (super_admin/admin/hr) so a
-//     portal reader cannot reach the action and have every UPDATE silently
-//      silent RLS no-op.
-//   3. Verify a write actually touched rows — an RLS-filtered UPDATE/DELETE
-//      affects zero rows, which PostgREST reports as success.
+//   1. Refuse when there is no database configured — a write with nothing to
+//      write to is a FAILURE, not a silent {ok:true} over nothing persisted.
+//   2. Gate on a real staff role at the app layer (super_admin/admin/hr), so an
+//      account that may only READ the portal cannot reach the action and have
+//      every UPDATE come back as a successful no-op.
+//   3. Verify a write actually touched rows. A policy-filtered UPDATE or DELETE
+//      matches nothing, and matching nothing is reported as success.
 //
 // This is NOT a 'use server' module: it exports non-action helpers (a const and
 // a sync function) that are imported BY the action modules. Keeping it plain
 // avoids the "every export must be an async function" rule of 'use server'.
 // ============================================================================
-import { isSupabaseConfigured } from '@/lib/supabase/env';
+import { isMongoConfigured } from '@/lib/db/mongo';
 import { getSession } from '@/lib/auth';
-import type { createClient } from '@/lib/supabase/server';
+import type { createClient } from '@/lib/db/server';
+import { monthSealReason, periodMonthFor, type PayrollRunSeal } from '@/lib/payroll-month';
 import type { AppRole } from '@/types/database';
 
-/** The request-scoped Supabase server client, as createClient() returns it. */
-type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+/** The request-scoped database client, as createClient() returns it. */
+type DbClient = Awaited<ReturnType<typeof createClient>>;
 
 /**
- * Roles allowed to write. Deliberately NOT STAFF_ROLES from '@/lib/auth' — that
- * set includes '', who may read the portal but must never write.
+ * Roles allowed to write.
  *
- * Matches the database's is_staff() exactly as of 0046, which also dropped
- * 'manager' — manager is now an employee-level role and does not reach the portal
- * at all.
+ * Matches is_staff() in the SQL exactly as of 0046, which withdrew the
+ * manager tier's write access and left managers at employee level. The set is
+ * spelled out here rather than imported from '@/lib/auth' so that widening the
+ * portal's READ roles can never silently widen who may write.
  */
 export const WRITE_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
@@ -43,10 +44,10 @@ export type StaffGate =
  * holiday", …).
  */
 export async function requireStaff(action = 'This action'): Promise<StaffGate> {
-  if (!isSupabaseConfigured()) {
+  if (!isMongoConfigured()) {
     return {
       ok: false,
-      error: `${action} needs a database connection. Supabase is not configured, so nothing can be saved.`,
+      error: `${action} needs a database connection. MONGO_URI is not set, so nothing can be saved.`,
     };
   }
   const { profile } = await getSession();
@@ -71,10 +72,10 @@ export async function requireRoles(
 ): Promise<
   { ok: true; profileId: string; role: AppRole } | { ok: false; error: string }
 > {
-  if (!isSupabaseConfigured()) {
+  if (!isMongoConfigured()) {
     return {
       ok: false,
-      error: `${action} needs a database connection. Supabase is not configured, so nothing can be saved.`,
+      error: `${action} needs a database connection. MONGO_URI is not set, so nothing can be saved.`,
     };
   }
   const { profile } = await getSession();
@@ -94,10 +95,10 @@ export async function requireRoles(
  * a fake success.
  */
 export function requireDb(action = 'This action'): { ok: true } | { ok: false; error: string } {
-  if (!isSupabaseConfigured()) {
+  if (!isMongoConfigured()) {
     return {
       ok: false,
-      error: `${action} needs a database connection. Supabase is not configured, so nothing can be saved.`,
+      error: `${action} needs a database connection. MONGO_URI is not set, so nothing can be saved.`,
     };
   }
   return { ok: true };
@@ -106,26 +107,26 @@ export function requireDb(action = 'This action'): { ok: true } | { ok: false; e
 /**
  * Refuse to write attendance into a month whose payroll is already locked or paid.
  *
- * Payslips are final once a run is locked, and 0005 blocks the recompute — so
- * changing the attendance behind them silently desyncs pay from the register and
- * the numbers can never catch up. correctAttendance enforced this; the register
- * IMPORT and the night SWEEP did not, which meant either could quietly rewrite a
- * closed month (an import is per-month and a sweep takes an arbitrary date).
+ * correctAttendance enforced this; the register IMPORT and the night SWEEP did
+ * not, which meant either could quietly rewrite a closed month (an import is
+ * per-month and a sweep takes an arbitrary date).
  *
- * Fails CLOSED: if the run status cannot be read, the write is refused.
+ * Fails CLOSED: if the run status cannot be read, the write is refused. The
+ * rule itself is in lib/payroll-month.ts, shared with the scheduler.
  *
  * `workDate` is 'YYYY-MM-DD'; only its month is used.
  */
 export async function requireOpenPayrollMonth(
-  supabase: SupabaseServerClient,
+  dbc: DbClient,
   workDate: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const periodMonth = `${workDate.slice(0, 7)}-01`;
-  const { data, error } = await supabase
+  const periodMonth = periodMonthFor(workDate);
+  const { data, error } = await dbc
     .from('payroll_runs')
     .select('status, month_closed_at')
     .eq('period_month', periodMonth)
-    .maybeSingle<{ status: string; month_closed_at: string | null }>();
+    // month_closed_at is a BSON date; only its presence is tested.
+    .maybeSingle<PayrollRunSeal>();
 
   if (error) {
     return {
@@ -134,28 +135,14 @@ export async function requireOpenPayrollMonth(
     };
   }
 
-  const status = data?.status;
-  if (status === 'locked' || status === 'paid') {
-    return {
-      ok: false,
-      error: `Payroll for ${periodMonth.slice(0, 7)} is ${status}. Attendance for that month can no longer be changed — raise a payslip adjustment instead.`,
-    };
-  }
-  // month_closed_at is the attendance seal set by the auto-lock job (0033),
-  // independent of payroll status — treat a sealed month as closed too.
-  if (data?.month_closed_at) {
-    return {
-      ok: false,
-      error: `${periodMonth.slice(0, 7)} has been closed for attendance. It can no longer be changed — raise a payslip adjustment instead.`,
-    };
-  }
-  return { ok: true };
+  const sealed = monthSealReason(periodMonth, data);
+  return sealed ? { ok: false, error: sealed } : { ok: true };
 }
 
 /**
- * True when an UPDATE/DELETE that returned rows via `.select()` changed nothing —
- * the standard signature of an RLS-filtered or stale-id no-op that PostgREST
- * reports as success.
+ * True when an UPDATE/DELETE that returned rows via `.select()` changed nothing
+ * — the standard signature of a policy-filtered or stale-id no-op, which the
+ * query layer reports as success because matching no rows is not an error.
  */
 export function wroteNothing(data: unknown[] | null): boolean {
   return !data || data.length === 0;

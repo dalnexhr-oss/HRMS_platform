@@ -24,19 +24,17 @@ const ROLE_LABEL: Record<AppRole, string> = {
   admin: 'Admin',
   super_admin: 'Super Admin',
   hr: 'HR',
-  manager: 'Manager',
   employee: 'Employee',
 };
 
 // Highest tier first — mirrors ROLE_TIER in lib/actions/users.ts.
-const ROLE_ORDER: AppRole[] = ['super_admin', 'admin', 'hr', 'manager', 'employee'];
+const ROLE_ORDER: AppRole[] = ['super_admin', 'admin', 'hr', 'employee'];
 
 /** Mirrors ROLE_TIER in lib/actions/users.ts — the server is the real gate. */
 const ROLE_TIER: Record<AppRole, number> = {
   super_admin: 3,
   admin: 2,
   hr: 1,
-  manager: 0,
   employee: 0,
 };
 
@@ -45,7 +43,7 @@ function rolePillStyle(role: AppRole | null): React.CSSProperties {
     return { borderColor: 'var(--brand)', color: '#fff', background: 'var(--brand)' };
   }
   if (role === 'admin') return { borderColor: 'var(--brand)', color: 'var(--brand)' };
-  if (role === 'hr' || role === 'manager') return { borderColor: 'var(--brass)', color: 'var(--brass)' };
+  if (role === 'hr') return { borderColor: 'var(--brass)', color: 'var(--brass)' };
   if (role === 'employee') return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
   return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
 }
@@ -160,7 +158,7 @@ export function UsersScreen({
           <div className="bd">
             <div className="login-error">{loadError}</div>
             <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>
-              User administration talks to Supabase’s admin API, which needs the secret key on the
+              User administration writes the users collection directly, which needs the database on the
               server. Nothing is shown rather than a misleading empty list.
             </p>
           </div>
@@ -459,11 +457,6 @@ function AddUserDrawer({
                 ))}
               </select>
             </div>
-
-            {/* Offered for EVERY role, not just 'employee'. An admin, HR,
-                manager or  is normally on the payroll too, and this link is
-                what gives them their own attendance, payslips and leave. Only an
-                employee login is required to have one. */}
             <div className="f">
               <label>Linked employee{role === 'employee' ? '' : ' (optional)'}</label>
               <select name="employee_id" required={role === 'employee'} defaultValue="">
