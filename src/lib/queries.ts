@@ -1933,6 +1933,8 @@ export async function getItemAssignments(itemId: string): Promise<ItemAssignment
 /** One row of the IT asset register (migration 0025). Admin/HR only. */
 export interface AssetRow {
   id: string;
+  purchase_date: string | null;
+  purchase_cost: number | null;
   desktop_name: string;
   asset_category: string | null;
   brand: string | null;
@@ -1954,9 +1956,9 @@ export interface AssetRow {
 }
 
 const ASSET_COLS =
-  `id, desktop_name, asset_category, brand, serial_no, model_no, warranty_upto, warranty_renew,
-   product_id, device_id, processor, ram, graphics_card, storage, antivirus,
-   assigned_employee_id, assigned_person_name, assigned_employee_code, assigned_date`;
+  `id, purchase_date, purchase_cost, desktop_name, asset_category, brand, serial_no, model_no,
+   warranty_upto, warranty_renew, product_id, device_id, processor, ram, graphics_card, storage,
+   antivirus, assigned_employee_id, assigned_person_name, assigned_employee_code, assigned_date`;
 
 export async function getAssets(): Promise<AssetRow[]> {
   const dbc = await createClient();
@@ -1964,7 +1966,16 @@ export async function getAssets(): Promise<AssetRow[]> {
   if (res.error) {
     fail('getAssets: could not load assets', res.error);
   }
-  return (res.data ?? []) as unknown as AssetRow[];
+  // purchase_cost is stored as Decimal128 — money is never a float at rest
+  // (lib/db/money.ts). The screen only displays it, so widen to a number here
+  // rather than leaking a BSON type into a client component.
+  const rows = (res.data ?? []) as unknown as (Omit<AssetRow, 'purchase_cost'> & {
+    purchase_cost: unknown;
+  })[];
+  return rows.map((r) => ({
+    ...r,
+    purchase_cost: r.purchase_cost == null ? null : Number(String(r.purchase_cost)),
+  }));
 }
 
 /** Asset stock summary from v_asset_summary (migration 0034). */

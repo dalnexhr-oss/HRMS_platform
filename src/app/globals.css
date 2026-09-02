@@ -419,6 +419,19 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 .th-pop-opt:hover{background:rgba(255,255,255,.75)}
 .th-pop-opt input{margin:0;flex:none;accent-color:var(--brand)}
 .th-pop-opt span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Date columns swap the value checklist for presets + a from/to pair. The
+   chips wrap, so a column that only warrants two of them takes one row. */
+.th-pop-chips{display:flex;flex-wrap:wrap;gap:5px;padding:1px 2px 8px}
+.th-chip{padding:4px 9px;border:1px solid var(--edge);border-radius:99px;background:rgba(255,255,255,.55);font:600 11px var(--sans);color:var(--ink-2);cursor:pointer;white-space:nowrap;transition:border-color var(--t-fast) var(--ease),color var(--t-fast) var(--ease),background var(--t-fast) var(--ease)}
+.th-chip:hover{border-color:rgba(14,122,143,.35);color:var(--brand)}
+.th-chip.on{background:var(--brand-soft);border-color:rgba(14,122,143,.45);color:var(--brand-deep)}
+.th-pop-dates{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:0 2px}
+.th-pop-dates label{display:flex;flex-direction:column;gap:4px;min-width:0}
+.th-pop-dates label>span{font:600 9.5px var(--mono);letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+.th-pop-dates input{width:100%;min-width:0;padding:6px 8px;border:1px solid var(--edge);border-radius:9px;font:500 11.5px var(--mono);color:var(--ink);background:linear-gradient(180deg,#E7ECF4,#F6F8FC);box-shadow:var(--nu-press)}
+.th-pop-dates input:focus{border-color:rgba(14,122,143,.45);outline:none;box-shadow:var(--nu-press),var(--ring)}
+.th-pop-dates input:disabled{opacity:.55;cursor:not-allowed}
+.th-pop-note{margin:7px 3px 1px;font-size:11px;line-height:1.35;color:var(--ink-3)}
 
 /* status stamps — dense data, so these stay opaque and crisp. A hairline
    highlight on top is the only nod to the soft theme. */
@@ -1021,7 +1034,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
      never zooms back — the single most disorienting mobile form bug there is.
      Every text control gets it, not just .f input. */
   .f input,.f select,.login-form input,.adj input,.search input,
-  .chat-composer textarea,.chat-status,.th-pop-find{font-size:16px}
+  .chat-composer textarea,.chat-status,.th-pop-find,.th-pop-dates input{font-size:16px}
 
   /* Comfortable touch targets. 44px is the WCAG 2.2 / platform minimum. */
   .btn{min-height:44px;padding:11px 16px}
@@ -1040,6 +1053,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   .punch-top-read{display:none}
   .topbar .punch-top-btn{min-width:0;padding:11px 14px}
   .th-pop-item,.th-pop-opt{min-height:40px}
+  .th-chip{padding:8px 12px}
   .nav a{padding:11px 12px;font-size:14.5px}
 
   .card .hd{padding:13px 15px;flex-wrap:wrap;gap:6px}

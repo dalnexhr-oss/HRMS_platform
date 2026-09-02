@@ -2254,6 +2254,19 @@ export const GENERATED = {
               "string",
               "null"
             ]
+          },
+          "purchase_date": {
+            "bsonType": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "purchase_cost": {
+            "bsonType": [
+              "decimal",
+              "null"
+            ]
           }
         }
       }

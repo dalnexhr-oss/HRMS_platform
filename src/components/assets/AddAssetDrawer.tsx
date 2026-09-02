@@ -81,6 +81,25 @@ export function AddAssetDrawer({
             </div>
             <Field name="product_id" label="Product ID" mono defaultValue={asset?.product_id ?? undefined} />
 
+            <div className="fold">Purchase</div>
+            <div className="f-row">
+              <Field
+                name="purchase_date"
+                label="Purchased on"
+                type="date"
+                defaultValue={asset?.purchase_date ?? undefined}
+              />
+              <Field
+                name="purchase_cost"
+                label="Purchase cost (₹)"
+                type="number"
+                step="0.01"
+                mono
+                placeholder="e.g. 54990"
+                defaultValue={asset?.purchase_cost != null ? String(asset.purchase_cost) : undefined}
+              />
+            </div>
+
             <div className="fold">Warranty</div>
             <div className="f-row">
               <Field name="warranty_upto" label="Warranty upto" type="date" defaultValue={asset?.warranty_upto ?? undefined} />
@@ -120,6 +139,7 @@ function Field({
   placeholder,
   defaultValue,
   type,
+  step,
   mono,
 }: {
   name: string;
@@ -127,6 +147,8 @@ function Field({
   placeholder?: string;
   defaultValue?: string;
   type?: string;
+  /** type="number" defaults to step=1, which rejects paise. */
+  step?: string;
   mono?: boolean;
 }) {
   return (
@@ -138,6 +160,7 @@ function Field({
         placeholder={placeholder}
         defaultValue={defaultValue}
         type={type}
+        step={step}
       />
     </div>
   );

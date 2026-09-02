@@ -9,28 +9,28 @@ import { AddItemDrawer } from './AddItemDrawer';
 import { AssignItemDrawer } from './AssignItemDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
-import { ThMenu, distinctValues, type SortDir } from '@/components/ui/ThMenu';
+import { ThMenu, distinctValues, sortRows, type SortDir, type ColKind } from '@/components/ui/ThMenu';
 import { deleteItem } from '@/lib/actions/items';
 import type { ItemRow, EmployeeOption } from '@/lib/queries';
 
 // One entry per data column, in display order (Actions excluded). `get` yields
 // the string each header menu sorts and filters on; '—' stands in for blank so
 // "no value" is itself pickable in the filter. Quantity columns sort/filter on
-// their numbers (numeric compare) and keep the right-aligned header.
+// their numbers (low → high) and keep the right-aligned header.
 type ColKey =
   | 'code' | 'name' | 'category' | 'brand' | 'size' | 'unit'
   | 'total' | 'assigned' | 'remaining' | 'status' | 'returnable';
 
-const COLS: { key: ColKey; label: string; get: (i: ItemRow) => string; numeric?: boolean }[] = [
+const COLS: { key: ColKey; label: string; get: (i: ItemRow) => string; kind?: ColKind }[] = [
   { key: 'code', label: 'Material / Tool ID', get: (i) => i.item_code ?? '—' },
   { key: 'name', label: 'Name', get: (i) => i.item_name || '—' },
   { key: 'category', label: 'Category', get: (i) => i.category ?? '—' },
   { key: 'brand', label: 'Brand', get: (i) => i.brand ?? '—' },
   { key: 'size', label: 'Size / spec', get: (i) => i.size_spec ?? '—' },
   { key: 'unit', label: 'Unit', get: (i) => i.unit ?? '—' },
-  { key: 'total', label: 'Total', get: (i) => String(i.total_quantity), numeric: true },
-  { key: 'assigned', label: 'Assigned', get: (i) => String(i.quantity_assigned), numeric: true },
-  { key: 'remaining', label: 'Remaining', get: (i) => String(i.quantity_remaining), numeric: true },
+  { key: 'total', label: 'Total', get: (i) => String(i.total_quantity), kind: 'number' },
+  { key: 'assigned', label: 'Assigned', get: (i) => String(i.quantity_assigned), kind: 'number' },
+  { key: 'remaining', label: 'Remaining', get: (i) => String(i.quantity_remaining), kind: 'number' },
   { key: 'status', label: 'Status', get: (i) => i.status || '—' },
   { key: 'returnable', label: 'Returnable', get: (i) => (i.returnable ? 'Yes' : 'No') },
 ];
@@ -54,7 +54,7 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
   // one column never hides another column's choices.
   const options = useMemo(() => {
     const out = {} as Record<ColKey, string[]>;
-    for (const c of COLS) out[c.key] = distinctValues(items.map(c.get));
+    for (const c of COLS) out[c.key] = distinctValues(items.map(c.get), c.kind);
     return out;
   }, [items]);
 
@@ -74,12 +74,7 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
     }
     if (sort) {
       const col = COLS.find((c) => c.key === sort.key);
-      if (col) {
-        const dir = sort.dir === 'asc' ? 1 : -1;
-        rows = [...rows].sort(
-          (x, y) => dir * col.get(x).localeCompare(col.get(y), undefined, { numeric: true }),
-        );
-      }
+      if (col) rows = sortRows(rows, col.get, col.kind ?? 'text', sort.dir);
     }
     return rows;
   }, [q, items, filters, sort]);
@@ -150,10 +145,10 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
             <thead>
               <tr>
                 {COLS.map((c) => (
-                  <th key={c.key} className={c.numeric ? 'right' : undefined}>
+                  <th key={c.key} className={c.kind === 'number' ? 'right' : undefined}>
                     <ThMenu
                       label={c.label}
-                      numeric={c.numeric}
+                      kind={c.kind}
                       sortDir={sort?.key === c.key ? sort.dir : null}
                       onSort={(dir) => setSort(dir ? { key: c.key, dir } : null)}
                       options={options[c.key]}

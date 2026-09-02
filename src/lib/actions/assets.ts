@@ -8,6 +8,7 @@ import { getAssetAssignments, getAssetMaintenance } from '@/lib/queries';
 import { requireRoles, wroteNothing } from './_guard';
 import type { AppRole } from '@/types/database';
 import { todayIST } from '@/lib/format';
+import { toMoney } from '@/lib/db/money';
 
 /** Client-callable wrappers for the per-asset drawer (queries.ts is server-only). */
 export async function fetchAssetAssignments(assetId: string) {
@@ -26,8 +27,15 @@ function assetFields(formData: FormData) {
     const v = String(formData.get(k) ?? '').trim();
     return v || null;
   };
+  // Money is Decimal128 at rest, never a float (lib/db/money.ts).
+  const money = (k: string) => {
+    const v = String(formData.get(k) ?? '').trim();
+    return v ? toMoney(v) : null;
+  };
   return {
     desktop_name: String(formData.get('desktop_name') ?? '').trim(),
+    purchase_date: text('purchase_date'),
+    purchase_cost: money('purchase_cost'),
     asset_category: text('asset_category'),
     brand: text('brand'),
     serial_no: text('serial_no'),

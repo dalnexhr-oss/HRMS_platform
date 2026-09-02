@@ -9,28 +9,40 @@ import { AddAssetDrawer } from './AddAssetDrawer';
 import { AssignAssetDrawer } from './AssignAssetDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
-import { ThMenu, distinctValues, type SortDir } from '@/components/ui/ThMenu';
+import {
+  ThMenu,
+  distinctValues,
+  sortRows,
+  inDateRange,
+  rangeActive,
+  type SortDir,
+  type ColKind,
+  type DateRange,
+} from '@/components/ui/ThMenu';
 import { deleteAsset } from '@/lib/actions/assets';
 import type { AssetRow, EmployeeOption, AssetSummaryRow } from '@/lib/queries';
 
 // One entry per data column, in display order (Actions excluded). `get` yields
 // the string each header menu sorts and filters on; '—' stands in for blank so
-// "no value" is itself pickable in the filter.
+// "no value" is itself pickable in the filter. `kind` picks the compare order —
+// date columns must not fall back to the A → Z text sort.
 type ColKey =
-  | 'name' | 'category' | 'brand' | 'serial' | 'model'
+  | 'purchased' | 'name' | 'category' | 'brand' | 'serial' | 'model'
   | 'assigned' | 'warranty' | 'processor' | 'ram' | 'storage';
 
-const COLS: { key: ColKey; label: string; get: (a: AssetRow) => string }[] = [
-  { key: 'name', label: 'Desktop name', get: (a) => a.desktop_name || '—' },
-  { key: 'category', label: 'Category', get: (a) => a.asset_category ?? '—' },
-  { key: 'brand', label: 'Brand', get: (a) => a.brand ?? '—' },
-  { key: 'serial', label: 'Serial no.', get: (a) => a.serial_no ?? '—' },
-  { key: 'model', label: 'Model', get: (a) => a.model_no ?? '—' },
-  { key: 'assigned', label: 'Assigned to', get: (a) => a.assigned_person_name ?? '—' },
-  { key: 'warranty', label: 'Warranty upto', get: (a) => a.warranty_upto ?? '—' },
-  { key: 'processor', label: 'Processor', get: (a) => a.processor ?? '—' },
-  { key: 'ram', label: 'RAM', get: (a) => a.ram ?? '—' },
-  { key: 'storage', label: 'Storage', get: (a) => a.storage ?? '—' },
+const COLS: { key: ColKey; label: string; kind?: ColKind; get: (a: AssetRow) => string }[] = [
+  { key: 'purchased',     label: 'Purchased on', kind: 'date', get: (a) => a.purchase_date ?? '—' },
+  { key:'name' ,    label:"purchased cost",kind:'text',get:(a)=>a.purchase_cost?.toString()??'—'},
+  { key: 'name',    label: 'Desktop name', get: (a) => a.desktop_name || '—' },
+  { key: 'category',    label: 'Category', get: (a) => a.asset_category ?? '—' },
+  { key: 'brand',     label: 'Brand', get: (a) => a.brand ?? '—' },
+  { key: 'serial',    label: 'Serial no.', get: (a) => a.serial_no ?? '—' },
+  { key: 'model',     label: 'Model', get: (a) => a.model_no ?? '—' },
+  { key: 'assigned',    label: 'Assigned to', get: (a) => a.assigned_person_name ?? '—' },
+  { key: 'warranty',    label: 'Warranty upto', kind: 'date', get: (a) => a.warranty_upto ?? '—' },
+  { key: 'processor',     label: 'Processor', get: (a) => a.processor ?? '—' },
+  { key: 'ram',     label: 'RAM', get: (a) => a.ram ?? '—' },
+  { key: 'storage',     label: 'Storage', get: (a) => a.storage ?? '—' },
 ];
 
 export function AssetsScreen({
@@ -52,19 +64,23 @@ export function AssetsScreen({
   const { confirm, confirmDialog } = useConfirm();
   const { toast, toastNode } = useToast();
 
-  // Header-menu state: one active sort, plus per-column value selections.
+  // Header-menu state: one active sort, plus per-column value selections and,
+  // for date columns, a from/to range instead of those selections.
   const [sort, setSort] = useState<{ key: ColKey; dir: SortDir } | null>(null);
   const [filters, setFilters] = useState<Partial<Record<ColKey, string[]>>>({});
+  const [ranges, setRanges] = useState<Partial<Record<ColKey, DateRange>>>({});
 
   // Options come from the full list (not the filtered one), so a selection in
   // one column never hides another column's choices.
   const options = useMemo(() => {
     const out = {} as Record<ColKey, string[]>;
-    for (const c of COLS) out[c.key] = distinctValues(assets.map(c.get));
+    for (const c of COLS) out[c.key] = distinctValues(assets.map(c.get), c.kind);
     return out;
   }, [assets]);
 
-  const hasFilters = Object.values(filters).some((sel) => (sel?.length ?? 0) > 0);
+  const hasFilters =
+    Object.values(filters).some((sel) => (sel?.length ?? 0) > 0) ||
+    Object.values(ranges).some(rangeActive);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -77,20 +93,20 @@ export function AssetsScreen({
       );
     }
     for (const c of COLS) {
+      if (c.kind === 'date') {
+        const r = ranges[c.key];
+        if (rangeActive(r)) rows = rows.filter((a) => inDateRange(c.get(a), r));
+        continue;
+      }
       const sel = filters[c.key];
       if (sel?.length) rows = rows.filter((a) => sel.includes(c.get(a)));
     }
     if (sort) {
       const col = COLS.find((c) => c.key === sort.key);
-      if (col) {
-        const dir = sort.dir === 'asc' ? 1 : -1;
-        rows = [...rows].sort(
-          (x, y) => dir * col.get(x).localeCompare(col.get(y), undefined, { numeric: true }),
-        );
-      }
+      if (col) rows = sortRows(rows, col.get, col.kind ?? 'text', sort.dir);
     }
     return rows;
-  }, [q, assets, filters, sort]);
+  }, [q, assets, filters, ranges, sort]);
 
   function toggleFilter(key: ColKey, value: string) {
     setFilters((f) => {
@@ -185,12 +201,15 @@ export function AssetsScreen({
                   <th key={c.key}>
                     <ThMenu
                       label={c.label}
+                      kind={c.kind}
                       sortDir={sort?.key === c.key ? sort.dir : null}
                       onSort={(dir) => setSort(dir ? { key: c.key, dir } : null)}
                       options={options[c.key]}
                       selected={filters[c.key] ?? []}
                       onToggle={(v) => toggleFilter(c.key, v)}
                       onClear={() => setFilters((f) => ({ ...f, [c.key]: [] }))}
+                      range={ranges[c.key]}
+                      onRange={(r) => setRanges((s) => ({ ...s, [c.key]: r }))}
                     />
                   </th>
                 ))}
@@ -200,6 +219,9 @@ export function AssetsScreen({
             <tbody>
               {filtered.map((a) => (
                 <tr key={a.id}>
+                  <td className="mono" style={{ whiteSpace: 'nowrap' }}>
+                    {a.purchase_date ?? '—'}
+                  </td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <b>{a.desktop_name}</b>
                   </td>

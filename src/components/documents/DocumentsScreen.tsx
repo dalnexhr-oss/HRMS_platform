@@ -8,7 +8,16 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/format';
-import { ThMenu, distinctValues, type SortDir } from '@/components/ui/ThMenu';
+import {
+  ThMenu,
+  distinctValues,
+  sortRows,
+  inDateRange,
+  rangeActive,
+  type SortDir,
+  type ColKind,
+  type DateRange,
+} from '@/components/ui/ThMenu';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { usePrompt } from '@/components/ui/PromptDialog';
 import { useToast } from '@/components/ui/Toast';
@@ -30,14 +39,15 @@ const STATUS_TEXT: Record<string, string> = {
 };
 
 // `get` yields the string each header menu sorts and filters on; '—' stands in
-// for blank so "no value" is itself pickable.
-const COLS: { key: ColKey; label: string; get: (d: EmployeeDocumentRow) => string }[] = [
+// for blank so "no value" is itself pickable. `kind` picks the compare order —
+// Filed is a date and must sort chronologically, not A → Z.
+const COLS: { key: ColKey; label: string; kind?: ColKind; get: (d: EmployeeDocumentRow) => string }[] = [
   { key: 'employee', label: 'Employee', get: (d) => d.name || '—' },
   { key: 'category', label: 'Category', get: (d) => documentCategoryLabel(d.category, d.source === 'issued') },
   { key: 'title', label: 'Document', get: (d) => d.title ?? '—' },
   { key: 'source', label: 'Source', get: (d) => (d.source === 'issued' ? 'HR issued' : 'Uploaded') },
   { key: 'status', label: 'Status', get: (d) => STATUS_TEXT[d.status] ?? d.status },
-  { key: 'filed', label: 'Filed', get: (d) => d.uploadedAt.slice(0, 10) },
+  { key: 'filed', label: 'Filed', kind: 'date', get: (d) => d.uploadedAt.slice(0, 10) },
 ];
 
 export function DocumentsScreen({
@@ -61,12 +71,14 @@ export function DocumentsScreen({
 
   const [sort, setSort] = useState<{ key: ColKey; dir: SortDir } | null>(null);
   const [filters, setFilters] = useState<Partial<Record<ColKey, string[]>>>({});
+  // Date columns filter by range, not by ticking individual days.
+  const [ranges, setRanges] = useState<Partial<Record<ColKey, DateRange>>>({});
 
   // Options come from the full register, not the filtered view, so a selection
   // in one column never hides another column's choices.
   const options = useMemo(() => {
     const out = {} as Record<ColKey, string[]>;
-    for (const c of COLS) out[c.key] = distinctValues(register.map(c.get));
+    for (const c of COLS) out[c.key] = distinctValues(register.map(c.get), c.kind);
     return out;
   }, [register]);
 
@@ -79,18 +91,20 @@ export function DocumentsScreen({
       );
     }
     for (const c of COLS) {
+      if (c.kind === 'date') {
+        const r = ranges[c.key];
+        if (rangeActive(r)) out = out.filter((d) => inDateRange(c.get(d), r));
+        continue;
+      }
       const sel = filters[c.key];
       if (sel?.length) out = out.filter((d) => sel.includes(c.get(d)));
     }
     if (sort) {
       const col = COLS.find((c) => c.key === sort.key);
-      if (col) {
-        const dir = sort.dir === 'asc' ? 1 : -1;
-        out = [...out].sort((x, y) => dir * col.get(x).localeCompare(col.get(y), undefined, { numeric: true }));
-      }
+      if (col) out = sortRows(out, col.get, col.kind ?? 'text', sort.dir);
     }
     return out;
-  }, [q, register, filters, sort]);
+  }, [q, register, filters, ranges, sort]);
 
   const queue = useMemo(
     () => register.filter((d) => d.status === 'awaiting' || d.status === 'returned'),
@@ -281,12 +295,15 @@ export function DocumentsScreen({
                   <th key={c.key}>
                     <ThMenu
                       label={c.label}
+                      kind={c.kind}
                       sortDir={sort?.key === c.key ? sort.dir : null}
                       onSort={(dir) => setSort(dir ? { key: c.key, dir } : null)}
                       options={options[c.key]}
                       selected={filters[c.key] ?? []}
                       onToggle={(v) => toggleFilter(c.key, v)}
                       onClear={() => setFilters((f) => ({ ...f, [c.key]: [] }))}
+                      range={ranges[c.key]}
+                      onRange={(r) => setRanges((s) => ({ ...s, [c.key]: r }))}
                     />
                   </th>
                 ))}
