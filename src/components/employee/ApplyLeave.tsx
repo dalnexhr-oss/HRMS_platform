@@ -21,7 +21,7 @@ const TYPE_OPTIONS: RequestType[] = ['leave', 'site_visit', 'outdoor_duty', 'wfh
 
 // All four keys stay: historic requests still render their CL/SL tag. Only
 // LEAVE_KIND_OPTIONS below decides what a NEW request may carry — one paid
-// pool + leave-without-pay since the leave-salary policy (migration 0038).
+// pool + leave-without-pay since the leave-salary policy.
 const LEAVE_KIND_LABEL: Record<LeaveBalanceRow['type'], string> = {
   PL: 'Paid leave',
   CL: 'Casual leave',

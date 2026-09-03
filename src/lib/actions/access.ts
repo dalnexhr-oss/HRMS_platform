@@ -3,7 +3,7 @@
 // ============================================================================
 // Per-user tab access — the side panel on /users. Super admin only.
 //
-// Writes the user_tab_access table from migration 0045. Every rule the panel
+// Writes the user document's embedded `tab_access` map. Every rule the panel
 // shows is re-checked here, because a Server Action is a public endpoint: the
 // button only being rendered for a super admin proves nothing about the caller.
 // ============================================================================

@@ -73,7 +73,7 @@ async function requireScope(): Promise<Scope> {
 }
 
 /**
- * The read rule, mirroring the bucket policies from migration 0032.
+ * The read rule for a stored file, per bucket.
  *
  * Staff read anything. An employee reads only what sits under their own folder,
  * and only in the buckets that are folder-scoped at all.

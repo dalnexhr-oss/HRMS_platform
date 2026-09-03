@@ -4,7 +4,7 @@
 //
 // This is a step ABOVE the existing "mark as read" receipt — a signature carries
 // a typed name plus a server-stamped time and IP, and cannot be edited or
-// removed by anyone (see migration 0037 §4). The component never sends a
+// removed by anyone. The component never sends a
 // timestamp; the database clock supplies it.
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';

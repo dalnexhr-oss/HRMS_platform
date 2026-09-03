@@ -130,7 +130,7 @@ export interface JobResult {
 }
 
 // ---------------------------------------------------------------------------
-// purge-old-notices  (migration 0015)
+// purge-old-notices
 // ---------------------------------------------------------------------------
 
 /**
@@ -143,9 +143,8 @@ export interface JobResult {
  * expression mixing a null test with a date bound is easy to get silently
  * wrong.
  *
- * System-scoped, matching the SECURITY DEFINER the SQL function was given in
- * migration 0017: retention is a housekeeping rule, not something that should
- * depend on who happened to trigger it.
+ * System-scoped on purpose: retention is a housekeeping rule, not something
+ * that should depend on who happened to trigger it.
  *
  * Callers: the nightly job below, and queries.purgeExpiredNotices() for the
  * opportunistic sweep on publish. It used to be written out separately in each
@@ -179,7 +178,7 @@ export async function purgeOldNotices(
 }
 
 // ---------------------------------------------------------------------------
-// comp-off-expiry  (migration 0036)
+// comp-off-expiry
 // ---------------------------------------------------------------------------
 
 /** Expire comp-offs whose expiry date has passed and that were never used. */
@@ -208,7 +207,7 @@ export async function expireCompOffs(): Promise<JobResult> {
 }
 
 // ---------------------------------------------------------------------------
-// asset-warranty-reminders  (migration 0034)
+// asset-warranty-reminders
 // ---------------------------------------------------------------------------
 
 /**
@@ -259,7 +258,7 @@ export async function warrantyReminders(): Promise<JobResult> {
 }
 
 // ---------------------------------------------------------------------------
-// attendance-auto-punch-out  (migration 0033)
+// attendance-auto-punch-out
 // ---------------------------------------------------------------------------
 
 /**
@@ -333,7 +332,7 @@ export async function autoPunchOut(targetDate?: string): Promise<JobResult> {
 }
 
 // ---------------------------------------------------------------------------
-// attendance-auto-close-month  (migration 0033)
+// attendance-auto-close-month
 // ---------------------------------------------------------------------------
 
 /** Stamp the previous month's payroll run as closed, once the month is over. */
@@ -361,7 +360,7 @@ export async function autoCloseMonth(): Promise<JobResult> {
 }
 
 // ---------------------------------------------------------------------------
-// leave-annual-provision  (migration 0036)
+// leave-annual-provision
 // ---------------------------------------------------------------------------
 
 /** Open the current leave year. Idempotent through the ledger and by row. */
@@ -379,7 +378,7 @@ export async function leaveAnnualProvision(year?: number): Promise<JobResult> {
 }
 
 // ---------------------------------------------------------------------------
-// lifecycle-reminders  (migration 0037)
+// lifecycle-reminders
 // ---------------------------------------------------------------------------
 
 /** Nudge staff about exits whose last working day is within a week. */

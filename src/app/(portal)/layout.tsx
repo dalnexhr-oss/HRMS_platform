@@ -33,13 +33,13 @@ export default async function PortalLayout({ children }: { children: React.React
   // A missing profile row is fail-closed: never assume a role. A signed-in user
   // without one (trigger not run, deleted, unprovisioned) is sent to /login with
   // an explanation rather than into any area. This is the last line of defence
-  // behind the 'employee' default from migration 0008.
+  // behind the 'employee' role default.
   if (!profile) {
     redirect('/login?error=Your+account+is+not+provisioned+yet.+Ask+HR+to+set+up+your+access.');
   }
   if (!isStaffRole(profile.role)) redirect('/me');
 
-  // Per-tab access (migration 0044). This is the ONE place it is enforced, so a
+  // Per-tab access. This is the ONE place it is enforced, so a
   // route added later is covered without touching its page file. x-pathname is
   // set by middleware; if it is somehow absent we cannot identify the tab, and
   // the static per-page role gates still apply underneath.

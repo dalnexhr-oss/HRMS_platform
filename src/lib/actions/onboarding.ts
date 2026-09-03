@@ -1,7 +1,7 @@
 'use server';
 
 // ============================================================================
-// Onboarding checklists (migration 0037).
+// Onboarding checklists.
 //
 // A joiner's first week was tribal knowledge: someone remembered to chase the
 // signed offer letter, someone else remembered the laptop, and nobody could say

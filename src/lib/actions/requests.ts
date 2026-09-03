@@ -77,7 +77,7 @@ async function leaveDayCount(startISO: string, endISO: string, start: Date, end:
   }
 }
 
-/** The configurable sandwich-leave toggle (settings key seeded by 0036). */
+/** The configurable sandwich-leave toggle, from the settings collection. */
 async function getSandwichPolicy(): Promise<boolean> {
   try {
     const dbc = await createClient();

@@ -33,7 +33,7 @@ const PURPOSES: readonly ReimbursementPurpose[] = ['travel', 'material_purchase'
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * Append one row to the claim's timeline (migration 0035).
+ * Append one row to the claim's timeline.
  *
  * BEST-EFFORT, exactly like notify.ts: the business write is already committed
  * and there is no transaction across the two, so a failed event must never turn

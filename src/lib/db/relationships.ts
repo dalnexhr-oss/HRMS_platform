@@ -26,9 +26,9 @@
 //                         which the plural rule does not produce.
 //
 // So the relationships are declared, one entry per (parent, embed) pair that
-// the application actually selects, each traceable to a `references` clause in
-// supabase/migrations. An embed with no entry THROWS rather than joining on a
-// guess — silently returning nothing is what this file exists to stop.
+// the application actually selects. An embed with no entry THROWS rather than
+// joining on a guess — silently returning nothing is what this file exists to
+// stop. Adding an embed to a select means adding its entry here.
 // ============================================================================
 import 'server-only';
 

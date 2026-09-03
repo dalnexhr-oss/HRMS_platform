@@ -147,7 +147,7 @@ export function Sidebar({
 }: {
   name?: string | null;
   role?: AppRole | null;
-  /** This account's tab switches (migration 0045); {} means nothing revoked. */
+  /** This account's tab switches; {} means nothing revoked. */
   access?: TabAccess;
 }) {
   const pathname = usePathname();

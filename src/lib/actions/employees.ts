@@ -128,7 +128,7 @@ function moneyPaise(v: FormDataEntryValue | null): number | null {
 
 /**
  * Normalise an Aadhaar number: strip spaces/hyphens, require exactly 12 digits.
- * Empty is allowed (returns null). Mirrors the DB check constraint (migration 0019).
+ * Empty is allowed (returns null). Mirrors the DB check constraint.
  */
 function parseAadhaar(
   v: FormDataEntryValue | null,
@@ -142,7 +142,7 @@ function parseAadhaar(
 /**
  * Normalise an IFSC code: strip spaces, upper-case, require the standard
  * 11-char shape (4 letters + '0' + 6 alphanumerics). Empty is allowed (null).
- * Mirrors the DB check constraint (migration 0023).
+ * Mirrors the DB check constraint.
  */
 function parseIfsc(
   v: FormDataEntryValue | null,
@@ -159,7 +159,7 @@ function parseIfsc(
  * Normalise a PAN: strip spaces, upper-case, require the standard 10-char shape
  * (5 letters + 4 digits + 1 letter). Empty is allowed (null).
  *
- * Mirrors the format CHECK from migration 0001, which the employees validator
+ * Mirrors the format check the employees validator
  * enforces as `^[A-Z]{5}[0-9]{4}[A-Z]$`. Without this the raw field went
  * straight to the database, so a lower-case or half-typed PAN — 'abcde1234f',
  * or a stray trailing space — was refused there and surfaced as the unhelpful
@@ -188,7 +188,7 @@ function optionalText(v: FormDataEntryValue | null): string | null {
 }
 
 /**
- * Bank details + emergency contact columns (migration 0023), shared by create
+ * Bank details + emergency contact columns, shared by create
  * and update so both stay in lockstep. Validates IFSC; the rest are free text.
  */
 function parseBankAndEmergency(
@@ -320,8 +320,8 @@ async function resolveBranch(
   const name = String(formData.get('branch_new_name') ?? '').trim();
   const state = String(formData.get('branch_new_state') ?? '').trim();
   if (!name) return { ok: false, error: 'Enter the new branch name.' };
-  // INDIAN_STATES mirrors the indian_state enum (0001 + 0040); the enum itself
-  // still has the final word — an unapplied 0040 surfaces as a DB error below.
+  // INDIAN_STATES mirrors the branches validator's state enum; the validator
+  // still has the final word — a mismatch surfaces as a DB error below.
   if (!(INDIAN_STATES as readonly string[]).includes(state)) {
     return { ok: false, error: 'Pick the new branch state or union territory.' };
   }
@@ -388,7 +388,7 @@ async function resolveDepartment(
  * "Open leave year". BEST-EFFORT like startOnboarding: the RPC is idempotent
  * (`on conflict do nothing`), touches only MISSING rows — nobody is credited
  * twice — and skips joiners dated beyond the year, whom the annual cron will
- * pick up. A failure (e.g. migration 0036 unapplied) must never undo a saved
+ * pick up. A failure here must never undo a saved
  * employee; the /leave pool card still shows the gap and its button closes it.
  */
 async function provisionCurrentLeaveYear(
@@ -494,7 +494,7 @@ export async function createEmployee(formData: FormData) {
   }
 
   // Kick off the onboarding checklist from the newest active template. BEST-EFFORT:
-  // a template that does not exist yet (or migration 0037 unapplied) must not fail
+  // a template that does not exist yet must not fail
   // a saved employee — HR can start it by hand from /onboarding.
   const newEmployeeId = (data![0] as { id: string }).id;
   await startOnboarding(newEmployeeId).catch(() => undefined);

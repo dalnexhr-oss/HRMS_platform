@@ -3,9 +3,9 @@
 // ============================================================================
 // Monthly register import — preview + commit.
 //
-// Runs on the signed-in staff user's own session: migration 0003 grants
-// `attendance_days_write` / `activity_log_write` to is_staff(), so no
-// service-role key is needed (and none exists yet).
+// Runs on the signed-in staff user's own session: the attendance_days and
+// activity_log policies both grant writes to staff, so no service-role key is
+// needed (and none exists).
 //
 // Nothing here fakes a success. When the database is reachable and a read or write
 // fails, the real error comes back to the caller.

@@ -1,10 +1,12 @@
 // ============================================================================
-// fn_compute_payslip, in TypeScript. SERVER ONLY.
+// Payslip computation. SERVER ONLY.
 //
-// This is the highest-risk file in the migration: it decides what lands in
-// someone's bank account. It is a line-by-line port of the plpgsql body as of
-// migration 0042, and the SQL is the specification — where the two could
-// differ, this file follows the SQL.
+// This is the highest-risk file in the codebase: it decides what lands in
+// someone's bank account. It began as a line-by-line port of a plpgsql
+// function, which was then the specification. That SQL has been deleted, so
+// this file is now the specification — the rules it encodes are stated in the
+// comments below and in the README's payroll section, and they should be
+// changed only together.
 //
 // THE ARITHMETIC RULE
 //
@@ -317,14 +319,13 @@ export async function computePayslip(
 }
 
 // ---------------------------------------------------------------------------
-// Run-level state machine — fn_compute_run / fn_lock_run / fn_mark_run_paid
-// (migration 0005), ported line for line.
+// Run-level state machine — compute, lock, mark-paid.
 //
 // The guards are the point. A locked or paid run is history: recomputing it
-// would silently rewrite payslips that have already been issued, and in the SQL
-// that was a RAISE. Here it is a thrown Error, which pgcompat's rpc() turns
-// back into `{ error }` — the shape callRunRpc already branches on, so the
-// refusal reaches the user as a message instead of corrupting the run.
+// would silently rewrite payslips that have already been issued. That is a
+// thrown Error, which pgcompat's rpc() turns back into `{ error }` — the shape
+// callRunRpc already branches on, so the refusal reaches the user as a message
+// instead of corrupting the run.
 // ---------------------------------------------------------------------------
 
 type RunStatus = 'draft' | 'in_review' | 'locked' | 'paid';

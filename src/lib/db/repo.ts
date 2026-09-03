@@ -246,6 +246,9 @@ export class ScopedCollection<T extends Document> {
    * touched, and the insert rule decides whether the row that would be created
    * is allowed. Checking only one is how an employee ends up able to conjure a
    * row for somebody else by picking an id that does not exist yet.
+   *
+   * The write filter is FOLDED into the query rather than ANDed — see
+   * upsertFilter() for why and() is the wrong tool for this one operation.
    */
   async upsertOne(
     query: Filter<T>,
@@ -254,11 +257,99 @@ export class ScopedCollection<T extends Document> {
   ): Promise<void> {
     const refusal = this.policy.insert(this.scope, insertShape);
     if (refusal) throw new ScopeError(refusal);
-    const filter = and(this.writeFilter(), query);
+    const filter = upsertFilter(this.writeFilter(), query as Document, insertShape);
     this.assertCheck(update);
     const collection = await this.raw();
-    await collection.updateOne(filter, update, this.opts({ upsert: true }));
+    await collection.updateOne(filter as Filter<T>, update, this.opts({ upsert: true }));
   }
+}
+
+/**
+ * The filter for an upsert: the write policy folded INTO the conflict key.
+ *
+ * and() cannot be used here. It carries the policy as a second $and clause,
+ * and an upsert seeds the document it would INSERT from the query's equality
+ * fields — when the same path appears in two clauses MongoDB refuses the whole
+ * write (error 54, "cannot infer query fields to set, path '…' is matched
+ * twice"). Every employee-scoped upsert had exactly that shape: the policy
+ * contributes `{employee_id: me}` and the conflict key names employee_id
+ * again. So a punch wrote its punch_events row and then failed to rewrite the
+ * day — the employee's own clock moved while the admin board, which reads
+ * attendance_days, did not. Staff never saw it because their filter is `{}`.
+ *
+ * Folding keeps the property and() protects. A policy field the key does not
+ * name is added to the flat filter — and seeded onto an inserted row, which is
+ * what the policy demands of a new row anyway. A policy field the key DOES
+ * name is checked against the key's value here, in code; the key's single
+ * occurrence then stands. Disagreement means the caller is reaching for a row
+ * outside their scope, and that throws exactly as writeFilter() does when
+ * denied, rather than letting a match-nothing filter fall through to an insert.
+ *
+ * Only the operators the policies actually emit are understood. Anything else
+ * throws: a filter that silently matched everything is the failure this file
+ * exists to prevent.
+ */
+function upsertFilter(policy: Document, query: Document, insertShape: Document): Document {
+  const merged: Document = { ...query };
+  const side: Document[] = [];
+
+  for (const [field, constraint] of Object.entries(policy)) {
+    // $or / $nor are never used to seed an inserted document, so they cannot
+    // trip the matched-twice rule; they ride alongside as their own clause.
+    if (field.startsWith('$')) {
+      side.push({ [field]: constraint });
+      continue;
+    }
+
+    if (!(field in query)) {
+      // The row that would be inserted must also satisfy the policy — refuse
+      // now rather than create a row the caller could never write again.
+      if (field in insertShape && !admits(constraint, insertShape[field])) {
+        throw new ScopeError('You do not have permission to change this.');
+      }
+      merged[field] = constraint;
+      continue;
+    }
+
+    if (!admits(constraint, query[field])) {
+      throw new ScopeError('You do not have permission to change this.');
+    }
+  }
+
+  return side.length ? { $and: [merged, ...side] } : merged;
+}
+
+/** Whether one policy constraint — an equality or an operator object — admits `value`. */
+function admits(constraint: unknown, value: unknown): boolean {
+  if (!isOperatorObject(constraint)) return same(constraint, value);
+  for (const [op, operand] of Object.entries(constraint as Document)) {
+    switch (op) {
+      case '$eq': if (!same(operand, value)) return false; break;
+      case '$ne': if (same(operand, value)) return false; break;
+      case '$in': if (!(operand as unknown[]).some((o) => same(o, value))) return false; break;
+      case '$nin': if ((operand as unknown[]).some((o) => same(o, value))) return false; break;
+      default:
+        throw new Error(`repo: cannot fold policy operator '${op}' into an upsert key`);
+    }
+  }
+  return true;
+}
+
+function isOperatorObject(v: unknown): boolean {
+  if (v === null || typeof v !== 'object' || v instanceof Date || Array.isArray(v)) return false;
+  const keys = Object.keys(v as Document);
+  return keys.length > 0 && keys.every((k) => k.startsWith('$'));
+}
+
+/** Equality the way a policy means it: by value, including Dates and arrays. */
+function same(a: unknown, b: unknown): boolean {
+  if (a instanceof Date || b instanceof Date) {
+    return a instanceof Date && b instanceof Date && a.getTime() === b.getTime();
+  }
+  if (a !== null && b !== null && typeof a === 'object' && typeof b === 'object') {
+    return JSON.stringify(a) === JSON.stringify(b);
+  }
+  return a === b;
 }
 
 /** Thrown when a scoped repository is requested with nobody signed in. */

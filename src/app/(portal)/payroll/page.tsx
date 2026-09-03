@@ -69,10 +69,9 @@ function dayLabel(date: string | null): string | null {
 /**
  * The run's adjustments window (payroll_runs.adjustments_open / _close).
  *
- * These columns are real (migration 0001) and populated (seed.sql seeds
- * 2026-07-01 → 2026-07-09 for the June run) — the "1–9 Jul" the prototype showed
- * was seeded data, not invention. Read directly because Core's PayrollRunView
- * doesn't carry them and queries.ts is owned elsewhere.
+ * These fields are real and populated on seeded runs — the "1–9 Jul" the
+ * prototype showed was seeded data, not invention. Read directly because Core's
+ * PayrollRunView doesn't carry them and queries.ts is owned elsewhere.
  *
  * Shown as INFORMATION only. Nothing in the schema enforces this window — only
  * `status` freezes adjustments — so the UI must not imply it is a hard gate.

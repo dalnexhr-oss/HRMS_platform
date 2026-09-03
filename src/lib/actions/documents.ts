@@ -1,7 +1,7 @@
 'use server';
 
 // ============================================================================
-// Employee document register + HR verification (migration 0037).
+// Employee document register + HR verification.
 //
 // Files live in the private `employee-documents` bucket (0032) under
 // `<employee_id>/<uuid>-<filename>`; the row only ever carries the path, and

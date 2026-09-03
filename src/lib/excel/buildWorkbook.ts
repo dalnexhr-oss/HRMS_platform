@@ -588,8 +588,7 @@ export async function reimbursementsWorkbook(
     { header: 'Status', key: 'status', width: 13 },
     // Review/payment trail: without these the export could not answer "why was
     // this rejected?" or "when was it actually paid?", which is the whole point
-    // of an audit export. All are populated from migration 0020/0035 columns and
-    // fall back to blank on a database where those are not applied yet.
+    // of an audit export. Each falls back to blank when the field is absent.
     { header: 'Review remark', key: 'reviewRemark', width: 32 },
     { header: 'Receipt', key: 'receipt', width: 10 },
     { header: 'Finance reviewed', key: 'financeReviewed', width: 18 },

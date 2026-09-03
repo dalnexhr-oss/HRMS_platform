@@ -56,8 +56,8 @@ export interface ParsedRegister {
 }
 
 /**
- * Status codes the database enum accepts. 'CO' only exists once migration 0006
- * is applied — the importer surfaces the enum error rather than dropping it.
+ * Status codes the attendance_days validator accepts. A code outside this set
+ * is surfaced as an error rather than quietly dropped.
  */
 export const KNOWN_STATUSES = ['P', 'LM', 'HD', 'L', 'WO', 'OH', 'AB', 'S', 'T', 'CO'] as const;
 export type KnownStatus = (typeof KNOWN_STATUSES)[number];

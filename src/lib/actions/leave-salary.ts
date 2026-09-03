@@ -1,7 +1,7 @@
 'use server';
 
 // ============================================================================
-// Leave-salary workings (migration 0038): save, finalize, reopen, mark paid.
+// Leave-salary workings: save, finalize, reopen, mark paid.
 //
 // The one rule of this file: THE SERVER COMPUTES. The client shows a live
 // preview with the same pure module, but every figure that lands in the table

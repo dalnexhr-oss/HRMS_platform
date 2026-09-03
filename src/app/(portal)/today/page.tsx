@@ -1,5 +1,6 @@
 import { TodayBoard, type Loaded } from '@/components/today/TodayBoard';
 import { CompOffAdminCard } from '@/components/today/CompOffAdminCard';
+import { LiveRefresh } from '@/components/today/LiveRefresh';
 import {
   currentPeriodMonth,
   getActivityFeed,
@@ -20,7 +21,7 @@ export const dynamic = 'force-dynamic';
 
 const TZ = 'Asia/Kolkata';
 
-/** The documented rule (0001_schema.sql: "3rd mark in a month => auto half-day").
+/** The documented rule: the 3rd late mark in a month becomes an auto half-day.
  *  Only used when the `mark_threshold` setting is missing or unreadable. */
 const DEFAULT_MARK_THRESHOLD = 3;
 
@@ -103,6 +104,10 @@ export default async function TodayPage() {
 
   return (
     <>
+      {/* Punches land through /api/punch/*, which no page is subscribed to — so
+          the board re-reads itself on a timer rather than waiting for someone
+          to navigate. Renders nothing. */}
+      <LiveRefresh />
       <TodayBoard
         board={board}
         punchLog={punchLog}

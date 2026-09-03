@@ -125,7 +125,7 @@ export interface UserDoc {
   full_name: string | null;
   role: AppRole;
   branch_id: string | null;
-  /** Preset avatar key from lib/avatar-presets.ts (migration 0014). */
+  /** Preset avatar key from lib/avatar-presets.ts. */
   avatar: string | null;
 
   /** Links to the employees collection. Null for staff with no employee record. */
@@ -144,7 +144,7 @@ export interface UserDoc {
    */
   token_version: number;
 
-  /** Per-tab access from migration 0045. Absent key means allowed. */
+  /** Per-tab access. An absent key means allowed. */
   tab_access: Record<string, boolean>;
 
   email_verified_at: Date | null;

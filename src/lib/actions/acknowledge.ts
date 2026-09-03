@@ -1,7 +1,7 @@
 'use server';
 
 // ============================================================================
-// In-app e-signature (migration 0037 §4).
+// In-app e-signature.
 //
 // A signature is only evidence if the signer controls neither WHEN nor FROM
 // WHERE it was recorded. So:

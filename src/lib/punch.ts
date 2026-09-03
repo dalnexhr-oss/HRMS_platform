@@ -471,9 +471,16 @@ async function resolveDay(
 ): Promise<number> {
   const dbc = await createClient();
 
+  // 'HH:MM', not localParts()'s 'HH:MM:SS'. attendance_days.punch_in/out are
+  // validated against ^[0-9]{2}:[0-9]{2}$ — the shape every other writer uses
+  // (the correction form, the nightly sweep, the register import) — and a
+  // value with seconds is refused as error 121. This was masked for as long as
+  // the upsert failed earlier for a different reason (see repo.upsertFilter);
+  // once that was fixed, every employee punch would have failed here instead.
+  // Seconds are not lost to the arithmetic: toMinutes() never read them.
   const times = events.map((event) => ({
     kind: event.kind,
-    clock: localParts(punchedAt(event)).time,
+    clock: localParts(punchedAt(event)).time.slice(0, 5),
   }));
   const firstIn = times.find((event) => event.kind === 'in')?.clock ?? null;
   const lastOut = [...times].reverse().find((event) => event.kind === 'out')?.clock ?? null;

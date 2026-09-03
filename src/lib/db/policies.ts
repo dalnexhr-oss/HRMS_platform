@@ -7,11 +7,12 @@
 //
 // Three deliberate properties:
 //
-//  1. DECLARATIVE. Each entry is the same shape as the SQL policy it replaces,
-//     so the two can be read side by side. `supabase/migrations/0003_rls.sql`
-//     and its successors are kept as the reference — they are history, not a
-//     runtime dependency — and a change here without a reason traceable to
-//     those is a change in who can see what.
+//  1. DECLARATIVE. Each entry keeps the shape of the row-level-security policy
+//     it replaces: a predicate per collection per operation, never imperative
+//     checks scattered through call sites. This file is now the only statement
+//     of who can see what — the SQL it was derived from has been deleted — so a
+//     change here IS a change to the security model and should be reviewed as
+//     one.
 //
 //  2. FAIL CLOSED. `POLICIES` has no default entry. A collection that is not
 //     listed is denied to everyone — so a newly ported collection is invisible
@@ -199,7 +200,7 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
   },
 
   // --- attendance -----------------------------------------------------------
-  // Employees insert their own punches (migration 0047) but never rewrite
+  // Employees insert their own punches but never rewrite
   // history: write stays staff-only, matching the absence of an employee
   // UPDATE/DELETE policy on punch_events in SQL.
   [COLLECTIONS.punchEvents]: {

@@ -66,7 +66,7 @@ export interface LeaveSalaryInput {
   /** presenceByMonth() output — credit-weighted days, index 0 = January. */
   monthlyPresence: number[];
   /**
-   * HR-entered calendar-day DENOMINATORS (migration 0041): payable =
+   * HR-entered calendar-day DENOMINATORS: payable =
    * entitled × present ÷ days, and these replace `days`. null/undefined =
    * real calendar arithmetic, the pre-0041 behaviour. The attendance-derived
    * present-day numerator is never overridden.

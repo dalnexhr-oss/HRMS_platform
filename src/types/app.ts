@@ -3,8 +3,7 @@
 //
 // Hand-written and NOT generated: there is no schema to generate from any more.
 // The document shapes the driver actually reads and writes live in
-// src/lib/db/collections.ts, and the SQL under supabase/migrations/ is kept as
-// the historical reference for what each rule used to be.
+// src/lib/db/collections.ts.
 //
 // The two are related but not the same, deliberately. Dates are `string` here
 // because that is what crosses into a client component; collections.ts declares
@@ -12,9 +11,9 @@
 // two in one place (see iso()).
 // ============================================================================
 
-// 'CO' (comp off) was added to the status enum in migration 0006 but never
-// mirrored here, so a comp-off day had no type-level existence and statusMeta
-// fell back to rendering it as 'P'. 0009 makes it a first-class feature.
+// 'CO' (comp off) must stay in step with the status enum in the attendance_days
+// validator. It was once missing here, so a comp-off day had no type-level
+// existence and statusMeta fell back to rendering it as 'P'.
 export type AttendanceStatus = 'P' | 'LM' | 'HD' | 'L' | 'WO' | 'OH' | 'AB' | 'S' | 'T' | 'CO';
 export type Gender = 'Male' | 'Female' | 'Other';
 export type EmployeeStatus = 'active' | 'on_notice' | 'inactive';
@@ -26,10 +25,11 @@ export type PayrollStatus = 'draft' | 'in_review' | 'locked' | 'paid';
 export type PayslipStatus = 'draft' | 'queued' | 'generated' | 'paid';
 export type NoticeChannel = 'app' | 'whatsapp' | 'both';
 export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
-// 'manager' was removed by 0046, which reduced it to employee-level access.
+// 'manager' was retired: it was reduced to employee-level access and then
+// folded into 'employee', so nothing distinguishes it any more.
 export type AppRole = 'super_admin' | 'admin' | 'hr' | 'employee';
 export type ReimbursementPurpose = 'travel' | 'material_purchase' | 'other';
-// 'finance_review' added in migration 0035 — the optional second (Finance)
+// 'finance_review' is the optional second (Finance)
 // approval stage that sits between HR approval and the payroll credit.
 export type ReimbursementStatus =
   | 'pending'

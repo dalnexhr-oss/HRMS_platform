@@ -1,7 +1,7 @@
 'use server';
 
 // ============================================================================
-// Employee exit workflow (migration 0037).
+// Employee exit workflow.
 //
 // Before this, "offboarding" was one button that flipped employees.status to
 // inactive and banned the login. Everything a real exit needs — getting the

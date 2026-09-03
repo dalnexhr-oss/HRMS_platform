@@ -49,7 +49,7 @@ export interface LeaveSalaryViewRow {
 
 export interface LeaveSalaryView {
   year: number;
-  /** false when migration 0038 has not been applied to this database. */
+  /** false when the leave_salary_workings collection does not exist yet. */
   migrated: boolean;
   rows: LeaveSalaryViewRow[];
 }

@@ -3,7 +3,7 @@
 // ============================================================================
 // Paid-leave pool: annual provisioning and audited manual adjustments.
 //
-// Since the leave-salary policy (migration 0038) there is ONE pool — PL, 15
+// Since the leave-salary policy there is ONE pool — PL, 15
 // days a year. The encashment actions that used to live here died with the
 // PL/CL/SL screen; the annual payout is handled by actions/leave-salary.ts.
 // The leave_encashment table itself remains (exit full-and-final reads it).

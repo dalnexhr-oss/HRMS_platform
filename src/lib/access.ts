@@ -1,5 +1,5 @@
 // ============================================================================
-// Per-user tab access (migration 0045).
+// Per-user tab access.
 //
 // A super admin decides, per individual account, which sidebar tabs it may open
 // — set from a side panel on /users, not a screen of its own. Two admins can
@@ -53,7 +53,7 @@ export function canAccessTab(
   if (role === 'super_admin') return true;
   if (!staticallyAllowed(role, slug)) return false;
   if (!isConfigurableRole(role)) return true;
-  // Absent row = allowed, so an unapplied migration or an untouched tab behaves
+  // An absent entry means allowed, so an untouched tab behaves
   // exactly as it did before this feature existed.
   return access[slug] !== false;
 }

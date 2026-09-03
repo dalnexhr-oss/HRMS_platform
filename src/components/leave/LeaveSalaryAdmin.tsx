@@ -124,9 +124,9 @@ export function LeaveSalaryAdmin({
         {!migrated && (
           <div className="bd">
             <p className="muted" style={{ margin: 0 }}>
-              Leave salary is not set up on this database yet — apply migration{' '}
-              <b>0038_leave_salary.sql</b>. The figures below are computed live and correct, but
-              nothing can be saved until then.
+              Leave salary is not set up on this database yet — run{' '}
+              <b>npm run db:setup</b> to create the collections. The figures below are
+              computed live and correct, but nothing can be saved until then.
             </p>
           </div>
         )}
@@ -442,7 +442,7 @@ function WorkingRow({
                 className="btn quiet"
                 disabled={pending || !migrated || !valid || !dirty}
                 title={
-                  !migrated ? 'Apply migration 0038 first'
+                  !migrated ? 'Run npm run db:setup first'
                   : !valid ? 'Enter both salaries'
                   : !dirty ? 'Nothing changed'
                   : undefined

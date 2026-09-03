@@ -3,7 +3,7 @@
 //
 // Dalnex works the **2nd and 4th Saturday** of each month; the 1st, 3rd and 5th
 // Saturdays are week-offs, and every Sunday is off. Both halves are settings
-// (migration 0010) so the rule can change without a code deploy.
+// so the rule can change without a code deploy.
 //
 // This module is the single implementation. It is PURE — no database, no React —
 // so the register, the comp-off check and any future scheduler all agree.

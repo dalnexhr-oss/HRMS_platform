@@ -12,7 +12,7 @@ export const STATUS_META: Record<string, [string, string, string]> = {
   AB: ['A', 'st-AB', 'Absent'],
   S: ['S', 'st-OD', 'Site'],
   T: ['T', 'st-OD', 'Travel'],
-  // Comp off (migration 0006). Reuses the holiday stamp style — a taken comp off
+  // Comp off. Reuses the holiday stamp style — a taken comp off
   // is a paid day off — rather than adding a class, so globals.css stays as
   // ported. Without this entry statusMeta() fell back to 'P' and a CO day
   // rendered as Present.
@@ -444,13 +444,13 @@ export function pageHeader(slug: string, stats?: TopbarStats | null): [string, s
   }
 }
 /**
- * How long a notice lives before it is hard-deleted (migration 0015).
+ * How long a notice lives before it is hard-deleted.
  *
  * ONE number, because there used to be two. The nightly job defaulted to 90
  * days while the purge that runs whenever staff publish used 30 — and since
  * the 30-day sweep always ran first, everything older was already gone by the
  * time the 90-day job looked, so the 90 was dead code describing a policy the
- * app did not have. 30 is what migration 0015 declares and what the employee
+ * app did not have. 30 is the declared policy and what the employee
  * dashboard's date filter has always matched.
  */
 export const NOTICE_RETENTION_DAYS = 30;

@@ -376,7 +376,7 @@ export interface AcknowledgementRow {
 }
 
 /**
- * One employee's e-signatures (migration 0037 §4).
+ * One employee's e-signatures.
  *
  * Distinct from `policy_acknowledgements` (0004), which is a lightweight
  * read-receipt: these carry a typed name, a server-clock timestamp and the
@@ -861,7 +861,7 @@ export async function getClearanceItems(exitCaseId: string): Promise<ClearanceIt
 }
 
 // ----------------------------------------------------------- leave salary ---
-// The /leave page model (migration 0038): one paid-leave pool of 15 days plus
+// The /leave page model: one paid-leave pool of 15 days plus
 // an annual leave-salary working per employee. The old encashment/adjustment
 // list queries died with the PL/CL/SL screen; the tables themselves remain.
 
@@ -926,7 +926,7 @@ export interface LeaveSalaryWorkingRow {
  * Saved leave-salary workings for a year.
  *
  * Returns NULL — not [] — when the table is missing, so the page can tell
- * "migration 0038 not applied" apart from "no rows saved yet"; the two demand
+ * "the collection does not exist" apart from "no rows saved yet"; the two demand
  * different messages and only one of them is fixable from the UI.
  */
 export async function getLeaveSalaryWorkings(
@@ -1521,7 +1521,7 @@ export async function getUnreadNotificationCount(): Promise<number> {
 
 // ------------------------------------------------------- week-off policy ---
 /**
- * The scheduled week-off rule (settings-driven, migration 0010). Falls back to
+ * The scheduled week-off rule (settings-driven). Falls back to
  * the documented default — Sundays off, Saturdays off except the 2nd and 4th —
  * whenever the settings are absent or unreadable, so the register never loses
  * its week-off columns over a missing row.
@@ -1609,7 +1609,7 @@ function mapReimbursement(r: any): ReimbursementView {
   };
 }
 
-/** One lifecycle event on a claim's timeline (migration 0035). */
+/** One lifecycle event on a claim's timeline. */
 export interface ReimbursementEvent {
   id: string;
   action: string;
@@ -1695,8 +1695,8 @@ export interface CompOffRow {
   expiresOn: string | null;
 }
 
-// The two newer columns (expires_on: 0036, is_applicable: 0041) may be missing
-// on an un-migrated database; both selects retry without them and default.
+// expires_on and is_applicable may be missing on an older database; both
+// selects retry without them and fall back to a default.
 const COMP_OFF_FIELDS = 'id, employee_id, earned_date, status, used_date, expires_on, is_applicable';
 
 function mapCompOff(c: any): CompOffRow {
@@ -1867,7 +1867,7 @@ export async function getDepartments(): Promise<string[]> {
 }
 
 // ----------------------------------------------------------------- items ---
-/** One inventory item (migration 0026) with derived quantities from v_items. */
+/** One inventory item with derived quantities from v_items. */
 export interface ItemRow {
   id: string;
   item_code: string | null;
@@ -1930,7 +1930,7 @@ export async function getItemAssignments(itemId: string): Promise<ItemAssignment
 }
 
 // ---------------------------------------------------------------- assets ---
-/** One row of the IT asset register (migration 0025). Admin/HR only. */
+/** One row of the IT asset register. Admin/HR only. */
 export interface AssetRow {
   id: string;
   purchase_date: string | null;
@@ -1978,7 +1978,7 @@ export async function getAssets(): Promise<AssetRow[]> {
   }));
 }
 
-/** Asset stock summary from v_asset_summary (migration 0034). */
+/** Asset stock summary from v_asset_summary. */
 export interface AssetSummaryRow {
   category: string;
   total: number;
@@ -2004,7 +2004,7 @@ export async function getAssetSummary(): Promise<AssetSummaryRow[]> {
   }));
 }
 
-/** One asset transfer-history row (migration 0034). */
+/** One asset transfer-history row. */
 export interface AssetAssignmentRow {
   id: string;
   asset_id: string;
@@ -2030,7 +2030,7 @@ export async function getAssetAssignments(assetId: string): Promise<AssetAssignm
   return (data ?? []) as unknown as AssetAssignmentRow[];
 }
 
-/** One asset maintenance row (migration 0034). */
+/** One asset maintenance row. */
 export interface AssetMaintenanceRow {
   id: string;
   asset_id: string;
@@ -2057,7 +2057,7 @@ export async function getAssetMaintenance(assetId: string): Promise<AssetMainten
 }
 
 // ------------------------------------------------- employee assets / items ---
-/** An asset currently assigned to the signed-in employee (migration 0028). */
+/** An asset currently assigned to the signed-in employee. */
 export interface MyAssetRow {
   id: string;
   desktop_name: string;
@@ -2081,7 +2081,7 @@ export async function getMyAssets(employeeId: string): Promise<MyAssetRow[]> {
   return (data ?? []) as unknown as MyAssetRow[];
 }
 
-/** An item issued to the signed-in employee (migration 0028 RLS). */
+/** An item issued to the signed-in employee. */
 export interface MyItemRow {
   id: string;
   itemName: string;
@@ -2684,7 +2684,7 @@ export async function getOnLeaveToday(): Promise<OnLeaveTodayRow[]> {
 
 // ------------------------------------------------------- user tab access ---
 /**
- * Which tabs the SIGNED-IN account may open — migration 0045.
+ * Which tabs the SIGNED-IN account may open.
  *
  * Only explicit decisions are stored, so a missing entry means "allowed"; see
  * lib/access.ts for the rule that consumes it. The read is scoped to the

@@ -11,7 +11,7 @@
 // The run functions are the authority on what is allowed. fn_compute_run /
 // fn_lock_run / fn_mark_run_paid keep their SQL names and now live in
 // src/lib/db/payroll.ts, registered as RPCs; they refuse an illegal transition
-// with the same messages migration 0005 raised, and those are passed through to
+// with an explicit message, and those are passed through to
 // the operator verbatim — they are the whole point of the guard.
 // ============================================================================
 import { revalidatePath } from 'next/cache';
@@ -241,8 +241,7 @@ function money(formData: FormData, key: MoneyField): number | string {
 
 /**
  * Save one payslip's manual adjustments, then recompute that payslip so
- * net_payable reflects them (migration 0005 made fn_compute_payslip read this
- * table).
+ * net_payable reflects them — the payslip computation reads this collection.
  *
  * Expects: payslipId, advance_recovery, loss_damage, last_month_balance,
  * reimbursement_bonus, remarks.

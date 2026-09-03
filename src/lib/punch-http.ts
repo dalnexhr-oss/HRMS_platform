@@ -1,6 +1,10 @@
 // Shared request handling for the punch in / punch out routes.
 import { NextResponse, type NextRequest } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { LOCATION_REQUIRED, recordPunch, type PunchCoords, type PunchKind } from '@/lib/punch';
+
+/** Pages a punch changes: the board and its punch log, the register, /me. */
+const AFFECTED_PATHS = ['/today', '/register', '/me'];
 
 /**
  * Coordinates are OPTIONAL. A body with no usable lat/lng is not an error —
@@ -25,6 +29,10 @@ export async function handlePunch(request: NextRequest, kind: PunchKind) {
   try {
     const body = await request.json().catch(() => ({}));
     const result = await recordPunch(kind, readCoords(body));
+    // Only after the write actually succeeded — a refused or failed punch has
+    // changed nothing, and invalidating on it would just cost everyone a
+    // re-render to redisplay the same numbers.
+    for (const path of AFFECTED_PATHS) revalidatePath(path);
     return NextResponse.json(result);
   } catch (error) {
     const message =
