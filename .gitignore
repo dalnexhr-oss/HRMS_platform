@@ -30,12 +30,5 @@ yarn-error.log*
 
 dalnex-admin-portal.html
 reference for desktop app (1).xlsx
-# supabase
-supabase/.branches
-supabase/.temp
-**/.supabase
-supabase/seed.sql
-supabase/APPLY_*.sql
 # typescript
 *.tsbuildinfo
-schema.mjs
