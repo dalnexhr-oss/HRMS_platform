@@ -10,7 +10,6 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "db:setup": "node --env-file=.env.local scripts/db-setup.mjs",
-    "db:gen-schema": "node scripts/gen-schema.mjs",
     "db:backfill-names": "node --env-file=.env.local scripts/backfill-employee-names.mjs"
   },
   "dependencies": {

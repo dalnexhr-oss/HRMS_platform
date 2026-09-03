@@ -1,14 +1,19 @@
 // ============================================================================
-// The schema applied to MongoDB: generated translation + hand-written overrides.
+// The schema applied to MongoDB: base definitions + overrides, composed by
+// buildSchema() and applied by db-setup.mjs.
 //
-// scripts/schema.generated.mjs is a mechanical translation of the SQL DDL and
-// should not be edited — regenerating it would discard the change. Everything
-// the translation could not express lives HERE, in OVERRIDES, with the reason.
+// The bulk of it lives in scripts/schema.generated.mjs; this file layers
+// OVERRIDES over that. The split is historical — the base file was once
+// generated from the Postgres DDL and this one held everything the translation
+// could not express — but both are hand-maintained now, so the division is a
+// convention rather than a constraint. Keep it: a small, reasoned override list
+// is easier to review than the same edits scattered through 2,000 lines of
+// validators.
 //
-// Three kinds of thing end up in overrides:
-//   1. Cross-field CHECK constraints. $jsonSchema compares a field to a
-//      literal, never to another field, so these become $expr clauses.
-//   2. Format CHECKs (PAN, Aadhaar, IFSC) — the generator drops CHECK entirely.
+// Three kinds of thing belong here:
+//   1. Cross-field constraints. $jsonSchema compares a field to a literal,
+//      never to another field, so these are expressed as $expr clauses.
+//   2. Format checks (PAN, Aadhaar, IFSC).
 //   3. Fields and indexes that exist only in the MongoDB model: denormalised
 //      names, and indexes for queries that used to be served by a view.
 // ============================================================================

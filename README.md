@@ -4,10 +4,17 @@ Attendance & payroll admin portal for Dalnex (Pune · Maharashtra, Vadodara ·
 Gujarat). **Next.js (App Router) + TypeScript** backed by **MongoDB**. The
 visual design is preserved verbatim in `globals.css`.
 
-Originally built on Supabase Postgres; the migration to MongoDB is complete and
-nothing in `src/` imports a Supabase package. `supabase/migrations/` is kept as
-the reference specification for the schema and the business rules — several
-files still cite it, and it is the authority when behaviour is in question.
+Originally built on Supabase Postgres. The migration to MongoDB is complete:
+nothing imports a Supabase package, and the SQL migrations that were kept as a
+reference specification have been removed. MongoDB is the only schema now —
+`scripts/schema.generated.mjs` and `scripts/schema.mjs` define the collection
+validators and indexes, and `src/lib/db/defaults.ts` supplies the values
+Postgres used to fill in. All three are edited by hand.
+
+Some comments still explain a decision by naming the Postgres construct it
+replaced — a view, an RLS policy, a `plpgsql` function. That is deliberate: it
+records *why* the code has the shape it does. Nothing in `src/` runs against
+Postgres.
 
 ## Stack
 
@@ -76,7 +83,6 @@ polling. Converting is three steps and is best done while the database is empty:
 | `npm run typecheck`     | `tsc --noEmit`                                              |
 | `npm run db:setup`      | Create collections, validators and indexes (idempotent)     |
 | `npm run db:setup -- --admin --email …` | …and create/reset the first super admin     |
-| `npm run db:gen-schema` | Re-derive `scripts/schema.generated.mjs` from the SQL DDL   |
 
 ## Project layout
 
@@ -98,19 +104,18 @@ src/
       policies.ts        # per-collection access rules  ← the security boundary
       repo.ts            # applies them to every query
       money.ts           # Decimal128 + exact paise arithmetic
-      views.ts           # the 5 SQL views as aggregation pipelines
-      functions.ts       # the plpgsql functions, in TypeScript
-      payroll.ts         # fn_compute_payslip
-      scheduler.ts       # the 7 pg_cron jobs
+      views.ts           # the 5 dashboard views, as aggregation pipelines
+      functions.ts       # the payroll/leave routines, in TypeScript
+      payroll.ts         # payslip computation
+      scheduler.ts       # the 7 scheduled jobs
       gridfs.ts          # file storage
       pgcompat.ts        # PostgREST-shaped adapter (see below)
     queries.ts           # data access
     actions/             # Server Actions (mutations)
 scripts/
   db-setup.mjs           # applies the schema
-  schema.mjs             # generated translation + hand-written overrides
-  gen-schema.mjs         # regenerates the translation from the SQL
-supabase/migrations/     # kept as the reference specification
+  schema.generated.mjs   # collection validators + indexes  ← the schema
+  schema.mjs             # overrides layered over it, and buildSchema()
 ```
 
 ### About `pgcompat.ts`
@@ -238,6 +243,8 @@ PT   = resolved from pt_slabs (month-specific beats gender-specific beats broade
 
 ## Notes
 
-- `supabase/migrations/` is documentation now, not something to run. It remains
-  the reference for what the rules are.
+- The schema is `scripts/schema.generated.mjs` + `scripts/schema.mjs`, applied
+  by `npm run db:setup`. Both are hand-edited; there is no generator behind them
+  any more, so a new field means editing the validator, and — if it needs one —
+  adding its default to `src/lib/db/defaults.ts` with the right BSON type.
 - The original prototype is kept at `dalnex-admin-portal.html` for reference.

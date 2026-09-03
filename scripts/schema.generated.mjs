@@ -1,9 +1,16 @@
 // ============================================================================
-// Collection validators and indexes. GENERATED from supabase/migrations/*.sql,
-// then hand-adjusted — see the OVERRIDES block at the bottom, which is where
-// anything the mechanical translation could not express lives.
+// Collection validators and indexes — the MongoDB schema, edited by hand.
 //
-// Translation rules, applied uniformly:
+// This began as a mechanical translation of the Postgres DDL the app was
+// originally built on. That SQL and its generator have since been deleted, so
+// there is nothing left to regenerate this file FROM: it is now the source of
+// truth for the collection validators and indexes, and a schema change is made
+// by editing it directly. Hand-written adjustments live one level up, in the
+// OVERRIDES block of schema.mjs.
+//
+// The translation rules below are kept because they explain the shapes already
+// in this file — why a calendar day is a string and an instant is a BSON date —
+// and any new field should follow them:
 //   uuid, text        -> string            (uuid PKs keep their value, so every
 //                                           existing foreign-key string stays valid)
 //   date              -> "YYYY-MM-DD"      BSON Date is a UTC instant; a calendar
