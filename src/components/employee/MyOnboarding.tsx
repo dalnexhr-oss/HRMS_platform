@@ -13,6 +13,7 @@ const OWNER_LABEL: Record<string, string> = {
   admin: 'Admin',
   super_admin: 'Super Admin',
   employee: 'You',
+  intern: 'You',
 };
 
 export function MyOnboarding({ tasks, id }: { tasks: OnboardingTaskRow[]; id?: string }) {

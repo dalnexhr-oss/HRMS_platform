@@ -72,6 +72,7 @@ export const COLUMN_DEFAULTS: Record<string, Record<string, DefaultValue>> = {
     bucket: "employee-documents",
   },
   employees: {
+    employment_type: "employee",
     gross_monthly: money('0.00'),
     basic_da: money('0.00'),
     hra: money('0.00'),

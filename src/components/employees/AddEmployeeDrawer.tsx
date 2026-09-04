@@ -7,6 +7,7 @@ import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createEmployee, updateEmployee } from '@/lib/actions/employees';
 import { INDIAN_STATES } from '@/lib/constants';
+// import { EMPLOYMENT_TYPES, EMPLOYMENT_TYPE_LABEL } from '@/types/app';
 import type { EmployeeEditRow, BranchRow } from '@/lib/queries';
 
 export function AddEmployeeDrawer({
@@ -130,6 +131,14 @@ export function AddEmployeeDrawer({
                 defaultValue={employee?.designation ?? undefined}
               />
             </div>
+            {/* Drives the PAYROLL rules, not dashboard access — an intern's
+                login role is set separately on /users. */}
+            {/* <SelectField
+              name="employment_type"
+              label="Employment type"
+              defaultValue={employee?.employment_type ?? 'employee'}
+              options={EMPLOYMENT_TYPES.map((t) => ({ value: t, label: EMPLOYMENT_TYPE_LABEL[t] }))}
+            /> */}
             <div className="f-row">
               <Field name="date_of_joining" label="Date of joining" type="date" defaultValue={employee?.date_of_joining ?? '2026-08-01'} />
               <Field name="date_of_birth" label="Date of birth" type="date" defaultValue={employee?.date_of_birth ?? undefined} />

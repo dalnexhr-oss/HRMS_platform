@@ -10,6 +10,7 @@ import { usersCollection } from '@/lib/db/collections';
 import { formatMoney, fromPaise, toPaise } from '@/lib/db/money';
 import { getEmployeeForEdit, type EmployeeEditRow } from '@/lib/queries';
 import { INDIAN_STATES } from '@/lib/constants';
+
 import { sendEmail, isEmailConfigured } from '@/lib/email';
 import { buildWelcomeEmail } from '@/lib/documents/templates';
 import { startOnboarding } from '@/lib/actions/onboarding';
@@ -181,6 +182,18 @@ function parseAccountNumber(v: FormDataEntryValue | null): string | null {
   const raw = String(v ?? '').replace(/[\s-]/g, '').trim();
   return raw || null;
 }
+
+/**
+ * Employment type off the form.
+ *
+ * Anything that is not the literal 'intern' is an employee. The test is
+ * deliberately one-sided: interns are the ones with the different payroll
+ * rules, so a renamed option, a stale cached form or a missing field has to
+ * fall to 'employee' rather than quietly move somebody onto intern pay.
+ */
+// function employmentType(formData: FormData): EmploymentType {
+//   return String(formData.get('employment_type') ?? '') === 'intern' ? 'intern' : 'employee';
+// }
 
 /** A plain optional text field: trimmed, or null when blank. */
 function optionalText(v: FormDataEntryValue | null): string | null {
@@ -457,6 +470,7 @@ export async function createEmployee(formData: FormData) {
       branch_name: branch.name,
       department_name: department?.name ?? null,
       designation: (formData.get('designation') as string) || null,
+      // employment_type: employmentType(formData),
       gender: String(formData.get('gender') ?? 'Male') as 'Male' | 'Female' | 'Other',
       date_of_joining: dateOfJoining,
       date_of_birth: (formData.get('date_of_birth') as string) || null,
@@ -587,6 +601,7 @@ export async function updateEmployee(formData: FormData) {
       branch_name: branch.name,
       department_name: department?.name ?? null,
       designation: (formData.get('designation') as string) || null,
+      // employment_type: employmentType(formData),
       gender: String(formData.get('gender') ?? 'Male') as 'Male' | 'Female' | 'Other',
       date_of_joining: dateOfJoining,
       date_of_birth: (formData.get('date_of_birth') as string) || null,

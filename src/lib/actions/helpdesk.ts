@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
-import { getSession } from '@/lib/auth';
+import { getSession, isStaffRole } from '@/lib/auth';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/_guard';
 import { notifyApprovers, notifyEmployee } from '@/lib/notify';
 import type { TicketComment } from '@/lib/queries';
@@ -116,7 +116,7 @@ export async function addTicketComment(ticketId: string, body: string) {
 
   const { profile } = await getSession();
   if (!profile?.id) return { ok: false, error: 'You must be signed in to post a follow-up.' };
-  const isStaff = profile.role != null && profile.role !== 'employee';
+  const isStaff = isStaffRole(profile.role);
 
   const dbc = await createClient();
 

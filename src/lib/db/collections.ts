@@ -13,7 +13,7 @@
 import type { Collection, Decimal128, Document } from 'mongodb';
 import { db } from '@/lib/db/mongo';
 import type { AppRole } from '@/types/database';
-
+// import type { EmploymentType} from '@/types/database';
 export const COLLECTIONS = {
   // --- identity -------------------------------------------------------------
   /**
@@ -223,6 +223,17 @@ export interface EmployeeDoc {
   department_name: string | null;
 
   designation: string | null;
+  /**
+   * What this person is on the PAYROLL, which is not the same question as what
+   * their login can reach (users.role). Payroll runs off this record and an
+   * intern can exist here before anyone creates them a login.
+   *
+   * OPTIONAL because every row written before the field existed has no value.
+   * Read it through a `=== 'intern'` test rather than a truthiness check, so a
+   * missing value falls to 'employee' — the safe side, since interns are the
+   * ones with the different pay rules.
+   */
+  // employment_type?: EmploymentType;
   gender: string;
   date_of_joining: DateOnly;
   date_of_birth: DateOnly | null;

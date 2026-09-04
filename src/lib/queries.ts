@@ -27,7 +27,8 @@ import { REQUIRED_DOCUMENT_CATEGORIES } from '@/lib/constants';
 import type {
   RegisterEmployee, PayslipRow, DayCell, TodayKpis, Celebration, PunchLogRow,
 } from '@/types/domain';
-import type { Policy, LeaveType, RequestType } from '@/types/database';
+import type { Policy, LeaveType, RequestType,  } from '@/types/database';
+// import type { EmploymentType } from '@/types/database';
 import {
   COLLECTIONS,
   type BranchDoc,
@@ -1435,6 +1436,7 @@ export interface EmployeeListRow {
   // register shows a blank UAN column for employees who have none.
   doj: string; gross: number; uan: string | null; esic_no: string | null;
   active: boolean;
+  // employmentType: EmploymentType;
 }
 
 /** Employee roster. Active-only by default; pass includeInactive to also return
@@ -1459,6 +1461,8 @@ export async function getEmployees(includeInactive = false): Promise<EmployeeLis
     uan: e.pf_uan,
     esic_no: e.esic_number,
     active: e.status === 'active',
+    // Absent on rows written before the field existed — those are employees.
+    // employmentType: e.employment_type === 'intern' ? 'intern' : 'employee',
   }));
 }
 
@@ -1781,6 +1785,7 @@ export async function getCompOffAdmin(): Promise<CompOffAdminRow[]> {
 export interface EmployeeEditRow {
   code: string;
   full_name: string;
+  // employment_type: EmploymentType;
   branch: string;
   department: string | null;
   designation: string | null;
@@ -1811,7 +1816,7 @@ export interface EmployeeEditRow {
 export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow | null> {
   const dbc = await createClient();
   const FULL_COLS =
-    `code, full_name, designation, gender, date_of_joining, date_of_birth, whatsapp,
+    `code, full_name, employment_type, designation, gender, date_of_joining, date_of_birth, whatsapp,
      mobile_official, mobile_personal, email_official, email_personal, aadhaar,
      pan, pf_uan, esic_number,
      bank_name, bank_account_number, bank_ifsc,
@@ -1826,6 +1831,9 @@ export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow 
   return {
     code: e.code,
     full_name: e.full_name,
+    // Rows written before the field existed have no value; they are employees.
+    // employment_type: e.employment_type === 'intern' ? 'intern' : 'employee',
+
     branch: e.branches?.name ?? '',
     department: e.departments?.name ?? null,
     designation: e.designation ?? null,

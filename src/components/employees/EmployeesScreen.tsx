@@ -178,6 +178,21 @@ export function EmployeesScreen({
                   <td className="mono muted">{e.code}</td>
                   <td>
                     <b>{e.name}</b>
+                    {
+                    // e.employmentType === 'intern' &&
+                     (
+                      <span
+                        className="pill"
+                        style={{
+                          marginLeft: 8,
+                          borderColor: 'var(--lm-line)',
+                          color: 'var(--lm)',
+                          background: 'var(--lm-bg)',
+                        }}
+                      >
+                        Intern
+                      </span>
+                    )}
                   </td>
                   <td>
                     <span

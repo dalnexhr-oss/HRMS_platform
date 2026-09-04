@@ -138,6 +138,7 @@ const ROLE_LABEL: Record<string, string> = {
   super_admin: 'Super Admin',
   hr: 'HR',
   employee: 'Employee',
+  intern: 'Intern',
 };
 
 export function Sidebar({

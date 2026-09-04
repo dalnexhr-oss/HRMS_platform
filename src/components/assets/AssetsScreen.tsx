@@ -20,6 +20,7 @@ import {
   type DateRange,
 } from '@/components/ui/ThMenu';
 import { deleteAsset } from '@/lib/actions/assets';
+import { inr } from '@/lib/format';
 import type { AssetRow, EmployeeOption, AssetSummaryRow } from '@/lib/queries';
 
 // One entry per data column, in display order (Actions excluded). `get` yields
@@ -27,12 +28,13 @@ import type { AssetRow, EmployeeOption, AssetSummaryRow } from '@/lib/queries';
 // "no value" is itself pickable in the filter. `kind` picks the compare order —
 // date columns must not fall back to the A → Z text sort.
 type ColKey =
-  | 'purchased' | 'name' | 'category' | 'brand' | 'serial' | 'model'
+  | 'purchased' | 'cost' | 'name' | 'category' | 'brand' | 'serial' | 'model'
   | 'assigned' | 'warranty' | 'processor' | 'ram' | 'storage';
 
 const COLS: { key: ColKey; label: string; kind?: ColKind; get: (a: AssetRow) => string }[] = [
   { key: 'purchased',     label: 'Purchased on', kind: 'date', get: (a) => a.purchase_date ?? '—' },
-  { key:'name' ,    label:"purchased cost",kind:'text',get:(a)=>a.purchase_cost?.toString()??'—'},
+  { key: 'cost',    label: 'Purchase cost', kind: 'number',
+    get: (a) => (a.purchase_cost == null ? '—' : String(a.purchase_cost)) },
   { key: 'name',    label: 'Desktop name', get: (a) => a.desktop_name || '—' },
   { key: 'category',    label: 'Category', get: (a) => a.asset_category ?? '—' },
   { key: 'brand',     label: 'Brand', get: (a) => a.brand ?? '—' },
@@ -192,9 +194,9 @@ export function AssetsScreen({
 
       <div className="card">
         <div style={{ overflowX: 'auto' }}>
-          {/* min-width keeps 11 columns from crushing into each other — below
+          {/* min-width keeps 12 columns from crushing into each other — below
               it the wrapper scrolls horizontally instead of misaligning. */}
-          <table style={{ minWidth: 1080 }}>
+          <table style={{ minWidth: 1180 }}>
             <thead>
               <tr>
                 {COLS.map((c) => (
@@ -221,6 +223,9 @@ export function AssetsScreen({
                 <tr key={a.id}>
                   <td className="mono" style={{ whiteSpace: 'nowrap' }}>
                     {a.purchase_date ?? '—'}
+                  </td>
+                  <td className="mono right" style={{ whiteSpace: 'nowrap' }}>
+                    {a.purchase_cost == null ? '—' : inr(a.purchase_cost)}
                   </td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <b>{a.desktop_name}</b>

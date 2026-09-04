@@ -17,6 +17,7 @@
 import { revalidatePath } from 'next/cache';
 import { randomUUID } from 'node:crypto';
 import { requireRoles } from '@/lib/actions/_guard';
+import { isEmployeeAreaRole } from '@/lib/auth';
 // validatePassword, not a local minimum: an admin-set password used to be held
 // to 8 characters while every self-service path required 10, so /users could
 // provision a password the same person was then forbidden to choose. It also
@@ -40,7 +41,7 @@ const USER_ADMIN_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
 // Roles that may be assigned through this screen. NOT exported: a 'use server'
 // module may only export async functions, so the UI keeps its own display list.
-const ASSIGNABLE_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr', 'employee'];
+const ASSIGNABLE_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr', 'employee', 'intern'];
 
 /**
  * User administration is TIERED, and every rule below derives from this one map.
@@ -57,6 +58,8 @@ const ROLE_TIER: Record<AppRole, number> = {
   admin: 2,
   hr: 1,
   employee: 0,
+  // Same tier as an employee: no portal, nothing to escalate to.
+  intern: 0,
 };
 
 function tierOf(role: AppRole | null | undefined): number {
@@ -69,6 +72,7 @@ const TIER_LABEL: Record<AppRole, string> = {
   admin: 'admin',
   hr: 'HR',
   employee: 'employee',
+  intern: 'intern',
 };
 
 
@@ -228,7 +232,7 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
   // carry one too and usually should: an admin or HR person is normally on the
   // payroll as well, and the link is what gives them their own attendance,
   // payslips and leave.
-  if (role === 'employee' && !employeeId) {
+  if (isEmployeeAreaRole(role) && !employeeId) {
     return { ok: false, error: 'Pick which employee this login belongs to.' };
   }
 
@@ -291,7 +295,7 @@ export async function updateUserRole(
   if (tierOf(role) > tierOf(gate.role)) {
     return { ok: false, error: `Only a ${TIER_LABEL[role]} account can grant the ${TIER_LABEL[role]} role.` };
   }
-  if (role === 'employee' && !employeeId) {
+  if (isEmployeeAreaRole(role) && !employeeId) {
     return { ok: false, error: 'Pick which employee this login belongs to.' };
   }
   // Nobody changes their OWN role — a super admin included. Other people's roles

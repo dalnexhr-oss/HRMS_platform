@@ -18,6 +18,7 @@ import { useToast } from '@/components/ui/Toast';
 import type { EmployeeOption } from '@/lib/queries';
 import { AccessDrawer, type AccessTarget } from '@/components/users/AccessDrawer';
 import { isConfigurableRole } from '@/lib/access';
+import { isEmployeeAreaRole } from '@/lib/roles';
 import type { AppRole } from '@/types/database';
 
 const ROLE_LABEL: Record<AppRole, string> = {
@@ -25,10 +26,11 @@ const ROLE_LABEL: Record<AppRole, string> = {
   super_admin: 'Super Admin',
   hr: 'HR',
   employee: 'Employee',
+  intern: 'Intern',
 };
 
 // Highest tier first — mirrors ROLE_TIER in lib/actions/users.ts.
-const ROLE_ORDER: AppRole[] = ['super_admin', 'admin', 'hr', 'employee'];
+const ROLE_ORDER: AppRole[] = ['super_admin', 'admin', 'hr', 'employee', 'intern'];
 
 /** Mirrors ROLE_TIER in lib/actions/users.ts — the server is the real gate. */
 const ROLE_TIER: Record<AppRole, number> = {
@@ -36,6 +38,7 @@ const ROLE_TIER: Record<AppRole, number> = {
   admin: 2,
   hr: 1,
   employee: 0,
+  intern: 0,
 };
 
 function rolePillStyle(role: AppRole | null): React.CSSProperties {
@@ -45,6 +48,7 @@ function rolePillStyle(role: AppRole | null): React.CSSProperties {
   if (role === 'admin') return { borderColor: 'var(--brand)', color: 'var(--brand)' };
   if (role === 'hr') return { borderColor: 'var(--brass)', color: 'var(--brass)' };
   if (role === 'employee') return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
+  if (role === 'intern') return { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' };
   return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
 }
 
@@ -101,7 +105,7 @@ export function UsersScreen({
     // from Employee to Manager (or Admin to HR) must not unlink them from their
     // own attendance and payslips.
     let employeeId: string | null = u.employeeId;
-    if (role === 'employee' && !employeeId) {
+    if (isEmployeeAreaRole(role) && !employeeId) {
       const code = await prompt({
         title: 'Link an employee',
         message: `Which employee is ${u.email}? Enter their code (e.g. DN001).`,
@@ -458,10 +462,10 @@ function AddUserDrawer({
               </select>
             </div>
             <div className="f">
-              <label>Linked employee{role === 'employee' ? '' : ' (optional)'}</label>
-              <select name="employee_id" required={role === 'employee'} defaultValue="">
+              <label>Linked employee{isEmployeeAreaRole(role) ? '' : ' (optional)'}</label>
+              <select name="employee_id" required={isEmployeeAreaRole(role)} defaultValue="">
                 <option value="">
-                  {role === 'employee' ? 'Choose an employee…' : 'Not linked'}
+                  {isEmployeeAreaRole(role) ? 'Choose an employee…' : 'Not linked'}
                 </option>
                 {employees.map((e) => (
                   <option key={e.id} value={e.id}>
@@ -470,8 +474,8 @@ function AddUserDrawer({
                 ))}
               </select>
               <span className="hint">
-                {role === 'employee'
-                  ? 'An employee login must point at an employee record, or their dashboard has no attendance, payslips or claims to show.'
+                {isEmployeeAreaRole(role)
+                  ? 'This login must point at an employee record, or their dashboard has no attendance, payslips or claims to show.'
                   : 'Link this login to its employee record so this person still gets their own attendance, payslips and leave.'}
               </span>
             </div>

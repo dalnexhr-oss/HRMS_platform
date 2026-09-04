@@ -242,7 +242,8 @@ export function RegisterGrid({
                   </div>
                   <div className="sums">
                     <span>Working <b>{e.summary.working}</b></span>
-                    <span>Payable <b>{e.summary.payable}</b></span>
+                    {/* if late mark is more than 3 times, than it is counted as a half day */}
+                    <span>payable <b>{e.summary.working + e.summary.WO + e.summary.HD  - e.summary.L}</b></span>
                   </div>
                   <div className={`hrsbar${short ? ' short' : ''}`}>
                     <i style={{ width: `${pct}%` }} />
