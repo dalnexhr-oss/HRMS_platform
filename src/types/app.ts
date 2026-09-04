@@ -27,26 +27,7 @@ export type NoticeChannel = 'app' | 'whatsapp' | 'both';
 export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 // 'manager' was retired: it was reduced to employee-level access and then
 // folded into 'employee', so nothing distinguishes it any more.
-//
-// 'intern' is an employee-area role, not a staff one: it reaches the same
-// self-service dashboard as 'employee' and nothing in the portal. What it
-// changes is payroll — see the intern branch in lib/db/payroll.ts.
 export type AppRole = 'super_admin' | 'admin' | 'hr' | 'employee' | 'intern';
-
-/**
- * What someone is ON THE PAYROLL, which is a different question from what their
- * LOGIN can reach (AppRole). Payroll runs off the employee record and an intern
- * may exist there before anyone creates them a login, so the pay rules key off
- * this field rather than the role.
- *
- * Absent on every row written before this field existed — read it as 'employee'.
- */
-export type EmploymentType = 'employee' | 'intern';
-export const EMPLOYMENT_TYPES: EmploymentType[] = ['employee', 'intern'];
-export const EMPLOYMENT_TYPE_LABEL: Record<EmploymentType, string> = {
-  employee: 'Employee',
-  intern: 'Intern',
-};
 export type ReimbursementPurpose = 'travel' | 'material_purchase' | 'other';
 // 'finance_review' is the optional second (Finance)
 // approval stage that sits between HR approval and the payroll credit.
