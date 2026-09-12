@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { assignItem, returnAssignment, deleteAssignment, fetchItemAssignments } from '@/lib/actions/items';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
+import { todayIST } from '@/lib/format';
 import type { ItemRow, EmployeeOption, ItemAssignmentRow } from '@/lib/queries';
 
 type State = { ok?: boolean; error?: string };
@@ -158,7 +159,17 @@ export function AssignItemDrawer({
                   </div>
                   <div className="f">
                     <label>Assigned date</label>
-                    <input name="assigned_date" type="date" placeholder="defaults to today" />
+                    {/* Floor is today (IST), because handing stock over is an
+                        act, not a record: a back-dated assignment claims the
+                        item left the store on a day the log can no longer
+                        corroborate. Left blank the column default — also
+                        today — applies. assignItem re-checks the floor. */}
+                    <input
+                      name="assigned_date"
+                      type="date"
+                      min={todayIST()}
+                      placeholder="defaults to today"
+                    />
                   </div>
                 </div>
                 <div className="f">

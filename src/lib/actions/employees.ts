@@ -312,10 +312,17 @@ async function resolveBranch(
 
   if (selected !== NEW_BRANCH) {
     if (!selected) return { ok: false, error: 'Pick a branch.' };
+    // ilike, not eq. The value comes from a <select> built out of branches.name
+    // so it normally matches exactly — but an exact match is the one comparison
+    // that fails on a row whose name differs only in case or trailing space,
+    // and a mismatch here is not a harmless miss: the save is refused outright
+    // with "Unknown branch", which reads as the branch not existing. The
+    // canonical name is still taken from the row that comes back, never echoed
+    // from the form, so 'pune' cannot be stored where the branch is 'Pune'.
     const { data, error } = await dbc
       .from('branches')
       .select('id, name')
-      .eq('name', selected)
+      .ilike('name', selected)
       .maybeSingle();
     if (error) return { ok: false, error: error.message };
     if (!data) return { ok: false, error: `Unknown branch: ${selected}` };

@@ -3,9 +3,10 @@
 // Slide-in drawer for adding OR editing an IT asset. Create mode submits to
 // createAsset; when an `asset` is passed it prefills and submits to updateAsset
 // (keyed by the hidden id). Mirrors AddEmployeeDrawer.
-import { useActionState, useEffect, useRef } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createAsset, updateAsset } from '@/lib/actions/assets';
+import { todayIST } from '@/lib/format';
 import type { AssetRow } from '@/lib/queries';
 
 type State = { ok?: boolean; error?: string };
@@ -81,30 +82,7 @@ export function AddAssetDrawer({
             </div>
             <Field name="product_id" label="Product ID" mono defaultValue={asset?.product_id ?? undefined} />
 
-            <div className="fold">Purchase</div>
-            <div className="f-row">
-              <Field
-                name="purchase_date"
-                label="Purchased on"
-                type="date"
-                defaultValue={asset?.purchase_date ?? undefined}
-              />
-              <Field
-                name="purchase_cost"
-                label="Purchase cost (₹)"
-                type="number"
-                step="0.01"
-                mono
-                placeholder="e.g. 54990"
-                defaultValue={asset?.purchase_cost != null ? String(asset.purchase_cost) : undefined}
-              />
-            </div>
-
-            <div className="fold">Warranty</div>
-            <div className="f-row">
-              <Field name="warranty_upto" label="Warranty upto" type="date" defaultValue={asset?.warranty_upto ?? undefined} />
-              <Field name="warranty_renew" label="Renew warranty date" type="date" defaultValue={asset?.warranty_renew ?? undefined} />
-            </div>
+            <PurchaseAndWarranty asset={asset} />
 
             <div className="fold">Specifications</div>
             <div className="f-row">
@@ -133,22 +111,98 @@ export function AddAssetDrawer({
   );
 }
 
+/**
+ * The purchase and warranty dates, which only make sense relative to each other.
+ *
+ * Purchase is the one date here that looks BACKWARDS: an asset bought five
+ * years ago is ordinary, so there is no floor on it — only a ceiling of today,
+ * because a machine cannot have been bought tomorrow. Warranty cover and its
+ * renewal then run FORWARD from that purchase, so the purchase date is their
+ * floor, and the renewal cannot fall before the cover it renews.
+ *
+ * Lives inside the keyed <form> so its state resets with every open, the same
+ * arrangement AddEmployeeDrawer uses for BranchPicker. Held as state rather
+ * than left uncontrolled because each bound is read off the field above it.
+ */
+function PurchaseAndWarranty({ asset }: { asset: AssetRow | null }) {
+  const today = todayIST();
+  const [purchaseDate, setPurchaseDate] = useState(asset?.purchase_date ?? '');
+  const [warrantyUpto, setWarrantyUpto] = useState(asset?.warranty_upto ?? '');
+
+  return (
+    <>
+      <div className="fold">Purchase</div>
+      <div className="f-row">
+        <Field
+          name="purchase_date"
+          label="Purchased on"
+          type="date"
+          max={today}
+          value={purchaseDate}
+          onValueChange={setPurchaseDate}
+        />
+        <Field
+          name="purchase_cost"
+          label="Purchase cost (₹)"
+          type="number"
+          step="0.01"
+          mono
+          placeholder="e.g. 54990"
+          defaultValue={asset?.purchase_cost != null ? String(asset.purchase_cost) : undefined}
+        />
+      </div>
+
+      <div className="fold">Warranty</div>
+      <div className="f-row">
+        <Field
+          name="warranty_upto"
+          label="Warranty upto"
+          type="date"
+          min={purchaseDate || undefined}
+          value={warrantyUpto}
+          onValueChange={setWarrantyUpto}
+        />
+        <Field
+          name="warranty_renew"
+          label="Renew warranty date"
+          type="date"
+          min={warrantyUpto || purchaseDate || undefined}
+          defaultValue={asset?.warranty_renew ?? undefined}
+        />
+      </div>
+    </>
+  );
+}
+
+/**
+ * One labelled input. Uncontrolled by default (`defaultValue`); pass `value`
+ * WITH `onValueChange` for the few fields another field's bound is read from.
+ */
 function Field({
   name,
   label,
   placeholder,
   defaultValue,
+  value,
+  onValueChange,
   type,
   step,
+  min,
+  max,
   mono,
 }: {
   name: string;
   label: string;
   placeholder?: string;
   defaultValue?: string;
+  value?: string;
+  onValueChange?: (value: string) => void;
   type?: string;
   /** type="number" defaults to step=1, which rejects paise. */
   step?: string;
+  /** Bounds for type="date" — see PurchaseAndWarranty for what they encode. */
+  min?: string;
+  max?: string;
   mono?: boolean;
 }) {
   return (
@@ -158,9 +212,13 @@ function Field({
         name={name}
         className={mono ? 'mono' : undefined}
         placeholder={placeholder}
-        defaultValue={defaultValue}
+        {...(onValueChange
+          ? { value: value ?? '', onChange: (e) => onValueChange(e.target.value) }
+          : { defaultValue })}
         type={type}
         step={step}
+        min={min}
+        max={max}
       />
     </div>
   );

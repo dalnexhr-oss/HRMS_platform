@@ -1173,6 +1173,15 @@ export interface BranchRow {
   id: string;
   name: string;
   state: string;
+  // Where this branch physically IS. Postal address for people; the point and
+  // radius for the punch geofence, which classifies a punch as on-site or
+  // remote (it never blocks one — see lib/punch.ts). Null coordinates mean the
+  // branch has no office location set and its employees fall back to the
+  // company-wide office_lat / office_lng settings.
+  address: string | null;
+  geofenceLat: number | null;
+  geofenceLng: number | null;
+  geofenceRadiusM: number | null;
 }
 
 /** All branches, alphabetical. */
@@ -1180,9 +1189,38 @@ export async function getBranches(): Promise<BranchRow[]> {
   const branches = await scoped<BranchDoc>(COLLECTIONS.branches);
   const rows = await branches.find(
     {},
-    { projection: { name: 1, state: 1 }, sort: { name: 1 } },
+    {
+      projection: {
+        name: 1,
+        state: 1,
+        address: 1,
+        geofence_lat: 1,
+        geofence_lng: 1,
+        geofence_radius_m: 1,
+      },
+      sort: { name: 1 },
+    },
   );
-  return rows.map((b) => ({ id: b._id, name: b.name, state: b.state }));
+  return rows.map((b) => ({
+    id: b._id,
+    name: b.name,
+    state: b.state,
+    address: b.address ?? null,
+    // Coordinates are `decimal` columns, so they arrive as Decimal128 rather
+    // than as numbers. numberOrNull() is the display edge for all three — a
+    // Decimal128 crossing into a client component would serialise as an object
+    // the form could not put in an <input>.
+    geofenceLat: numberOrNull(b.geofence_lat),
+    geofenceLng: numberOrNull(b.geofence_lng),
+    geofenceRadiusM: numberOrNull(b.geofence_radius_m),
+  }));
+}
+
+/** A stored numeric (number, Decimal128 or string) as a plain number, or null. */
+function numberOrNull(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = typeof value === 'number' ? value : Number(String(value));
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 // ------------------------------------------------------------ today board ---

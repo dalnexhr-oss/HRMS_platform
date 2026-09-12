@@ -19,6 +19,7 @@ import { isScheduledWeekOff } from '@/lib/week-off';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/_guard';
 import { toDecimal } from '@/lib/db/money';
 import { notifyApprovers, notifyEmployee } from '@/lib/notify';
+import { todayIST } from '@/lib/format';
 
 export interface ActionResult {
   ok: boolean;
@@ -115,6 +116,14 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
   const reason = String(formData.get('reason') ?? '').trim() || null;
 
   if (!ISO_DATE.test(takeDate)) return { ok: false, error: 'Choose a valid date to take off.' };
+  // A comp off is time off still to be taken, so the day has to be ahead of the
+  // credit being spent on it. Approval stamps the register with 'CO', and doing
+  // that to a day already worked would overwrite what actually happened.
+  // ISO dates sort chronologically, and the floor is the IST calendar date
+  // rather than the server's own — see todayIST().
+  if (takeDate < todayIST()) {
+    return { ok: false, error: 'That day has already passed — pick today or a later day.' };
+  }
 
   const db = requireDb('Applying for a comp off');
   if (!db.ok) return db;

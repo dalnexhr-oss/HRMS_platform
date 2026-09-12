@@ -104,6 +104,12 @@ export async function uploadEmployeeDocument(formData: FormData): Promise<Action
       doc_group: id,
       version: 1,
       superseded_at: null,
+      // Written out rather than left absent. The insert policy pins both to
+      // null on a new row — invariant 2 above — and stating them here says at
+      // the write site that an upload is never self-verified, the same way
+      // replaceEmployeeDocument does.
+      verified_by: null,
+      verified_at: null,
     })
     .select('id');
   if (error) {

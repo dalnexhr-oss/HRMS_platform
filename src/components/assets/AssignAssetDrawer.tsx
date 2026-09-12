@@ -13,6 +13,7 @@ import {
   fetchAssetAssignments,
   fetchAssetMaintenance,
 } from '@/lib/actions/assets';
+import { todayIST } from '@/lib/format';
 import type {
   AssetRow,
   EmployeeOption,
@@ -40,6 +41,22 @@ export function AssignAssetDrawer({
   const [maintKey, setMaintKey] = useState(0);
   const latestId = useRef<string | null>(null);
 
+  // Today in IST, not on the device clock — the same ceiling the action applies.
+  const today = todayIST();
+  // The maintenance interval is controlled so "Next due" can take the logged
+  // date as its floor. maintKey remounts the form's UNCONTROLLED fields after a
+  // save; these two are controlled, so they are cleared by hand alongside it —
+  // and again whenever a different asset is opened.
+  const [maintDate, setMaintDate] = useState('');
+  const [nextDue, setNextDue] = useState('');
+
+  // Moving the logged date past an already-chosen next-due drags it along,
+  // rather than leaving an interval that runs backwards on screen.
+  const onMaintDateChange = (value: string) => {
+    setMaintDate(value);
+    if (nextDue && value && nextDue < value) setNextDue(value);
+  };
+
   const [state, formAction, submitting] = useActionState<State, FormData>(
     async (_prev, formData) => assignAsset(formData),
     {},
@@ -53,7 +70,10 @@ export function AssignAssetDrawer({
     setMaint(m);
   }
 
-  // Load history/maintenance whenever the target asset changes.
+  // Load history/maintenance whenever the target asset changes. The drawer
+  // itself is never unmounted — AssetsScreen keeps one and swaps `asset` — so
+  // anything held in state here has to be cleared by hand, including the
+  // maintenance dates below.
   useEffect(() => {
     if (asset) {
       setRowError(null);
@@ -62,6 +82,8 @@ export function AssignAssetDrawer({
       setHistory([]);
       setMaint([]);
     }
+    setMaintDate('');
+    setNextDue('');
   }, [asset?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Refresh page + local lists once an assign succeeds (keep the drawer open so
@@ -77,11 +99,14 @@ export function AssignAssetDrawer({
     async (_prev, formData) => createAssetMaintenance(formData),
     {},
   );
+
   useEffect(() => {
     if (maintState.ok && asset) {
       router.refresh();
       reload(asset.id);
       setMaintKey((k) => k + 1);
+      setMaintDate('');
+      setNextDue('');
     }
   }, [maintState]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -202,7 +227,16 @@ export function AssignAssetDrawer({
                 <div className="f-row">
                   <div className="f">
                     <label>Date</label>
-                    <input name="maint_date" type="date" />
+                    {/* A maintenance row records work that HAS been done, so it
+                        looks backwards: no floor, and a ceiling of today. Blank
+                        means today (createAssetMaintenance's default). */}
+                    <input
+                      name="maint_date"
+                      type="date"
+                      max={today}
+                      value={maintDate}
+                      onChange={(e) => onMaintDateChange(e.target.value)}
+                    />
                   </div>
                   <div className="f">
                     <label>Type</label>
@@ -216,7 +250,15 @@ export function AssignAssetDrawer({
                   </div>
                   <div className="f">
                     <label>Next due</label>
-                    <input name="next_due" type="date" />
+                    {/* The other end of the same interval: the next service
+                        falls after the one just logged, never before it. */}
+                    <input
+                      name="next_due"
+                      type="date"
+                      min={maintDate || today}
+                      value={nextDue}
+                      onChange={(e) => setNextDue(e.target.value)}
+                    />
                   </div>
                 </div>
                 <div className="f">

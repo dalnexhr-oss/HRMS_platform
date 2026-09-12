@@ -23,6 +23,7 @@ import { requireRoles } from '@/lib/actions/_guard';
 import { COLLECTIONS, type BranchDoc, type EmployeeDoc } from '@/lib/db/collections';
 import { scoped } from '@/lib/db/repo';
 import { withTransaction } from '@/lib/db/mongo';
+import { toCoordinate } from '@/lib/db/money';
 import { INDIAN_STATES } from '@/lib/constants';
 
 export interface ActionResult {
@@ -39,6 +40,97 @@ function revalidateBranchSurfaces(): void {
   revalidatePath('/holidays');
   revalidatePath('/notices');
   revalidatePath('/today');
+}
+
+// Fallback radius for a branch whose office is set without one. Matches the
+// column default in lib/db/defaults.ts; the column is NOT NULL, so a blank
+// field has to resolve to a number rather than to null.
+const DEFAULT_GEOFENCE_RADIUS_M = 150;
+
+/**
+ * Set (or clear) one branch's OFFICE LOCATION.
+ *
+ * Separate from updateBranch, which renames a branch and has to keep the
+ * denormalised copies of that name in step across four collections. Nothing is
+ * denormalised here: a coordinate is read only by the punch classifier, so this
+ * is a single-document write and needs no transaction.
+ *
+ * Latitude and longitude move TOGETHER. A branch with one and not the other
+ * cannot be measured against, so a half-filled pair is refused rather than
+ * stored — and clearing both is how a branch goes back to the company-wide
+ * office_lat / office_lng settings.
+ */
+export async function updateBranchLocation(id: string, formData: FormData): Promise<ActionResult> {
+  const gate = await requireRoles(BRANCH_ADMIN_ROLES, 'Setting a branch office location');
+  if (!gate.ok) return gate;
+  if (!id) return { ok: false, error: 'Which branch to update is missing.' };
+
+  const address = String(formData.get('address') ?? '').trim() || null;
+  const latRaw = String(formData.get('geofence_lat') ?? '').trim();
+  const lngRaw = String(formData.get('geofence_lng') ?? '').trim();
+  const radiusRaw = String(formData.get('geofence_radius_m') ?? '').trim();
+
+  if (Boolean(latRaw) !== Boolean(lngRaw)) {
+    return { ok: false, error: 'Enter both the latitude and the longitude, or leave both blank.' };
+  }
+
+  let lat: number | null = null;
+  let lng: number | null = null;
+  if (latRaw && lngRaw) {
+    lat = Number(latRaw);
+    lng = Number(lngRaw);
+    // Range-checked, not just parsed: a transposed pair (lng in the lat box) is
+    // the ordinary mistake here, and 78.3 degrees north is a place — so the
+    // check catches it only when the value is outside latitude's range at all.
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+      return { ok: false, error: 'Latitude must be a number between -90 and 90.' };
+    }
+    if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
+      return { ok: false, error: 'Longitude must be a number between -180 and 180.' };
+    }
+  }
+
+  let radius = DEFAULT_GEOFENCE_RADIUS_M;
+  if (radiusRaw) {
+    const parsed = Math.round(Number(radiusRaw));
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return { ok: false, error: 'The radius must be a whole number of metres above zero.' };
+    }
+    radius = parsed;
+  }
+
+  try {
+    const branches = await scoped<BranchDoc>(COLLECTIONS.branches);
+    const matched = await branches.updateOne(
+      { _id: id },
+      {
+        $set: {
+          address,
+          // toCoordinate, not toMoney: six decimal places rather than two. Two
+          // would round the point to roughly the nearest kilometre, which is
+          // wider than any office radius anyone would set.
+          geofence_lat: toCoordinate(lat),
+          geofence_lng: toCoordinate(lng),
+          geofence_radius_m: radius,
+        },
+      },
+    );
+    if (matched === 0) {
+      return {
+        ok: false,
+        error: 'The office location was not saved — the branch may be gone, or your role lacks permission.',
+      };
+    }
+
+    // /today and the employee dashboard read a punch's on-site stamp, which is
+    // decided against this point from the next punch onward.
+    revalidatePath('/settings');
+    revalidatePath('/today');
+    revalidatePath('/me');
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Could not save the office location.' };
+  }
 }
 
 function isDuplicateKey(e: unknown): boolean {

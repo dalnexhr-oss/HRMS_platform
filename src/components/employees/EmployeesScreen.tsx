@@ -25,10 +25,10 @@ export function EmployeesScreen({
   const [showInactive, setShowInactive] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const [editing, setEditing] = useState<EmployeeEditRow | null>(null);
-  // Bumped on every open. The drawer keys its form on this, so each open starts
-  // from the freshly loaded values — without it, reopening the SAME employee
-  // would reuse the mounted form and show whatever was typed and abandoned last
-  // time. It also means closing the drawer never re-keys the form (see below).
+  // Bumped on every OPEN, never on close. The drawer folds this into its form
+  // key, so each open starts from freshly loaded values — without it, reopening
+  // the SAME employee reuses the mounted form and shows whatever was typed and
+  // abandoned last time. Re-keying on close is what the comment below rules out.
   const [openSeq, setOpenSeq] = useState(0);
   const [busyCode, setBusyCode] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -178,21 +178,6 @@ export function EmployeesScreen({
                   <td className="mono muted">{e.code}</td>
                   <td>
                     <b>{e.name}</b>
-                    {
-                    // e.employmentType === 'intern' &&
-                     (
-                      <span
-                        className="pill"
-                        style={{
-                          marginLeft: 8,
-                          borderColor: 'var(--lm-line)',
-                          color: 'var(--lm)',
-                          background: 'var(--lm-bg)',
-                        }}
-                      >
-                        Intern
-                      </span>
-                    )}
                   </td>
                   <td>
                     <span
@@ -269,14 +254,13 @@ export function EmployeesScreen({
           </table>
         </div>
       </div>
-
       {/* onClose deliberately does NOT clear `editing`. The drawer's form is
-          keyed on employee?.code ?? 'new', so nulling it here swapped the key
-          mid-close and remounted the form — every uncontrolled field snapped
-          back to its blank default, and the branch <select> fell to its first
-          option (Pune). Since the drawer is still animating out, you watched a
-          just-saved employee visibly "revert" to Pune. openAdd() clears it
-          instead, which is the only place a blank form is actually wanted. */}
+          keyed on `employee?.code ?? 'new'` plus formSeq, so nulling it here
+          would swap the key mid-close and remount the form — every
+          uncontrolled field snapping back to its blank default while the
+          drawer is still animating out, which read as a just-saved employee
+          visibly reverting. openAdd() clears it instead, which is the one
+          place a blank form is actually wanted. */}
       <AddEmployeeDrawer
         open={drawer}
         employee={editing}

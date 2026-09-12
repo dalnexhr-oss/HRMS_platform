@@ -1,8 +1,8 @@
 //
 // Whether a month is still open for attendance changes. ONE definition.
 //
-// Payslips are final once a run is locked, and the recompute is blocked from
-// 0005 — so rewriting the attendance behind them silently desyncs pay from the
+// Payslips are final once a run is locked, and the recompute is blocked at that
+// point — so rewriting the attendance behind them silently desyncs pay from the
 // register, and the numbers can never catch up.
 //
 // This lives on its own because two different callers enforce it and they sit
@@ -39,7 +39,7 @@ export function monthSealReason(periodMonth: string, run: PayrollRunSeal | null)
   if (status === 'locked' || status === 'paid') {
     return `Payroll for ${month} is ${status}. Attendance for that month can no longer be changed — raise a payslip adjustment instead.`;
   }
-  // month_closed_at is the attendance seal set by the auto-close job (0033),
+  // month_closed_at is the attendance seal set by the auto-close job, and it is
   // independent of payroll status — treat a sealed month as closed too.
   if (run?.month_closed_at) {
     return `${month} has been closed for attendance. It can no longer be changed — raise a payslip adjustment instead.`;

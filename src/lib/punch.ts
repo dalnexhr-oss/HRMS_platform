@@ -15,13 +15,18 @@
 // geofence decides is only whether the punch is stamped as at-office or
 // off-site, for HR to review.
 //
+// The office it is measured against is the employee's OWN BRANCH (set per
+// branch on /settings), falling back to the company-wide office_lat/office_lng
+// settings for a branch nobody has located yet. See readPunchPolicy().
+//
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { toCoordinate } from '@/lib/db/money';
 
 const BUSINESS_TZ = 'Asia/Kolkata';
 
-// Fallback when no radius is configured. The office setting overrides it.
+// Fallback radius when an office point is set without one. A branch's own
+// geofence_radius_m, or the geofence_radius_m setting, overrides it.
 const DEFAULT_GEOFENCE_M = 50;
 
 export type PunchKind = 'in' | 'out';
@@ -46,7 +51,9 @@ export interface PunchStatus {
   lastLng: number | null;
   // Minutes closed out today. An open session is not counted until punch out.
   workedMinutes: number;
-  // Whether an office location is configured at all.
+  // Whether an office location applies to THIS employee at all — their own
+  // branch's, or the company-wide fallback. False means a punch cannot be
+  // classified and its on-site stamp will be null.
   geofenceConfigured: boolean;
   // Whether the server will refuse a punch that shares no location.
   requireLocation: boolean;
@@ -176,19 +183,85 @@ function booleanSetting(value: unknown, fallback: boolean): boolean {
   return fallback;
 }
 
-/** Office point + enforcement policy, read in one round trip. */
-export async function readPunchPolicy(): Promise<PunchPolicy> {
+/**
+ * This employee's BRANCH office, or null when their branch has no point set.
+ *
+ * The branch is the right place to measure from: a firm with a Pune and a
+ * Vadodara office cannot share one point — every punch taken at the second
+ * office is hundreds of kilometres outside the first, so a single company-wide
+ * point stamps a whole branch as permanently off-site. Set per branch on
+ * /settings (actions/branches.updateBranchLocation).
+ *
+ * Best-effort by design. Anything that goes wrong here — no employee record, no
+ * branch, a read that fails — returns null and lets the caller fall back to the
+ * company-wide setting, because the alternative is refusing to classify a punch
+ * over a configuration detail.
+ */
+async function readBranchGeofence(employeeId: string): Promise<OfficeGeofence | null> {
+  try {
+    const dbc = await createClient();
+    // `id` is selected only so the projection is narrowed to it plus the embed
+    // — an empty field list means "no $project", i.e. the whole employee
+    // document, which this has no use for.
+    const { data, error } = await dbc
+      .from('employees')
+      .select('id, branches(geofence_lat, geofence_lng, geofence_radius_m)')
+      .eq('id', employeeId)
+      .maybeSingle();
+    if (error || !data) return null;
+
+    const branch = (data as { branches?: Record<string, unknown> | null }).branches;
+    if (!branch) return null;
+
+    // finite(), because the columns are `decimal` and come back as Decimal128 —
+    // neither a number nor a string, so a plain typeof test drops every one.
+    const latitude = finite(branch.geofence_lat);
+    const longitude = finite(branch.geofence_lng);
+    // Both or neither: a branch with one coordinate cannot be measured against.
+    if (latitude == null || longitude == null) return null;
+
+    const radius = finite(branch.geofence_radius_m);
+    return {
+      latitude,
+      longitude,
+      radiusM: radius != null && radius > 0 ? radius : DEFAULT_GEOFENCE_M,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Office point + enforcement policy.
+ *
+ * `employeeId` selects WHOSE office to measure against: their branch's, falling
+ * back to the company-wide office_lat / office_lng for a branch that has not
+ * been located yet. Omit it and only the company-wide point is consulted —
+ * which is all a caller with no employee in hand can ask for.
+ *
+ * requireLocation is company-wide either way: whether a punch must SHARE a
+ * location at all is a policy about the act, not about where the office is.
+ */
+export async function readPunchPolicy(employeeId?: string | null): Promise<PunchPolicy> {
   const dbc = await createClient();
-  const { data, error } = await dbc
-    .from('settings')
-    .select('key, value')
-    .in('key', ['office_lat', 'office_lng', 'geofence_radius_m', 'punch_require_location']);
+  const [settings, branchOffice] = await Promise.all([
+    dbc
+      .from('settings')
+      .select('key, value')
+      .in('key', ['office_lat', 'office_lng', 'geofence_radius_m', 'punch_require_location']),
+    employeeId ? readBranchGeofence(employeeId) : Promise.resolve(null),
+  ]);
+  const { data, error } = settings;
   // Fail CLOSED on a settings read error: defaulting to "location optional"
   // would quietly turn the requirement off the moment the table hiccups.
-  if (error) return { office: null, requireLocation: true };
+  if (error) return { office: branchOffice, requireLocation: true };
 
   const byKey = new Map((data ?? []).map((row) => [row.key, row.value]));
   const requireLocation = booleanSetting(byKey.get('punch_require_location'), true);
+
+  // The branch's own office wins. It is the more specific answer, and it is the
+  // one a punch at that branch has to be measured against.
+  if (branchOffice) return { office: branchOffice, requireLocation };
 
   const latitude = numericSetting(byKey.get('office_lat'));
   const longitude = numericSetting(byKey.get('office_lng'));
@@ -205,9 +278,9 @@ export async function readPunchPolicy(): Promise<PunchPolicy> {
   };
 }
 
-/** The configured office point, or null when it has not been set yet. */
-export async function readOfficeGeofence(): Promise<OfficeGeofence | null> {
-  return (await readPunchPolicy()).office;
+/** The office point that applies to one employee, or null when none is set. */
+export async function readOfficeGeofence(employeeId?: string | null): Promise<OfficeGeofence | null> {
+  return (await readPunchPolicy(employeeId)).office;
 }
 
 /**
@@ -277,7 +350,7 @@ export async function readPunchStatus(): Promise<PunchStatus> {
       .eq('employee_id', employeeId)
       .gte('punched_at', dayFloorUtc(today))
       .order('punched_at', { ascending: true }),
-    readPunchPolicy(),
+    readPunchPolicy(employeeId),
   ]);
   if (events.error) throw new Error(events.error.message);
 
@@ -420,7 +493,7 @@ export async function recordPunch(
   if (kind === 'out' && !openNow) throw new Error('There is no open punch to close.');
 
   const point = validCoords(coords);
-  const { office, requireLocation } = await readPunchPolicy();
+  const { office, requireLocation } = await readPunchPolicy(employeeId);
 
   // Refused for SHARING nothing, never for being somewhere else. Off-site is a
   // stamp, not a veto — see PunchPolicy.requireLocation.

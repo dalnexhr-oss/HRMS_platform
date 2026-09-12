@@ -92,6 +92,15 @@ const insertSuperAdmin = (s: Scope): string | null =>
   s.isSuperAdmin ? null : 'Only a super admin can create this.';
 
 // Insert allowed for staff, or for an employee filing their OWN row. The employee branch checks the document rather than trusting the caller: a Server Action is a public endpoint, so `employee_id` in the payload is attacker-controlled and has to be compared, not read.
+//
+// `requiredFields` pins the columns a new row must arrive with — the WITH CHECK
+// half of the SQL policy. An ABSENT field counts as null, because that is what
+// Postgres checked: WITH CHECK ran against the row AFTER defaults were applied,
+// so a nullable column the INSERT omitted was null by the time the predicate
+// saw it. Comparing the raw payload instead made `undefined !== null` refuse
+// every such insert — which is exactly what blocked an employee from filing
+// their own document, since uploadEmployeeDocument omits verified_by /
+// verified_at rather than writing them as null.
 const insertStaffOrOwn =
   (field = 'employee_id', requiredFields: Record<string, unknown> = {}) =>
   (s: Scope, doc: Document): string | null => {
@@ -99,7 +108,8 @@ const insertStaffOrOwn =
     if (!s.employeeId) return 'Your account is not linked to an employee record.';
     if (doc[field] !== s.employeeId) return 'You can only file this for yourself.';
     for (const [key, value] of Object.entries(requiredFields)) {
-      if (doc[key] !== value) return `${key} must be ${String(value)} on a new record.`;
+      const supplied = doc[key] === undefined ? null : doc[key];
+      if (supplied !== value) return `${key} must be ${String(value)} on a new record.`;
     }
     return null;
   };

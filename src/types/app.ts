@@ -25,8 +25,6 @@ export type PayrollStatus = 'draft' | 'in_review' | 'locked' | 'paid';
 export type PayslipStatus = 'draft' | 'queued' | 'generated' | 'paid';
 export type NoticeChannel = 'app' | 'whatsapp' | 'both';
 export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
-// 'manager' was retired: it was reduced to employee-level access and then
-// folded into 'employee', so nothing distinguishes it any more.
 export type AppRole = 'super_admin' | 'admin' | 'hr' | 'employee' | 'intern';
 export type ReimbursementPurpose = 'travel' | 'material_purchase' | 'other';
 // 'finance_review' is the optional second (Finance)

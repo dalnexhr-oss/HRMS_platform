@@ -1,14 +1,11 @@
 //
 // Stable type barrel — import app types from '@/types/database'.
 //
-// This used to re-export a 59KB file of Supabase-generated schema types
-// alongside the hand-written ones. Nothing imported the generated half (no
-// Database, Tables<>, Enums<> or Json anywhere in the app), and there is no
-// generator any more, so it went with the migration. Document shapes now live
-// in src/lib/db/collections.ts, next to the collections they describe.
+// HAND-WRITTEN, and there is nothing here to generate: the Supabase schema
+// types this used to re-export went with the MongoDB port, along with their
+// generator. Everything below comes from ./app, and the document shapes the
+// driver reads and writes live in src/lib/db/collections.ts.
 //
-// The import path is unchanged so no call site had to move.
+// The path is kept only so no call site had to move.
 //
-
-// Hand-written domain types (AppRole, AttendanceStatus, LeaveType, Policy, …).
 export * from './app';

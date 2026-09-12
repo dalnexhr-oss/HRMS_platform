@@ -12,6 +12,11 @@ import { todayIST } from '@/lib/format';
 // Item Management is super-admin/admin/HR — same gate as assets and user admin.
 const ITEM_ADMIN_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
+// The shape item_assignments.assigned_date is validated against. A value that
+// does not match is refused here rather than by the collection validator, whose
+// error says only "new row violates check constraint".
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
 // Pull the item columns from the form; blank strings become null.
 function itemFields(formData: FormData) {
   const text = (k: string) => {
@@ -105,6 +110,16 @@ export async function assignItem(formData: FormData) {
   if (!employeeId) return { ok: false, error: 'Choose an employee to assign to.' };
   if (!Number.isFinite(quantity) || quantity <= 0) {
     return { ok: false, error: 'Enter a quantity greater than zero.' };
+  }
+  // The date is optional — blank means "today" via the column default — but a
+  // supplied one has to be today or later. Back-dating an assignment moves
+  // stock out of the store on a day that is already closed, and the return
+  // stamp (returnAssignment writes today) would then predate the hand-over.
+  if (assignedDate) {
+    if (!ISO_DATE.test(assignedDate)) return { ok: false, error: 'Enter a valid assigned date.' };
+    if (assignedDate < todayIST()) {
+      return { ok: false, error: 'The assigned date has already passed — pick today or a later day.' };
+    }
   }
 
   const dbc = await createClient();

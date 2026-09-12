@@ -9,6 +9,7 @@ import { requireStaff } from '@/lib/actions/_guard';
 import { releaseCompOff, settleApprovedCompOff } from '@/lib/compoff-settle';
 import { toDecimal } from '@/lib/db/money';
 import { notifyApprovers, notifyEmployee } from '@/lib/notify';
+import { todayIST } from '@/lib/format';
 import type { LeaveType, RequestType } from '@/types/database';
 
 export interface ActionResult {
@@ -524,6 +525,16 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
   const end = parseISODate(endRaw);
   if (!start) return { ok: false, error: 'Enter a valid start date.' };
   if (!end) return { ok: false, error: 'Enter a valid end date.' };
+  // A day that has already been worked (or missed) is not something to ask
+  // permission for — backdating is how an absence gets laundered into approved
+  // leave after the fact, and stampLeaveOnRegister would rewrite the register
+  // behind it. Retrospective days are HR's to enter from the register instead.
+  // Compared as ISO strings, which sort chronologically, against the IST
+  // calendar date — the server's own timezone is not the business one.
+  if (startRaw < todayIST()) {
+    return { ok: false, error: 'The start date has already passed — pick today or a later day.' };
+  }
+  // A single-day request is start === end, so only an end BEFORE the start fails.
   if (end.getTime() < start.getTime()) {
     return { ok: false, error: 'The end date cannot be before the start date.' };
   }

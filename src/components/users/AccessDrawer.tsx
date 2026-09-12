@@ -112,7 +112,7 @@ export function AccessDrawer({
                     {user.role === 'hr' ? 'HR' : 'Admin'}
                   </span>
                   <br />
-                  Unticking a tab  it removes from this person&rsquo;s sidebar.
+                  Unticking a tab removes it from this person&rsquo;s sidebar.
                   {revoked > 0 && (
                     <>
                       {' '}

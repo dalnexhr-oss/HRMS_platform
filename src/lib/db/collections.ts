@@ -153,9 +153,18 @@ export interface BranchDoc {
   name: string;
   state: string;
   address: string | null;
-  // Geofence classifies a punch as on-site or remote; it never blocks one.
-  geofence_lat: number | null;
-  geofence_lng: number | null;
+  // This branch's OFFICE LOCATION. The geofence classifies a punch as on-site
+  // or remote; it never blocks one (see lib/punch.ts). Null coordinates mean
+  // no office has been set for the branch, and its employees fall back to the
+  // company-wide office_lat / office_lng settings.
+  //
+  // Decimal128, not a JS number: the validator declares both as `decimal`, and
+  // a double is refused as error 121. toCoordinate() in lib/db/money.ts keeps
+  // six places — toMoney's two would put the point about a kilometre out and
+  // make the geofence meaningless.
+  geofence_lat: Decimal128 | null;
+  geofence_lng: Decimal128 | null;
+  // Metres, and NOT nullable — the validator requires it. Defaults to 150.
   geofence_radius_m: number;
   created_at: Date;
 }

@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateSetting } from '@/lib/actions/settings';
-import { updateBranch, deleteBranch } from '@/lib/actions/branches';
+import { updateBranch, deleteBranch, updateBranchLocation } from '@/lib/actions/branches';
 import { INDIAN_STATES } from '@/lib/constants';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast, type ToastKind } from '@/components/ui/Toast';
@@ -37,6 +37,29 @@ export function SettingsScreen({
           <div style={{ display: 'grid', gap: 12 }}>
             {branches.map((b) => (
               <BranchManageRow key={b.id} branch={b} toast={toast} confirm={confirm} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="hd">
+          <h3>Office locations</h3>
+          <span className="folio">
+            {branches.filter((b) => b.geofenceLat != null && b.geofenceLng != null).length}/
+            {branches.length} branches located
+          </span>
+        </div>
+        <div className="bd">
+          <p className="muted" style={{ marginTop: 0, marginBottom: 16 }}>
+            Where each branch physically is. A punch is compared against its own branch&rsquo;s point
+            and stamped <b>at office</b> or <b>off-site</b> — location is recorded, but not enforced
+            so a punch is still accepted from anywhere. 
+          </p>
+          {branches.length === 0 && <p className="empty">No branches yet.</p>}
+          <div style={{ display: 'grid', gap: 12 }}>
+            {branches.map((b) => (
+              <BranchLocationRow key={b.id} branch={b} toast={toast} />
             ))}
           </div>
         </div>
@@ -156,6 +179,156 @@ function BranchManageRow({
       <button className="btn quiet" onClick={remove} disabled={pending}>
         Delete
       </button>
+    </div>
+  );
+}
+
+/**
+ * One branch's office location: postal address, the geofence point, and its
+ * radius.
+ *
+ * Per branch rather than per company, because that is what the data has always
+ * been — branches.geofence_lat / geofence_lng / geofence_radius_m — and a firm
+ * with a Pune and a Vadodara office cannot share one point: every punch taken
+ * at the second office lands hundreds of kilometres outside the first and is
+ * stamped off-site. The company-wide office_lat / office_lng settings stay as
+ * the fallback for a branch that has not been located yet.
+ *
+ * Latitude and longitude are one field as far as saving is concerned — see
+ * updateBranchLocation — so the form submits them together and the action
+ * refuses a half-filled pair.
+ */
+function BranchLocationRow({
+  branch,
+  toast,
+}: {
+  branch: BranchRow;
+  toast: (message: string, kind?: ToastKind) => void;
+}) {
+  const router = useRouter();
+  // Blank, not '0'. A zero coordinate is a real place in the Gulf of Guinea,
+  // so "not set" has to be an empty field rather than a number.
+  const [address, setAddress] = useState(branch.address ?? '');
+  const [lat, setLat] = useState(branch.geofenceLat?.toString() ?? '');
+  const [lng, setLng] = useState(branch.geofenceLng?.toString() ?? '');
+  const [radius, setRadius] = useState(branch.geofenceRadiusM?.toString() ?? '');
+  const [pending, startTransition] = useTransition();
+
+  const dirty =
+    address !== (branch.address ?? '') ||
+    lat !== (branch.geofenceLat?.toString() ?? '') ||
+    lng !== (branch.geofenceLng?.toString() ?? '') ||
+    radius !== (branch.geofenceRadiusM?.toString() ?? '');
+
+  const located = lat.trim() !== '' && lng.trim() !== '';
+
+  const save = () => {
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set('address', address);
+      fd.set('geofence_lat', lat);
+      fd.set('geofence_lng', lng);
+      fd.set('geofence_radius_m', radius);
+      const res = await updateBranchLocation(branch.id, fd);
+      if (!res.ok) {
+        toast(res.error ?? 'Could not save the office location.', 'error');
+        return;
+      }
+      toast(`Office location saved for “${branch.name}”.`, 'success');
+      router.refresh();
+    });
+  };
+
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gap: 10,
+        padding: '12px 14px',
+        border: '1px solid var(--line-2)',
+        borderRadius: 10,
+        background: 'var(--card-2, #fff)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <b>{branch.name}</b>
+        <span className="muted" style={{ fontSize: 12 }}>
+          {branch.state}
+        </span>
+        <span style={{ flex: 1 }} />
+        <span
+          className="pill"
+          style={
+            located
+              ? { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' }
+              : { borderColor: 'var(--line-2)', color: 'var(--ink-3)' }
+          }
+        >
+          {located ? 'Located' : 'Using company default'}
+        </span>
+      </div>
+
+      <div className="f" style={{ marginBottom: 0 }}>
+        <label>Office address</label>
+        <input
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="e.g. 4th floor, Amar Business Zone, Baner, Pune 411045"
+        />
+      </div>
+
+      {/* Three across, not .f-row's two. auto-fit rather than a fixed count so
+          it collapses on a phone on its own — an inline grid-template-columns
+          would otherwise beat the 640px rule in globals.css that does that for
+          .f-row. */}
+      <div
+        className="f-row"
+        style={{
+          marginBottom: 0,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+        }}
+      >
+        <div className="f" style={{ marginBottom: 0 }}>
+          <label>Latitude</label>
+          <input
+            className="mono"
+            inputMode="decimal"
+            value={lat}
+            onChange={(e) => setLat(e.target.value)}
+            placeholder="18.559200"
+          />
+        </div>
+        <div className="f" style={{ marginBottom: 0 }}>
+          <label>Longitude</label>
+          <input
+            className="mono"
+            inputMode="decimal"
+            value={lng}
+            onChange={(e) => setLng(e.target.value)}
+            placeholder="73.779600"
+          />
+        </div>
+        <div className="f" style={{ marginBottom: 0 }}>
+          <label>Radius (m)</label>
+          <input
+            className="mono"
+            inputMode="numeric"
+            value={radius}
+            onChange={(e) => setRadius(e.target.value)}
+            placeholder="150"
+          />
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <span className="hint" style={{ flex: '1 1 220px' }}>
+          Right-click the office in Google Maps and copy the pair it shows — latitude first. Clear
+          both to fall back to the company default.
+        </span>
+        <button className="btn primary" onClick={save} disabled={pending || !dirty}>
+          {pending ? '…' : 'Save location'}
+        </button>
+      </div>
     </div>
   );
 }

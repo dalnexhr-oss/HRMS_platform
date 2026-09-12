@@ -5,7 +5,7 @@
 // on approval the taken day is stamped CO and the credit is marked used.
 import { useActionState, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { formatDate } from '@/lib/format';
+import { formatDate, todayIST } from '@/lib/format';
 import { applyCompOff } from '@/lib/actions/compoff';
 import type { CompOffRow } from '@/lib/queries';
 
@@ -117,7 +117,9 @@ function ApplyForm({ available }: { available: CompOffRow[] }) {
         </div>
         <div className="f">
           <label>Take this day off</label>
-          <input name="take_date" type="date" required />
+          {/* A day already past cannot be booked off. IST, not the device
+              clock, and applyCompOff re-checks it. */}
+          <input name="take_date" type="date" min={todayIST()} required />
         </div>
       </div>
 

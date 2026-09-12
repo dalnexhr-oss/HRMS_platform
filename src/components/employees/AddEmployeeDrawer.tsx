@@ -26,7 +26,7 @@ export function AddEmployeeDrawer({
   departments?: string[];
   // Real branches from the DB. Previously this list was hardcoded to Pune and Vadodara, so the form could offer a branch that no longer existed in the table — updateEmployee then failed its name lookup, and the save was lost.
   branches?: BranchRow[];
-  // Bumped by the parent on every open. Part of the form key, so each open remounts from freshly loaded values — and, crucially, CLOSING never changes the key. Re-keying on close remounted the form mid-animation and visibly reset every uncontrolled field (the branch select snapped to its first option, Pune) on a record the user had just saved.
+  // Bumped by the parent on every open. Part of the form key, so each open remounts from freshly loaded values — and, crucially, CLOSING never changes the key. Re-keying on close remounted the form mid-animation and visibly reset every field on a record the user had just saved.
   formSeq?: number;
 }) {
   const router = useRouter();
@@ -38,19 +38,27 @@ export function AddEmployeeDrawer({
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
-  // The branch list is data, not a constant. Falling back to the employee's own
-  // branch keeps an edit round-trippable even if the branches query returned
-  // nothing, rather than submitting an empty value that can never resolve.
-  const branchOptions =
-    branches.length > 0
-      ? branches.map((b) => ({ value: b.name, label: b.state ? `${b.name} (${b.state})` : b.name }))
-      : employee?.branch
-        ? [{ value: employee.branch, label: employee.branch }]
-        : [];
+  // The branch list is data, not a constant, and the employee's OWN branch is
+  // folded in whether or not the query returned it. A <select> whose value
+  // matches no <option> shows the first one instead, so a branches read that
+  // came back short used to put a Vadodara employee in front of an editor
+  // reading "Pune" — and saving that screen moved them there. Keeping their
+  // stored branch in the list means an edit can only ever change the branch
+  // because somebody picked a different one.
+  const branchOptions = branches.map((b) => ({
+    value: b.name,
+    label: b.state ? `${b.name} (${b.state})` : b.name,
+  }));
+  if (employee?.branch && !branchOptions.some((o) => o.value === employee.branch)) {
+    branchOptions.unshift({ value: employee.branch, label: employee.branch });
+  }
 
-  // The form is uncontrolled, so the submit handler reads the values from the DOM. It does not use the `employee` prop to prefill values,
-  //  because that would make it controlled and require a state update on every keystroke.
-  //  Instead, the form is keyed by the employee code (or 'new') and the `formSeq` prop, so every open remounts it with fresh defaults.
+  // The fields are UNCONTROLLED: `employee` seeds them through defaultValue and
+  // React does not track them afterwards, so typing costs no re-render. That is
+  // also why the submit handler reads the values back off the DOM rather than
+  // out of state — and why the form carries a key (employee code, or 'new',
+  // plus formSeq): a defaultValue is only read on mount, so remounting is the
+  // only way to refresh what the fields show.
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -215,6 +223,13 @@ const NEW_BRANCH = '__new__';
  * to silently spawn a branch.
  *
  * Lives INSIDE the keyed <form>, so its selection state resets on every open.
+ *
+ * A NEW employee starts on the placeholder, not on the first branch in the
+ * list. Pre-selecting one meant the alphabetically-first branch (Pune) was
+ * submitted by default on every new record where nobody touched the field —
+ * a branch decides professional tax, the holiday calendar and which board the
+ * person appears on, so it is not a field to fill in on the user's behalf.
+ * Editing still opens on the employee's own branch.
  */
 function BranchPicker({
   options,
@@ -225,8 +240,9 @@ function BranchPicker({
   branchDefault?: string;
   genderDefault?: string;
 }) {
-  // No branches at all (first run) → jump straight to the add-new fields.
-  const [sel, setSel] = useState(branchDefault || options[0]?.value || NEW_BRANCH);
+  // No branches at all (first run) → jump straight to the add-new fields, since
+  // there is nothing to choose between.
+  const [sel, setSel] = useState(branchDefault || (options.length === 0 ? NEW_BRANCH : ''));
   const adding = sel === NEW_BRANCH;
 
   return (
@@ -234,7 +250,10 @@ function BranchPicker({
       <div className="f-row">
         <div className="f">
           <label>Branch</label>
-          <select name="branch" value={sel} onChange={(e) => setSel(e.target.value)}>
+          <select name="branch" value={sel} onChange={(e) => setSel(e.target.value)} required>
+            <option value="" disabled>
+              Select a branch…
+            </option>
             {options.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}

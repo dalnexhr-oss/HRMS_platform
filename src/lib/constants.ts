@@ -103,7 +103,8 @@ export const DOCUMENT_CATEGORY_LABEL: Record<string, string> = {
   resignation: 'Resignation',
   clearance: 'Clearance / exit',
   other: 'Other',
-  // Issued by HR, display only.
+  // Issued by HR (GENERATED_DOCUMENT_CATEGORIES), so these two are display-only
+  // — they are never offered in an upload form.
   relieving: 'Relieving letter',
   settlement: 'Full & final statement',
 };
@@ -123,7 +124,7 @@ export const REQUIRED_DOCUMENT_CATEGORIES: readonly string[] = [
   'bank',
 ];
 
-// Every Indian state and union territory a branch may be registered in. Must stay in lockstep with the `indian_state` enum (0001, extended in 0040) — the branch form offers these and resolveBranch validates against them, but the database enum has the final word. Note on payroll: professional tax comes from pt_slabs, which only seeds Maharashtra and Gujarat. fn_professional_tax returns 0 when a state has no slab rows, so a branch in any other state computes PT as nil until its slabs are added.
+// Every Indian state and union territory a branch may be registered in. Must stay in lockstep with the `indian_state` — the branch form offers these and resolveBranch validates against them, but the database enum has the final word. Note on payroll: professional tax comes from pt_slabs, which only seeds Maharashtra and Gujarat. fn_professional_tax returns 0 when a state has no slab rows, so a branch in any other state computes PT as nil until its slabs are added.
 export const INDIAN_STATES = [
   // States (28)
   'Andhra Pradesh',
@@ -154,7 +155,8 @@ export const INDIAN_STATES = [
   'Uttar Pradesh',
   'Uttarakhand',
   'West Bengal',
-  // Union territories (8)
+  // Union territories (8) — the '// States (28)' count above covers only the
+  // entries before this line.
   'Andaman and Nicobar Islands',
   'Chandigarh',
   'Dadra and Nagar Haveli and Daman and Diu',
@@ -343,13 +345,16 @@ export function pageHeader(slug: string, stats?: TopbarStats | null): [string, s
   }
 }
 /**
- * How long a notice lives before it is hard-deleted.
+ * How long a notice is kept before it is DELETED.
+ *
+ * Deletion, not hiding: deleteExpiredNotices() in db/scheduler.ts measures this
+ * many days back from today (IST) and removes every notice published — or, for
+ * a draft, created — before that cutoff. Notices carry no expiry column and
+ * nothing filters them at render time; the row is simply gone.
  *
  * ONE number, because there used to be two. The nightly job defaulted to 90
- * days while the purge that runs whenever staff publish used 30 — and since
- * the 30-day sweep always ran first, everything older was already gone by the
- * time the 90-day job looked, so the 90 was dead code describing a policy the
- * app did not have. 30 is the declared policy and what the employee
- * dashboard's date filter has always matched.
+ * days while the purge that runs whenever staff publish used 30, and since the
+ * 30-day sweep always ran first, everything older was already gone by the time
+ * the 90-day job looked. Both callers now default to this constant.
  */
 export const NOTICE_RETENTION_DAYS = 30;

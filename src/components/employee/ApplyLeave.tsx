@@ -4,6 +4,7 @@ import { useActionState, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createRequest, cancelRequest } from '@/lib/actions/requests';
 import { applyCompOff } from '@/lib/actions/compoff';
+import { todayIST } from '@/lib/format';
 import type { LeaveBalanceRow, RequestView } from '@/lib/queries';
 import type { RequestType } from '@/types/database';
 
@@ -226,6 +227,22 @@ function NewRequestForm({ compOffBalance }: { compOffBalance: number }) {
   const router = useRouter();
   const [type, setType] = useState<RequestType>('leave');
   const [leaveKind, setLeaveKind] = useState<LeaveKindChoice>('CO');
+  // The earliest day that can be applied for. IST, not the device clock: a
+  // phone set to a western timezone would otherwise offer yesterday as "today".
+  // createRequest and applyCompOff re-check this — the attribute only keeps the
+  // picker from offering a day the server is going to refuse.
+  const today = todayIST();
+  // The range is controlled so "To" can track "From": its own floor is the
+  // chosen start, and a start moved past an already-picked end drags the end
+  // with it rather than leaving an invalid pair on screen.
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const onStartChange = (value: string) => {
+    setStartDate(value);
+    if (endDate && value && endDate < value) setEndDate(value);
+  };
+
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
     async (_prev, formData) => {
       // A comp off is an application against an earned credit, not a leave kind,
@@ -236,7 +253,14 @@ function NewRequestForm({ compOffBalance }: { compOffBalance: number }) {
       const res = takingCompOff ? await applyCompOff(formData) : await createRequest(formData);
       // The actions revalidate /me, but refresh keeps the list in step even
       // when this form is rendered inside an unchanged cached segment.
-      if (res.ok) router.refresh();
+      if (res.ok) {
+        // React empties the UNCONTROLLED fields after a successful action; the
+        // date range is controlled, so it has to be cleared here or the filed
+        // dates stay in the picker and get resubmitted on the next request.
+        setStartDate('');
+        setEndDate('');
+        router.refresh();
+      }
       return res;
     },
     {},
@@ -292,17 +316,33 @@ function NewRequestForm({ compOffBalance }: { compOffBalance: number }) {
       {takingCompOff ? (
         <div className="f">
           <label>Take this day off</label>
-          <input name="take_date" type="date" required />
+          <input name="take_date" type="date" min={today} required />
         </div>
       ) : (
         <div className="f-row">
           <div className="f">
             <label>From</label>
-            <input name="start_date" type="date" required />
+            <input
+              name="start_date"
+              type="date"
+              min={today}
+              value={startDate}
+              onChange={(e) => onStartChange(e.target.value)}
+              required
+            />
           </div>
           <div className="f">
             <label>To</label>
-            <input name="end_date" type="date" required />
+            {/* Floor is the chosen start, so a single-day leave (To === From)
+                is allowed and an end before the start cannot be picked. */}
+            <input
+              name="end_date"
+              type="date"
+              min={startDate || today}
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              required
+            />
           </div>
         </div>
       )}
