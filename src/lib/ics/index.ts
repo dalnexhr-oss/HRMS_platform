@@ -32,18 +32,18 @@
 //
 
 // RFC 5545 §3.1: content lines are delimited by CRLF, never a bare LF.
-const CRLF = '\r\n';
+const crlf = '\r\n';
 
 // RFC 5545 §3.1: lines SHOULD NOT be longer than 75 octets, excluding CRLF.
-const MAX_OCTETS = 75;
+const maxOctets = 75;
 
 // Identifies the product that wrote the file. Free text, but must be present.
-const PRODID = '-//Dalnex LLP//HRMS Calendar 1.0//EN';
+const prodid = '-//Dalnex LLP//HRMS Calendar 1.0//EN';
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
 // RFC 5545 UTC date-time, e.g. '20260729T101530Z'.
-const ICS_STAMP = /^\d{8}T\d{6}Z$/;
+const icsStamp = /^\d{8}T\d{6}Z$/;
 
 export interface CalendarEvent {
   // Globally unique, STABLE id for this event. Re-exporting the same holiday must reuse the same UID, otherwise subscribers accumulate duplicates instead of seeing an update. Prefer `${table}-${row.id}@dalnex-hrms`.
@@ -92,7 +92,7 @@ function tokenize(line: string): string[] {
 
 // Throw a readable error rather than emitting a calendar with a broken date. The shape check alone is not enough: '2026-02-30' and '2026-13-01' both match the regex, and Date.UTC would silently roll them forward into March / next January — so the file would look valid while every subscriber saw the wrong day. The round-trip below rejects them at the source instead. It also rejects years under 100, where Date.UTC's legacy two-digit-year rule maps 0026 to 1926 and would corrupt addDays() the same way.
 function assertIsoDate(value: string, field: string): void {
-  if (!ISO_DATE.test(value)) {
+  if (!isoDate.test(value)) {
     throw new Error(`Calendar ${field} must be 'YYYY-MM-DD', got '${value}'.`);
   }
   const [y, m, d] = value.split('-').map(Number);
@@ -133,7 +133,7 @@ function toIcsStamp(value?: string): string {
   if (value === undefined) return formatIcsStamp(new Date());
 
   const raw = value.trim();
-  if (ICS_STAMP.test(raw)) return raw;
+  if (icsStamp.test(raw)) return raw;
 
   const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) {
@@ -175,12 +175,12 @@ export function escapeIcsText(v: string): string {
  * Devanagari characters is ~180 octets and must still be folded.
  */
 export function foldLine(line: string): string {
-  if (octetLength(line) <= MAX_OCTETS) return line;
+  if (octetLength(line) <= maxOctets) return line;
 
   const out: string[] = [];
   let chunk = '';
   let used = 0;
-  let limit = MAX_OCTETS; // first line spends nothing on a continuation space
+  let limit = maxOctets; // first line spends nothing on a continuation space
 
   for (const token of tokenize(line)) {
     const size = octetLength(token);
@@ -188,14 +188,14 @@ export function foldLine(line: string): string {
       out.push(chunk);
       chunk = '';
       used = 0;
-      limit = MAX_OCTETS - 1; // every later line gives one octet to the space
+      limit = maxOctets - 1; // every later line gives one octet to the space
     }
     chunk += token;
     used += size;
   }
   if (chunk) out.push(chunk);
 
-  return out.join(`${CRLF} `);
+  return out.join(`${crlf} `);
 }
 
 /** '2026-08-15' -> '20260815'. Inverse of the parser's `toISO`. */
@@ -316,7 +316,7 @@ export function buildIcs(events: CalendarEvent[], opts: BuildIcsOptions = {}): s
   const lines: string[] = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    foldLine(`PRODID:${PRODID}`),
+    foldLine(`PRODID:${prodid}`),
     'CALSCALE:GREGORIAN',
     // X-WR-* are non-standard but universally honoured; without CALNAME the
     // calendar imports as "Untitled".
@@ -327,5 +327,5 @@ export function buildIcs(events: CalendarEvent[], opts: BuildIcsOptions = {}): s
   for (const ev of events) lines.push(...buildEvent(ev, stamp));
 
   lines.push('END:VCALENDAR');
-  return lines.join(CRLF) + CRLF;
+  return lines.join(crlf) + crlf;
 }

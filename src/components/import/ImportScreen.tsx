@@ -8,16 +8,16 @@ import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { monthLabelUTC, monthOptionsAround } from '@/lib/format';
 import type { AppRole } from '@/types/database';
 
-// Staff roles allowed to import — and so to download the blank template. Mirrors IMPORT_ROLES in actions/import.ts (commitImport).
-const IMPORT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
+// Staff roles allowed to import — and so to download the blank template. Mirrors importRoles in actions/import.ts (commitImport).
+const importRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 // How far the "Other month" list reaches: next month down to 12 months back.
-const MONTHS_BACK = 12;
-const MONTHS_AHEAD = 1;
+const monthsBack = 12;
+const monthsAhead = 1;
 
-const AMBER = '#9a6b00';
-const AMBER_LINE = '#e6c877';
-const AMBER_BG = '#fdf6e3';
+const amber = '#9a6b00';
+const amberLine = '#e6c877';
+const amberBg = '#fdf6e3';
 
 export function ImportScreen({
   canImport,
@@ -32,13 +32,13 @@ export function ImportScreen({
   const formRef = useRef<HTMLFormElement>(null);
   // The blank template is data-free, so it is offered to any staff role; the
   // server action re-checks the role before building it.
-  const canDownloadTemplate = !!role && IMPORT_ROLES.includes(role);
+  const canDownloadTemplate = !!role && importRoles.includes(role);
 
   // Which month the downloaded template is stamped with (cell B2). Defaults to
   // the current month — the overwhelmingly common case — with the dropdown there
   // for back-filling a month that was missed.
   const [monthMode, setMonthMode] = useState<'current' | 'other'>('current');
-  const monthChoices = monthOptionsAround(currentMonth, MONTHS_BACK, MONTHS_AHEAD);
+  const monthChoices = monthOptionsAround(currentMonth, monthsBack, monthsAhead);
   // Pre-select the PREVIOUS month: catching up on a month that has ended is the
   // reason to reach for this control at all.
   const [otherMonth, setOtherMonth] = useState(
@@ -103,9 +103,9 @@ export function ImportScreen({
   return (
     <div className="wrap grid">
       {!canImport && (
-        <div className="card" style={{ borderColor: AMBER_LINE, background: AMBER_BG }}>
+        <div className="card" style={{ borderColor: amberLine, background: amberBg }}>
           <div className="hd">
-            <h3 style={{ color: AMBER }}>Read-only access</h3>
+            <h3 style={{ color: amber }}>Read-only access</h3>
           </div>
           <div className="bd">
             <p className="muted" style={{ margin: 0 }}>
@@ -138,7 +138,7 @@ export function ImportScreen({
               <>
                 <fieldset
                   style={{
-                    border: `1px solid var(--line, ${AMBER_LINE})`,
+                    border: `1px solid var(--line, ${amberLine})`,
                     borderRadius: 8,
                     padding: '10px 14px 12px',
                     margin: '0 0 14px',
@@ -278,9 +278,9 @@ export function ImportScreen({
           </div>
 
           {(preview.unmatched.length > 0 || preview.warnings.length > 0) && (
-            <div className="card" style={{ borderColor: AMBER_LINE, background: AMBER_BG }}>
+            <div className="card" style={{ borderColor: amberLine, background: amberBg }}>
               <div className="hd">
-                <h3 style={{ color: AMBER }}>Needs a look</h3>
+                <h3 style={{ color: amber }}>Needs a look</h3>
                 <span className="folio">
                   {preview.unmatched.length} unmatched · {preview.warnings.length} warning
                   {preview.warnings.length === 1 ? '' : 's'}
@@ -379,10 +379,10 @@ export function ImportScreen({
                 {result.errors.length > 0 && (
                   <div
                     className="card"
-                    style={{ borderColor: AMBER_LINE, background: AMBER_BG, marginBottom: 14 }}
+                    style={{ borderColor: amberLine, background: amberBg, marginBottom: 14 }}
                   >
                     <div className="hd">
-                      <h3 style={{ color: AMBER }}>Imported, with problems</h3>
+                      <h3 style={{ color: amber }}>Imported, with problems</h3>
                     </div>
                     <div className="bd">
                       <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>

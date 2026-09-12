@@ -26,8 +26,8 @@ export interface StatutoryRow {
 }
 
 // EPS wage ceiling (₹15,000) and EPS rate (8.33%).
-const EPS_CEILING = 15000;
-const EPS_RATE = 0.0833;
+const epsCeiling = 15000;
+const epsRate = 0.0833;
 
 function daysInMonth(periodMonth: string): number {
   const d = new Date(`${periodMonth.slice(0, 7)}-01T00:00:00Z`);
@@ -110,8 +110,8 @@ export function buildPfEcr(rows: StatutoryRow[], periodMonth: string): string {
   for (const r of rows) {
     if (r.pfEmployee <= 0) continue; // not a PF member this month
     const epfWages = Math.round(r.basicEarned);
-    const epsWages = Math.min(epfWages, EPS_CEILING);
-    const eps = Math.round(epsWages * EPS_RATE);
+    const epsWages = Math.min(epfWages, epsCeiling);
+    const eps = Math.round(epsWages * epsRate);
     const epfEmployee = Math.round(r.pfEmployee);
     const epfEmployerDiff = Math.max(0, Math.round(r.pfEmployer) - eps);
     const ncp = Math.max(0, nDays - Math.round(r.payableDays));

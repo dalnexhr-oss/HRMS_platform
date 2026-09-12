@@ -24,9 +24,9 @@ import { isEmployeeAreaRole } from '@/lib/auth';
 // carries the 200-character CEILING, which nothing here enforced at all —
 // scrypt at N=65536 was being run over an unbounded input on a public endpoint.
 import { hashPassword, validatePassword } from '@/lib/auth/password';
-import { createResetToken, RESET_TOKEN_TTL_MINUTES } from '@/lib/auth/reset-tokens';
-import { appOrigin, ORIGIN_NOT_CONFIGURED } from '@/lib/auth/origin';
-import { COLLECTIONS, usersCollection, type UserDoc } from '@/lib/db/collections';
+import { createResetToken, resetTokenTtlMinutes } from '@/lib/auth/reset-tokens';
+import { appOrigin, originNotConfigured } from '@/lib/auth/origin';
+import { collections, usersCollection, type UserDoc } from '@/lib/db/collections';
 import { db, isMongoConfigured } from '@/lib/db/mongo';
 import { escapeHtml, isEmailConfigured, sendEmail } from '@/lib/email';
 import type { AppRole } from '@/types/database';
@@ -37,14 +37,14 @@ export interface ActionResult {
 }
 
 // Roles allowed to administer users.
-const USER_ADMIN_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
+const userAdminRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
 // Roles that may be assigned through this screen. NOT exported: a 'use server'
 // module may only export async functions, so the UI keeps its own display list.
-const ASSIGNABLE_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr', 'employee', 'intern'];
+const assignableRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr', 'employee', 'intern'];
 
 // User administration is TIERED, and every rule below derives from this one map. A caller may only grant a role, or act on an account holding a role, at or below their own tier. The escalation this closes is not theoretical: before it, updateUserRole checked only for the literal 'admin', so an HR account could set anyone's role — including its own — to 'super_admin' and take the top tier in a single request. Server Actions are public endpoints, so the UI never offering the option was no defence.
-const ROLE_TIER: Record<AppRole, number> = {
+const roleTier: Record<AppRole, number> = {
   super_admin: 3,
   admin: 2,
   hr: 1,
@@ -54,11 +54,11 @@ const ROLE_TIER: Record<AppRole, number> = {
 };
 
 function tierOf(role: AppRole | null | undefined): number {
-  return role ? ROLE_TIER[role] ?? 0 : 0;
+  return role ? roleTier[role] ?? 0 : 0;
 }
 
 // Role name as it reads in a refusal message.
-const TIER_LABEL: Record<AppRole, string> = {
+const tierLabel: Record<AppRole, string> = {
   super_admin: 'super admin',
   admin: 'admin',
   hr: 'HR',
@@ -67,10 +67,10 @@ const TIER_LABEL: Record<AppRole, string> = {
 };
 
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Case-insensitive lookup, matching the users_email_unique index.
-const EMAIL_COLLATION = { locale: 'en', strength: 2 } as const;
+const emailCollation = { locale: 'en', strength: 2 } as const;
 
 export interface ManagedUser {
   id: string;
@@ -102,7 +102,7 @@ async function assertMayActOnTarget(
   const target = await users.findOne({ _id: targetUserId });
   if (!target) return { ok: false, error: 'That account no longer exists.' };
   if (tierOf(target.role) > tierOf(callerRole)) {
-    const label = TIER_LABEL[target.role];
+    const label = tierLabel[target.role];
     return { ok: false, error: `Only a ${label} account can manage another ${label} account.` };
   }
   return { ok: true, target };
@@ -124,7 +124,7 @@ async function employeeLabels(
 
   const database = await db();
   const rows = await database
-    .collection<{ _id: string; code?: string; full_name?: string }>(COLLECTIONS.employees)
+    .collection<{ _id: string; code?: string; full_name?: string }>(collections.employees)
     .find({ _id: { $in: ids } }, { projection: { code: 1, full_name: 1 } })
     .toArray();
 
@@ -138,7 +138,7 @@ async function employeeLabels(
 export async function listUsers(): Promise<
   { ok: true; users: ManagedUser[] } | { ok: false; error: string }
 > {
-  const gate = await requireRoles(USER_ADMIN_ROLES, 'Viewing user accounts');
+  const gate = await requireRoles(userAdminRoles, 'Viewing user accounts');
   if (!gate.ok) return { ok: false, error: gate.error };
   if (!isMongoConfigured()) return databaseUnavailable() as { ok: false; error: string };
 
@@ -186,7 +186,7 @@ export async function listUsers(): Promise<
  * from "My account", and an admin can trigger a reset email.
  */
 export async function createUser(formData: FormData): Promise<ActionResult> {
-  const gate = await requireRoles(USER_ADMIN_ROLES, 'Adding a user');
+  const gate = await requireRoles(userAdminRoles, 'Adding a user');
   if (!gate.ok) return gate;
   if (!isMongoConfigured()) return databaseUnavailable();
 
@@ -196,18 +196,18 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
   const role = String(formData.get('role') ?? '').trim() as AppRole;
   const employeeId = String(formData.get('employee_id') ?? '').trim() || null;
 
-  if (!EMAIL_RE.test(email)) return { ok: false, error: 'Enter a valid email address.' };
+  if (!emailRe.test(email)) return { ok: false, error: 'Enter a valid email address.' };
   const weak = validatePassword(password);
   if (weak) return { ok: false, error: weak };
   if (!fullName) return { ok: false, error: 'Enter the person’s full name.' };
-  if (!ASSIGNABLE_ROLES.includes(role)) return { ok: false, error: 'Choose a role.' };
+  if (!assignableRoles.includes(role)) return { ok: false, error: 'Choose a role.' };
 
   // No minting a role above your own tier: a super admin only by a super admin,
   // an admin by an admin or a super admin.
   if (tierOf(role) > tierOf(gate.role)) {
     return {
       ok: false,
-      error: `Only a ${TIER_LABEL[role]} account can create another ${TIER_LABEL[role]} account.`,
+      error: `Only a ${tierLabel[role]} account can create another ${tierLabel[role]} account.`,
     };
   }
   // An employee login is useless without a record to read. Every OTHER role may
@@ -267,15 +267,15 @@ export async function updateUserRole(
   role: AppRole,
   employeeId: string | null,
 ): Promise<ActionResult> {
-  const gate = await requireRoles(USER_ADMIN_ROLES, 'Changing a user’s role');
+  const gate = await requireRoles(userAdminRoles, 'Changing a user’s role');
   if (!gate.ok) return gate;
   if (!isMongoConfigured()) return databaseUnavailable();
 
-  if (!ASSIGNABLE_ROLES.includes(role)) return { ok: false, error: 'Choose a valid role.' };
+  if (!assignableRoles.includes(role)) return { ok: false, error: 'Choose a valid role.' };
   // No granting a role above your own tier. The absence of this check is what let
   // an HR account promote itself to super_admin.
   if (tierOf(role) > tierOf(gate.role)) {
-    return { ok: false, error: `Only a ${TIER_LABEL[role]} account can grant the ${TIER_LABEL[role]} role.` };
+    return { ok: false, error: `Only a ${tierLabel[role]} account can grant the ${tierLabel[role]} role.` };
   }
   if (isEmployeeAreaRole(role) && !employeeId) {
     return { ok: false, error: 'Pick which employee this login belongs to.' };
@@ -288,7 +288,7 @@ export async function updateUserRole(
   if (userId === gate.profileId && role !== gate.role) {
     return {
       ok: false,
-      error: `You cannot change your own role — ask another ${TIER_LABEL[gate.role]} to do it.`,
+      error: `You cannot change your own role — ask another ${tierLabel[gate.role]} to do it.`,
     };
   }
 
@@ -337,7 +337,7 @@ export async function updateUserRole(
  *  - the last admin (or last super admin) cannot be deleted (locks everyone out).
  */
 export async function deleteUser(userId: string): Promise<ActionResult> {
-  const gate = await requireRoles(USER_ADMIN_ROLES, 'Deleting a user');
+  const gate = await requireRoles(userAdminRoles, 'Deleting a user');
   if (!gate.ok) return gate;
   if (!isMongoConfigured()) return databaseUnavailable();
 
@@ -355,7 +355,7 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
 
     // Never empty an administrative tier — that locks everyone out of /users.
     if (target.role === 'admin' || target.role === 'super_admin') {
-      const label = TIER_LABEL[target.role];
+      const label = tierLabel[target.role];
       const count = await users.countDocuments({ role: target.role }, { limit: 2 });
       if (count <= 1) {
         return {
@@ -387,7 +387,7 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
  * is stopped without destroying the account and its audit trail.
  */
 export async function setUserDisabled(userId: string, disabled: boolean): Promise<ActionResult> {
-  const gate = await requireRoles(USER_ADMIN_ROLES, 'Changing sign-in access');
+  const gate = await requireRoles(userAdminRoles, 'Changing sign-in access');
   if (!gate.ok) return gate;
   if (!isMongoConfigured()) return databaseUnavailable();
 
@@ -419,7 +419,7 @@ export async function setUserDisabled(userId: string, disabled: boolean): Promis
 
 /** Admin-triggered password reset email (the user then sets their own). */
 export async function sendPasswordReset(email: string): Promise<ActionResult> {
-  const gate = await requireRoles(USER_ADMIN_ROLES, 'Sending a password reset');
+  const gate = await requireRoles(userAdminRoles, 'Sending a password reset');
   if (!gate.ok) return gate;
   if (!isMongoConfigured()) return databaseUnavailable();
 
@@ -427,7 +427,7 @@ export async function sendPasswordReset(email: string): Promise<ActionResult> {
     const users = await usersCollection();
     const target = await users.findOne(
       { email: email.trim().toLowerCase() },
-      { collation: EMAIL_COLLATION },
+      { collation: emailCollation },
     );
     // Unlike the public reset form, this one DOES report a missing account: the
     // caller is an authenticated admin who can already list every address, so
@@ -454,7 +454,7 @@ export async function sendPasswordReset(email: string): Promise<ActionResult> {
     // on. Falling back to '' produced exactly that — `href="/auth/…"` in an
     // email client, which resolves against nothing.
     const origin = await appOrigin();
-    if (!origin) return { ok: false, error: ORIGIN_NOT_CONFIGURED };
+    if (!origin) return { ok: false, error: originNotConfigured };
 
     const token = await createResetToken(target._id);
     const link = `${origin}/auth/update-password?token=${encodeURIComponent(token)}`;
@@ -465,7 +465,7 @@ export async function sendPasswordReset(email: string): Promise<ActionResult> {
       text:
         `Hello ${target.full_name ?? ''},\n\n` +
         `An administrator has started a password reset for your account. Open this link ` +
-        `to choose a new password. It expires in ${RESET_TOKEN_TTL_MINUTES} minutes and can ` +
+        `to choose a new password. It expires in ${resetTokenTtlMinutes} minutes and can ` +
         `be used once:\n\n${link}\n`,
       // full_name is admin-supplied, so it is escaped before it reaches the
       // HTML body — see escapeHtml(). The text part needs no escaping.
@@ -473,7 +473,7 @@ export async function sendPasswordReset(email: string): Promise<ActionResult> {
         `<p>Hello ${escapeHtml(target.full_name ?? '')},</p>` +
         `<p>An administrator has started a password reset for your account.</p>` +
         `<p><a href="${escapeHtml(link)}">Choose a new password</a></p>` +
-        `<p>The link expires in ${RESET_TOKEN_TTL_MINUTES} minutes and can be used once.</p>`,
+        `<p>The link expires in ${resetTokenTtlMinutes} minutes and can be used once.</p>`,
     });
     if (!result.ok) return { ok: false, error: result.error ?? 'The email could not be sent.' };
 
@@ -485,7 +485,7 @@ export async function sendPasswordReset(email: string): Promise<ActionResult> {
 
 /** Set a new password for an account directly (admin/HR, e.g. no email access). */
 export async function setUserPassword(userId: string, password: string): Promise<ActionResult> {
-  const gate = await requireRoles(USER_ADMIN_ROLES, 'Setting a password');
+  const gate = await requireRoles(userAdminRoles, 'Setting a password');
   if (!gate.ok) return gate;
   if (!isMongoConfigured()) return databaseUnavailable();
 

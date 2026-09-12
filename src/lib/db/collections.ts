@@ -14,7 +14,7 @@ import type { Collection, Decimal128, Document } from 'mongodb';
 import { db } from '@/lib/db/mongo';
 import type { AppRole } from '@/types/database';
 // import type { EmploymentType} from '@/types/database';
-export const COLLECTIONS = {
+export const collections = {
   // --- identity
   // Supabase kept auth.users (GoTrue) and public.profiles as two tables joined on id. There is no separate auth schema any more, so they are one document: credentials, role and per-tab access together.
   users: 'users',
@@ -87,7 +87,7 @@ export const COLLECTIONS = {
   passwordResetTokens: 'password_reset_tokens',
 } as const;
 
-export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];
+export type CollectionName = (typeof collections)[keyof typeof collections];
 
 // The shape every document here shares: a UUID STRING primary key. The driver's default `Document` assumes `_id: ObjectId`, which is wrong for this database — keys were carried over from Postgres unchanged so that every existing foreign-key value stays valid. Use this wherever a collection has no specific interface yet, rather than casting at each call site.
 export interface BaseDoc {
@@ -248,5 +248,5 @@ export async function collection<T extends Document>(
 
 // Typed handle for the users collection. UNSCOPED — this is the auth layer's own handle, used before a session exists (sign-in must read a user nobody is yet signed in as). Application code that lists or edits accounts goes through lib/db/repo.ts instead.
 export async function usersCollection(): Promise<Collection<UserDoc>> {
-  return (await db()).collection<UserDoc>(COLLECTIONS.users);
+  return (await db()).collection<UserDoc>(collections.users);
 }

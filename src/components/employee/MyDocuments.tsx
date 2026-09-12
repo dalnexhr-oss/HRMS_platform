@@ -10,11 +10,11 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/format';
 import { uploadEmployeeDocument, getDocumentUrl } from '@/lib/actions/documents';
-import { DOCUMENT_CATEGORIES } from '@/lib/constants';
+import { documentCategories } from '@/lib/constants';
 import { useToast } from '@/components/ui/Toast';
 import type { EmployeeDocumentRow } from '@/lib/queries';
 
-const CATEGORY_LABEL: Record<string, string> = {
+const categoryLabel: Record<string, string> = {
   offer_letter: 'Offer letter',
   id_proof: 'ID proof (Aadhaar / PAN)',
   education: 'Education certificate',
@@ -22,7 +22,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   bank: 'Bank details',
   other: 'Other',
   // Issued BY HR (generateExitDocument) — display only. These are deliberately
-  // absent from DOCUMENT_CATEGORIES so they never appear in the upload dropdown:
+  // absent from documentCategories so they never appear in the upload dropdown:
   // an employee must not be able to file their own relieving letter.
   relieving: 'Relieving letter',
   settlement: 'Full & final statement',
@@ -70,8 +70,8 @@ export function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[
           <div className="f" style={{ marginBottom: 0 }}>
             <label>Type</label>
             <select value={category} onChange={(e) => setCategory(e.target.value)}>
-              {DOCUMENT_CATEGORIES.map((c) => (
-                <option key={c} value={c}>{CATEGORY_LABEL[c] ?? c}</option>
+              {documentCategories.map((c) => (
+                <option key={c} value={c}>{categoryLabel[c] ?? c}</option>
               ))}
             </select>
           </div>
@@ -123,7 +123,7 @@ export function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[
                 {documents.map((d) => (
                   <tr key={d.id}>
                     <td>{d.title ?? '—'}</td>
-                    <td>{d.category ? CATEGORY_LABEL[d.category] ?? d.category : '—'}</td>
+                    <td>{d.category ? categoryLabel[d.category] ?? d.category : '—'}</td>
                     <td className="mono">{formatDate(d.uploadedAt.slice(0, 10))}</td>
                     <td>
                       {d.verifiedAt ? (

@@ -10,12 +10,12 @@ import type { AppRole } from '@/types/database';
 import { todayIST } from '@/lib/format';
 
 // Item Management is super-admin/admin/HR — same gate as assets and user admin.
-const ITEM_ADMIN_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
+const itemAdminRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 // The shape item_assignments.assigned_date is validated against. A value that
 // does not match is refused here rather than by the collection validator, whose
 // error says only "new row violates check constraint".
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
 // Pull the item columns from the form; blank strings become null.
 function itemFields(formData: FormData) {
@@ -40,7 +40,7 @@ function itemFields(formData: FormData) {
 }
 
 export async function createItem(formData: FormData) {
-  const gate = await requireRoles(ITEM_ADMIN_ROLES, 'Adding an item');
+  const gate = await requireRoles(itemAdminRoles, 'Adding an item');
   if (!gate.ok) return gate;
 
   const fields = itemFields(formData);
@@ -57,7 +57,7 @@ export async function createItem(formData: FormData) {
 }
 
 export async function updateItem(formData: FormData) {
-  const gate = await requireRoles(ITEM_ADMIN_ROLES, 'Updating an item');
+  const gate = await requireRoles(itemAdminRoles, 'Updating an item');
   if (!gate.ok) return gate;
 
   const id = String(formData.get('id') ?? '').trim();
@@ -80,7 +80,7 @@ export async function updateItem(formData: FormData) {
 }
 
 export async function deleteItem(id: string) {
-  const gate = await requireRoles(ITEM_ADMIN_ROLES, 'Deleting an item');
+  const gate = await requireRoles(itemAdminRoles, 'Deleting an item');
   if (!gate.ok) return gate;
 
   const dbc = await createClient();
@@ -97,7 +97,7 @@ export async function deleteItem(id: string) {
 }
 
 export async function assignItem(formData: FormData) {
-  const gate = await requireRoles(ITEM_ADMIN_ROLES, 'Assigning an item');
+  const gate = await requireRoles(itemAdminRoles, 'Assigning an item');
   if (!gate.ok) return gate;
 
   const itemId = String(formData.get('item_id') ?? '').trim();
@@ -116,7 +116,7 @@ export async function assignItem(formData: FormData) {
   // stock out of the store on a day that is already closed, and the return
   // stamp (returnAssignment writes today) would then predate the hand-over.
   if (assignedDate) {
-    if (!ISO_DATE.test(assignedDate)) return { ok: false, error: 'Enter a valid assigned date.' };
+    if (!isoDate.test(assignedDate)) return { ok: false, error: 'Enter a valid assigned date.' };
     if (assignedDate < todayIST()) {
       return { ok: false, error: 'The assigned date has already passed — pick today or a later day.' };
     }
@@ -180,7 +180,7 @@ export async function assignItem(formData: FormData) {
 }
 
 export async function returnAssignment(id: string) {
-  const gate = await requireRoles(ITEM_ADMIN_ROLES, 'Returning an item');
+  const gate = await requireRoles(itemAdminRoles, 'Returning an item');
   if (!gate.ok) return gate;
 
   const dbc = await createClient();
@@ -212,7 +212,7 @@ export async function returnAssignment(id: string) {
 }
 
 export async function deleteAssignment(id: string) {
-  const gate = await requireRoles(ITEM_ADMIN_ROLES, 'Deleting an assignment');
+  const gate = await requireRoles(itemAdminRoles, 'Deleting an assignment');
   if (!gate.ok) return gate;
 
   const dbc = await createClient();

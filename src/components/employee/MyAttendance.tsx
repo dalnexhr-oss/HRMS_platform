@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { Stamp } from '@/components/ui/Stamp';
-import { DOW } from '@/lib/constants';
+import { dow } from '@/lib/constants';
 import type { DayCell } from '@/types/domain';
 
 // Statuses that read as "you were at work" for the summary strip.
-const PRESENT_LIKE = new Set(['P', 'LM', 'S', 'T']);
+const presentLike = new Set(['P', 'LM', 'S', 'T']);
 
 // 'HH:MM' -> minutes. Returns 0 for null/blank so it can be summed safely.
 function hoursToMinutes(hours: string | null): number {
@@ -30,7 +30,7 @@ function dowFor(periodMonth: string, day: number): string {
   const year = Number(periodMonth.slice(0, 4));
   const month = Number(periodMonth.slice(5, 7));
   const jsDow = new Date(Date.UTC(year, month - 1, day)).getUTCDay(); // 0 = Sunday
-  return DOW[(jsDow + 6) % 7]; // DOW is Mon-first
+  return dow[(jsDow + 6) % 7]; // DOW is Mon-first
 }
 
 /** '2026-06-01' -> 'June 2026'. */
@@ -62,7 +62,7 @@ export function MyAttendance({
     WO: days.filter((d) => d.status === 'WO').length,
   };
   const workedMinutes = days.reduce((a, d) => a + hoursToMinutes(d.hours), 0);
-  const markedDays = days.filter((d) => PRESENT_LIKE.has(d.status)).length;
+  const markedDays = days.filter((d) => presentLike.has(d.status)).length;
 
   return (
     <div className="card register" id={id}>

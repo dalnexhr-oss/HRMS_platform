@@ -11,18 +11,18 @@
 import type { AppRole } from '@/types/app';
 
 // Roles that belong in the (portal) area.
-export const STAFF_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
+export const staffRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 // Roles that use the employee self-service area rather than the portal. 'manager' is NOT one: it was reduced to employee-level access and then folded into 'employee'. 'intern' IS one — an intern reaches the same /me dashboard as an employee, and differs only in how payroll pays them.
-export const EMPLOYEE_AREA_ROLES: AppRole[] = ['employee', 'intern'];
+export const employeeAreaRoles: AppRole[] = ['employee', 'intern'];
 
 export function isStaffRole(role: AppRole | null | undefined): boolean {
-  return !!role && STAFF_ROLES.includes(role);
+  return !!role && staffRoles.includes(role);
 }
 
 // True for the roles that live on /me. Every "is this an employee?" test has to ask this rather than compare against 'employee': a bare `role !== 'employee'` reads an intern as staff, which is how an intern would have ended up posting helpdesk replies carrying a staff badge.
 export function isEmployeeAreaRole(role: AppRole | null | undefined): boolean {
-  return !!role && EMPLOYEE_AREA_ROLES.includes(role);
+  return !!role && employeeAreaRoles.includes(role);
 }
 
 // Where a role lands after signing in.

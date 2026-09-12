@@ -11,11 +11,11 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AvatarInner } from '@/components/ui/Avatar';
 import { updateAvatar } from '@/lib/actions/profile';
-import { AVATAR_PRESET_IDS, avatarPresetLabel } from '@/lib/avatar-presets';
+import { avatarPresetId, avatarPresetLabel } from '@/lib/avatar-presets';
 
 // Draw the file onto a 128×128 canvas (centre-cropped) and return a JPEG data URL.
 async function fileToAvatarDataUrl(file: File): Promise<string> {
-  const SIZE = 128;
+  const size = 128;
   // imageOrientation:'from-image' honours EXIF so portrait phone photos aren't
   // stored sideways.
   const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
@@ -24,17 +24,17 @@ async function fileToAvatarDataUrl(file: File): Promise<string> {
     throw new Error('That image could not be read. Try a different photo.');
   }
   const canvas = document.createElement('canvas');
-  canvas.width = SIZE;
-  canvas.height = SIZE;
+  canvas.width = size;
+  canvas.height = size;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Your browser could not process the image.');
   // Fill first so a transparent PNG/WebP doesn't turn black under JPEG.
   ctx.fillStyle = '#0E7A8F';
-  ctx.fillRect(0, 0, SIZE, SIZE);
-  const scale = Math.max(SIZE / bitmap.width, SIZE / bitmap.height);
+  ctx.fillRect(0, 0, size, size);
+  const scale = Math.max(size / bitmap.width, size / bitmap.height);
   const w = bitmap.width * scale;
   const h = bitmap.height * scale;
-  ctx.drawImage(bitmap, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
+  ctx.drawImage(bitmap, (size - w) / 2, (size - h) / 2, w, h);
   bitmap.close?.();
   return canvas.toDataURL('image/jpeg', 0.82);
 }
@@ -148,7 +148,7 @@ export function AvatarMenu({
 
           <div className="avatar-pop-lab">Or pick an avatar</div>
           <div className="avatar-swatches">
-            {AVATAR_PRESET_IDS.map((id) => {
+            {avatarPresetId.map((id) => {
               const value = `preset:${id}`;
               const selected = current === value;
               return (

@@ -39,7 +39,7 @@ export function EmployeeNotices({
 }
 
 // Bodies longer than this collapse to a few lines with a Read more/less toggle.
-const CLAMP_AT = 180;
+const clampAt = 180;
 
 function NoticeItem({
   notice,
@@ -55,7 +55,7 @@ function NoticeItem({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const body = notice.body ?? '';
-  const isLong = body.length > CLAMP_AT;
+  const isLong = body.length > clampAt;
 
   const onRead = () => {
     setError(null);

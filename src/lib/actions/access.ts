@@ -11,7 +11,7 @@ import { revalidatePath } from 'next/cache';
 import { usersCollection } from '@/lib/db/collections';
 import { createClient } from '@/lib/db/server';
 import { requireRoles } from '@/lib/actions/_guard';
-import { NAV } from '@/lib/constants';
+import { navItems } from '@/lib/constants';
 import { isConfigurableRole, staticallyAllowed, type TabAccess } from '@/lib/access';
 import type { AppRole } from '@/types/database';
 
@@ -21,7 +21,7 @@ export interface ActionResult {
 }
 
 // Only a super admin administers access — never admin or HR themselves.
-const ACCESS_ADMIN_ROLES: readonly AppRole[] = ['super_admin'];
+const accessAdminRoles: readonly AppRole[] = ['super_admin'];
 
 // The target's role, so both the caller and the rules can be checked against it.
 async function targetRole(
@@ -42,7 +42,7 @@ async function targetRole(
 export async function fetchUserTabAccess(
   userId: string,
 ): Promise<{ ok: true; access: TabAccess } | { ok: false; error: string }> {
-  const gate = await requireRoles(ACCESS_ADMIN_ROLES, 'Viewing tab access');
+  const gate = await requireRoles(accessAdminRoles, 'Viewing tab access');
   if (!gate.ok) return { ok: false, error: gate.error };
 
   try {
@@ -67,10 +67,10 @@ export async function setUserTabAccess(
   slug: string,
   allowed: boolean,
 ): Promise<ActionResult> {
-  const gate = await requireRoles(ACCESS_ADMIN_ROLES, 'Changing tab access');
+  const gate = await requireRoles(accessAdminRoles, 'Changing tab access');
   if (!gate.ok) return gate;
 
-  if (!NAV.some((n) => n.slug === slug)) return { ok: false, error: 'That is not a tab.' };
+  if (!navItems.some((n) => n.slug === slug)) return { ok: false, error: 'That is not a tab.' };
 
   const dbc = await createClient();
   const target = await targetRole(dbc, userId);
@@ -112,7 +112,7 @@ export async function setUserTabAccess(
 
 /** Restore one account to every tab its role is statically entitled to. */
 export async function resetUserTabAccess(userId: string): Promise<ActionResult> {
-  const gate = await requireRoles(ACCESS_ADMIN_ROLES, 'Resetting tab access');
+  const gate = await requireRoles(accessAdminRoles, 'Resetting tab access');
   if (!gate.ok) return gate;
 
   try {

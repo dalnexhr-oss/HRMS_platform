@@ -17,12 +17,12 @@ export interface WeekOffPolicy {
 }
 
 // Sundays off; Saturdays off except the 2nd and 4th, which are worked.
-export const DEFAULT_WEEK_OFF_POLICY: WeekOffPolicy = {
+export const defaultWeekOffPolicy: WeekOffPolicy = {
   weekOffWeekdays: [0, 6],
   workingSaturdays: [2, 4],
 };
 
-const SATURDAY = 6;
+const saturday = 6;
 
 // Parse a settings jsonb value into a number[], or null when unusable.
 function numberList(value: unknown): number[] | null {
@@ -37,8 +37,8 @@ export function policyFromSettings(
   workingSaturdays: unknown,
 ): WeekOffPolicy {
   return {
-    weekOffWeekdays: numberList(weekOffWeekdays) ?? DEFAULT_WEEK_OFF_POLICY.weekOffWeekdays,
-    workingSaturdays: numberList(workingSaturdays) ?? DEFAULT_WEEK_OFF_POLICY.workingSaturdays,
+    weekOffWeekdays: numberList(weekOffWeekdays) ?? defaultWeekOffPolicy.weekOffWeekdays,
+    workingSaturdays: numberList(workingSaturdays) ?? defaultWeekOffPolicy.workingSaturdays,
   };
 }
 
@@ -67,14 +67,14 @@ export function weekdayOrdinal(dateISO: string): number | null {
  */
 export function isScheduledWeekOff(
   dateISO: string,
-  policy: WeekOffPolicy = DEFAULT_WEEK_OFF_POLICY,
+  policy: WeekOffPolicy = defaultWeekOffPolicy,
 ): boolean {
   const d = utcDate(dateISO);
   if (!d) return false;
   const dow = d.getUTCDay();
   if (!policy.weekOffWeekdays.includes(dow)) return false;
 
-  if (dow === SATURDAY) {
+  if (dow === saturday) {
     const ordinal = weekdayOrdinal(dateISO);
     if (ordinal !== null && policy.workingSaturdays.includes(ordinal)) return false;
   }
@@ -108,7 +108,7 @@ export function countLeaveDays(
     sandwich?: boolean;
   } = {},
 ): number {
-  const { policy = DEFAULT_WEEK_OFF_POLICY, holidays = new Set<string>(), sandwich = false } = opts;
+  const { policy = defaultWeekOffPolicy, holidays = new Set<string>(), sandwich = false } = opts;
 
   const start = utcDate(startISO);
   const end = utcDate(endISO);
@@ -139,7 +139,7 @@ export function countLeaveDays(
 /** Days-of-month that are scheduled week-offs for a 'YYYY-MM-01' period. */
 export function weekOffDaysInMonth(
   periodMonth: string,
-  policy: WeekOffPolicy = DEFAULT_WEEK_OFF_POLICY,
+  policy: WeekOffPolicy = defaultWeekOffPolicy,
 ): number[] {
   const ym = periodMonth.slice(0, 7);
   const first = utcDate(`${ym}-01`);
@@ -156,12 +156,12 @@ export function weekOffDaysInMonth(
 }
 
 /** Human summary for the settings/register UI, e.g. "Sun off · Sat off except 2nd, 4th". */
-export function describePolicy(policy: WeekOffPolicy = DEFAULT_WEEK_OFF_POLICY): string {
+export function describePolicy(policy: WeekOffPolicy = defaultWeekOffPolicy): string {
   const names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const off = policy.weekOffWeekdays.filter((d) => d !== SATURDAY).map((d) => names[d] ?? d);
+  const off = policy.weekOffWeekdays.filter((d) => d !== saturday).map((d) => names[d] ?? d);
   const parts: string[] = [];
   if (off.length) parts.push(`${off.join(', ')} off`);
-  if (policy.weekOffWeekdays.includes(SATURDAY)) {
+  if (policy.weekOffWeekdays.includes(saturday)) {
     parts.push(
       policy.workingSaturdays.length
         ? `Sat off except ${policy.workingSaturdays

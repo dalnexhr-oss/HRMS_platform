@@ -7,7 +7,7 @@
 import { useState, useTransition } from 'react';
 import type { ExportResult } from '@/lib/actions/export';
 
-const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const xlsxMime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 function base64ToBlob(base64: string, mime: string): Blob {
   const bin = atob(base64);
@@ -38,7 +38,7 @@ export function XlsxExportButton({
       }
       let url: string | null = null;
       try {
-        url = URL.createObjectURL(base64ToBlob(res.base64, res.mime ?? XLSX_MIME));
+        url = URL.createObjectURL(base64ToBlob(res.base64, res.mime ?? xlsxMime));
         const a = document.createElement('a');
         a.href = url;
         a.download = res.filename;

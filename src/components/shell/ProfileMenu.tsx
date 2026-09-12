@@ -11,7 +11,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { AvatarInner } from '@/components/ui/Avatar';
 
-const ROLE_LABEL: Record<string, string> = {
+const roleLabel: Record<string, string> = {
   admin: 'Administrator',
   super_admin: 'Super Admin',
   hr: 'HR',
@@ -73,7 +73,7 @@ export function ProfileMenu({
             </span>
             <div className="profile-id-txt">
               <b>{name || 'Signed in'}</b>
-              {role && <span className="muted">{ROLE_LABEL[role] ?? role}</span>}
+              {role && <span className="muted">{roleLabel[role] ?? role}</span>}
               {email && <span className="muted mono">{email}</span>}
             </div>
           </div>

@@ -23,18 +23,18 @@ export interface ActionResult {
   error?: string;
 }
 
-const ONBOARDING_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
-const TASK_STATUSES = ['pending', 'done', 'blocked'] as const;
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const onboardingRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
+const taskStatuses = ['pending', 'done', 'blocked'] as const;
+const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Copy a template's items onto an employee as their checklist. Idempotent in practice: if the employee already has tasks we leave them alone rather than duplicating the list — HR clicking "start onboarding" twice is a mis-click, not a request for eighteen tasks. `templateId` is optional; the newest ACTIVE template is used when omitted, so `createEmployee` can call this with no knowledge of template ids.
 export async function startOnboarding(
   employeeId: string,
   templateId?: string,
 ): Promise<ActionResult & { created?: number }> {
-  const gate = await requireRoles(ONBOARDING_ROLES, 'Starting onboarding');
+  const gate = await requireRoles(onboardingRoles, 'Starting onboarding');
   if (!gate.ok) return gate;
-  if (!UUID_RE.test(String(employeeId ?? ''))) return { ok: false, error: 'Pick an employee.' };
+  if (!uuidRe.test(String(employeeId ?? ''))) return { ok: false, error: 'Pick an employee.' };
 
   const dbc = await createClient();
 
@@ -118,12 +118,12 @@ export async function startOnboarding(
  */
 export async function setOnboardingTaskStatus(
   id: string,
-  status: (typeof TASK_STATUSES)[number],
+  status: (typeof taskStatuses)[number],
 ): Promise<ActionResult> {
-  const gate = await requireRoles(ONBOARDING_ROLES, 'Updating an onboarding step');
+  const gate = await requireRoles(onboardingRoles, 'Updating an onboarding step');
   if (!gate.ok) return gate;
-  if (!UUID_RE.test(String(id ?? ''))) return { ok: false, error: 'Unknown onboarding step.' };
-  if (!TASK_STATUSES.includes(status)) return { ok: false, error: 'Pick a valid status.' };
+  if (!uuidRe.test(String(id ?? ''))) return { ok: false, error: 'Unknown onboarding step.' };
+  if (!taskStatuses.includes(status)) return { ok: false, error: 'Pick a valid status.' };
 
   const done = status === 'done';
   const dbc = await createClient();
@@ -157,10 +157,10 @@ export async function addOnboardingTask(input: {
   assigneeRole?: string;
   dueDate?: string;
 }): Promise<ActionResult> {
-  const gate = await requireRoles(ONBOARDING_ROLES, 'Adding an onboarding step');
+  const gate = await requireRoles(onboardingRoles, 'Adding an onboarding step');
   if (!gate.ok) return gate;
 
-  if (!UUID_RE.test(String(input.employeeId ?? ''))) return { ok: false, error: 'Pick an employee.' };
+  if (!uuidRe.test(String(input.employeeId ?? ''))) return { ok: false, error: 'Pick an employee.' };
   const title = String(input.title ?? '').trim();
   if (!title) return { ok: false, error: 'Give the step a title.' };
 
@@ -194,9 +194,9 @@ export async function addOnboardingTask(input: {
 
 /** Remove a step. Used for steps added by mistake or made irrelevant by the role. */
 export async function deleteOnboardingTask(id: string): Promise<ActionResult> {
-  const gate = await requireRoles(ONBOARDING_ROLES, 'Removing an onboarding step');
+  const gate = await requireRoles(onboardingRoles, 'Removing an onboarding step');
   if (!gate.ok) return gate;
-  if (!UUID_RE.test(String(id ?? ''))) return { ok: false, error: 'Unknown onboarding step.' };
+  if (!uuidRe.test(String(id ?? ''))) return { ok: false, error: 'Unknown onboarding step.' };
 
   const dbc = await createClient();
   const { data, error } = await dbc

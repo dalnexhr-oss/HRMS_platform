@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchUserTabAccess, setUserTabAccess, resetUserTabAccess } from '@/lib/actions/access';
-import { NAV, GROUP_ORDER } from '@/lib/constants';
+import { navItems, groupOrder } from '@/lib/constants';
 import { canAccessTab, staticallyAllowed, type TabAccess } from '@/lib/access';
 import type { AppRole } from '@/types/database';
 
@@ -87,7 +87,7 @@ export function AccessDrawer({
   }
 
   // Tabs this account's ROLE can reach at all. Anything else is not ours to give.
-  const eligible = user ? NAV.filter((n) => staticallyAllowed(user.role, n.slug)) : [];
+  const eligible = user ? navItems.filter((n) => staticallyAllowed(user.role, n.slug)) : [];
   const revoked = user ? eligible.filter((n) => !canAccessTab(user.role, n.slug, access)).length : 0;
 
   return (
@@ -133,7 +133,7 @@ export function AccessDrawer({
               {loading ? (
                 <p className="muted">Loading…</p>
               ) : (
-                GROUP_ORDER.map((group) => {
+                groupOrder.map((group) => {
                   const rows = eligible.filter((n) => n.group === group);
                   if (rows.length === 0) return null;
                   return (

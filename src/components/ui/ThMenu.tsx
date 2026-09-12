@@ -8,26 +8,26 @@ export type SortDir = 'asc' | 'desc';
 
 export type ColKind = 'text' | 'number' | 'date';
 
-const SORT_LABELS: Record<ColKind, [asc: string, desc: string]> = {
+const sortLabels: Record<ColKind, [asc: string, desc: string]> = {
   text: ['Sort A → Z', 'Sort Z → A'],
   number: ['Sort low → high', 'Sort high → low'],
   date: ['Sort oldest → newest', 'Sort newest → oldest'],
 };
 export type DateRange = { from: string; to: string; blank?: boolean };
 
-export const NO_RANGE: DateRange = { from: '', to: '' };
+export const noRange: DateRange = { from: '', to: '' };
 
-const BLANK = new Set(['', '—']);
+const blankTokens = new Set(['', '—']);
 
-const POP_W = 220;
-const POP_W_DATE = 274;
+const popW = 220;
+const popWDate = 274;
 
 
-const ISO_DAY = /^\d{4}-\d{2}-\d{2}/;
+const isoDay = /^\d{4}-\d{2}-\d{2}/;
 
 // An ISO day (or the day part of a timestamp) -> epoch ms. NaN-safe.
 function dateValue(v: string): number {
-  const iso = ISO_DAY.exec(v);
+  const iso = isoDay.exec(v);
   const t = Date.parse(iso ? `${iso[0]}T00:00:00` : v);
   return Number.isNaN(t) ? 0 : t;
 }
@@ -104,7 +104,7 @@ export function rangeActive(r?: DateRange): boolean {
 /** Does a cell's date fall inside the filter? Inclusive at both ends. */
 export function inDateRange(value: string, r?: DateRange): boolean {
   if (!r || !rangeActive(r)) return true;
-  const blank = BLANK.has(value);
+  const blank = blankTokens.has(value);
   if (r.blank) return blank;
   if (blank) return false;
   const v = dateValue(value);
@@ -124,7 +124,7 @@ export function ThMenu({
   selected,
   onToggle,
   onClear,
-  range = NO_RANGE,
+  range = noRange,
   onRange,
 }: {
   label: string;
@@ -154,12 +154,12 @@ export function ThMenu({
   // A date column falls back to the checkbox list if the screen never wired a
   // range setter — half a date filter is worse than the old one.
   const isDate = kind === 'date' && !!onRange;
-  const width = isDate ? POP_W_DATE : POP_W;
+  const width = isDate ? popWDate : popW;
 
   // The column's own span, blanks excluded: it bounds the calendars and picks
   // which presets are worth showing.
   const span = useMemo(() => {
-    const days = options.filter((o) => !BLANK.has(o)).map((o) => o.slice(0, 10));
+    const days = options.filter((o) => !blankTokens.has(o)).map((o) => o.slice(0, 10));
     if (days.length === 0) return null;
     return {
       min: days.reduce((a, b) => (a < b ? a : b)),
@@ -167,7 +167,7 @@ export function ThMenu({
     };
   }, [options]);
 
-  const hasBlanks = useMemo(() => options.some((o) => BLANK.has(o)), [options]);
+  const hasBlanks = useMemo(() => options.some((o) => blankTokens.has(o)), [options]);
   const presets = useMemo(
     () => (isDate && span ? presetsFor(span.min, span.max, today) : []),
     [isDate, span, today],
@@ -280,7 +280,7 @@ export function ThMenu({
                 setOpen(false);
               }}
             >
-              ↑ {SORT_LABELS[kind][0]}
+              ↑ {sortLabels[kind][0]}
             </button>
             <button
               type="button"
@@ -290,7 +290,7 @@ export function ThMenu({
                 setOpen(false);
               }}
             >
-              ↓ {SORT_LABELS[kind][1]}
+              ↓ {sortLabels[kind][1]}
             </button>
 
             <div className="th-pop-sep" />
@@ -300,7 +300,7 @@ export function ThMenu({
                 <div className="th-pop-hd">
                   Filter by date
                   {rangeActive(range) && (
-                    <button type="button" className="th-pop-clear" onClick={() => onRange?.(NO_RANGE)}>
+                    <button type="button" className="th-pop-clear" onClick={() => onRange?.(noRange)}>
                       Clear
                     </button>
                   )}
@@ -316,7 +316,7 @@ export function ThMenu({
                       type="button"
                       className={'th-chip' + (sameRange(p.range, range) ? ' on' : '')}
                       aria-pressed={sameRange(p.range, range)}
-                      onClick={() => onRange?.(sameRange(p.range, range) ? NO_RANGE : p.range)}
+                      onClick={() => onRange?.(sameRange(p.range, range) ? noRange : p.range)}
                     >
                       {p.label}
                     </button>
@@ -326,7 +326,7 @@ export function ThMenu({
                       type="button"
                       className={'th-chip' + (range.blank ? ' on' : '')}
                       aria-pressed={!!range.blank}
-                      onClick={() => onRange?.(range.blank ? NO_RANGE : { from: '', to: '', blank: true })}
+                      onClick={() => onRange?.(range.blank ? noRange : { from: '', to: '', blank: true })}
                     >
                       No date
                     </button>
@@ -428,8 +428,8 @@ export function sortRows<T>(rows: T[], value: (row: T) => string, kind: ColKind,
   return [...rows].sort((x, y) => {
     const a = value(x);
     const b = value(y);
-    const blankA = BLANK.has(a);
-    const blankB = BLANK.has(b);
+    const blankA = blankTokens.has(a);
+    const blankB = blankTokens.has(b);
     if (blankA || blankB) return blankA && blankB ? 0 : blankA ? 1 : -1;
     if (kind === 'date') return sign * (dateValue(a) - dateValue(b));
     return sign * a.localeCompare(b, undefined, { numeric: true });

@@ -30,12 +30,12 @@ import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import type { LeaveBalanceAdminRow } from '@/lib/queries';
 
-const MONTHS = [
+const monthNames = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-const STATUS_COLOR: Record<string, string> = {
+const statusColor: Record<string, string> = {
   draft: 'var(--ink-2)',
   finalized: 'var(--lm)',
   paid: 'var(--p)',
@@ -370,14 +370,14 @@ function WorkingRow({
         </td>
         <td onClick={(e) => e.stopPropagation()}>
           {locked ? (
-            MONTHS[incMonth - 1]
+            monthNames[incMonth - 1]
           ) : (
             <select
               value={incMonth}
               onChange={(e) => setIncMonth(Number(e.target.value))}
               aria-label={`${row.name}: month the increment takes effect`}
             >
-              {MONTHS.map((m, ix) => (
+              {monthNames.map((m, ix) => (
                 <option key={m} value={ix + 1}>{m}</option>
               ))}
             </select>
@@ -431,7 +431,7 @@ function WorkingRow({
         <td className="right mono">{inr(fig.amountP2)}</td>
         <td className="right mono" style={{ fontWeight: 700 }}>{inr(fig.total)}</td>
         <td>
-          <span className="pill" style={{ borderColor: 'var(--line-2)', color: STATUS_COLOR[status ?? 'draft'] }}>
+          <span className="pill" style={{ borderColor: 'var(--line-2)', color: statusColor[status ?? 'draft'] }}>
             {status ?? 'unsaved'}
           </span>
         </td>
@@ -554,8 +554,8 @@ function Breakdown({
     </div>
   );
 
-  const p1Range = monthsP1 > 0 ? `Jan – ${MONTHS[monthsP1 - 1].slice(0, 3)}` : '—';
-  const p2Range = `${MONTHS[incMonth - 1].slice(0, 3)} – Dec`;
+  const p1Range = monthsP1 > 0 ? `Jan – ${monthNames[monthsP1 - 1].slice(0, 3)}` : '—';
+  const p2Range = `${monthNames[incMonth - 1].slice(0, 3)} – Dec`;
 
   return (
     <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', padding: '10px 4px', fontSize: 12.5 }}>

@@ -10,7 +10,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { markNotificationRead, markAllNotificationsRead } from '@/lib/actions/notifications';
 import type { NotificationRow } from '@/lib/queries';
 
-const KIND_ICON: Record<string, string> = {
+const kindIcon: Record<string, string> = {
   notice: '📣',
   policy: '📄',
   request: '🗓️',
@@ -223,7 +223,7 @@ export function NotificationBell({
             notifications.map((n) => {
               const inner = (
                 <>
-                  <span style={{ fontSize: 15, lineHeight: '18px' }}>{KIND_ICON[n.kind] ?? '•'}</span>
+                  <span style={{ fontSize: 15, lineHeight: '18px' }}>{kindIcon[n.kind] ?? '•'}</span>
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ fontWeight: n.readAt ? 500 : 700, fontSize: 13 }}>{n.title}</span>
                     {n.body && (

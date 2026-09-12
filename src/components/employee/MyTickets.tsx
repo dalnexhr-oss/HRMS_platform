@@ -7,7 +7,7 @@ import { TicketChatDrawer } from '@/components/helpdesk/TicketChatDrawer';
 import { formatDate } from '@/lib/format';
 import type { TicketComment, TicketView } from '@/lib/queries';
 
-const STATUS_LABEL: Record<TicketView['status'], string> = {
+const statusLabel: Record<TicketView['status'], string> = {
   open: 'Open',
   in_progress: 'In progress',
   resolved: 'Resolved',
@@ -62,7 +62,7 @@ export function MyTickets({
                     <span className="ver">{formatDate(t.createdAt.slice(0, 10))}</span>
                     <span style={{ flex: 1 }} />
                     <span className="pill" style={statusPillStyle(t.status)}>
-                      {STATUS_LABEL[t.status]}
+                      {statusLabel[t.status]}
                     </span>
                   </div>
                   {t.body && <p className="body">{t.body}</p>}

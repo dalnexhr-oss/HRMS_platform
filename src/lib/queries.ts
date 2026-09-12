@@ -17,20 +17,20 @@ import { createClient } from '@/lib/db/server';
 import { minutesToHHMM, trimTime } from '@/lib/format';
 import { isMongoConfigured } from '@/lib/db/mongo';
 import {
-  DEFAULT_WEEK_OFF_POLICY,
+  defaultWeekOffPolicy,
   policyFromSettings,
   type WeekOffPolicy,
 } from '@/lib/week-off';
-import { PRESENT_CREDIT } from '@/lib/leave-salary';
+import { presentCredit } from '@/lib/leave-salary';
 import type { TopbarStats } from '@/lib/constants';
-import { REQUIRED_DOCUMENT_CATEGORIES } from '@/lib/constants';
+import { requiredDocumentCategories } from '@/lib/constants';
 import type {
   RegisterEmployee, PayslipRow, DayCell, TodayKpis, Celebration, PunchLogRow,
 } from '@/types/domain';
 import type { Policy, LeaveType, RequestType,  } from '@/types/database';
 // import type { EmploymentType } from '@/types/database';
 import {
-  COLLECTIONS,
+  collections,
   type BranchDoc,
   type DepartmentDoc,
   type EmployeeDoc,
@@ -114,7 +114,7 @@ function clockTime(ts: string): string {
 // other_deductions, and naming it here would 42703 the whole payslip query on a
 // database where that migration is still pending. `*` returns whatever columns
 // exist and mapPayslip defaults the rest to 0.
-const PAYSLIP_FIELDS = `id, payable_days, earned_gross, shortfall_amount, per_day_rate,
+const payslipFields = `id, payable_days, earned_gross, shortfall_amount, per_day_rate,
   basic_earned, hra_earned, special_earned, pf_employee, pf_employer, esic_employee,
   esic_employer, professional_tax, net_payable, shortfall_minutes, payslip_adjustments(*)`;
 
@@ -318,14 +318,14 @@ export async function getLeaveRegisterMismatches(
   }
 
   // Statuses that already account for the day — not a divergence.
-  const COVERED = new Set(['L', 'WO', 'OH', 'CO']);
+  const covered = new Set(['L', 'WO', 'OH', 'CO']);
 
   const out: LeaveRegisterMismatch[] = [];
   for (const r of reqs as any[]) {
     if (branch && r.employees?.branches?.name !== branch) continue;
     for (const date of isoDaysInRange(r.start_date, r.end_date, start, end)) {
       const status = byKey.get(`${r.employee_id}|${date}`) ?? null;
-      if (status && COVERED.has(status)) continue;
+      if (status && covered.has(status)) continue;
       out.push({
         employeeId: r.employee_id,
         code: r.employees?.code ?? '',
@@ -383,7 +383,7 @@ export async function getMyAcknowledgements(employeeId: string): Promise<Acknowl
  * 'issued' rows are the relieving / experience / F&F PDFs generateExitDocument
  * produces into the generated-documents bucket. They are already verified, they
  * are never replaced through the register, and 'experience' means a different
- * thing on one than on an upload — see GENERATED_DOCUMENT_CATEGORIES.
+ * thing on one than on an upload — see generatedDocumentCategories.
  */
 export type DocumentSource = 'uploaded' | 'issued';
 
@@ -417,7 +417,7 @@ export interface EmployeeDocumentRow {
   isCurrent: boolean;
 }
 
-const DOCUMENT_FIELDS =
+const documentFields =
   'id, employee_id, category, title, uploaded_at, verified_at, verify_remark, bucket, ' +
   'doc_group, version, replaces_id, replaced_by_id, superseded_at, employees(code, full_name)';
 
@@ -461,7 +461,7 @@ export async function getEmployeeDocuments(employeeId: string): Promise<Employee
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('employee_documents')
-    .select(DOCUMENT_FIELDS)
+    .select(documentFields)
     .eq('employee_id', employeeId)
     .is('superseded_at', null)
     .order('uploaded_at', { ascending: false });
@@ -482,7 +482,7 @@ export async function getEmployeeDocumentHistory(
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('employee_documents')
-    .select(DOCUMENT_FIELDS)
+    .select(documentFields)
     .eq('employee_id', employeeId)
     .order('uploaded_at', { ascending: false });
   if (error) {
@@ -501,7 +501,7 @@ export async function getDocumentRegister(): Promise<EmployeeDocumentRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('employee_documents')
-    .select(DOCUMENT_FIELDS)
+    .select(documentFields)
     .is('superseded_at', null)
     .order('uploaded_at', { ascending: false });
   if (error) {
@@ -521,7 +521,7 @@ export async function getUnverifiedDocuments(): Promise<EmployeeDocumentRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('employee_documents')
-    .select(DOCUMENT_FIELDS)
+    .select(documentFields)
     .is('verified_at', null)
     .is('superseded_at', null)
     .order('uploaded_at', { ascending: true });
@@ -579,7 +579,7 @@ export function documentStats(
   let missing = 0, employeesMissing = 0;
   for (const id of activeEmployeeIds) {
     const held = heldByEmployee.get(id);
-    const gaps = REQUIRED_DOCUMENT_CATEGORIES.filter((c) => !held?.has(c)).length;
+    const gaps = requiredDocumentCategories.filter((c) => !held?.has(c)).length;
     if (gaps > 0) employeesMissing++;
     missing += gaps;
   }
@@ -607,7 +607,7 @@ export interface OnboardingTemplateRow {
   steps: number;
 }
 
-const ONBOARDING_TASK_FIELDS =
+const onboardingTaskFields =
   'id, employee_id, title, assignee_role, status, due_date, employees(code, full_name)';
 
 function mapOnboardingTask(r: any): OnboardingTaskRow {
@@ -634,7 +634,7 @@ export async function getOnboardingBoard(): Promise<OnboardingTaskRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('onboarding_tasks')
-    .select(ONBOARDING_TASK_FIELDS)
+    .select(onboardingTaskFields)
     .order('due_date', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true });
   if (error) {
@@ -648,7 +648,7 @@ export async function getMyOnboardingTasks(employeeId: string): Promise<Onboardi
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('onboarding_tasks')
-    .select(ONBOARDING_TASK_FIELDS)
+    .select(onboardingTaskFields)
     .eq('employee_id', employeeId)
     .order('due_date', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true });
@@ -1001,10 +1001,10 @@ export async function getLeaveSalaryPresence(
   year: number,
 ): Promise<Record<string, number[]>> {
   const dbc = await createClient();
-  const PAGE = 1000;
+  const pageSize = 1000;
   const byEmployee: Record<string, number[]> = {};
 
-  for (let offset = 0; ; offset += PAGE) {
+  for (let offset = 0; ; offset += pageSize) {
     const { data, error } = await dbc
       .from('attendance_days')
       .select('employee_id, work_date, status')
@@ -1012,7 +1012,7 @@ export async function getLeaveSalaryPresence(
       .lte('work_date', `${year}-12-31`)
       .order('employee_id', { ascending: true })
       .order('work_date', { ascending: true })
-      .range(offset, offset + PAGE - 1);
+      .range(offset, offset + pageSize - 1);
     if (error) fail('getLeaveSalaryPresence: could not load attendance', error);
 
     const page = (data ?? []) as { employee_id: string; work_date: string; status: string }[];
@@ -1020,10 +1020,10 @@ export async function getLeaveSalaryPresence(
       const months = (byEmployee[r.employee_id] ??= new Array(12).fill(0));
       const month = Number(String(r.work_date).slice(5, 7));
       if (month >= 1 && month <= 12) {
-        months[month - 1] += PRESENT_CREDIT[r.status as keyof typeof PRESENT_CREDIT] ?? 0;
+        months[month - 1] += presentCredit[r.status as keyof typeof presentCredit] ?? 0;
       }
     }
-    if (page.length < PAGE) break;
+    if (page.length < pageSize) break;
   }
   return byEmployee;
 }
@@ -1043,7 +1043,7 @@ export interface AuditEntry {
  *  first. Reads activity_log; messages are rendered as TEXT only (stored-XSS
  *  safe). Staff-gated by the activity_log read policy. */
 export async function getAttendanceAudit(limit = 200): Promise<AuditEntry[]> {
-  const log = await scoped(COLLECTIONS.activityLog);
+  const log = await scoped(collections.activityLog);
   const rows = await log.find(
     { event_type: { $in: ['attendance_correction', 'register_import', 'night_sweep'] } },
     { sort: { occurred_at: -1 }, limit },
@@ -1063,13 +1063,13 @@ export async function getAttendanceAudit(limit = 200): Promise<AuditEntry[]> {
 
   const [actors, employees] = await Promise.all([
     actorIds.length
-      ? (await scoped<UserDoc>(COLLECTIONS.users)).find(
+      ? (await scoped<UserDoc>(collections.users)).find(
           { _id: { $in: actorIds } },
           { projection: { full_name: 1, email: 1 } },
         )
       : Promise.resolve([]),
     employeeIds.length
-      ? (await scoped<EmployeeDoc>(COLLECTIONS.employees)).find(
+      ? (await scoped<EmployeeDoc>(collections.employees)).find(
           { _id: { $in: employeeIds } },
           { projection: { full_name: 1, code: 1 } },
         )
@@ -1114,7 +1114,7 @@ export async function getPayslips(
 
   const { data, error } = await dbc
     .from('payslips')
-    .select(`${PAYSLIP_FIELDS}, employees(code, full_name, branches(name, state))`)
+    .select(`${payslipFields}, employees(code, full_name, branches(name, state))`)
     .eq('payroll_run_id', run.id);
   if (error) fail('getPayslips: could not load payslips', error);
 
@@ -1155,7 +1155,7 @@ function mapRun(r: any): PayrollRunView {
 
 /** Every payroll run, newest month first. */
 export async function getPayrollRuns(): Promise<PayrollRunView[]> {
-  const runs = await scoped(COLLECTIONS.payrollRuns);
+  const runs = await scoped(collections.payrollRuns);
   const rows = await runs.find({}, { sort: { period_month: -1 } });
   return rows.map(mapRun);
 }
@@ -1163,7 +1163,7 @@ export async function getPayrollRuns(): Promise<PayrollRunView[]> {
 /** A single run by month, or null when that month has no run yet. */
 export async function getPayrollRun(periodMonth: string): Promise<PayrollRunView | null> {
   const { start } = monthRange(periodMonth);
-  const runs = await scoped(COLLECTIONS.payrollRuns);
+  const runs = await scoped(collections.payrollRuns);
   const row = await runs.findOne({ period_month: start });
   return row ? mapRun(row) : null;
 }
@@ -1186,7 +1186,7 @@ export interface BranchRow {
 
 /** All branches, alphabetical. */
 export async function getBranches(): Promise<BranchRow[]> {
-  const branches = await scoped<BranchDoc>(COLLECTIONS.branches);
+  const branches = await scoped<BranchDoc>(collections.branches);
   const rows = await branches.find(
     {},
     {
@@ -1321,7 +1321,7 @@ export interface ActivityRow {
 
 /** The dashboard activity feed, newest first. */
 export async function getActivityFeed(limit = 20): Promise<ActivityRow[]> {
-  const log = await scoped(COLLECTIONS.activityLog);
+  const log = await scoped(collections.activityLog);
   const rows = await log.find(
     {},
     { projection: { message: 1, occurred_at: 1 }, sort: { occurred_at: -1 }, limit },
@@ -1367,7 +1367,7 @@ export async function getMyPayslips(employeeId: string): Promise<PayslipRow[]> {
   const { data, error } = await dbc
     .from('payslips')
     .select(
-      `${PAYSLIP_FIELDS}, payroll_runs(period_month),
+      `${payslipFields}, payroll_runs(period_month),
        employees(code, full_name, branches(name, state))`,
     )
     .eq('employee_id', employeeId);
@@ -1387,7 +1387,7 @@ export async function getMyRequests(employeeId: string): Promise<RequestView[]> 
   const dbc = await createClient();
   const res = await dbc
     .from('requests')
-    .select(REQUEST_FIELDS)
+    .select(requestFields)
     .eq('employee_id', employeeId)
     .order('created_at', { ascending: false });
   // review_remark arrives with 0041 — retry without it until then.
@@ -1396,13 +1396,13 @@ export async function getMyRequests(employeeId: string): Promise<RequestView[]> 
 }
 
 /** One employee's helpdesk tickets, newest first. */
-const TICKET_COLS = 'id, subject, body, category, status, created_at, resolution_note, employees(code, full_name)';
+const ticketCols = 'id, subject, body, category, status, created_at, resolution_note, employees(code, full_name)';
 
 export async function getMyTickets(employeeId: string): Promise<TicketView[]> {
   const dbc = await createClient();
   const res = await dbc
     .from('helpdesk_tickets')
-    .select(TICKET_COLS)
+    .select(ticketCols)
     .eq('employee_id', employeeId)
     .order('created_at', { ascending: false });
   // Migration 0018 (resolution_note) not applied yet → retry without the column.
@@ -1422,7 +1422,7 @@ export interface LeaveBalanceRow {
  * render retired pills on the dashboard.
  */
 export async function getLeaveBalances(employeeId: string): Promise<LeaveBalanceRow[]> {
-  const balances = await scoped(COLLECTIONS.leaveBalances);
+  const balances = await scoped(collections.leaveBalances);
   const rows = await balances.find({
     employee_id: employeeId,
     year: Number(todayISO().slice(0, 4)),
@@ -1434,7 +1434,7 @@ export async function getLeaveBalances(employeeId: string): Promise<LeaveBalance
 // ------------------------------------------------------- employee code map ---
 /** employees.code -> employees.id, for the Excel importer. */
 export async function getEmployeeCodeMap(): Promise<Record<string, string>> {
-  const employees = await scoped<EmployeeDoc>(COLLECTIONS.employees);
+  const employees = await scoped<EmployeeDoc>(collections.employees);
   const rows = await employees.find({}, { projection: { code: 1 } });
   return Object.fromEntries(rows.map((e) => [e.code, e._id]));
 }
@@ -1453,7 +1453,7 @@ export interface EmployeeListRow {
 /** Employee roster. Active-only by default; pass includeInactive to also return
  *  deactivated employees (so the UI can offer a "reactivate"). */
 export async function getEmployees(includeInactive = false): Promise<EmployeeListRow[]> {
-  const employees = await scoped<EmployeeDoc>(COLLECTIONS.employees);
+  const employees = await scoped<EmployeeDoc>(collections.employees);
   // No join: branch_name is denormalised onto the employee (see EmployeeDoc).
   // This used to be an embedded PostgREST select, i.e. a join on every read of
   // a list that renders constantly.
@@ -1506,7 +1506,7 @@ export interface NotificationRow {
  */
 export async function getMyNotifications(limit = 20): Promise<NotificationRow[]> {
   try {
-    const notifications = await scoped(COLLECTIONS.notifications);
+    const notifications = await scoped(collections.notifications);
     const rows = await notifications.find({}, { sort: { created_at: -1 }, limit });
     return rows.map((n) => ({
       id: n._id as string,
@@ -1526,7 +1526,7 @@ export async function getMyNotifications(limit = 20): Promise<NotificationRow[]>
 /** Unread count for the topbar badge. Absorbs a missing session only — see above. */
 export async function getUnreadNotificationCount(): Promise<number> {
   try {
-    const notifications = await scoped(COLLECTIONS.notifications);
+    const notifications = await scoped(collections.notifications);
     return await notifications.countDocuments({ read_at: null });
   } catch (error) {
     if (error instanceof NotSignedInError) return 0;
@@ -1547,7 +1547,7 @@ export async function getWeekOffPolicy(): Promise<WeekOffPolicy> {
     .from('settings')
     .select('key, value')
     .in('key', ['week_off_weekdays', 'working_saturdays']);
-  if (error || !data) return DEFAULT_WEEK_OFF_POLICY;
+  if (error || !data) return defaultWeekOffPolicy;
 
   const byKey = new Map(data.map((r: any) => [r.key, r.value]));
   return policyFromSettings(byKey.get('week_off_weekdays'), byKey.get('working_saturdays'));
@@ -1562,7 +1562,7 @@ export interface EmployeeOption {
 
 /** Active employees as {id, code, name} — for "link this login to an employee". */
 export async function getEmployeeOptions(): Promise<EmployeeOption[]> {
-  const employees = await scoped<EmployeeDoc>(COLLECTIONS.employees);
+  const employees = await scoped<EmployeeDoc>(collections.employees);
   const rows = await employees.find(
     { status: 'active' },
     { projection: { code: 1, full_name: 1 }, sort: { code: 1 } },
@@ -1595,7 +1595,7 @@ export interface ReimbursementView {
   financeReviewedAt: string | null;
 }
 
-const REIMBURSEMENT_FIELDS = `id, employee_id, claim_date, description, purpose, source_medium,
+const reimbursementFields = `id, employee_id, claim_date, description, purpose, source_medium,
   kms, mode_of_payment, amount, remarks, review_remark, status, created_at,
   receipt_path, paid_at, payment_ref, finance_reviewed_at,
   employees(code, full_name)`;
@@ -1662,7 +1662,7 @@ export async function getReimbursements(): Promise<ReimbursementView[]> {
   const dbc = await createClient();
   const res = await dbc
     .from('reimbursement_claims')
-    .select(REIMBURSEMENT_FIELDS)
+    .select(reimbursementFields)
     .order('created_at', { ascending: false });
   if (res.error) {
     fail('getReimbursements: could not load claims', res.error);
@@ -1675,7 +1675,7 @@ export async function getMyReimbursements(employeeId: string): Promise<Reimburse
   const dbc = await createClient();
   const res = await dbc
     .from('reimbursement_claims')
-    .select(REIMBURSEMENT_FIELDS)
+    .select(reimbursementFields)
     .eq('employee_id', employeeId)
     .order('created_at', { ascending: false });
   if (res.error) {
@@ -1686,16 +1686,16 @@ export async function getMyReimbursements(employeeId: string): Promise<Reimburse
 
 /** The ₹/km rate used to auto-calculate travel claims (settings-driven). */
 export async function getReimbursementRate(): Promise<number> {
-  const FALLBACK = 3.5;
+  const fallback = 3.5;
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('settings')
     .select('value')
     .eq('key', 'reimbursement_rate_per_km')
     .maybeSingle<{ value: unknown }>();
-  if (error || !data) return FALLBACK;
+  if (error || !data) return fallback;
   const n = Number(data.value);
-  return Number.isFinite(n) && n > 0 ? n : FALLBACK;
+  return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
 // ------------------------------------------------------------- comp offs ---
@@ -1712,7 +1712,7 @@ export interface CompOffRow {
 
 // expires_on and is_applicable may be missing on an older database; both
 // selects retry without them and fall back to a default.
-const COMP_OFF_FIELDS = 'id, employee_id, earned_date, status, used_date, expires_on, is_applicable';
+const compOffFields = 'id, employee_id, earned_date, status, used_date, expires_on, is_applicable';
 
 function mapCompOff(c: any): CompOffRow {
   return {
@@ -1738,7 +1738,7 @@ export async function getCompOffsForMonth(
   const dbc = await createClient();
   const res = await dbc
     .from('comp_offs')
-    .select(COMP_OFF_FIELDS)
+    .select(compOffFields)
     .gte('earned_date', start)
     .lte('earned_date', end);
   if (res.error) {
@@ -1752,7 +1752,7 @@ export async function getMyCompOffs(employeeId: string): Promise<CompOffRow[]> {
   const dbc = await createClient();
   const res = await dbc
     .from('comp_offs')
-    .select(COMP_OFF_FIELDS)
+    .select(compOffFields)
     .eq('employee_id', employeeId)
     .order('earned_date', { ascending: false });
   if (res.error) {
@@ -1774,10 +1774,10 @@ export interface CompOffAdminRow extends CompOffRow {
  */
 export async function getCompOffAdmin(): Promise<CompOffAdminRow[]> {
   const dbc = await createClient();
-  const FIELDS = (cols: string) => `${cols}, employees(code, full_name)`;
+  const fields = (cols: string) => `${cols}, employees(code, full_name)`;
   const res = await dbc
     .from('comp_offs')
-    .select(FIELDS(COMP_OFF_FIELDS))
+    .select(fields(compOffFields))
     .in('status', ['available', 'applied'])
     .order('earned_date', { ascending: true });
   if (res.error) {
@@ -1826,7 +1826,7 @@ export interface EmployeeEditRow {
 
 export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow | null> {
   const dbc = await createClient();
-  const FULL_COLS =
+  const fullCols =
     `code, full_name, employment_type, designation, gender, date_of_joining, date_of_birth, whatsapp,
      mobile_official, mobile_personal, email_official, email_personal, aadhaar,
      pan, pf_uan, esic_number,
@@ -1834,7 +1834,7 @@ export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow 
      emergency_contact_name, emergency_contact_relation, emergency_contact_phone,
      gross_monthly, basic_da, hra, special_allowance, branches(name), departments(name)`;
 
-  const res = await dbc.from('employees').select(FULL_COLS).eq('code', code).maybeSingle();
+  const res = await dbc.from('employees').select(fullCols).eq('code', code).maybeSingle();
   const { data, error } = res;
   if (error) fail('getEmployeeForEdit: could not load employee', error);
   if (!data) return null;
@@ -1875,7 +1875,7 @@ export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow 
 
 /** Distinct department names — suggestions for the Add/Edit Employee combobox. */
 export async function getDepartments(): Promise<string[]> {
-  const departments = await scoped<DepartmentDoc>(COLLECTIONS.departments);
+  const departments = await scoped<DepartmentDoc>(collections.departments);
   const rows = await departments.find(
     {},
     { projection: { name: 1 }, sort: { name: 1 } },
@@ -1974,14 +1974,14 @@ export interface AssetRow {
   assigned_date: string | null;
 }
 
-const ASSET_COLS =
+const assetCols =
   `id, purchase_date, purchase_cost, desktop_name, asset_category, brand, serial_no, model_no,
    warranty_upto, warranty_renew, product_id, device_id, processor, ram, graphics_card, storage,
    antivirus, assigned_employee_id, assigned_person_name, assigned_employee_code, assigned_date`;
 
 export async function getAssets(): Promise<AssetRow[]> {
   const dbc = await createClient();
-  const res = await dbc.from('assets').select(ASSET_COLS).order('desktop_name');
+  const res = await dbc.from('assets').select(assetCols).order('desktop_name');
   if (res.error) {
     fail('getAssets: could not load assets', res.error);
   }
@@ -2197,12 +2197,12 @@ export async function getEmployeeOverview(
   // settings is readable by every authenticated user (0003), so this works for
   // employees too; the seeded default stands in if the row is missing.
   const today = todayISO();
-  const WORKING_STATUSES = ['P', 'CO', 'OH', 'T', 'S', 'LM'];
+  const workingStatuses = ['P', 'CO', 'OH', 'T', 'S', 'LM'];
   let workingCredit = 0;
   let workedToDate = 0;
   for (const d of rows as { work_date: string; status: string; worked_minutes: number | null }[]) {
     if (String(d.work_date) > today) continue;
-    if (WORKING_STATUSES.includes(d.status)) workingCredit += 1;
+    if (workingStatuses.includes(d.status)) workingCredit += 1;
     else if (d.status === 'HD') workingCredit += 0.5;
     workedToDate += d.worked_minutes ?? 0;
   }
@@ -2281,7 +2281,7 @@ export async function getEmployeePolicies(employeeId: string | null): Promise<Po
  * to see the receipts the policies screen promises are being recorded.
  */
 export async function getPolicyAckCounts(): Promise<Record<string, number>> {
-  const acks = await scoped(COLLECTIONS.policyAcknowledgements);
+  const acks = await scoped(collections.policyAcknowledgements);
   // Counted in the database rather than by pulling every receipt across and
   // tallying them in JavaScript, which is what the row-by-row version did.
   const rows = await acks.aggregate<{ _id: string; n: number }>([
@@ -2293,7 +2293,7 @@ export async function getPolicyAckCounts(): Promise<Record<string, number>> {
 /** Active headcount — the denominator for "n/N read". */
 export async function getActiveEmployeeCount(): Promise<number> {
   try {
-    const employees = await scoped<EmployeeDoc>(COLLECTIONS.employees);
+    const employees = await scoped<EmployeeDoc>(collections.employees);
     return await employees.countDocuments({ status: 'active' });
   } catch {
     return 0;
@@ -2302,7 +2302,7 @@ export async function getActiveEmployeeCount(): Promise<number> {
 
 /** All policies for the admin management screen. */
 export async function getAllPolicies(): Promise<Policy[]> {
-  const policies = await scoped(COLLECTIONS.policies);
+  const policies = await scoped(collections.policies);
   const rows = await policies.find({}, { sort: { updated_at: -1 } });
   return rows.map((r) => ({ ...r, id: r._id })) as unknown as Policy[];
 }
@@ -2317,7 +2317,7 @@ export interface HolidayView {
 
 /** Company holidays, sorted ascending by date. */
 export async function getHolidays(): Promise<HolidayView[]> {
-  const holidays = await scoped(COLLECTIONS.holidays);
+  const holidays = await scoped(collections.holidays);
   const rows = await holidays.find({}, { sort: { holiday_date: 1 } });
   return rows.map((h) => ({
     id: h._id as string,
@@ -2344,7 +2344,7 @@ export interface NoticeView {
 
 /** Notices, newest first. */
 export async function getNotices(): Promise<NoticeView[]> {
-  const notices = await scoped(COLLECTIONS.notices);
+  const notices = await scoped(collections.notices);
   const rows = await notices.find({}, { sort: { created_at: -1 } });
   return rows.map((n) => ({
     id: n._id as string,
@@ -2380,7 +2380,7 @@ export async function getReadNoticeIds(employeeId: string | null): Promise<strin
  *
  * The retention rule itself lives in ONE place — db/scheduler.ts — because it
  * used to live in two, with a different window in each. See
- * NOTICE_RETENTION_DAYS.
+ * noticeRetentionDays.
  */
 export async function purgeExpiredNotices(): Promise<void> {
   try {
@@ -2422,7 +2422,7 @@ export async function getTickets(): Promise<TicketView[]> {
   const dbc = await createClient();
   const res = await dbc
     .from('helpdesk_tickets')
-    .select(TICKET_COLS)
+    .select(ticketCols)
     .order('created_at', { ascending: false });
   if (res.error) fail('getTickets: could not load tickets', res.error);
   // Open tickets first, otherwise preserve newest-first ordering.
@@ -2484,7 +2484,7 @@ export async function getTicketComments(
   //
   // So the join is done here instead: narrow the ids to the tickets this
   // caller can actually see, then read the comments for exactly those.
-  const tickets = await scoped<{ _id: string }>(COLLECTIONS.helpdeskTickets);
+  const tickets = await scoped<{ _id: string }>(collections.helpdeskTickets);
   const visible = await tickets.find(
     { _id: { $in: ticketIds } },
     { projection: { _id: 1 } },
@@ -2496,7 +2496,7 @@ export async function getTicketComments(
   // just been applied. afterParentCheck() rather than systemCollection(): this
   // runs on a request, and the name says where to find the check.
   const comments = afterParentCheck<{ _id: string; ticket_id: string; created_at: Date }>(
-    COLLECTIONS.helpdeskTicketComments,
+    collections.helpdeskTicketComments,
   );
   const rows = await comments.find(
     { ticket_id: { $in: allowed } },
@@ -2548,9 +2548,9 @@ function prettyClock(value: unknown): string | null {
  */
 export async function getTopbarStats(): Promise<TopbarStats> {
   const now = new Date();
-  const IST = 'Asia/Kolkata';
+  const ist = 'Asia/Kolkata';
   const fmt = (opts: Intl.DateTimeFormatOptions) =>
-    new Intl.DateTimeFormat('en-GB', { timeZone: IST, ...opts }).format(now);
+    new Intl.DateTimeFormat('en-GB', { timeZone: ist, ...opts }).format(now);
 
   const base: TopbarStats = {
     todayLabel: fmt({ weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
@@ -2653,7 +2653,7 @@ function mapRequest(r: any): RequestView {
     reviewedAt: isoOrNull(r.reviewed_at),
   };
 }
-const REQUEST_FIELDS = `id, type, leave_kind, start_date, end_date, days, reason, status,
+const requestFields = `id, type, leave_kind, start_date, end_date, days, reason, status,
   balance_after, review_remark, created_at, reviewed_at, employees(code, full_name, branches(name))`;
 
 /** Leave / duty requests, pending first then reviewed. */
@@ -2661,7 +2661,7 @@ export async function getRequests(): Promise<RequestView[]> {
   const dbc = await createClient();
   const res = await dbc
     .from('requests')
-    .select(REQUEST_FIELDS)
+    .select(requestFields)
     .order('created_at', { ascending: false });
   if (res.error) fail('getRequests: could not load requests', res.error);
   // Pending first, otherwise preserve newest-first ordering.
@@ -2719,7 +2719,7 @@ export async function getMyTabAccess(userId: string | null): Promise<TabAccess> 
   // on the user document, because the portal layout reads it on EVERY request —
   // as a table that was a second query per page load, and as an embedded field
   // it costs nothing beyond the session lookup that was happening anyway.
-  const users = await scoped<UserDoc>(COLLECTIONS.users);
+  const users = await scoped<UserDoc>(collections.users);
   const user = await users.findOne({ _id: userId }, { projection: { tab_access: 1 } });
   return (user?.tab_access as TabAccess) ?? {};
 }

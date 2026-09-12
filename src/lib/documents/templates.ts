@@ -33,14 +33,14 @@ import type { LetterSpec } from './letters';
 // One escaper for every HTML email body in the app, next to sendEmail().
 import { escapeHtml } from '@/lib/email';
 // Legal entity name used across every generated document.
-import { COMPANY } from '@/lib/brand/company';
+import { company } from '@/lib/brand/company';
 import { logoPngBytes } from '@/lib/brand/logo';
 
 // Rendered under "For Dalnex LLP" in the signatory block of every letter.
-const SIGNATORY_NAME = 'Authorised Signatory';
-const SIGNATORY_TITLE = 'Human Resources';
+const signatoryName = 'Authorised Signatory';
+const signatoryTitle = 'Human Resources';
 
-const MONTH_ABBR = [
+const monthAbbr = [
   'Jan',
   'Feb',
   'Mar',
@@ -78,10 +78,10 @@ function parseIsoDate(iso: string | null | undefined): DateParts | null {
 function formatDate(iso: string): string {
   const p = parseIsoDate(iso);
   if (!p) return (iso ?? '').trim();
-  return `${p.d} ${MONTH_ABBR[p.m - 1]} ${p.y}`;
+  return `${p.d} ${monthAbbr[p.m - 1]} ${p.y}`;
 }
 
-const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const;
+const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const;
 
 /** Proleptic Gregorian leap rule — the one Postgres `date` also uses. */
 function isLeapYear(y: number): boolean {
@@ -96,7 +96,7 @@ function isLeapYear(y: number): boolean {
  * number that must be identical on every machine that regenerates the letter.
  */
 function nextDay(p: DateParts): DateParts {
-  const len = p.m === 2 && isLeapYear(p.y) ? 29 : DAYS_IN_MONTH[p.m - 1];
+  const len = p.m === 2 && isLeapYear(p.y) ? 29 : daysInMonth[p.m - 1];
   if (p.d < len) return { y: p.y, m: p.m, d: p.d + 1 };
   if (p.m < 12) return { y: p.y, m: p.m + 1, d: 1 };
   return { y: p.y + 1, m: 1, d: 1 };
@@ -208,10 +208,10 @@ export function buildRelievingLetter(input: SeparationLetterInput): LetterSpec {
     reference: `Ref: DN-REL-${code} · ${issued}`,
     salutation: `Dear ${name},`,
     paragraphs: [
-      `This is to confirm that your employment with ${COMPANY} (Employee Code: ${code}) ` +
-        `commenced on ${joined} and concluded on ${relieved}. You served ${COMPANY}${heldRole} ` +
+      `This is to confirm that your employment with ${company} (Employee Code: ${code}) ` +
+        `commenced on ${joined} and concluded on ${relieved}. You served ${company}${heldRole} ` +
         `for the duration of that period.`,
-      `You stand relieved of all duties and responsibilities at ${COMPANY} with effect from ` +
+      `You stand relieved of all duties and responsibilities at ${company} with effect from ` +
         `the close of business on ${relieved}. Access to company systems, premises and ` +
         `records is withdrawn from the same date.`,
       `Obligations that survive the end of employment — including confidentiality in respect ` +
@@ -219,11 +219,11 @@ export function buildRelievingLetter(input: SeparationLetterInput): LetterSpec {
         `you — continue to apply in accordance with the terms of your employment agreement.`,
       `Full and final settlement of dues, where applicable, is processed separately and is ` +
         `communicated through a distinct settlement statement.`,
-      `${COMPANY} thanks you for your association with the firm and extends its best wishes ` +
+      `${company} thanks you for your association with the firm and extends its best wishes ` +
         `for your future endeavours.`,
     ],
-    signatoryName: SIGNATORY_NAME,
-    signatoryTitle: SIGNATORY_TITLE,
+    signatoryName: signatoryName,
+    signatoryTitle: signatoryTitle,
   };
 }
 
@@ -246,7 +246,7 @@ export function buildExperienceLetter(input: SeparationLetterInput): LetterSpec 
   const tenure = formatTenure(input.dateOfJoining, input.lastWorkingDay);
 
   const paragraphs: string[] = [
-    `This is to certify that ${name} (Employee Code: ${code}) was employed with ${COMPANY} ` +
+    `This is to certify that ${name} (Employee Code: ${code}) was employed with ${company} ` +
       `from ${joined} to ${until}.`,
   ];
 
@@ -254,18 +254,18 @@ export function buildExperienceLetter(input: SeparationLetterInput): LetterSpec 
     role
       ? `At the time of separation, ${name} held the position of ${role} and carried out the ` +
           `duties associated with that role.`
-      : `During this period, ${name} carried out the duties assigned by ${COMPANY}.`,
+      : `During this period, ${name} carried out the duties assigned by ${company}.`,
   );
 
   if (tenure) {
-    paragraphs.push(`The total period of service with ${COMPANY} was ${tenure}.`);
+    paragraphs.push(`The total period of service with ${company} was ${tenure}.`);
   }
 
   paragraphs.push(
-    `${name} is no longer in the employment of ${COMPANY} with effect from ${until}.`,
+    `${name} is no longer in the employment of ${company} with effect from ${until}.`,
     `This certificate is issued on ${issued} at the request of the employee and states the ` +
-      `record of service maintained by ${COMPANY}. It may be verified with the Human ` +
-      `Resources department of ${COMPANY} quoting the reference above.`,
+      `record of service maintained by ${company}. It may be verified with the Human ` +
+      `Resources department of ${company} quoting the reference above.`,
   );
 
   return {
@@ -273,8 +273,8 @@ export function buildExperienceLetter(input: SeparationLetterInput): LetterSpec 
     reference: `Ref: DN-EXP-${code} · ${issued}`,
     salutation: 'To Whomsoever It May Concern',
     paragraphs,
-    signatoryName: SIGNATORY_NAME,
-    signatoryTitle: SIGNATORY_TITLE,
+    signatoryName: signatoryName,
+    signatoryTitle: signatoryTitle,
   };
 }
 
@@ -340,9 +340,9 @@ export function buildFullAndFinalStatement(input: FullAndFinalInput): LetterSpec
   const closing =
     net < 0
       ? `An amount of ${formatMoney(Math.abs(net))} is recoverable from you. Please arrange ` +
-        `to remit this amount to ${COMPANY} to close the settlement.`
+        `to remit this amount to ${company} to close the settlement.`
       : `The net amount payable of ${formatMoney(net)} will be credited to the bank account ` +
-        `registered with ${COMPANY}, subject to statutory deductions where applicable.`;
+        `registered with ${company}, subject to statutory deductions where applicable.`;
 
   return {
     title: 'Full & Final Settlement',
@@ -350,13 +350,13 @@ export function buildFullAndFinalStatement(input: FullAndFinalInput): LetterSpec
     salutation: `Dear ${name},`,
     paragraphs: [
       `This statement sets out the full and final settlement of dues in respect of your ` +
-        `employment with ${COMPANY} (Employee Code: ${code}), your last working day being ` +
+        `employment with ${company} (Employee Code: ${code}), your last working day being ` +
         `${lastDay}. It is issued on ${issued}.`,
-      `All amounts are stated in Indian Rupees and reflect the records held by ${COMPANY} as ` +
+      `All amounts are stated in Indian Rupees and reflect the records held by ${company} as ` +
         `on the date of issue. The computation is set out at the end of this statement.`,
       closing,
       `Should any line in this statement not agree with your own records, please write to ` +
-        `the Human Resources team of ${COMPANY} quoting the reference above.`,
+        `the Human Resources team of ${company} quoting the reference above.`,
     ],
     lines: [
       { label: `Salary payable up to ${lastDay}`, value: formatMoney(salary) },
@@ -368,8 +368,8 @@ export function buildFullAndFinalStatement(input: FullAndFinalInput): LetterSpec
       { label: 'Total deductions (B)', value: formatMoney(deductions) },
       { label: 'Net payable', value: formatMoney(net) },
     ],
-    signatoryName: SIGNATORY_NAME,
-    signatoryTitle: SIGNATORY_TITLE,
+    signatoryName: signatoryName,
+    signatoryTitle: signatoryTitle,
   };
 }
 
@@ -412,12 +412,12 @@ export function buildWelcomeEmail(input: WelcomeEmailInput): WelcomeEmail {
   const url = clean(input.portalUrl);
   const isWebUrl = /^https?:\/\//i.test(url);
 
-  const subject = `Welcome to ${COMPANY}, ${name}`;
+  const subject = `Welcome to ${company}, ${name}`;
 
   const text = [
     `Dear ${name},`,
     '',
-    `Welcome to ${COMPANY}. We are glad to have you with us.`,
+    `Welcome to ${company}. We are glad to have you with us.`,
     '',
     `Your employee record has been created and your first working day is ${start}.`,
     `Your employee code is ${code} — please quote it in any correspondence with the Human`,
@@ -435,7 +435,7 @@ export function buildWelcomeEmail(input: WelcomeEmailInput): WelcomeEmail {
     '',
     'Warm regards,',
     'Human Resources',
-    COMPANY,
+    company,
   ].join('\n');
 
   const eName = escapeHtml(name);
@@ -454,7 +454,7 @@ export function buildWelcomeEmail(input: WelcomeEmailInput): WelcomeEmail {
   const html =
     `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;` +
     `font-size:15px;line-height:1.6;color:#111827;max-width:560px;margin:0 auto;padding:24px">` +
-    `<img src="cid:dalnex-logo" width="132" alt="${escapeHtml(COMPANY)}" ` +
+    `<img src="cid:dalnex-logo" width="132" alt="${escapeHtml(company)}" ` +
     `style="display:block;border:0;height:auto;margin:0 0 16px" />` +
     `<h1 style="margin:0 0 20px;font-size:22px;font-weight:700">Welcome aboard, ${eName}</h1>` +
     `<p style="margin:0 0 16px">We are glad to have you with us. Your employee record has ` +
@@ -470,7 +470,7 @@ export function buildWelcomeEmail(input: WelcomeEmailInput): WelcomeEmail {
     `<p style="margin:0 0 24px">If anything looks incorrect, reply to this email and the ` +
     `Human Resources team will help you sort it out.</p>` +
     `<p style="margin:0;color:#6b7280;font-size:13px">Warm regards,<br />Human Resources<br />` +
-    `${escapeHtml(COMPANY)}</p>` +
+    `${escapeHtml(company)}</p>` +
     `</div>`;
 
   return {

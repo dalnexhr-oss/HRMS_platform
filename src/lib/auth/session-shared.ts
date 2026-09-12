@@ -7,4 +7,4 @@
 //
 
 // Session cookie name. Changing it signs everybody out.
-export const SESSION_COOKIE = 'dalnex_session';
+export const sessionCookie = 'dalnex_session';

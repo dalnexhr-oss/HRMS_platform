@@ -28,9 +28,9 @@
 import 'server-only';
 import type { Document, Filter } from 'mongodb';
 import { NotSignedInError, readFilterFor, scoped, scopedFor, type ScopedCollection } from '@/lib/db/repo';
-import { currentScope, SYSTEM_SCOPE, type Scope } from '@/lib/db/scope';
+import { currentScope, systemScope, type Scope } from '@/lib/db/scope';
 import { db } from '@/lib/db/mongo';
-import { COLUMN_DEFAULTS, NOW, TODAY, type DefaultValue } from '@/lib/db/defaults';
+import { columnDefaults, now, today, type DefaultValue } from '@/lib/db/defaults';
 import { isView, runView } from '@/lib/db/views';
 import { relationshipFor } from '@/lib/db/relationships';
 // ONE definition of "today in IST", shared by this file, views.ts, functions.ts
@@ -53,18 +53,18 @@ export interface PgError {
 }
 
 // Postgres SQLSTATEs the app already branches on, so they must survive.
-const DUPLICATE_KEY = '23505';
-const CHECK_VIOLATION = '23514';
+const duplicateKey = '23505';
+const checkViolation = '23514';
 
 function toPgError(e: unknown): PgError {
   const err = e as { code?: number | string; message?: string; errInfo?: unknown };
   if (err?.code === 11000) {
-    return { message: 'duplicate key value violates unique constraint', code: DUPLICATE_KEY };
+    return { message: 'duplicate key value violates unique constraint', code: duplicateKey };
   }
   if (err?.code === 121) {
     return {
       message: 'new row violates check constraint',
-      code: CHECK_VIOLATION,
+      code: checkViolation,
       details: JSON.stringify(err.errInfo ?? {}),
     };
   }
@@ -246,13 +246,13 @@ function embedStages(embed: Embed, scope: Scope, parent: string): Document[] {
 }
 
 /** Collections a PostgREST table name maps to when they differ. */
-const TABLE_ALIASES: Record<string, string> = {
+const tableAliases: Record<string, string> = {
   // auth.users + public.profiles merged into one collection.
   profiles: 'users',
 };
 
 function collectionFor(table: string): string {
-  return TABLE_ALIASES[table] ?? table;
+  return tableAliases[table] ?? table;
 }
 
 // ---------------------------------------------------------------------------
@@ -355,13 +355,13 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
   private async repo(): Promise<ScopedCollection<Document>> {
     const name = collectionFor(this.table);
     return this.asSystem
-      ? scopedFor<Document>(name, SYSTEM_SCOPE)
+      ? scopedFor<Document>(name, systemScope)
       : scoped<Document>(name);
   }
 
   /** Who this query runs as. Same rule as repo(), as a scope rather than a handle. */
   private async currentScope(): Promise<Scope> {
-    if (this.asSystem) return SYSTEM_SCOPE;
+    if (this.asSystem) return systemScope;
     const scope = await currentScope();
     if (!scope) throw new NotSignedInError();
     return scope;
@@ -603,7 +603,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
     // a view used to land in scoped() with no session, throw NotSignedInError
     // and come back as `{data: [], error: 'You are not signed in.'}` — an empty
     // board for the one caller whose whole purpose is running without a user.
-    let rows = await runView(this.table, this.asSystem ? SYSTEM_SCOPE : undefined);
+    let rows = await runView(this.table, this.asSystem ? systemScope : undefined);
     rows = rows.filter((row) => matches(row, this.where()));
 
     if (this.sortKeys.length) {
@@ -880,10 +880,10 @@ function withId(doc: Document): Document {
 }
 
 function resolveDefault(value: DefaultValue): unknown {
-  if (value === NOW) return new Date();
+  if (value === now) return new Date();
   // `current_date` meant the IST calendar date to this app; todayIST() is the
   // single definition of it. See the note on the import.
-  if (value === TODAY) return todayIST();
+  if (value === today) return todayIST();
   // A fresh object per document — sharing one literal would let two rows alias
   // the same jsonb value, so mutating one would change the other.
   if (value !== null && typeof value === 'object' && value.constructor === Object) return {};
@@ -900,7 +900,7 @@ function resolveDefault(value: DefaultValue): unknown {
  * passed is a real value and is left alone.
  */
 function withDefaults(table: string, doc: Document): Document {
-  const defaults = COLUMN_DEFAULTS[collectionFor(table)];
+  const defaults = columnDefaults[collectionFor(table)];
   if (!defaults) return doc;
   const out = { ...doc };
   for (const [field, value] of Object.entries(defaults)) {
@@ -916,7 +916,7 @@ function withDefaults(table: string, doc: Document): Document {
  * same set the trigger covered. A caller that sets `updated_at` itself wins.
  */
 function touched(table: string, payload: Document): Document {
-  const defaults = COLUMN_DEFAULTS[collectionFor(table)];
+  const defaults = columnDefaults[collectionFor(table)];
   if (!defaults?.updated_at || payload.updated_at !== undefined) return payload;
   return { ...payload, updated_at: new Date() };
 }
@@ -1100,7 +1100,7 @@ export function pgClient(asSystem = false): PgClient {
       return new QueryBuilder<T>(table, asSystem);
     },
     async rpc<T = unknown>(name: string, args: Document = {}): Promise<PgResult<T>> {
-      const fn = RPC.get(name);
+      const fn = rpc.get(name);
       if (!fn) {
         return {
           data: null as T,
@@ -1132,10 +1132,10 @@ export function systemPgClient(): PgClient {
  * Registered rather than imported directly so a caller that has not been ported
  * yet gets a clear "not implemented" error instead of a silent null.
  */
-const RPC = new Map<string, (args: Document) => Promise<unknown>>();
+const rpc = new Map<string, (args: Document) => Promise<unknown>>();
 
 export function registerRpc(name: string, fn: (args: Document) => Promise<unknown>): void {
-  RPC.set(name, fn);
+  rpc.set(name, fn);
 }
 
 /** Unscoped handle, for the few jobs that legitimately run as the system. */

@@ -5,9 +5,9 @@ import { formatDate } from '@/lib/format';
 import type { AppRole } from '@/types/database';
 
 // Attendance audit trail is staff-only (super_admin/admin/HR)
-const AUDIT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
+const auditRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
-const EVENT_LABEL: Record<string, string> = {
+const eventLabel: Record<string, string> = {
   attendance_correction: 'Correction',
   register_import: 'Import',
   night_sweep: 'Auto punch-out',
@@ -23,7 +23,7 @@ function stampTime(iso: string): string {
 export default async function AuditPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
-  if (!role || !AUDIT_ROLES.includes(role)) redirect('/today');
+  if (!role || !auditRoles.includes(role)) redirect('/today');
 
   let entries: Awaited<ReturnType<typeof getAttendanceAudit>> = [];
   let loadError: string | null = null;
@@ -66,7 +66,7 @@ export default async function AuditPage() {
                     <td className="mono muted" style={{ whiteSpace: 'nowrap' }}>{stampTime(e.occurredAt)}</td>
                     <td>
                       <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
-                        {EVENT_LABEL[e.eventType] ?? e.eventType}
+                        {eventLabel[e.eventType] ?? e.eventType}
                       </span>
                     </td>
                     <td>{e.actor ?? <span className="muted">system</span>}</td>

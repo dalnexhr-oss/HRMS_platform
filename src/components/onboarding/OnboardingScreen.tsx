@@ -23,7 +23,7 @@ import type {
   EmployeeOption,
 } from '@/lib/queries';
 
-const ROLE_LABEL: Record<string, string> = {
+const roleLabel: Record<string, string> = {
   hr: 'HR',
   it: 'IT',
   admin: 'Admin',
@@ -31,7 +31,7 @@ const ROLE_LABEL: Record<string, string> = {
   employee: 'Employee',
 };
 
-const STATUS_STYLE: Record<string, React.CSSProperties> = {
+const statusStyle: Record<string, React.CSSProperties> = {
   pending: { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' },
   done: { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' },
   blocked: { borderColor: 'var(--line-2)', color: 'var(--hd)' },
@@ -146,7 +146,7 @@ export function OnboardingScreen({
             groups.map(([role, list]) => (
               <div key={role} style={{ marginBottom: 18 }}>
                 <div className="fold">
-                  {ROLE_LABEL[role] ?? role} · {list.length}
+                  {roleLabel[role] ?? role} · {list.length}
                 </div>
                 <div style={{ overflowX: 'auto' }}>
                   <table>
@@ -169,7 +169,7 @@ export function OnboardingScreen({
                           <td>{t.title}</td>
                           <td className="mono">{t.dueDate ? formatDate(t.dueDate) : '—'}</td>
                           <td>
-                            <span className="pill" style={STATUS_STYLE[t.status]}>
+                            <span className="pill" style={statusStyle[t.status]}>
                               {t.status}
                             </span>
                           </td>
@@ -323,7 +323,7 @@ function AddTaskForm({
       <div className="f" style={{ marginBottom: 0 }}>
         <label>Owner</label>
         <select value={assigneeRole} onChange={(e) => setAssigneeRole(e.target.value)}>
-          {Object.entries(ROLE_LABEL).map(([k, v]) => (
+          {Object.entries(roleLabel).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
         </select>

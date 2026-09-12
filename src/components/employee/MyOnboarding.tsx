@@ -7,7 +7,7 @@
 import { formatDate } from '@/lib/format';
 import type { OnboardingTaskRow } from '@/lib/queries';
 
-const OWNER_LABEL: Record<string, string> = {
+const ownerLabel: Record<string, string> = {
   hr: 'HR',
   it: 'IT',
   admin: 'Admin',
@@ -58,7 +58,7 @@ export function MyOnboarding({ tasks, id }: { tasks: OnboardingTaskRow[]; id?: s
                 {open.map((t) => (
                   <tr key={t.id}>
                     <td>{t.title}</td>
-                    <td>{t.assigneeRole ? OWNER_LABEL[t.assigneeRole] ?? t.assigneeRole : '—'}</td>
+                    <td>{t.assigneeRole ? ownerLabel[t.assigneeRole] ?? t.assigneeRole : '—'}</td>
                     <td className="mono">{t.dueDate ? formatDate(t.dueDate) : '—'}</td>
                     <td>
                       <span

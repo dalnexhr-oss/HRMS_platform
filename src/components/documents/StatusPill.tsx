@@ -5,7 +5,7 @@
 // looks like.
 import type { EmployeeDocumentRow } from '@/lib/queries';
 
-const META: Record<string, { label: string; color: string }> = {
+const pillMeta: Record<string, { label: string; color: string }> = {
   verified: { label: 'Verified', color: 'var(--p)' },
   awaiting: { label: 'Awaiting verification', color: 'var(--lm)' },
   returned: { label: 'Returned', color: 'var(--hd)' },
@@ -13,7 +13,7 @@ const META: Record<string, { label: string; color: string }> = {
 };
 
 export function StatusPill({ row }: { row: EmployeeDocumentRow }) {
-  const meta = META[row.status] ?? META.awaiting;
+  const meta = pillMeta[row.status] ?? pillMeta.awaiting;
   return (
     <span className="pill" style={{ borderColor: meta.color, color: meta.color }}>
       {meta.label}

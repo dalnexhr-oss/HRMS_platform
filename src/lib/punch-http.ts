@@ -1,10 +1,10 @@
 // Shared request handling for the punch in / punch out routes.
 import { NextResponse, type NextRequest } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { LOCATION_REQUIRED, recordPunch, type PunchCoords, type PunchKind } from '@/lib/punch';
+import { locationRequired, recordPunch, type PunchCoords, type PunchKind } from '@/lib/punch';
 
 // Pages a punch changes: the board and its punch log, the register, /me.
-const AFFECTED_PATHS = ['/today', '/register', '/me'];
+const affectedPaths = ['/today', '/register', '/me'];
 
 // Coordinates are OPTIONAL. A body with no usable lat/lng is not an error — the browser may have denied permission or have no GPS at all — it just means the punch is stored unclassified rather than at-office or off-site.
 function readCoords(body: unknown): PunchCoords | null {
@@ -28,7 +28,7 @@ export async function handlePunch(request: NextRequest, kind: PunchKind) {
     // Only after the write actually succeeded — a refused or failed punch has
     // changed nothing, and invalidating on it would just cost everyone a
     // re-render to redisplay the same numbers.
-    for (const path of AFFECTED_PATHS) revalidatePath(path);
+    for (const path of affectedPaths) revalidatePath(path);
     return NextResponse.json(result);
   } catch (error) {
     const message =
@@ -36,7 +36,7 @@ export async function handlePunch(request: NextRequest, kind: PunchKind) {
 
     // A refusal for missing location gets its own code so the UI can show the
     // "unblock location" instructions rather than a generic failure.
-    if (message === LOCATION_REQUIRED) {
+    if (message === locationRequired) {
       return NextResponse.json(
         { error: message, code: 'LOCATION_REQUIRED' },
         { status: 422 },

@@ -13,7 +13,7 @@
 //
 import { NextResponse, type NextRequest } from 'next/server';
 import { verifySession } from '@/lib/auth/jwt';
-import { SESSION_COOKIE } from '@/lib/auth/session-shared';
+import { sessionCookie } from '@/lib/auth/session-shared';
 
 export async function updateSession(request: NextRequest) {
   // The (portal) layout enforces per-tab access and needs to know which tab was
@@ -59,7 +59,7 @@ export async function updateSession(request: NextRequest) {
     return response;
   }
 
-  const token = request.cookies.get(SESSION_COOKIE)?.value;
+  const token = request.cookies.get(sessionCookie)?.value;
   // Signature + expiry only. No database, no network — this is a local verify
   // against the shared secret, so it costs microseconds per request.
   const claims = token ? await verifySession(token) : null;

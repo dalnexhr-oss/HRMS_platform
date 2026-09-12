@@ -10,11 +10,11 @@
 //
 
 // Google's public holiday calendars, by region.
-export const HOLIDAY_CALENDARS = {
+export const holidayCalendars = {
   india: 'en.indian#holiday@group.v.calendar.google.com',
 } as const;
 
-export type HolidayRegion = keyof typeof HOLIDAY_CALENDARS;
+export type HolidayRegion = keyof typeof holidayCalendars;
 
 export interface CalendarHoliday {
   // 'YYYY-MM-DD'
@@ -25,7 +25,7 @@ export interface CalendarHoliday {
 }
 
 function feedUrl(region: HolidayRegion): string {
-  const id = HOLIDAY_CALENDARS[region];
+  const id = holidayCalendars[region];
   return `https://calendar.google.com/calendar/ical/${encodeURIComponent(id)}/public/basic.ics`;
 }
 

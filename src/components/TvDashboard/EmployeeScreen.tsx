@@ -13,11 +13,11 @@ import { Brand } from '@/components/ui/Brand';
 import type { BoardData, Presence } from '@/lib/types/employee';
 import { EmployeeCard } from './EmployeeCard';
 
-const POLL_MS = 30_000;
+const pollMs = 30_000;
 // Past this without a successful poll, the board admits it is stale.
-const STALE_MS = 3 * POLL_MS;
+const staleMs = 3 * pollMs;
 
-const BANDS: { key: Presence; label: string }[] = [
+const bands: { key: Presence; label: string }[] = [
   { key: 'in', label: 'In office' },
   { key: 'out', label: 'Clocked out' },
   { key: 'awaited', label: 'Not in yet' },
@@ -66,7 +66,7 @@ export function EmployeeScreen({ initial }: { initial: BoardData }) {
   }, []);
 
   useEffect(() => {
-    const timer = setInterval(poll, POLL_MS);
+    const timer = setInterval(poll, pollMs);
     // Coming back from a sleeping display: refresh immediately rather than
     // waiting out the remainder of the interval.
     const onVisible = () => {
@@ -79,7 +79,7 @@ export function EmployeeScreen({ initial }: { initial: BoardData }) {
     };
   }, [poll]);
 
-  const stale = staleSince != null && Date.now() - staleSince > STALE_MS;
+  const stale = staleSince != null && Date.now() - staleSince > staleMs;
   const { totals } = board;
 
   return (
@@ -146,7 +146,7 @@ export function EmployeeScreen({ initial }: { initial: BoardData }) {
         {board.rows.length === 0 ? (
           <p className="tv-empty">No active employees to show.</p>
         ) : (
-          BANDS.map(({ key, label }) => {
+          bands.map(({ key, label }) => {
             const rows = board.rows.filter((row) => row.presence === key);
             if (rows.length === 0) return null;
             return (

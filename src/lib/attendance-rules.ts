@@ -11,10 +11,10 @@
 import { createClient } from '@/lib/db/server';
 import { isMongoConfigured } from '@/lib/db/mongo';
 
-// 18:00 in minutes since midnight — the documented default.
-export const AUTO_PUNCH_OUT_DEFAULT_MIN = 18 * 60;
 
-const MINUTES_PER_DAY = 1440;
+export const defaultPunchOutMin = 18 * 60;
+
+const minutesPerDay = 1440;
 
 // 'HH:MM' (or 'HH:MM:SS') -> minutes since midnight, or null.
 export function clockToMinutes(value: unknown): number | null {
@@ -22,12 +22,12 @@ export function clockToMinutes(value: unknown): number | null {
   const m = /^(\d{1,2}):(\d{2})/.exec(value.trim());
   if (!m) return null;
   const mins = Number(m[1]) * 60 + Number(m[2]);
-  return Number.isFinite(mins) && mins >= 0 && mins < MINUTES_PER_DAY ? mins : null;
+  return Number.isFinite(mins) && mins >= 0 && mins < minutesPerDay ? mins : null;
 }
 
 // minutes since midnight -> 'HH:MM'.
 export function minutesToClock(mins: number): string {
-  const m = ((Math.round(mins) % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  const m = ((Math.round(mins) % minutesPerDay) + minutesPerDay) % minutesPerDay;
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 }
 
@@ -47,7 +47,7 @@ export function minutesToClock(mins: number): string {
  */
 export function autoPunchOutMinutesFrom(value: unknown): number {
   const raw = typeof value === 'string' ? value.trim().replace(/^"(.*)"$/, '$1') : value;
-  return clockToMinutes(raw) ?? AUTO_PUNCH_OUT_DEFAULT_MIN;
+  return clockToMinutes(raw) ?? defaultPunchOutMin;
 }
 
 /**
@@ -56,7 +56,7 @@ export function autoPunchOutMinutesFrom(value: unknown): number {
  * unparseable.
  */
 export async function getAutoPunchOutMinutes(): Promise<number> {
-  if (!isMongoConfigured()) return AUTO_PUNCH_OUT_DEFAULT_MIN;
+  if (!isMongoConfigured()) return defaultPunchOutMin;
   try {
     const dbc = await createClient();
     const { data, error } = await dbc
@@ -64,10 +64,10 @@ export async function getAutoPunchOutMinutes(): Promise<number> {
       .select('value')
       .eq('key', 'auto_punch_out_time')
       .maybeSingle<{ value: unknown }>();
-    if (error || !data) return AUTO_PUNCH_OUT_DEFAULT_MIN;
+    if (error || !data) return defaultPunchOutMin;
     return autoPunchOutMinutesFrom(data.value);
   } catch {
-    return AUTO_PUNCH_OUT_DEFAULT_MIN;
+    return defaultPunchOutMin;
   }
 }
 
@@ -91,6 +91,6 @@ export function autoCloseDay(
   autoOutMin: number,
 ): ClosedDay | null {
   if (inMin === null || outMin !== null) return null;
-  const span = autoOutMin >= inMin ? autoOutMin - inMin : autoOutMin + MINUTES_PER_DAY - inMin;
+  const span = autoOutMin >= inMin ? autoOutMin - inMin : autoOutMin + minutesPerDay - inMin;
   return { outMin: autoOutMin, workedMin: Math.max(0, span), autoClosed: true };
 }

@@ -33,13 +33,13 @@ function roleLabel(role: string | null | undefined): string {
   }
 }
 
-const STATUS_LABEL: Record<TicketStatus, string> = {
+const statusLabel: Record<TicketStatus, string> = {
   open: 'Open',
   in_progress: 'In progress',
   resolved: 'Resolved',
   closed: 'Closed',
 };
-const STATUS_OPTIONS: TicketStatus[] = ['open', 'in_progress', 'resolved', 'closed'];
+const statusOptions: TicketStatus[] = ['open', 'in_progress', 'resolved', 'closed'];
 
 // ISO timestamp -> '15 Jul, 10:30'.
 function stampTime(iso: string): string {
@@ -173,9 +173,9 @@ export function TicketChatDrawer({
                   disabled={pending}
                   onChange={(e) => changeStatus(e.target.value as TicketStatus)}
                 >
-                  {STATUS_OPTIONS.map((s) => (
+                  {statusOptions.map((s) => (
                     <option key={s} value={s}>
-                      {STATUS_LABEL[s]}
+                      {statusLabel[s]}
                     </option>
                   ))}
                 </select>

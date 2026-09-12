@@ -3,7 +3,7 @@
 //
 // Two modes:
 // writeBrandHeader — rows 1–3 become a letterhead (logo, title, subtitle)
-// and the data header moves to HEADER_ROW. For report
+// and the data header moves to headerRow. For report
 // sheets whose layout is ours to choose.
 // writeBrandOverlay — a floating logo only; no cell is written and no row is
 // inserted. For sheets whose geometry is parsed back
@@ -18,12 +18,12 @@
 // ws.getRow(headerRow).values = COLUMNS.map((c) => c.header);
 //
 import type ExcelJS from 'exceljs';
-import { LOGO_ASPECT, LOGO_PNG_BASE64 } from '@/lib/brand/logo';
-import { COMPANY } from '@/lib/brand/company';
+import { logoAspect, logoPngBase64 } from '@/lib/brand/logo';
+import { company } from '@/lib/brand/company';
 import { todayIST } from '@/lib/format';
 
 // The row a banded sheet's data header lands on (rows 1–3 are the band).
-export const HEADER_ROW = 4;
+export const headerRow = 4;
 
 // One embedded copy of the PNG per workbook, however many sheets use it.
 const logoIds = new WeakMap<ExcelJS.Workbook, number>();
@@ -31,7 +31,7 @@ const logoIds = new WeakMap<ExcelJS.Workbook, number>();
 function logoId(wb: ExcelJS.Workbook): number {
   let id = logoIds.get(wb);
   if (id === undefined) {
-    id = wb.addImage({ base64: LOGO_PNG_BASE64, extension: 'png' });
+    id = wb.addImage({ base64: logoPngBase64, extension: 'png' });
     logoIds.set(wb, id);
   }
   return id;
@@ -45,12 +45,12 @@ export function writeBrandOverlay(
 ): void {
   ws.addImage(logoId(wb), {
     tl: { col: opts.col, row: opts.row },
-    ext: { width: Math.round(opts.height * LOGO_ASPECT), height: opts.height },
+    ext: { width: Math.round(opts.height * logoAspect), height: opts.height },
     editAs: 'oneCell',
   });
 }
 
-// Write the rows 1–3 letterhead: logo, report title, subtitle (defaulting to "Dalnex LLP · Generated YYYY-MM-DD"). Returns HEADER_ROW, where the caller puts its data header.
+// Write the rows 1–3 letterhead: logo, report title, subtitle (defaulting to "Dalnex LLP · Generated YYYY-MM-DD"). Returns headerRow, where the caller puts its data header.
 export function writeBrandHeader(
   wb: ExcelJS.Workbook,
   ws: ExcelJS.Worksheet,
@@ -64,8 +64,8 @@ export function writeBrandHeader(
   title.font = { bold: true, size: 13, color: { argb: 'FF0E7A8F' } }; // --brand
 
   const subtitle = ws.getCell(3, 1);
-  subtitle.value = opts.subtitle ?? `${COMPANY} · Generated ${todayIST()}`;
+  subtitle.value = opts.subtitle ?? `${company} · Generated ${todayIST()}`;
   subtitle.font = { size: 9, color: { argb: 'FF808080' } };
 
-  return HEADER_ROW;
+  return headerRow;
 }

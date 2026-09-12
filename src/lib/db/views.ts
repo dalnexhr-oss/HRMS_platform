@@ -14,7 +14,7 @@
 //
 import 'server-only';
 import type { Document } from 'mongodb';
-import { COLLECTIONS } from '@/lib/db/collections';
+import { collections } from '@/lib/db/collections';
 import { scoped, scopedFor } from '@/lib/db/repo';
 import type { Scope } from '@/lib/db/scope';
 // Views used current_date; this is the app's one definition of it. See the
@@ -38,7 +38,7 @@ function addDays(date: string, days: number): string {
 
 async function todayBoard(scope?: Scope): Promise<Document[]> {
   const date = todayIST();
-  const employees = await handle(COLLECTIONS.employees, scope);
+  const employees = await handle(collections.employees, scope);
 
   return employees.aggregate([
     { $match: { status: 'active' } },
@@ -48,7 +48,7 @@ async function todayBoard(scope?: Scope): Promise<Document[]> {
       // rather than filtering after it — which would have dropped employees
       // who have no row for today, i.e. exactly the ones counted as absent.
       $lookup: {
-        from: COLLECTIONS.attendanceDays,
+        from: collections.attendanceDays,
         let: { eid: '$_id' },
         pipeline: [
           { $match: { $expr: { $and: [{ $eq: ['$employee_id', '$$eid'] }, { $eq: ['$work_date', date] }] } } },
@@ -82,7 +82,7 @@ async function celebrations(scope?: Scope): Promise<Document[]> {
   // cheaper and less error-prone than the view's extract(month)/extract(day)
   // pair, and it cannot be tripped by a timezone.
   const mmdd = date.slice(5);
-  const employees = await handle(COLLECTIONS.employees, scope);
+  const employees = await handle(collections.employees, scope);
 
   const rows = await employees.aggregate([
     {
@@ -126,11 +126,11 @@ async function celebrations(scope?: Scope): Promise<Document[]> {
 // ---------------------------------------------------------------------------
 
 async function items(scope?: Scope): Promise<Document[]> {
-  const repo = await handle(COLLECTIONS.items, scope);
+  const repo = await handle(collections.items, scope);
   return repo.aggregate([
     {
       $lookup: {
-        from: COLLECTIONS.itemAssignments,
+        from: collections.itemAssignments,
         let: { iid: '$_id' },
         pipeline: [
           { $match: { $expr: { $and: [{ $eq: ['$item_id', '$$iid'] }, { $eq: ['$returned', false] }] } } },
@@ -160,7 +160,7 @@ async function items(scope?: Scope): Promise<Document[]> {
 
 async function assetSummary(scope?: Scope): Promise<Document[]> {
   const soon = addDays(todayIST(), 30);
-  const repo = await handle(COLLECTIONS.assets, scope);
+  const repo = await handle(collections.assets, scope);
 
   return repo.aggregate([
     {
@@ -189,12 +189,12 @@ async function assetSummary(scope?: Scope): Promise<Document[]> {
 // ---------------------------------------------------------------------------
 
 async function exitClearancePending(scope?: Scope): Promise<Document[]> {
-  const repo = await handle(COLLECTIONS.exitCases, scope);
+  const repo = await handle(collections.exitCases, scope);
 
   return repo.aggregate([
     {
       $lookup: {
-        from: COLLECTIONS.assets,
+        from: collections.assets,
         let: { eid: '$employee_id' },
         pipeline: [{ $match: { $expr: { $eq: ['$assigned_employee_id', '$$eid'] } } }, { $count: 'n' }],
         as: 'assets',
@@ -202,7 +202,7 @@ async function exitClearancePending(scope?: Scope): Promise<Document[]> {
     },
     {
       $lookup: {
-        from: COLLECTIONS.itemAssignments,
+        from: collections.itemAssignments,
         let: { eid: '$employee_id' },
         pipeline: [
           { $match: { $expr: { $and: [{ $eq: ['$employee_id', '$$eid'] }, { $eq: ['$returned', false] }] } } },
@@ -213,7 +213,7 @@ async function exitClearancePending(scope?: Scope): Promise<Document[]> {
     },
     {
       $lookup: {
-        from: COLLECTIONS.exitClearanceItems,
+        from: collections.exitClearanceItems,
         let: { cid: '$_id' },
         pipeline: [
           { $match: { $expr: { $and: [{ $eq: ['$exit_case_id', '$$cid'] }, { $eq: ['$cleared', false] }] } } },
@@ -246,7 +246,7 @@ async function exitClearancePending(scope?: Scope): Promise<Document[]> {
 
 // ---------------------------------------------------------------------------
 
-const VIEWS: Record<string, (scope?: Scope) => Promise<Document[]>> = {
+const views: Record<string, (scope?: Scope) => Promise<Document[]>> = {
   v_today_board: todayBoard,
   v_celebrations: celebrations,
   v_items: items,
@@ -255,18 +255,18 @@ const VIEWS: Record<string, (scope?: Scope) => Promise<Document[]>> = {
 };
 
 export function isView(name: string): boolean {
-  return name in VIEWS;
+  return name in views;
 }
 
 /**
  * Materialise a view. Throws for an unknown name rather than returning [].
  *
  * `scope` overrides whose eyes the view is built through; omit it for the
- * signed-in caller. pgcompat passes SYSTEM_SCOPE when the query came from the
+ * signed-in caller. pgcompat passes systemScope when the query came from the
  * service client, which is the only way a job with no session can read one.
  */
 export async function runView(name: string, scope?: Scope): Promise<Document[]> {
-  const view = VIEWS[name];
+  const view = views[name];
   if (!view) throw new Error(`Unknown view '${name}'. Views live in src/lib/db/views.ts.`);
   return view(scope);
 }

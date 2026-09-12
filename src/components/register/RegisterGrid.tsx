@@ -3,20 +3,20 @@
 import { useActionState, useEffect, useRef, useState, useTransition ,useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Stamp } from '@/components/ui/Stamp';
-import { DOW } from '@/lib/constants';
+import { dow } from '@/lib/constants';
 import { correctAttendance, correctAttendanceBulk, type CorrectionState } from '@/lib/actions/attendance';
 import { grantCompOff } from '@/lib/actions/compoff';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import type { DayCell, RegisterEmployee } from '@/types/domain';
 
-// Statuses that mean the day was scheduled off — mirrors OFF_DAY_STATUSES.
-const OFF_DAY_STATUSES = new Set(['WO', 'OH']);
+// Statuses that mean the day was scheduled off — mirrors offDayStatuses.
+const offDayStatuses = new Set(['WO', 'OH']);
 
 // A comp off is owed when a day off carries real work. "Day off" is either stamp-based (WO/OH) or schedule-based (`scheduledOff` — a Sunday or a 1st/3rd/5th Saturday). The schedule arm matters: an employee who works a non-working Saturday is often stamped plain 'P', so a stamp-only check would miss exactly the case this feature exists for.
 export function isCompOffEligible(cell: DayCell | undefined, scheduledOff = false): boolean {
   if (!cell) return false;
-  if (!OFF_DAY_STATUSES.has(cell.status) && !scheduledOff) return false;
+  if (!offDayStatuses.has(cell.status) && !scheduledOff) return false;
   return cell.in !== null || (cell.hours !== null && cell.hours !== '00:00');
 }
 
@@ -29,8 +29,8 @@ function compOffKey(employeeId: string, workDate: string): string {
 // Clicking "Show punches" expands a row to reveal in/out/hours per day.
 // For staff, clicking a day cell opens the correction drawer.
 
-/** Statuses offered in the correction drawer — mirrors ALLOWED_STATUSES in the action. */
-const STATUS_OPTIONS: [string, string][] = [
+/** Statuses offered in the correction drawer — mirrors allowedStatuses in the action. */
+const statusOptions: [string, string][] = [
   ['P', 'P · Present'],
   ['LM', 'LM · Late mark'],
   ['HD', 'HD · Half day'],
@@ -444,7 +444,7 @@ function CorrectionForm({
         <div className="f">
           <label htmlFor="corr-status">Status</label>
           <select id="corr-status" name="status" defaultValue={cell?.status ?? 'P'}>
-            {STATUS_OPTIONS.map(([value, label]) => (
+            {statusOptions.map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
@@ -627,7 +627,7 @@ function BulkBar({
         {count} selected
       </span>
       <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Bulk status">
-        {STATUS_OPTIONS.map(([value, label]) => (
+        {statusOptions.map(([value, label]) => (
           <option key={value} value={value}>
             {label}
           </option>
@@ -669,7 +669,7 @@ function weekdayLabel(periodMonth: string, day: number): string {
   const d = new Date(`${dateFor(periodMonth, day)}T00:00:00`);
   if (Number.isNaN(d.getTime())) return '';
   // JS: 0=Sun..6=Sat. DOW is Mo-first.
-  return DOW[(d.getDay() + 6) % 7];
+  return dow[(d.getDay() + 6) % 7];
 }
 
 function formatHrs(min: number): string {

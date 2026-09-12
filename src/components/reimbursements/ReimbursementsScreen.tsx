@@ -18,13 +18,13 @@ import { usePrompt } from '@/components/ui/PromptDialog';
 import { useToast } from '@/components/ui/Toast';
 import type { ReimbursementView } from '@/lib/queries';
 
-const PURPOSE_LABEL: Record<ReimbursementView['purpose'], string> = {
+const purposeLabel: Record<ReimbursementView['purpose'], string> = {
   travel: 'Travel',
   material_purchase: 'Material purchase',
   other: 'Other expenses',
 };
 
-const STATUS_LABEL: Record<ReimbursementView['status'], string> = {
+const statusLabel: Record<ReimbursementView['status'], string> = {
   pending: 'Pending',
   finance_review: 'With Finance',
   approved: 'Approved',
@@ -225,7 +225,7 @@ export function ReimbursementsScreen({
                       </span>
                     </td>
                     <td>{c.description}</td>
-                    <td>{PURPOSE_LABEL[c.purpose]}</td>
+                    <td>{purposeLabel[c.purpose]}</td>
                     <td className="mono">{formatDate(c.claimDate)}</td>
                     <td>{c.sourceMedium ?? <span className="muted">—</span>}</td>
                     <td className="right mono">{c.kms ?? '—'}</td>
@@ -243,7 +243,7 @@ export function ReimbursementsScreen({
                     </td>
                     <td>
                       <span className="pill" style={statusPillStyle(c.status)}>
-                        {STATUS_LABEL[c.status]}
+                        {statusLabel[c.status]}
                       </span>
                     </td>
                     <td>

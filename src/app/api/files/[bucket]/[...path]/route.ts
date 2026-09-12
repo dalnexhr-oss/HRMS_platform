@@ -14,7 +14,7 @@ export const runtime = 'nodejs';
 // employee's document to the next requester.
 export const dynamic = 'force-dynamic';
 
-const BUCKETS: ReadonlySet<string> = new Set([
+const buckets: ReadonlySet<string> = new Set([
   'employee-documents',
   'reimbursement-receipts',
   'generated-documents',
@@ -26,7 +26,7 @@ export async function GET(
   { params }: { params: Promise<{ bucket: string; path: string[] }> },
 ) {
   const { bucket, path } = await params;
-  if (!BUCKETS.has(bucket)) {
+  if (!buckets.has(bucket)) {
     return NextResponse.json({ error: 'Unknown bucket.' }, { status: 404 });
   }
 

@@ -25,7 +25,7 @@ import {
 import type { ToastKind } from '@/components/ui/Toast';
 import { announcePunch, onPunchChange, type PunchSource } from '@/lib/punch-bus';
 
-const TIME_FMT: Intl.DateTimeFormatOptions = {
+const timeFmt: Intl.DateTimeFormatOptions = {
   hour: '2-digit',
   minute: '2-digit',
   hourCycle: 'h23',
@@ -37,7 +37,7 @@ export function clock(value: string | null): string {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? '—'
-    : new Intl.DateTimeFormat('en-IN', TIME_FMT).format(date);
+    : new Intl.DateTimeFormat('en-IN', timeFmt).format(date);
 }
 
 // The duration is always rounded down to the nearest minute, so a punch that is 1h 59m 59s long is reported as 1h 59m. The server does the same rounding, so the two numbers always match.
@@ -54,7 +54,7 @@ export function duration(minutes: number): string {
  * have to go and fix in browser settings, and it is the one that used to be
  * silently swallowed.
  */
-export const FAILURE_TEXT: Record<LocationFailure, string> = {
+export const failureText: Record<LocationFailure, string> = {
   denied:
     'Location is blocked for this site. Change your browser settings to allow it, then try again.',
   unavailable:
@@ -196,7 +196,7 @@ export function usePunchClock(
         setBlocked(fix.reason);
         if (state.requireLocation) {
           // The refusal the user asked for: no punch, and a reason on screen.
-          toast(FAILURE_TEXT[fix.reason], 'error');
+          toast(failureText[fix.reason], 'error');
           return;
         }
         toast('Punching without a location — it will not be marked at-office.', 'info');

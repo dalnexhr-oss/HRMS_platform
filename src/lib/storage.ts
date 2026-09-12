@@ -16,7 +16,7 @@ import {
   statObject,
   type StorageBucket as GridBucket,
 } from '@/lib/db/gridfs';
-import { SYSTEM_SCOPE } from '@/lib/db/scope';
+import { systemScope } from '@/lib/db/scope';
 
 export type StorageBucket = GridBucket;
 
@@ -33,7 +33,7 @@ function safeName(filename: string): string {
 // the verification queue). So the stored contentType is derived from the file
 // EXTENSION against this whitelist, and file.type is never trusted.
 //
-const EXTENSION_TYPES: Record<string, string> = {
+const extensionTypes: Record<string, string> = {
   pdf: 'application/pdf',
   png: 'image/png',
   jpg: 'image/jpeg',
@@ -45,29 +45,29 @@ const EXTENSION_TYPES: Record<string, string> = {
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 };
 
-const UPLOAD_KIND_EXTS = {
+const uploadKindExits = {
   // Certificates, ID proofs, offer letters…
   document: ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'doc', 'docx', 'xls', 'xlsx'],
   // Receipts are photos or PDFs.
   receipt: ['pdf', 'png', 'jpg', 'jpeg', 'webp'],
 } as const;
 
-export type UploadKind = keyof typeof UPLOAD_KIND_EXTS;
+export type UploadKind = keyof typeof uploadKindExits;
 
 // Validate a user upload's filename against the whitelist for its kind and return the contentType to store. Refuses unknown/missing extensions.
 export function resolveUploadType(
   filename: string,
   kind: UploadKind,
 ): { ok: true; contentType: string } | { ok: false; error: string } {
-  const allowed = UPLOAD_KIND_EXTS[kind];
+  const allowed = uploadKindExits[kind];
   const ext = (safeName(filename).split('.').pop() ?? '').toLowerCase();
-  if (!(allowed as readonly string[]).includes(ext) || !EXTENSION_TYPES[ext]) {
+  if (!(allowed as readonly string[]).includes(ext) || !extensionTypes[ext]) {
     return {
       ok: false,
       error: `That file type is not accepted. Use one of: ${allowed.join(', ')}.`,
     };
   }
-  return { ok: true, contentType: EXTENSION_TYPES[ext] };
+  return { ok: true, contentType: extensionTypes[ext] };
 }
 
 /**
@@ -130,7 +130,7 @@ export async function uploadSharedFile(
 /**
  * System upload for generated files, where no employee is signed in.
  *
- * Runs under SYSTEM_SCOPE — the equivalent of the old service-role key, and the
+ * Runs under systemScope — the equivalent of the old service-role key, and the
  * only way to write into generated-documents, which the employee it concerns
  * must never be able to author.
  */
@@ -143,7 +143,7 @@ export async function uploadFileService(
 ): Promise<UploadResult> {
   const path = objectPath(employeeId, filename);
   try {
-    await putObject(bucket, path, body, contentType, SYSTEM_SCOPE);
+    await putObject(bucket, path, body, contentType, systemScope);
     return { ok: true, path };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Upload failed.' };

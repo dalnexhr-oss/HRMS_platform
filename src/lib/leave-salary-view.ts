@@ -17,7 +17,7 @@ import {
 import { computeLeaveSalary, type LeaveSalaryResult } from '@/lib/leave-salary';
 
 // Increment month when nothing is saved: April — appraisals land in March.
-export const DEFAULT_INCREMENT_MONTH = 4;
+export const defaultIncrementMonth = 4;
 
 export interface LeaveSalaryViewRow {
   employeeId: string;
@@ -68,8 +68,8 @@ export async function buildLeaveSalaryView(year: number): Promise<LeaveSalaryVie
     const salaryBefore = working ? working.salaryBefore : e.grossMonthly;
     const salaryAfter = working ? working.salaryAfter : e.grossMonthly;
     const incrementMonth = working
-      ? Number(working.incrementEffective.slice(5, 7)) || DEFAULT_INCREMENT_MONTH
-      : DEFAULT_INCREMENT_MONTH;
+      ? Number(working.incrementEffective.slice(5, 7)) || defaultIncrementMonth
+      : defaultIncrementMonth;
 
     const calendarDaysP1Override = working?.calendarDaysP1Override ?? null;
     const calendarDaysP2Override = working?.calendarDaysP2Override ?? null;

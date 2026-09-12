@@ -9,7 +9,7 @@ import { useToast } from '@/components/ui/Toast';
 import type { RequestView } from '@/lib/queries';
 
 // Map a request type to the register stamp it corresponds to.
-const TYPE_STAMP: Record<RequestView['type'], string> = {
+const typeStamp: Record<RequestView['type'], string> = {
   leave: 'L',
   site_visit: 'S',
   outdoor_duty: 'T',
@@ -18,7 +18,7 @@ const TYPE_STAMP: Record<RequestView['type'], string> = {
 };
 
 // Human labels for the leave-kind codes stored on a request.
-const LEAVE_KIND_LABEL: Record<string, string> = {
+const leaveKindLabel: Record<string, string> = {
   CL: 'Casual leave',
   CO: 'Comp Off',
   SL: 'Sick leave',
@@ -122,7 +122,7 @@ function RequestCard({
   return (
     <div className="card req">
       <div className="top">
-        <Stamp status={TYPE_STAMP[request.type]} />
+        <Stamp status={typeStamp[request.type]} />
         <span className="who-nm">{request.employeeName}</span>
         <span className="muted mono" style={{ fontSize: 11 }}>
           {request.employeeCode} · {request.branch}
@@ -169,7 +169,7 @@ function requestSentence(r: RequestView) {
   const reason = r.reason ? <>&ldquo;{r.reason}&rdquo;</> : null;
 
   if (r.type === 'leave') {
-    const kind = (r.leaveKind && LEAVE_KIND_LABEL[r.leaveKind]) || 'Leave';
+    const kind = (r.leaveKind && leaveKindLabel[r.leaveKind]) || 'Leave';
     return (
       <>
         <b>

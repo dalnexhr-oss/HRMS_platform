@@ -12,7 +12,7 @@
 // can grow here without changing callers.
 //
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
-import { LOGO_ASPECT, logoPngBytes } from '@/lib/brand/logo';
+import { logoAspect, logoPngBytes } from '@/lib/brand/logo';
 
 export interface LetterSpec {
   // Heading, e.g. "Relieving Letter" or "Full & Final Settlement".
@@ -30,9 +30,9 @@ export interface LetterSpec {
   signatoryTitle?: string;
 }
 
-const A4 = { width: 595.28, height: 841.89 };
-const MARGIN = 56;
-const CONTENT_WIDTH = A4.width - MARGIN * 2;
+const a4 = { width: 595.28, height: 841.89 };
+const margin = 56;
+const contentWidth = a4.width - margin * 2;
 
 // Greedy word-wrap to a pixel width for the given font/size.
 function wrap(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
@@ -65,35 +65,35 @@ export async function renderLetterPdf(spec: LetterSpec): Promise<Uint8Array> {
   const muted = rgb(0.4, 0.4, 0.45);
   const teal = rgb(0.055, 0.478, 0.561); // --brand #0E7A8F
 
-  let page: PDFPage = doc.addPage([A4.width, A4.height]);
-  let y = A4.height - MARGIN;
+  let page: PDFPage = doc.addPage([a4.width, a4.height]);
+  let y = a4.height - margin;
 
   const ensureRoom = (needed: number) => {
-    if (y - needed < MARGIN) {
-      page = doc.addPage([A4.width, A4.height]);
-      y = A4.height - MARGIN;
+    if (y - needed < margin) {
+      page = doc.addPage([a4.width, a4.height]);
+      y = a4.height - margin;
     }
   };
 
   const drawLine = (text: string, f: PDFFont, size: number, color = ink, gap = size * 0.5) => {
     ensureRoom(size + gap);
-    page.drawText(text, { x: MARGIN, y, size, font: f, color });
+    page.drawText(text, { x: margin, y, size, font: f, color });
     y -= size + gap;
   };
 
   const drawParagraph = (text: string, size = 11) => {
-    for (const l of wrap(text, font, size, CONTENT_WIDTH)) drawLine(l, font, size, ink, 4);
+    for (const l of wrap(text, font, size, contentWidth)) drawLine(l, font, size, ink, 4);
     y -= 8; // paragraph spacing
   };
 
   // Header — the Dalnex logo as letterhead, with a brand-teal rule under it.
   const logoW = 132;
-  const logoH = logoW / LOGO_ASPECT; // ≈45pt
-  page.drawImage(logo, { x: MARGIN, y: y - logoH, width: logoW, height: logoH });
+  const logoH = logoW / logoAspect; // ≈45pt
+  page.drawImage(logo, { x: margin, y: y - logoH, width: logoW, height: logoH });
   y -= logoH + 14;
   page.drawLine({
-    start: { x: MARGIN, y },
-    end: { x: A4.width - MARGIN, y },
+    start: { x: margin, y },
+    end: { x: a4.width - margin, y },
     thickness: 1,
     color: teal,
   });
@@ -112,9 +112,9 @@ export async function renderLetterPdf(spec: LetterSpec): Promise<Uint8Array> {
     y -= 4;
     for (const { label, value } of spec.lines) {
       ensureRoom(16);
-      page.drawText(label, { x: MARGIN, y, size: 10, font, color: muted });
+      page.drawText(label, { x: margin, y, size: 10, font, color: muted });
       page.drawText(value, {
-        x: A4.width - MARGIN - bold.widthOfTextAtSize(value, 10),
+        x: a4.width - margin - bold.widthOfTextAtSize(value, 10),
         y,
         size: 10,
         font: bold,
@@ -137,8 +137,8 @@ export async function renderLetterPdf(spec: LetterSpec): Promise<Uint8Array> {
   pages.forEach((p, ix) => {
     const label = `Dalnex LLP · Computer-generated document · Page ${ix + 1} of ${pages.length}`;
     p.drawText(label, {
-      x: (A4.width - font.widthOfTextAtSize(label, 8)) / 2,
-      y: MARGIN / 2,
+      x: (a4.width - font.widthOfTextAtSize(label, 8)) / 2,
+      y: margin / 2,
       size: 8,
       font,
       color: muted,

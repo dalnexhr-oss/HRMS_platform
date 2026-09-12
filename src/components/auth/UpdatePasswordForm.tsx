@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { resetPassword, type PasswordState } from '@/lib/actions/password';
 
 // Mirrors validatePassword() in lib/auth/password.ts.
-const MIN_LEN = 10;
+const minLen = 10;
 
 export function UpdatePasswordForm({ token }: { token?: string }) {
   const [state, action, pending] = useActionState<PasswordState, FormData>(resetPassword, {});
@@ -56,10 +56,10 @@ export function UpdatePasswordForm({ token }: { token?: string }) {
           name="password"
           type="password"
           autoComplete="new-password"
-          minLength={MIN_LEN}
+          minLength={minLen}
           required
         />
-        <span className="hint">At least {MIN_LEN} characters.</span>
+        <span className="hint">At least {minLen} characters.</span>
       </div>
       <div className="f">
         <label htmlFor="confirm">Confirm new password</label>
@@ -68,7 +68,7 @@ export function UpdatePasswordForm({ token }: { token?: string }) {
           name="confirm"
           type="password"
           autoComplete="new-password"
-          minLength={MIN_LEN}
+          minLength={minLen}
           required
         />
       </div>

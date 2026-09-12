@@ -24,9 +24,9 @@ export interface ActionResult {
   error?: string;
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // A monthly gross beyond this is a typo, not a salary.
-const SALARY_CAP = 10_000_000;
+const salaryCap = 10_000_000;
 
 function validYear(y: number): boolean {
   return Number.isInteger(y) && y >= 2000 && y <= 2100;
@@ -90,12 +90,12 @@ export async function saveLeaveSalaryWorking(input: {
     return { ok: false, error: 'Days must be a whole number between 1 and 366, or blank for the real calendar days.' };
   }
 
-  if (!UUID_RE.test(String(input.employeeId ?? ''))) return { ok: false, error: 'Pick an employee.' };
+  if (!uuidRe.test(String(input.employeeId ?? ''))) return { ok: false, error: 'Pick an employee.' };
   if (!validYear(year)) return { ok: false, error: 'Enter a valid year.' };
-  if (!Number.isFinite(salaryBefore) || salaryBefore < 0 || salaryBefore > SALARY_CAP) {
+  if (!Number.isFinite(salaryBefore) || salaryBefore < 0 || salaryBefore > salaryCap) {
     return { ok: false, error: 'Enter a valid monthly salary for the pre-appraisal period.' };
   }
-  if (!Number.isFinite(salaryAfter) || salaryAfter < 0 || salaryAfter > SALARY_CAP) {
+  if (!Number.isFinite(salaryAfter) || salaryAfter < 0 || salaryAfter > salaryCap) {
     return { ok: false, error: 'Enter a valid monthly salary for the post-appraisal period.' };
   }
   if (!Number.isInteger(incrementMonth) || incrementMonth < 1 || incrementMonth > 12) {
@@ -176,7 +176,7 @@ export async function saveLeaveSalaryWorking(input: {
 export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
   const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Finalizing a leave-salary working');
   if (!gate.ok) return gate;
-  if (!UUID_RE.test(id)) return { ok: false, error: 'Unknown working.' };
+  if (!uuidRe.test(id)) return { ok: false, error: 'Unknown working.' };
 
   const dbc = await createClient();
   type WorkingRead = {
@@ -258,7 +258,7 @@ export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
 export async function reopenLeaveSalary(id: string): Promise<ActionResult> {
   const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Reopening a leave-salary working');
   if (!gate.ok) return gate;
-  if (!UUID_RE.test(id)) return { ok: false, error: 'Unknown working.' };
+  if (!uuidRe.test(id)) return { ok: false, error: 'Unknown working.' };
 
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -280,7 +280,7 @@ export async function reopenLeaveSalary(id: string): Promise<ActionResult> {
 export async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
   const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Marking a leave salary paid');
   if (!gate.ok) return gate;
-  if (!UUID_RE.test(id)) return { ok: false, error: 'Unknown working.' };
+  if (!uuidRe.test(id)) return { ok: false, error: 'Unknown working.' };
 
   const dbc = await createClient();
   const { data: row, error: readErr } = await dbc

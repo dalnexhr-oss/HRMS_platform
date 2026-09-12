@@ -29,8 +29,8 @@ export interface ActionResult {
 }
 
 // Document kinds that may be acknowledged. Free text in the DB; bounded here.
-const KINDS = ['policy', 'offer_letter', 'handbook', 'asset_declaration', 'fnf'] as const;
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const kinds = ['policy', 'offer_letter', 'handbook', 'asset_declaration', 'fnf'] as const;
+const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Record the signed-in employee's acknowledgement of a document. `documentId` is optional — some acknowledgements (a handbook with no row of its own) are free-standing. The unique index only applies when it is present, so a genuinely re-issued document gets a new id and can be signed again.
 export async function acknowledgeDocument(input: {
@@ -42,7 +42,7 @@ export async function acknowledgeDocument(input: {
   if (!db.ok) return db;
 
   const kind = String(input.kind ?? '').trim();
-  if (!(KINDS as readonly string[]).includes(kind)) {
+  if (!(kinds as readonly string[]).includes(kind)) {
     return { ok: false, error: 'Unknown document type.' };
   }
 
@@ -52,7 +52,7 @@ export async function acknowledgeDocument(input: {
   }
 
   const documentId = input.documentId ? String(input.documentId).trim() : null;
-  if (documentId && !UUID_RE.test(documentId)) {
+  if (documentId && !uuidRe.test(documentId)) {
     return { ok: false, error: 'That document reference is not valid.' };
   }
 

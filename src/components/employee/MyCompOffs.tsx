@@ -9,7 +9,7 @@ import { formatDate, todayIST } from '@/lib/format';
 import { applyCompOff } from '@/lib/actions/compoff';
 import type { CompOffRow } from '@/lib/queries';
 
-const STATUS_LABEL: Record<CompOffRow['status'], string> = {
+const statusLabel: Record<CompOffRow['status'], string> = {
   available: 'Available',
   applied: 'Applied — awaiting approval',
   used: 'Used',
@@ -29,7 +29,7 @@ function pillStyle(c: CompOffRow): React.CSSProperties {
 
 function pillLabel(c: CompOffRow): string {
   if (c.status === 'available' && !c.isApplicable) return 'Not applicable (on hold by HR)';
-  return STATUS_LABEL[c.status];
+  return statusLabel[c.status];
 }
 
 export function MyCompOffs({

@@ -31,7 +31,7 @@ type ColKey =
   | 'purchased' | 'cost' | 'name' | 'category' | 'brand' | 'serial' | 'model'
   | 'assigned' | 'warranty' | 'processor' | 'ram' | 'storage';
 
-const COLS: { key: ColKey; label: string; kind?: ColKind; get: (a: AssetRow) => string }[] = [
+const cols: { key: ColKey; label: string; kind?: ColKind; get: (a: AssetRow) => string }[] = [
   { key: 'purchased',     label: 'Purchased on', kind: 'date', get: (a) => a.purchase_date ?? '—' },
   { key: 'cost',    label: 'Purchase cost', kind: 'number',
     get: (a) => (a.purchase_cost == null ? '—' : String(a.purchase_cost)) },
@@ -76,7 +76,7 @@ export function AssetsScreen({
   // one column never hides another column's choices.
   const options = useMemo(() => {
     const out = {} as Record<ColKey, string[]>;
-    for (const c of COLS) out[c.key] = distinctValues(assets.map(c.get), c.kind);
+    for (const c of cols) out[c.key] = distinctValues(assets.map(c.get), c.kind);
     return out;
   }, [assets]);
 
@@ -94,7 +94,7 @@ export function AssetsScreen({
         ),
       );
     }
-    for (const c of COLS) {
+    for (const c of cols) {
       if (c.kind === 'date') {
         const r = ranges[c.key];
         if (rangeActive(r)) rows = rows.filter((a) => inDateRange(c.get(a), r));
@@ -104,7 +104,7 @@ export function AssetsScreen({
       if (sel?.length) rows = rows.filter((a) => sel.includes(c.get(a)));
     }
     if (sort) {
-      const col = COLS.find((c) => c.key === sort.key);
+      const col = cols.find((c) => c.key === sort.key);
       if (col) rows = sortRows(rows, col.get, col.kind ?? 'text', sort.dir);
     }
     return rows;
@@ -199,7 +199,7 @@ export function AssetsScreen({
           <table style={{ minWidth: 1180 }}>
             <thead>
               <tr>
-                {COLS.map((c) => (
+                {cols.map((c) => (
                   <th key={c.key}>
                     <ThMenu
                       label={c.label}

@@ -43,9 +43,9 @@ export interface ActionResult {
   warning?: string;
 }
 
-const EXIT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const exitRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
+const isoDate = /^\d{4}-\d{2}-\d{2}$/;
+const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // IST, not the host clock: a letter issued between 00:00 and 05:30 IST used
 // to be dated the previous day (new Date().toISOString() is UTC).
@@ -60,12 +60,12 @@ export async function initiateExit(input: {
   lastWorkingDay: string;
   reason?: string;
 }): Promise<ActionResult> {
-  const gate = await requireRoles(EXIT_ROLES, 'Starting an exit');
+  const gate = await requireRoles(exitRoles, 'Starting an exit');
   if (!gate.ok) return gate;
 
-  if (!UUID_RE.test(String(input.employeeId ?? ''))) return { ok: false, error: 'Pick an employee.' };
-  if (!ISO_DATE.test(input.resignationDate)) return { ok: false, error: 'Enter the resignation date.' };
-  if (!ISO_DATE.test(input.lastWorkingDay)) return { ok: false, error: 'Enter the last working day.' };
+  if (!uuidRe.test(String(input.employeeId ?? ''))) return { ok: false, error: 'Pick an employee.' };
+  if (!isoDate.test(input.resignationDate)) return { ok: false, error: 'Enter the resignation date.' };
+  if (!isoDate.test(input.lastWorkingDay)) return { ok: false, error: 'Enter the last working day.' };
   if (input.lastWorkingDay < input.resignationDate) {
     return { ok: false, error: 'The last working day cannot be before the resignation date.' };
   }
@@ -190,7 +190,7 @@ export async function fetchClearanceItems(exitCaseId: string) {
 // ------------------------------------------------------- exit interview ---
 
 /** The standard exit-interview questionnaire, seeded on first open. */
-const INTERVIEW_QUESTIONS: readonly string[] = [
+const interviewQuestions: readonly string[] = [
   'What prompted your decision to leave?',
   'What did you most enjoy about working here?',
   'What would you change about the role or the team?',
@@ -208,7 +208,7 @@ const INTERVIEW_QUESTIONS: readonly string[] = [
  * actually asked — the 0037 table comment makes the same point.
  */
 export async function ensureExitInterview(exitCaseId: string): Promise<ActionResult> {
-  const gate = await requireRoles(EXIT_ROLES, 'Opening the exit interview');
+  const gate = await requireRoles(exitRoles, 'Opening the exit interview');
   if (!gate.ok) return gate;
 
   const dbc = await createClient();
@@ -221,7 +221,7 @@ export async function ensureExitInterview(exitCaseId: string): Promise<ActionRes
   }
   if ((count ?? 0) > 0) return { ok: true }; // already open
 
-  const rows = INTERVIEW_QUESTIONS.map((question) => ({
+  const rows = interviewQuestions.map((question) => ({
     exit_case_id: exitCaseId,
     question,
     interviewer_id: gate.profileId,
@@ -241,10 +241,10 @@ export async function ensureExitInterview(exitCaseId: string): Promise<ActionRes
 export async function saveExitInterview(
   answers: { id: string; answer: string }[],
 ): Promise<ActionResult> {
-  const gate = await requireRoles(EXIT_ROLES, 'Saving the exit interview');
+  const gate = await requireRoles(exitRoles, 'Saving the exit interview');
   if (!gate.ok) return gate;
 
-  const clean = (Array.isArray(answers) ? answers : []).filter((a) => UUID_RE.test(String(a?.id ?? '')));
+  const clean = (Array.isArray(answers) ? answers : []).filter((a) => uuidRe.test(String(a?.id ?? '')));
   if (clean.length === 0) return { ok: false, error: 'Nothing to save.' };
 
   const dbc = await createClient();
@@ -288,14 +288,14 @@ export async function addKtItem(input: {
   handoverTo?: string | null;
   notes?: string;
 }): Promise<ActionResult> {
-  const gate = await requireRoles(EXIT_ROLES, 'Adding a handover item');
+  const gate = await requireRoles(exitRoles, 'Adding a handover item');
   if (!gate.ok) return gate;
 
   const task = String(input.task ?? '').trim();
-  if (!UUID_RE.test(String(input.exitCaseId ?? ''))) return { ok: false, error: 'Unknown exit case.' };
+  if (!uuidRe.test(String(input.exitCaseId ?? ''))) return { ok: false, error: 'Unknown exit case.' };
   if (!task) return { ok: false, error: 'Describe what needs handing over.' };
 
-  const handoverTo = input.handoverTo && UUID_RE.test(input.handoverTo) ? input.handoverTo : null;
+  const handoverTo = input.handoverTo && uuidRe.test(input.handoverTo) ? input.handoverTo : null;
 
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -318,7 +318,7 @@ export async function addKtItem(input: {
 
 /** Advance a handover item. Status set matches the 0037 CHECK constraint. */
 export async function setKtStatus(id: string, status: string): Promise<ActionResult> {
-  const gate = await requireRoles(EXIT_ROLES, 'Updating a handover item');
+  const gate = await requireRoles(exitRoles, 'Updating a handover item');
   if (!gate.ok) return gate;
   if (!['pending', 'in_progress', 'done'].includes(status)) {
     return { ok: false, error: `Invalid status: ${status || '(missing)'}` };
@@ -339,7 +339,7 @@ export async function setKtStatus(id: string, status: string): Promise<ActionRes
 
 /** Remove a handover item. */
 export async function deleteKtItem(id: string): Promise<ActionResult> {
-  const gate = await requireRoles(EXIT_ROLES, 'Deleting a handover item');
+  const gate = await requireRoles(exitRoles, 'Deleting a handover item');
   if (!gate.ok) return gate;
 
   const dbc = await createClient();
@@ -362,7 +362,7 @@ export async function fetchKtItems(exitCaseId: string) {
 
 /** Re-scan the asset/item registers for this exit (HR hits this after returns). */
 export async function refreshExitClearance(exitCaseId: string): Promise<ActionResult> {
-  const gate = await requireRoles(EXIT_ROLES, 'Refreshing clearance');
+  const gate = await requireRoles(exitRoles, 'Refreshing clearance');
   if (!gate.ok) return gate;
 
   const dbc = await createClient();
@@ -381,7 +381,7 @@ export async function refreshExitClearance(exitCaseId: string): Promise<ActionRe
 
 /** Tick off one clearance line. */
 export async function setClearanceItemCleared(id: string, cleared: boolean): Promise<ActionResult> {
-  const gate = await requireRoles(EXIT_ROLES, 'Clearing an exit item');
+  const gate = await requireRoles(exitRoles, 'Clearing an exit item');
   if (!gate.ok) return gate;
 
   const dbc = await createClient();
@@ -406,7 +406,7 @@ export async function setExitStage(
   exitCaseId: string,
   stage: 'initiated' | 'clearance' | 'settlement' | 'completed',
 ): Promise<ActionResult> {
-  const gate = await requireRoles(EXIT_ROLES, 'Changing the exit stage');
+  const gate = await requireRoles(exitRoles, 'Changing the exit stage');
   if (!gate.ok) return gate;
 
   const dbc = await createClient();
@@ -512,7 +512,7 @@ export async function setExitStage(
  * comment is explicit that the sheet must show what was actually paid.
  */
 export async function prepareFullAndFinal(exitCaseId: string): Promise<ActionResult> {
-  const gate = await requireRoles(EXIT_ROLES, 'Preparing the settlement');
+  const gate = await requireRoles(exitRoles, 'Preparing the settlement');
   if (!gate.ok) return gate;
 
   const dbc = await createClient();
@@ -578,7 +578,7 @@ export async function updateFullAndFinal(
     otherDeductions: number;
   },
 ): Promise<ActionResult> {
-  const gate = await requireRoles(EXIT_ROLES, 'Updating the settlement');
+  const gate = await requireRoles(exitRoles, 'Updating the settlement');
   if (!gate.ok) return gate;
 
   const n = (v: unknown) => {
@@ -621,7 +621,7 @@ export async function setFullAndFinalStatus(
   exitCaseId: string,
   status: 'approved' | 'paid',
 ): Promise<ActionResult> {
-  const gate = await requireRoles(EXIT_ROLES, 'Updating the settlement');
+  const gate = await requireRoles(exitRoles, 'Updating the settlement');
   if (!gate.ok) return gate;
 
   const from = status === 'approved' ? 'draft' : 'approved';
@@ -658,7 +658,7 @@ export async function generateExitDocument(
   exitCaseId: string,
   kind: 'relieving' | 'experience' | 'fnf',
 ): Promise<ActionResult & { path?: string }> {
-  const gate = await requireRoles(EXIT_ROLES, 'Generating an exit document');
+  const gate = await requireRoles(exitRoles, 'Generating an exit document');
   if (!gate.ok) return gate;
 
   const dbc = await createClient();

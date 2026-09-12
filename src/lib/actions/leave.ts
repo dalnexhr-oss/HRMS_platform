@@ -24,7 +24,7 @@ export interface ActionResult {
   error?: string;
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Sanity bound on a leave year — a typo'd 20265 must not provision anything.
 function validYear(y: number): boolean {
@@ -78,7 +78,7 @@ export async function adjustLeaveBalance(input: {
   const reason = String(input.reason ?? '').trim();
   const delta = Number(input.delta);
 
-  if (!UUID_RE.test(String(input.employeeId ?? ''))) return { ok: false, error: 'Pick an employee.' };
+  if (!uuidRe.test(String(input.employeeId ?? ''))) return { ok: false, error: 'Pick an employee.' };
   if (!validYear(Number(input.year))) return { ok: false, error: 'Enter a valid year.' };
   if (!Number.isFinite(delta) || delta === 0) {
     return { ok: false, error: 'Enter a non-zero number of days (negative to debit).' };

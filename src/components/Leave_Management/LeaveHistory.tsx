@@ -13,17 +13,17 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { RequestView } from '@/lib/queries';
 
-const STATUS_TABS = ['all', 'pending', 'approved', 'rejected', 'cancelled'] as const;
-type StatusTab = (typeof STATUS_TABS)[number];
+const statusTabs = ['all', 'pending', 'approved', 'rejected', 'cancelled'] as const;
+type StatusTab = (typeof statusTabs)[number];
 
-const STATUS_COLOR: Record<RequestView['status'], string> = {
+const statusColor: Record<RequestView['status'], string> = {
   pending: 'var(--lm)',
   approved: 'var(--p)',
   rejected: 'var(--hd)',
   cancelled: 'var(--ink-3)',
 };
 
-const KIND_LABEL: Record<string, string> = {
+const kindLabel: Record<string, string> = {
   PL: 'Paid leave',
   CL: 'Casual leave',
   SL: 'Sick leave',
@@ -81,7 +81,7 @@ export function LeaveHistory({ requests }: { requests: RequestView[] }) {
       </div>
       <div className="bd">
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
-          {STATUS_TABS.map((t) => (
+          {statusTabs.map((t) => (
             <button
               key={t}
               className={`btn quiet${tab === t ? ' primary' : ''}`}
@@ -130,7 +130,7 @@ export function LeaveHistory({ requests }: { requests: RequestView[] }) {
                       <span className="mono muted" style={{ fontSize: 11 }}>{r.employeeCode}</span>
                       <div className="muted" style={{ fontSize: 11 }}>{r.branch}</div>
                     </td>
-                    <td>{(r.leaveKind && KIND_LABEL[r.leaveKind]) || r.leaveKind || 'Leave'}</td>
+                    <td>{(r.leaveKind && kindLabel[r.leaveKind]) || r.leaveKind || 'Leave'}</td>
                     <td className="mono" style={{ whiteSpace: 'nowrap' }}>
                       {r.startDate === r.endDate ? day(r.startDate) : `${day(r.startDate)} – ${day(r.endDate)}`}
                     </td>
@@ -140,7 +140,7 @@ export function LeaveHistory({ requests }: { requests: RequestView[] }) {
                     <td>
                       <span
                         className="pill"
-                        style={{ borderColor: 'var(--line-2)', color: STATUS_COLOR[r.status], textTransform: 'capitalize' }}
+                        style={{ borderColor: 'var(--line-2)', color: statusColor[r.status], textTransform: 'capitalize' }}
                       >
                         {r.status}
                       </span>
@@ -148,7 +148,7 @@ export function LeaveHistory({ requests }: { requests: RequestView[] }) {
                     <td style={{ maxWidth: 260 }}>
                       {r.reason && <div style={{ fontSize: 12 }}>{r.reason}</div>}
                       {r.reviewRemark && (
-                        <div style={{ fontSize: 11, color: STATUS_COLOR[r.status] }}>
+                        <div style={{ fontSize: 11, color: statusColor[r.status] }}>
                           <b>Decision:</b> {r.reviewRemark}
                         </div>
                       )}

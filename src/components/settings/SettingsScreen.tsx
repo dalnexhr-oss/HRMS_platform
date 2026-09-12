@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateSetting } from '@/lib/actions/settings';
 import { updateBranch, deleteBranch, updateBranchLocation } from '@/lib/actions/branches';
-import { INDIAN_STATES } from '@/lib/constants';
+import { States } from '@/lib/constants';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast, type ToastKind } from '@/components/ui/Toast';
 import type { SettingView, BranchRow } from '@/lib/queries';
@@ -164,10 +164,10 @@ function BranchManageRow({
         aria-label="Branch state"
       >
         {/* A stored state missing from the list (pre-0040 data oddity) stays selectable. */}
-        {!(INDIAN_STATES as readonly string[]).includes(state) && (
+        {!(States as readonly string[]).includes(state) && (
           <option value={state}>{state}</option>
         )}
-        {INDIAN_STATES.map((s) => (
+        {States.map((s) => (
           <option key={s} value={s}>
             {s}
           </option>
@@ -344,7 +344,7 @@ type SettingKind = 'number' | 'boolean' | 'number-list' | 'json' | 'text';
  * the wrong type (e.g. an array saved as "0,6" by the old editor) can still be
  * repaired — inferring from the stored value alone would lock in the bad type.
  */
-const KNOWN_KINDS: Record<string, SettingKind> = {
+const knownKinds: Record<string, SettingKind> = {
   week_off_weekdays: 'number-list',
   working_saturdays: 'number-list',
   leave_sandwich_policy: 'boolean',
@@ -416,7 +416,7 @@ function parseBack(
 }
 
 function SettingRow({ setting, toast }: { setting: SettingView; toast: (message: string, kind?: ToastKind) => void }) {
-  const kind = KNOWN_KINDS[setting.key] ?? kindOf(setting.value);
+  const kind = knownKinds[setting.key] ?? kindOf(setting.value);
   const [value, setValue] = useState(displayValue(setting.value, kind));
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);

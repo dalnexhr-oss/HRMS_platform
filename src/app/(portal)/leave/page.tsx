@@ -9,9 +9,9 @@ import type { AppRole } from '@/types/database';
 
 // The leave-salary working writes salaries and money — admin/HR only, matching
 // the server actions' requireRoles(['super_admin','admin','hr']) gate.
-const LEAVE_ADMIN_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
+const leaveAdminRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
-const YEAR_RE = /^\d{4}$/;
+const yearRe = /^\d{4}$/;
 
 export default async function LeavePage({
   searchParams,
@@ -20,11 +20,11 @@ export default async function LeavePage({
 }) {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
-  if (!role || !LEAVE_ADMIN_ROLES.includes(role)) redirect('/today');
+  if (!role || !leaveAdminRoles.includes(role)) redirect('/today');
 
   const { y } = await searchParams;
   // Default to the current year; ?y= lets HR open a prior/next one.
-  const year = y && YEAR_RE.test(y) ? Number(y) : new Date().getFullYear();
+  const year = y && yearRe.test(y) ? Number(y) : new Date().getFullYear();
 
   const [view, pool] = await Promise.all([
     buildLeaveSalaryView(year),

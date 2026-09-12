@@ -13,7 +13,7 @@
 // 0 2 * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" \
 // https://your-host/api/cron
 import { NextResponse } from 'next/server';
-import { JOBS, runDailyJobs, type JobName } from '@/lib/db/scheduler';
+import { jobs, runDailyJobs, type JobName } from '@/lib/db/scheduler';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -49,10 +49,10 @@ async function handle(req: Request) {
   // ?job=<name> runs one job; no parameter runs the daily set.
   const name = new URL(req.url).searchParams.get('job') as JobName | null;
   if (name) {
-    const job = JOBS[name];
+    const job = jobs[name];
     if (!job) {
       return NextResponse.json(
-        { error: `Unknown job '${name}'.`, available: Object.keys(JOBS) },
+        { error: `Unknown job '${name}'.`, available: Object.keys(jobs) },
         { status: 400 },
       );
     }

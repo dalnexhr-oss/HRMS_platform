@@ -22,7 +22,7 @@
 import type { AttendanceStatus } from '@/types/database';
 
 // Presence credit per attendance status. Week-offs, holidays and comp-offs COUNT as present — the sheet's 344.5-of-365 sample year is impossible otherwise. Only Absent and Leave reduce the payout; a half day is half.
-export const PRESENT_CREDIT: Record<AttendanceStatus, number> = {
+export const presentCredit: Record<AttendanceStatus, number> = {
   P: 1,
   LM: 1,
   S: 1,
@@ -41,7 +41,7 @@ export function presenceByMonth(rows: { workDate: string; status: string }[]): n
   for (const row of rows) {
     const month = Number(row.workDate?.slice(5, 7));
     if (!Number.isInteger(month) || month < 1 || month > 12) continue;
-    months[month - 1] += PRESENT_CREDIT[row.status as AttendanceStatus] ?? 0;
+    months[month - 1] += presentCredit[row.status as AttendanceStatus] ?? 0;
   }
   return months;
 }

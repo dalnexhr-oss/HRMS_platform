@@ -11,13 +11,13 @@ import { useEffect, useState } from 'react';
 import { getPunchHistory, type PunchRecord } from '@/lib/actions/punch';
 import { GeoChip } from './GeoChip';
 
-const DAY_FMT: Intl.DateTimeFormatOptions = {
+const dayFmt: Intl.DateTimeFormatOptions = {
   weekday: 'short',
   day: 'numeric',
   month: 'short',
   timeZone: 'Asia/Kolkata',
 };
-const TIME_FMT: Intl.DateTimeFormatOptions = {
+const timeFmt: Intl.DateTimeFormatOptions = {
   hour: '2-digit',
   minute: '2-digit',
   hourCycle: 'h23',
@@ -80,7 +80,7 @@ export function PunchHistory({ refreshKey = 0 }: { refreshKey?: number }) {
           {days.map(([day, rows]) => (
             <div className="punch-day" key={day}>
               <div className="punch-day-hd mono">
-                {new Intl.DateTimeFormat('en-IN', DAY_FMT).format(new Date(`${day}T12:00:00`))}
+                {new Intl.DateTimeFormat('en-IN', dayFmt).format(new Date(`${day}T12:00:00`))}
               </div>
               <div className="punch-day-rows">
                 {rows.map((punch, index) => (
@@ -89,7 +89,7 @@ export function PunchHistory({ refreshKey = 0 }: { refreshKey?: number }) {
                       {punch.type === 'in' ? 'In' : 'Out'}
                     </span>
                     <span className="mono punch-row-time">
-                      {new Intl.DateTimeFormat('en-IN', TIME_FMT).format(new Date(punch.timestamp))}
+                      {new Intl.DateTimeFormat('en-IN', timeFmt).format(new Date(punch.timestamp))}
                     </span>
                     {/* Pushed to the right edge so the stamps line up into a
                         column instead of trailing whatever the time happened

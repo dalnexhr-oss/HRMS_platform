@@ -28,13 +28,13 @@ export interface CorrectionState {
 }
 
 // Roles that may WRITE attendance. Deliberately NOT isStaffRole(): that helper is the READ gate (is_portal()), and the write gate is is_staff(). Checking the read gate here would wave a portal reader through the whole correction drawer only to have the write refused at the last step. Mirrored in src/app/(portal)/register/page.tsx (a 'use server' module may only export async functions, so this cannot be shared from here).
-const WRITE_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
+const writeRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
-// Statuses an admin may set from the register. 'CO' (comp off) was withheld here while the AttendanceStatus union and STATUS_META lacked it — a written 'CO' would have rendered as a "P" stamp. Both now carry it (and 0009 makes comp off a real lifecycle), so it is offered. Note the normal path for a comp off is the employee applying against an earned credit; setting it here is the manual override.
-const ALLOWED_STATUSES: AttendanceStatus[] = ['P', 'LM', 'HD', 'L', 'WO', 'OH', 'AB', 'S', 'T', 'CO'];
+// Statuses an admin may set from the register. 'CO' (comp off) was withheld here while the AttendanceStatus union and attendanceStatusMeta lacked it — a written 'CO' would have rendered as a "P" stamp. Both now carry it (and 0009 makes comp off a real lifecycle), so it is offered. Note the normal path for a comp off is the employee applying against an earned credit; setting it here is the manual override.
+const allowedStatuses: AttendanceStatus[] = ['P', 'LM', 'HD', 'L', 'WO', 'OH', 'AB', 'S', 'T', 'CO'];
 
 function isAllowedStatus(v: string): v is AttendanceStatus {
-  return (ALLOWED_STATUSES as string[]).includes(v);
+  return (allowedStatuses as string[]).includes(v);
 }
 
 // '' | null -> null (blank is legitimate: no punch). 'HH:MM' / 'HH:MM:SS' -> 'HH:MM'. Anything else is a parse FAILURE, not a blank — returning null for garbage would silently record "no punch" for a value the user actually typed. The range check matters too: '99:99' matches the shape but is not a time, and storing it would break every later comparison against it.
@@ -53,12 +53,12 @@ function str(v: FormDataEntryValue | null): string {
   return String(v ?? '').trim();
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const dateRe = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Apply a manual correction to one employee/day and record it in the audit log.
- * Restricted to WRITE_ROLES (super admin / admin / HR); the attendance_days
+ * Restricted to writeRoles (super admin / admin / HR); the attendance_days
  * write policy enforces the identical rule underneath — this is the fast,
  * friendly rejection, not the security boundary.
  */
@@ -88,10 +88,10 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
       error: 'Enter both punch in and punch out, or leave both blank — a single punch would record zero hours.',
     };
   }
-  if (!UUID_RE.test(employeeId)) {
+  if (!uuidRe.test(employeeId)) {
     return { ok: false, error: 'This row has no database id, so the correction cannot be saved.' };
   }
-  if (!DATE_RE.test(workDate)) {
+  if (!dateRe.test(workDate)) {
     return { ok: false, error: `Invalid work date: ${workDate || '(missing)'}` };
   }
   if (!isAllowedStatus(status)) {
@@ -125,10 +125,10 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
   if (!session.profile) {
     return { ok: false, error: 'Your session has expired. Sign in again to make corrections.' };
   }
-  if (!WRITE_ROLES.includes(session.profile.role)) {
+  if (!writeRoles.includes(session.profile.role)) {
     return {
       ok: false,
-      error: `Your account role "${session.profile.role}" cannot write attendance. Only ${WRITE_ROLES.join(
+      error: `Your account role "${session.profile.role}" cannot write attendance. Only ${writeRoles.join(
         ', ',
       )} may correct the register.`,
     };
@@ -296,7 +296,7 @@ export async function correctAttendanceBulk(input: {
   if (targets.length > 2000) return { ok: false, error: 'Too many cells at once — narrow the selection.' };
 
   for (const t of targets) {
-    if (!UUID_RE.test(t.employeeId) || !DATE_RE.test(t.workDate)) {
+    if (!uuidRe.test(t.employeeId) || !dateRe.test(t.workDate)) {
       return { ok: false, error: 'One of the selected cells is invalid, so nothing was changed.' };
     }
   }

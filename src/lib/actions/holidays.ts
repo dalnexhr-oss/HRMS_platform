@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { requireStaff, wroteNothing } from '@/lib/actions/_guard';
 import { fetchPublicHolidays } from '@/lib/holidays/googleCalendar';
-import { ALL_BRANCHES, resolveBranchScope } from '@/lib/actions/_branch';
+import { allBranches, resolveBranchScope } from '@/lib/actions/_branch';
 
 // Add an official holiday. Blank branch = all branches (branch_id null).
 export async function addHoliday(formData: FormData) {
@@ -69,7 +69,7 @@ export async function importHolidaysFromGoogle(year: number): Promise<ImportHoli
 
     const rows = holidays
       .filter((h) => !taken.has(h.date))
-      .map((h) => ({ holiday_date: h.date, name: h.name, ...ALL_BRANCHES }));
+      .map((h) => ({ holiday_date: h.date, name: h.name, ...allBranches }));
 
     const skipped = holidays.length - rows.length;
 

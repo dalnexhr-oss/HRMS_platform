@@ -19,17 +19,17 @@ import { todayIST } from '@/lib/format';
 import { dayFloorUtc, punchInstant } from '@/lib/punch';
 import type { BoardData, EmployeeData, Presence } from '@/lib/types/employee';
 
-const BUSINESS_TZ = 'Asia/Kolkata';
+const bussinessTimeZone = 'Asia/Kolkata';
 
 function dayOf(timestamp: Date | string): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: BUSINESS_TZ }).format(
+  return new Intl.DateTimeFormat('en-CA', { timeZone: bussinessTimeZone }).format(
     punchInstant(timestamp),
   );
 }
 
 // Day statuses that mean "not expected in", so an absent card is not alarming. Approved leave is split out from the calendar reasons: on a wall board "on leave" and "it is their week off" are different facts about a person.
-const LEAVE_STATUSES = new Set(['L', 'CO']);
-const OFF_STATUSES = new Set(['WO', 'OH']);
+const leaveStauses = new Set(['L', 'CO']);
+const offStauses = new Set(['WO', 'OH']);
 
 export async function readBoard(): Promise<BoardData> {
   const dbc = await createClient();
@@ -80,8 +80,8 @@ export async function readBoard(): Promise<BoardData> {
     // on the floor, whatever the day's status says.
     let presence: Presence;
     if (last) presence = last.kind === 'in' ? 'in' : 'out';
-    else if (dayStatus && LEAVE_STATUSES.has(dayStatus)) presence = 'leave';
-    else if (dayStatus && OFF_STATUSES.has(dayStatus)) presence = 'off';
+    else if (dayStatus && leaveStauses.has(dayStatus)) presence = 'leave';
+    else if (dayStatus && offStauses.has(dayStatus)) presence = 'off';
     else presence = 'awaited';
 
     return {

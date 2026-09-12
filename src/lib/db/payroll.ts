@@ -32,19 +32,19 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import type { ClientSession } from 'mongodb';
-import { COLLECTIONS, type BaseDoc } from '@/lib/db/collections';
+import { collections, type BaseDoc } from '@/lib/db/collections';
 import { scopedFor } from '@/lib/db/repo';
-import { SYSTEM_SCOPE } from '@/lib/db/scope';
+import { systemScope } from '@/lib/db/scope';
 import { withTransaction } from '@/lib/db/mongo';
 import { addPaise, fromPaise, roundToRupee, scalePaise, subPaise, toPaise } from '@/lib/db/money';
 import { registerRpc } from '@/lib/db/pgcompat';
 
 // Statuses counted as a full working day.
-const FULL_DAY = ['P', 'CO', 'OH', 'T', 'S', 'LM'];
+const fullDay = ['P', 'CO', 'OH', 'T', 'S', 'LM'];
 
 // A numeric setting with a default. Replaces fn_setting_numeric().
 async function settingNumeric(key: string, fallback: number): Promise<number> {
-  const settings = scopedFor<BaseDoc & { key: string; value: unknown }>(COLLECTIONS.settings, SYSTEM_SCOPE);
+  const settings = scopedFor<BaseDoc & { key: string; value: unknown }>(collections.settings, systemScope);
   const row = await settings.findOne({ key });
   const n = Number(row?.value ?? fallback);
   return Number.isFinite(n) ? n : fallback;
@@ -64,7 +64,7 @@ export async function professionalTax(
   month: number,
 ): Promise<number> {
   if (!state) return 0;
-  const slabs = scopedFor<BaseDoc>(COLLECTIONS.ptSlabs, SYSTEM_SCOPE);
+  const slabs = scopedFor<BaseDoc>(collections.ptSlabs, systemScope);
   const rows = await slabs.find({ state });
 
   const matching = rows.filter((s) => {
@@ -112,10 +112,10 @@ export async function computePayslip(
   runId: string,
   session?: ClientSession,
 ): Promise<PayslipComputation> {
-  const employees = scopedFor<BaseDoc>(COLLECTIONS.employees, SYSTEM_SCOPE, session);
-  const runs = scopedFor<BaseDoc>(COLLECTIONS.payrollRuns, SYSTEM_SCOPE, session);
-  const attendance = scopedFor<BaseDoc>(COLLECTIONS.attendanceDays, SYSTEM_SCOPE, session);
-  const branches = scopedFor<BaseDoc>(COLLECTIONS.branches, SYSTEM_SCOPE, session);
+  const employees = scopedFor<BaseDoc>(collections.employees, systemScope, session);
+  const runs = scopedFor<BaseDoc>(collections.payrollRuns, systemScope, session);
+  const attendance = scopedFor<BaseDoc>(collections.attendanceDays, systemScope, session);
+  const branches = scopedFor<BaseDoc>(collections.branches, systemScope, session);
 
   const e = await employees.findOne({ _id: employeeId });
   if (!e) throw new Error(`computePayslip: no employee ${employeeId}`);
@@ -147,7 +147,7 @@ export async function computePayslip(
   let workedMinutes = 0;
   for (const d of days) {
     const status = d.status as string;
-    if (FULL_DAY.includes(status)) workingDays += 1;
+    if (fullDay.includes(status)) workingDays += 1;
     else if (status === 'HD') workingDays += 0.5;
     else if (status === 'WO') weekOffs += 1;
     workedMinutes += Number(d.worked_minutes ?? 0);
@@ -200,8 +200,8 @@ export async function computePayslip(
   const pt = await professionalTax(state, grossPaise, e.gender as string, month);
 
   // --- adjustments ----------------------------------------------------------
-  const payslips = scopedFor<BaseDoc>(COLLECTIONS.payslips, SYSTEM_SCOPE, session);
-  const adjustments = scopedFor<BaseDoc>(COLLECTIONS.payslipAdjustments, SYSTEM_SCOPE, session);
+  const payslips = scopedFor<BaseDoc>(collections.payslips, systemScope, session);
+  const adjustments = scopedFor<BaseDoc>(collections.payslipAdjustments, systemScope, session);
 
   const existing = await payslips.findOne({ payroll_run_id: runId, employee_id: employeeId });
   // payslip_adjustments is keyed BY THE PAYSLIP ID (`where id = v_slip_id`),
@@ -326,7 +326,7 @@ interface PayrollRunDoc extends BaseDoc {
 }
 
 function runs(session?: ClientSession) {
-  return scopedFor<PayrollRunDoc>(COLLECTIONS.payrollRuns, SYSTEM_SCOPE, session);
+  return scopedFor<PayrollRunDoc>(collections.payrollRuns, systemScope, session);
 }
 
 /** The run's current status, or null when there is no such run. */
@@ -360,7 +360,7 @@ export async function computeRun(runId: string): Promise<void> {
     throw new Error(`Payroll run ${runId} is ${status} — recompute is not allowed after lock`);
   }
 
-  const employees = scopedFor<BaseDoc & { status: string }>(COLLECTIONS.employees, SYSTEM_SCOPE);
+  const employees = scopedFor<BaseDoc & { status: string }>(collections.employees, systemScope);
   const active = await employees.find({ status: 'active' }, { projection: { _id: 1 } });
   for (const employee of active) {
     await computePayslip(String(employee._id), runId);
@@ -400,7 +400,7 @@ export async function lockRun(runId: string): Promise<void> {
     }
 
     const now = new Date();
-    const payslips = scopedFor<BaseDoc>(COLLECTIONS.payslips, SYSTEM_SCOPE, session);
+    const payslips = scopedFor<BaseDoc>(collections.payslips, systemScope, session);
     await payslips.updateMany(
       { payroll_run_id: runId },
       { $set: { status: 'generated', updated_at: now } },
@@ -428,7 +428,7 @@ export async function markRunPaid(runId: string): Promise<void> {
     }
 
     const now = new Date();
-    const payslips = scopedFor<BaseDoc>(COLLECTIONS.payslips, SYSTEM_SCOPE, session);
+    const payslips = scopedFor<BaseDoc>(collections.payslips, systemScope, session);
     await payslips.updateMany(
       { payroll_run_id: runId },
       { $set: { status: 'paid', updated_at: now } },

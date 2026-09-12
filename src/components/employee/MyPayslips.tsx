@@ -32,7 +32,7 @@ function downloadPayslip(p: PayslipRow, onBlocked: () => void) {
   if (!printPayslip(p)) onBlocked();
 }
 
-const POPUP_BLOCKED = 'Your browser blocked the payslip window. Allow pop-ups for this site and try again.';
+const popupBlocked = 'Your browser blocked the payslip window. Allow pop-ups for this site and try again.';
 
 // The payslip table is a single card, so it can be embedded in the employee dashboard or on its own page. The id prop is used to anchor the card from the nav link on the employee dashboard.
 export function MyPayslips({ payslips, id }: { payslips: PayslipRow[]; id?: string }) {
@@ -159,7 +159,7 @@ function PayslipBreakdown({ p }: { p: PayslipRow }) {
               <button
                 className="btn primary"
                 type="button"
-                onClick={() => downloadPayslip(p, () => toast(POPUP_BLOCKED, 'error'))}
+                onClick={() => downloadPayslip(p, () => toast(popupBlocked, 'error'))}
               >
                 Download payslip (PDF)
               </button>

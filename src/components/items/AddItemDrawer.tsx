@@ -9,7 +9,7 @@ import type { ItemRow } from '@/lib/queries';
 
 type State = { ok?: boolean; error?: string };
 
-const STATUS_OPTIONS = ['In Stock', 'Low Stock', 'Out of Stock', 'Discontinued'];
+const statusOptions = ['In Stock', 'Low Stock', 'Out of Stock', 'Discontinued'];
 
 export function AddItemDrawer({
   open,
@@ -84,7 +84,7 @@ export function AddItemDrawer({
                 name="status"
                 label="Item status"
                 defaultValue={item?.status ?? 'In Stock'}
-                options={STATUS_OPTIONS.map((s) => ({ value: s, label: s }))}
+                options={statusOptions.map((s) => ({ value: s, label: s }))}
               />
             </div>
             <Field name="remarks" label="Remarks" defaultValue={item?.remarks ?? undefined} />

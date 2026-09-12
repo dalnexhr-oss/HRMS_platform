@@ -36,7 +36,7 @@ export interface NotifyInput {
 }
 
 // Roles that review things — the audience for "something needs your attention".
-const APPROVER_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
+const approverRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
 function warn(context: string, detail: unknown): void {
   console.warn(
@@ -102,7 +102,7 @@ export async function notifyEmployee(
   }
 }
 
-/** Notify everyone who can approve things — mirrors _guard.ts WRITE_ROLES. */
+/** Notify everyone who can approve things — mirrors _guard.ts writeRoles. */
 export async function notifyApprovers(input: NotifyInput, exceptProfileId?: string): Promise<void> {
   if (!isServiceRoleConfigured()) {
     warn(input.kind, 'MONGO_URI is not set, so notifications are disabled.');
@@ -113,7 +113,7 @@ export async function notifyApprovers(input: NotifyInput, exceptProfileId?: stri
     const { data, error } = await admin
       .from('profiles')
       .select<{ id: string; role: string }[]>('id, role')
-      .in('role', APPROVER_ROLES as unknown as string[]);
+      .in('role', approverRoles as unknown as string[]);
     if (error) return warn(input.kind, error.message);
     const ids = (data ?? [])
       .map((p: { id: string }) => p.id)

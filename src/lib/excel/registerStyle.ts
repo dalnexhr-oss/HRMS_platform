@@ -8,7 +8,7 @@
 //
 
 // ARGB fills for each attendance status, exactly as the reference sheet uses them.
-export const STATUS_FILL: Record<string, string> = {
+export const statusFill: Record<string, string> = {
   P: 'FF70AD47', // green — present (verified in reference)
   HD: 'FFBFBFBF', // grey — half day (verified)
   WO: 'FFFFFF00', // yellow — week off (verified)
@@ -26,7 +26,7 @@ export const STATUS_FILL: Record<string, string> = {
 };
 
 // Header fills, likewise taken from the reference sheet.
-export const HEADER_FILL = {
+export const headerFill = {
   // B1 year + B2 month.
   period: 'FFFFC000',
   // Row 3 weekday names.
@@ -40,7 +40,7 @@ export const HEADER_FILL = {
 } as const;
 
 // The reference sheet formats every punch/duration cell as h:mm.
-export const TIME_FORMAT = 'h:mm';
+export const timeFormat = 'h:mm';
 
 // 'HH:MM' -> an Excel serial time (fraction of a day), or null. The reference stores punches as REAL time values formatted h:mm, not text. Writing them the same way keeps the export visually identical AND keeps it re-importable: parseRegister's excelValueToMinutes() multiplies a numeric cell by 1440 to recover minutes.
 export function clockToExcelTime(clock: string | null): number | null {

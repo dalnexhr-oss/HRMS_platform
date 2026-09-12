@@ -235,7 +235,7 @@ export default async function MePage() {
           </div>
           <div className="note">
             {monthYear(periodMonth)} ·{' '}
-            {run ? RUN_STATUS_LABEL[run.status] : 'not computed yet'}
+            {run ? runStatusLabel[run.status] : 'not computed yet'}
           </div>
         </div>
         <div className="card kpi">
@@ -411,7 +411,7 @@ export default async function MePage() {
   );
 }
 
-const RUN_STATUS_LABEL: Record<PayrollRunView['status'], string> = {
+const runStatusLabel: Record<PayrollRunView['status'], string> = {
   draft: 'draft',
   in_review: 'in review',
   locked: 'locked',

@@ -14,7 +14,7 @@ import {
   verifyEmployeeDocument,
   deleteEmployeeDocument,
 } from '@/lib/actions/documents';
-import { documentCategoryLabel, REQUIRED_DOCUMENT_CATEGORIES } from '@/lib/constants';
+import { documentCategoryLabel, requiredDocumentCategories } from '@/lib/constants';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { usePrompt } from '@/components/ui/PromptDialog';
 import { useToast } from '@/components/ui/Toast';
@@ -84,7 +84,7 @@ export function EmployeeDocumentsPanel({
   const heldVerified = new Set(
     chains.filter((c) => c.current.status === 'verified' && c.current.category).map((c) => c.current.category!),
   );
-  const missing = REQUIRED_DOCUMENT_CATEGORIES.filter((c) => !heldVerified.has(c));
+  const missing = requiredDocumentCategories.filter((c) => !heldVerified.has(c));
 
   function reload() {
     if (!employee) return;

@@ -15,60 +15,60 @@
 import { Decimal128 } from 'mongodb';
 
 // Marker for `now()` — resolved per insert, never at module load.
-export const NOW = Symbol('now');
+export const now = Symbol('now');
 // Marker for `current_date` — an IST calendar date, as `YYYY-MM-DD`.
-export const TODAY = Symbol('today');
+export const today = Symbol('today');
 
 const money = (v: string): Decimal128 => Decimal128.fromString(v);
 
 export type DefaultValue = string | number | boolean | Decimal128 | object | symbol;
 
 // collection -> field -> the value Postgres would have supplied.
-export const COLUMN_DEFAULTS: Record<string, Record<string, DefaultValue>> = {
+export const columnDefaults: Record<string, Record<string, DefaultValue>> = {
   acknowledgements: {
-    signed_at: NOW,
+    signed_at: now,
   },
   activity_log: {
     metadata: {},
-    occurred_at: NOW,
+    occurred_at: now,
   },
   approval_steps: {
     status: "pending",
-    created_at: NOW,
+    created_at: now,
   },
   asset_assignments: {
-    assigned_date: TODAY,
+    assigned_date: today,
     returned: false,
-    created_at: NOW,
+    created_at: now,
   },
   asset_maintenance: {
-    maint_date: TODAY,
-    created_at: NOW,
+    maint_date: today,
+    created_at: now,
   },
   assets: {
-    created_at: NOW,
-    updated_at: NOW,
+    created_at: now,
+    updated_at: now,
   },
   attendance_days: {
     worked_minutes: 0,
     is_corrected: false,
-    created_at: NOW,
-    updated_at: NOW,
+    created_at: now,
+    updated_at: now,
   },
   branches: {
     geofence_radius_m: 150,
-    created_at: NOW,
+    created_at: now,
   },
   comp_offs: {
     status: "available",
-    created_at: NOW,
+    created_at: now,
     is_applicable: true,
   },
   cron_run_log: {
-    ran_at: NOW,
+    ran_at: now,
   },
   employee_documents: {
-    uploaded_at: NOW,
+    uploaded_at: now,
     bucket: "employee-documents",
   },
   employees: {
@@ -78,20 +78,20 @@ export const COLUMN_DEFAULTS: Record<string, Record<string, DefaultValue>> = {
     hra: money('0.00'),
     special_allowance: money('0.00'),
     status: "active",
-    created_at: NOW,
-    updated_at: NOW,
+    created_at: now,
+    updated_at: now,
   },
   exit_cases: {
     stage: "initiated",
-    created_at: NOW,
-    updated_at: NOW,
+    created_at: now,
+    updated_at: now,
   },
   exit_clearance_items: {
     cleared: false,
-    created_at: NOW,
+    created_at: now,
   },
   exit_interviews: {
-    created_at: NOW,
+    created_at: now,
   },
   full_and_final: {
     salary_payable: money('0.00'),
@@ -101,43 +101,43 @@ export const COLUMN_DEFAULTS: Record<string, Record<string, DefaultValue>> = {
     other_deductions: money('0.00'),
     net_payable: money('0.00'),
     status: "draft",
-    created_at: NOW,
-    updated_at: NOW,
+    created_at: now,
+    updated_at: now,
   },
   helpdesk_ticket_comments: {
     author_is_staff: false,
-    created_at: NOW,
+    created_at: now,
   },
   helpdesk_tickets: {
     status: "open",
-    created_at: NOW,
+    created_at: now,
   },
   holidays: {
-    created_at: NOW,
+    created_at: now,
   },
   item_assignments: {
-    assigned_date: TODAY,
+    assigned_date: today,
     returned: false,
-    created_at: NOW,
+    created_at: now,
   },
   items: {
     total_quantity: 0,
     returnable: false,
     status: "In Stock",
-    created_at: NOW,
-    updated_at: NOW,
+    created_at: now,
+    updated_at: now,
     item_type: "fixed",
   },
   knowledge_transfer_items: {
     status: "pending",
-    created_at: NOW,
+    created_at: now,
   },
   late_marks: {
     auto_half_day: false,
-    created_at: NOW,
+    created_at: now,
   },
   leave_balance_adjustments: {
-    created_at: NOW,
+    created_at: now,
   },
   leave_balances: {
     balance: money('0.00'),
@@ -145,46 +145,46 @@ export const COLUMN_DEFAULTS: Record<string, Record<string, DefaultValue>> = {
   leave_encashment: {
     amount: money('0.00'),
     status: "requested",
-    requested_at: NOW,
+    requested_at: now,
   },
   leave_salary_workings: {
     total_amount: money('0.00'),
     status: "draft",
-    updated_at: NOW,
+    updated_at: now,
   },
   notice_reads: {
-    read_at: NOW,
+    read_at: now,
   },
   notices: {
     channel: "app",
-    created_at: NOW,
+    created_at: now,
   },
   notifications: {
-    created_at: NOW,
+    created_at: now,
   },
   onboarding_tasks: {
     status: "pending",
-    created_at: NOW,
-    updated_at: NOW,
+    created_at: now,
+    updated_at: now,
   },
   onboarding_template_items: {
     seq: 0,
   },
   onboarding_templates: {
     active: true,
-    created_at: NOW,
-    updated_at: NOW,
+    created_at: now,
+    updated_at: now,
   },
   payroll_runs: {
     status: "draft",
-    created_at: NOW,
+    created_at: now,
   },
   payslip_adjustments: {
     advance_recovery: money('0.00'),
     loss_damage: money('0.00'),
     last_month_balance: money('0.00'),
     reimbursement_bonus: money('0.00'),
-    updated_at: NOW,
+    updated_at: now,
     other_deductions: money('0.00'),
     bonus: money('0.00'),
   },
@@ -206,45 +206,45 @@ export const COLUMN_DEFAULTS: Record<string, Record<string, DefaultValue>> = {
     professional_tax: money('0.00'),
     net_payable: money('0.00'),
     status: "draft",
-    created_at: NOW,
-    updated_at: NOW,
+    created_at: now,
+    updated_at: now,
   },
   policies: {
     version: 1,
     published: false,
-    created_at: NOW,
-    updated_at: NOW,
+    created_at: now,
+    updated_at: now,
   },
   policy_acknowledgements: {
-    acknowledged_at: NOW,
+    acknowledged_at: now,
   },
   pt_slabs: {
     min_gross: money('0.00'),
-    created_at: NOW,
+    created_at: now,
   },
   punch_events: {
     source: "mobile_app",
-    created_at: NOW,
+    created_at: now,
   },
   reimbursement_claims: {
     amount: money('0.00'),
     status: "pending",
-    created_at: NOW,
+    created_at: now,
   },
   reimbursement_events: {
     metadata: {},
-    occurred_at: NOW,
+    occurred_at: now,
   },
   requests: {
     days: money('1.00'),
     status: "pending",
-    created_at: NOW,
+    created_at: now,
   },
   role_tab_access: {
     allowed: true,
-    updated_at: NOW,
+    updated_at: now,
   },
   settings: {
-    updated_at: NOW,
+    updated_at: now,
   },
 };

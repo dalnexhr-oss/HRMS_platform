@@ -8,7 +8,7 @@ import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast, type ToastKind } from '@/components/ui/Toast';
 import type { NoticeView } from '@/lib/queries';
 
-const CHANNEL_LABEL: Record<NoticeView['channel'], string> = {
+const channelLabel: Record<NoticeView['channel'], string> = {
   app: 'App',
   whatsapp: 'WhatsApp',
   both: 'Both',
@@ -104,7 +104,7 @@ function NoticeItem({
     <div className="policy">
       <div className="phd">
         <h4>{notice.title}</h4>
-        <span className="pill">{CHANNEL_LABEL[notice.channel]}</span>
+        <span className="pill">{channelLabel[notice.channel]}</span>
         <span className="cat">{notice.branch ?? 'All branches'}</span>
         <span style={{ flex: 1 }} />
         {notice.published && notice.publishedAt ? (

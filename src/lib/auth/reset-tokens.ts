@@ -19,9 +19,9 @@ import { createHash, randomBytes } from 'node:crypto';
 import { db } from '@/lib/db/mongo';
 
 // How long a reset link stays valid. Short by design.
-export const RESET_TOKEN_TTL_MINUTES = 60;
+export const resetTokenTtlMinutes = 60;
 
-export const RESET_TOKENS_COLLECTION = 'password_reset_tokens';
+export const resetTokensCollection = 'password_reset_tokens';
 
 interface ResetTokenDoc {
   _id: string;
@@ -40,7 +40,7 @@ function hashToken(raw: string): string {
 }
 
 async function tokens() {
-  return (await db()).collection<ResetTokenDoc>(RESET_TOKENS_COLLECTION);
+  return (await db()).collection<ResetTokenDoc>(resetTokensCollection);
 }
 
 // Issue a reset token for a user and return the RAW value to put in the link. Any token the user already held is discarded first, so requesting a second link invalidates the first — otherwise every request would widen the window of live tokens.
@@ -56,7 +56,7 @@ export async function createResetToken(
     _id: randomBytes(16).toString('hex'),
     user_id: userId,
     token_hash: hashToken(raw),
-    expires_at: new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60_000),
+    expires_at: new Date(Date.now() + resetTokenTtlMinutes * 60_000),
     created_at: new Date(),
     requested_ip: requestedIp,
   });

@@ -23,7 +23,7 @@ export interface PayslipAdjustments {
   remarks: string;
 }
 
-export const EMPTY_ADJUSTMENTS: PayslipAdjustments = {
+export const emptyAdjustments: PayslipAdjustments = {
   advanceRecovery: 0,
   bonus: 0,
   lossDamage: 0,
@@ -289,7 +289,7 @@ export function PayrollTable({
                     {open === p.id && (
                       <PayExpand
                         p={p}
-                        adj={adjustments[p.id] ?? EMPTY_ADJUSTMENTS}
+                        adj={adjustments[p.id] ?? emptyAdjustments}
                         frozen={frozen}
                         runStatus={run?.status ?? null}
                         daysInMonth={daysInPeriod(run?.periodMonth)}

@@ -35,6 +35,6 @@ export async function appOrigin(): Promise<string | null> {
 }
 
 // Shown when APP_URL is missing in production — a deployment fault, not a user one.
-export const ORIGIN_NOT_CONFIGURED =
+export const originNotConfigured =
   'This site’s address is not configured, so a reset link cannot be sent. ' +
   'Ask an administrator to set APP_URL.';

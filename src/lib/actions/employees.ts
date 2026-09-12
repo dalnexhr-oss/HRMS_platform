@@ -9,14 +9,14 @@ import { requireStaff, wroteNothing } from '@/lib/actions/_guard';
 import { usersCollection } from '@/lib/db/collections';
 import { formatMoney, fromPaise, toPaise } from '@/lib/db/money';
 import { getEmployeeForEdit, type EmployeeEditRow } from '@/lib/queries';
-import { INDIAN_STATES } from '@/lib/constants';
+import { States } from '@/lib/constants';
 
 import { sendEmail, isEmailConfigured } from '@/lib/email';
 import { buildWelcomeEmail } from '@/lib/documents/templates';
 import { startOnboarding } from '@/lib/actions/onboarding';
 
 // Transient failures worth a second try; a missing account is not one.
-const LOGIN_UPDATE_ATTEMPTS = 3;
+const loginUpdateAttempts = 3;
 
 // Enable or disable sign-in for every login account linked to an employee. Reversible by design: it mirrors deactivate/reactivate and leaves the login → employee link intact for when they come back. A real failure to update an existing account IS reported, so the caller never claims to have removed access it could not remove.
 async function setEmployeeLoginAccess(
@@ -50,7 +50,7 @@ async function setEmployeeLoginAccess(
     for (const p of profiles) {
       let lastError = 'Could not update login access.';
 
-      for (let attempt = 1; attempt <= LOGIN_UPDATE_ATTEMPTS; attempt++) {
+      for (let attempt = 1; attempt <= loginUpdateAttempts; attempt++) {
         try {
           // Access is users.disabled, which getSession() re-checks on every
           // request.
@@ -83,7 +83,7 @@ async function setEmployeeLoginAccess(
         }
 
         // Don't delay after the final attempt.
-        if (attempt < LOGIN_UPDATE_ATTEMPTS) {
+        if (attempt < loginUpdateAttempts) {
           await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
         }
       }
@@ -290,7 +290,7 @@ type DbClient = Awaited<ReturnType<typeof createClient>>;
  * Sentinel the drawer's branch <select> submits when "+ Add new branch…" is
  * chosen. Kept out of any real branch's namespace by the leading underscores.
  */
-const NEW_BRANCH = '__new__';
+const newBranch = '__new__';
 
 /**
  * Resolve the submitted branch to its id AND its canonical name.
@@ -310,7 +310,7 @@ async function resolveBranch(
 ): Promise<{ ok: true; id: string; name: string } | { ok: false; error: string }> {
   const selected = String(formData.get('branch') ?? '').trim();
 
-  if (selected !== NEW_BRANCH) {
+  if (selected !== newBranch) {
     if (!selected) return { ok: false, error: 'Pick a branch.' };
     // ilike, not eq. The value comes from a <select> built out of branches.name
     // so it normally matches exactly — but an exact match is the one comparison
@@ -332,9 +332,9 @@ async function resolveBranch(
   const name = String(formData.get('branch_new_name') ?? '').trim();
   const state = String(formData.get('branch_new_state') ?? '').trim();
   if (!name) return { ok: false, error: 'Enter the new branch name.' };
-  // INDIAN_STATES mirrors the branches validator's state enum; the validator
+  // States mirrors the branches validator's state enum; the validator
   // still has the final word — a mismatch surfaces as a DB error below.
-  if (!(INDIAN_STATES as readonly string[]).includes(state)) {
+  if (!(States as readonly string[]).includes(state)) {
     return { ok: false, error: 'Pick the new branch state or union territory.' };
   }
 

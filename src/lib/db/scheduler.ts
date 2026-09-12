@@ -24,10 +24,10 @@
 //
 import 'server-only';
 import { randomUUID } from 'node:crypto';
-import { COLLECTIONS, type BaseDoc } from '@/lib/db/collections';
+import { collections, type BaseDoc } from '@/lib/db/collections';
 import { scopedFor } from '@/lib/db/repo';
-import { SYSTEM_SCOPE } from '@/lib/db/scope';
-import { provisionLeaveBalances, SCHEDULED } from '@/lib/db/functions';
+import { systemScope } from '@/lib/db/scope';
+import { provisionLeaveBalances, scheduled } from '@/lib/db/functions';
 import {
   autoCloseDay,
   autoPunchOutMinutesFrom,
@@ -38,7 +38,7 @@ import { monthSealReason, periodMonthFor, type PayrollRunSeal } from '@/lib/payr
 // Every job's notion of "now" — the company runs on IST — and the app's one
 // definition of it. See the note on the same import in pgcompat.ts.
 import { todayIST } from '@/lib/format';
-import { NOTICE_RETENTION_DAYS } from '@/lib/constants';
+import { noticeRetentionDays } from '@/lib/constants';
 
 function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`);
@@ -53,7 +53,7 @@ function addDays(date: string, days: number): string {
  * repeat. Guard every side-effecting job with this.
  */
 export async function cronClaim(job: string, runKey: string, detail?: string): Promise<boolean> {
-  const log = scopedFor<BaseDoc>(COLLECTIONS.cronRunLog, SYSTEM_SCOPE);
+  const log = scopedFor<BaseDoc>(collections.cronRunLog, systemScope);
   try {
     await log.insertOne({
       _id: randomUUID(),
@@ -81,7 +81,7 @@ export async function cronClaim(job: string, runKey: string, detail?: string): P
  */
 async function cronRelease(job: string, runKey: string): Promise<void> {
   try {
-    const log = scopedFor<BaseDoc>(COLLECTIONS.cronRunLog, SYSTEM_SCOPE);
+    const log = scopedFor<BaseDoc>(collections.cronRunLog, systemScope);
     await log.deleteMany({ job, run_key: runKey });
   } catch {
     // swallowed on purpose — see above
@@ -148,13 +148,13 @@ export interface JobResult {
  *
  * Callers: the nightly job below, and queries.purgeExpiredNotices() for the
  * opportunistic sweep on publish. It used to be written out separately in each
- * of those, with a different window in each — see NOTICE_RETENTION_DAYS.
+ * of those, with a different window in each — see noticeRetentionDays.
  */
 export async function deleteExpiredNotices(
-  retentionDays = NOTICE_RETENTION_DAYS,
+  retentionDays = noticeRetentionDays,
 ): Promise<number> {
   const cutoff = new Date(`${addDays(todayIST(), -retentionDays)}T00:00:00Z`);
-  const notices = scopedFor<BaseDoc>(COLLECTIONS.notices, SYSTEM_SCOPE);
+  const notices = scopedFor<BaseDoc>(collections.notices, systemScope);
   const published = await notices.deleteMany({
     published_at: { $ne: null, $lt: cutoff },
   });
@@ -167,7 +167,7 @@ export async function deleteExpiredNotices(
 
 /** Delete notices that have outlived the retention window. */
 export async function purgeOldNotices(
-  retentionDays = NOTICE_RETENTION_DAYS,
+  retentionDays = noticeRetentionDays,
 ): Promise<JobResult> {
   return claimed(
     'purge-old-notices',
@@ -189,7 +189,7 @@ export async function expireCompOffs(): Promise<JobResult> {
     { job: 'compoff_expiry', runKey: today },
     'already ran today',
     async () => {
-      const compOffs = scopedFor<BaseDoc>(COLLECTIONS.compOffs, SYSTEM_SCOPE);
+      const compOffs = scopedFor<BaseDoc>(collections.compOffs, systemScope);
       // Only 'available' expires. One already 'applied' is committed to a
       // request, and 'used' has been consumed — expiring either would take
       // back leave the employee has already been granted.
@@ -221,7 +221,7 @@ export async function warrantyReminders(): Promise<JobResult> {
   const today = todayIST();
   const horizon = addDays(today, 30);
 
-  const assets = scopedFor<BaseDoc>(COLLECTIONS.assets, SYSTEM_SCOPE);
+  const assets = scopedFor<BaseDoc>(collections.assets, systemScope);
   const expiring = await assets.find({
     warranty_upto: { $ne: null, $gte: today, $lte: horizon },
   });
@@ -281,19 +281,19 @@ export async function autoPunchOut(targetDate?: string): Promise<JobResult> {
       // from payslips that are already final. Reading the run FAILS CLOSED:
       // "cannot tell" is not "open".
       const periodMonth = periodMonthFor(date);
-      const runs = scopedFor<BaseDoc>(COLLECTIONS.payrollRuns, SYSTEM_SCOPE);
+      const runs = scopedFor<BaseDoc>(collections.payrollRuns, systemScope);
       const run = await runs.findOne({ period_month: periodMonth });
       const sealed = monthSealReason(periodMonth, run as PayrollRunSeal | null);
       if (sealed) return { affected: 0, detail: sealed };
 
-      const settings = scopedFor<BaseDoc>(COLLECTIONS.settings, SYSTEM_SCOPE);
+      const settings = scopedFor<BaseDoc>(collections.settings, systemScope);
       const row = await settings.findOne({ key: 'auto_punch_out_time' });
       // ONE definition of this setting's default and of how it parses, shared
       // with the manual sweep. See autoPunchOutMinutesFrom().
       const closeMin = autoPunchOutMinutesFrom(row?.value);
       const closeAt = minutesToClock(closeMin);
 
-      const attendance = scopedFor<BaseDoc>(COLLECTIONS.attendanceDays, SYSTEM_SCOPE);
+      const attendance = scopedFor<BaseDoc>(collections.attendanceDays, systemScope);
       const open = await attendance.find({
         work_date: date,
         punch_in: { $ne: null },
@@ -346,7 +346,7 @@ export async function autoCloseMonth(): Promise<JobResult> {
     { job: 'auto_close_month', runKey: prev },
     'already closed ' + prev,
     async () => {
-      const runs = scopedFor<BaseDoc>(COLLECTIONS.payrollRuns, SYSTEM_SCOPE);
+      const runs = scopedFor<BaseDoc>(collections.payrollRuns, systemScope);
       // Only a draft closes automatically. A run already in review, locked or
       // paid has been handled by a person, and must not be reopened or
       // re-stamped.
@@ -373,7 +373,7 @@ export async function leaveAnnualProvision(year?: number): Promise<JobResult> {
     // SCHEDULED is what marks this as the job runner rather than a request.
     // It used to be inferred from "there is no session", which every
     // authentication failure also satisfies — see functions.ts:Invocation.
-    async () => ({ affected: await provisionLeaveBalances({ p_year: target }, SCHEDULED) }),
+    async () => ({ affected: await provisionLeaveBalances({ p_year: target }, scheduled) }),
   );
 }
 
@@ -386,7 +386,7 @@ export async function lifecycleReminders(): Promise<JobResult> {
   const today = todayIST();
   const horizon = addDays(today, 7);
 
-  const exits = scopedFor<BaseDoc>(COLLECTIONS.exitCases, SYSTEM_SCOPE);
+  const exits = scopedFor<BaseDoc>(collections.exitCases, systemScope);
   const due = await exits.find({
     last_working_day: { $ne: null, $gte: today, $lte: horizon },
     stage: { $nin: ['completed', 'cancelled'] },
@@ -421,7 +421,7 @@ export async function lifecycleReminders(): Promise<JobResult> {
 // ---------------------------------------------------------------------------
 
 async function staffUserIds(): Promise<string[]> {
-  const users = scopedFor<BaseDoc>(COLLECTIONS.users, SYSTEM_SCOPE);
+  const users = scopedFor<BaseDoc>(collections.users, systemScope);
   const rows = await users.find(
     { role: { $in: ['super_admin', 'admin', 'hr'] }, disabled: false },
     { projection: { _id: 1 } },
@@ -434,7 +434,7 @@ async function notifyAll(
   n: { kind: string; title: string; body: string; link: string },
 ): Promise<void> {
   if (recipients.length === 0) return;
-  const notifications = scopedFor<BaseDoc>(COLLECTIONS.notifications, SYSTEM_SCOPE);
+  const notifications = scopedFor<BaseDoc>(collections.notifications, systemScope);
   await notifications.insertMany(
     recipients.map((recipient_id) => ({
       _id: randomUUID(),
@@ -450,7 +450,7 @@ async function notifyAll(
 }
 
 async function logActivity(eventType: string, message: string): Promise<void> {
-  const log = scopedFor<BaseDoc>(COLLECTIONS.activityLog, SYSTEM_SCOPE);
+  const log = scopedFor<BaseDoc>(collections.activityLog, systemScope);
   await log.insertOne({
     _id: randomUUID(),
     actor_id: null,
@@ -469,7 +469,7 @@ async function logActivity(eventType: string, message: string): Promise<void> {
 // the schedule
 // ---------------------------------------------------------------------------
 
-export const JOBS = {
+export const jobs = {
   'purge-old-notices': purgeOldNotices,
   'attendance-auto-punch-out': () => autoPunchOut(),
   'attendance-auto-close-month': autoCloseMonth,
@@ -479,7 +479,7 @@ export const JOBS = {
   'lifecycle-reminders': lifecycleReminders,
 } as const;
 
-export type JobName = keyof typeof JOBS;
+export type JobName = keyof typeof jobs;
 
 /**
  * Run every daily job.
@@ -490,7 +490,7 @@ export type JobName = keyof typeof JOBS;
  */
 export async function runDailyJobs(): Promise<JobResult[]> {
   const out: JobResult[] = [];
-  for (const [name, job] of Object.entries(JOBS)) {
+  for (const [name, job] of Object.entries(jobs)) {
     try {
       out.push(await job());
     } catch (e) {

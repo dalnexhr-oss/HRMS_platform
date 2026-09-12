@@ -8,7 +8,7 @@ import { todayIST } from '@/lib/format';
 import type { LeaveBalanceRow, RequestView } from '@/lib/queries';
 import type { RequestType } from '@/types/database';
 
-const TYPE_LABEL: Record<RequestType, string> = {
+const typeLabel: Record<RequestType, string> = {
   leave: 'Leave',
   site_visit: 'Site visit',
   outdoor_duty: 'Outdoor duty',
@@ -18,12 +18,12 @@ const TYPE_LABEL: Record<RequestType, string> = {
 
 // 'comp_off' is deliberately NOT offered here: a comp off must be applied for
 // against a specific earned credit, which the CompOffs card handles.
-const TYPE_OPTIONS: RequestType[] = ['leave', 'site_visit', 'outdoor_duty', 'wfh'];
+const typeOptions: RequestType[] = ['leave', 'site_visit', 'outdoor_duty', 'wfh'];
 
 // The leave_kind enum is a superset of the leave_type enum, so the labels are not identical.
 //  The leave_type enum is used in the requests table, but comp off is absent from it because a comp off is not a leave kind: it is an application against an earned credit.
 //  The leave_kind enum is used in the leave_balances view, which includes comp off.
-const LEAVE_KIND_LABEL: Record<LeaveBalanceRow['type'], string> = {
+const leaveKindLabel: Record<LeaveBalanceRow['type'], string> = {
   PL: 'Paid leave',
   CL: 'Casual leave',
   SL: 'Sick leave',
@@ -31,14 +31,14 @@ const LEAVE_KIND_LABEL: Record<LeaveBalanceRow['type'], string> = {
 };
 
 // What a NEW leave request may be filed as. 'CO' is deliberately not a LeaveType: comp off is absent from the leave_type enum, so createRequest rejects it as a leave_kind. Picking it here files a comp-off application against an earned credit via applyCompOff instead — the only way a comp off can be taken, because the credit has to be claimed so it cannot be spent twice.
-const LEAVE_KIND_OPTIONS = [
+const leaveKindOptions = [
   { value: 'CO', label: 'Comp off' },
   { value: 'LWP', label: 'Leave without pay' },
 ] as const;
 
-type LeaveKindChoice = (typeof LEAVE_KIND_OPTIONS)[number]['value'];
+type LeaveKindChoice = (typeof leaveKindOptions)[number]['value'];
 
-const STATUS_LABEL: Record<RequestView['status'], string> = {
+const statusLabel: Record<RequestView['status'], string> = {
   pending: 'Pending',
   approved: 'Approved',
   rejected: 'Rejected',
@@ -127,7 +127,7 @@ export function ApplyLeave({
                     {b.balance}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-                    {LEAVE_KIND_LABEL[b.type]}
+                    {leaveKindLabel[b.type]}
                   </div>
                 </div>
               ))}
@@ -184,7 +184,7 @@ function RequestItem({ request }: { request: RequestView }) {
     <div className="policy">
       <div className="phd">
         <h4>
-          {TYPE_LABEL[request.type]}
+          {typeLabel[request.type]}
           {request.leaveKind ? ` · ${request.leaveKind}` : ''}
         </h4>
         <span className="ver">
@@ -193,7 +193,7 @@ function RequestItem({ request }: { request: RequestView }) {
         </span>
         <span style={{ flex: 1 }} />
         <span className="pill" style={statusPillStyle(request.status)}>
-          {STATUS_LABEL[request.status]}
+          {statusLabel[request.status]}
         </span>
         {request.status === 'pending' && (
           <button className="btn" onClick={onCancel} disabled={pending}>
@@ -206,7 +206,7 @@ function RequestItem({ request }: { request: RequestView }) {
         {request.status === 'pending'
           ? ' · awaiting review'
           : request.reviewedAt
-            ? ` · ${STATUS_LABEL[request.status].toLowerCase()} ${stampDate(request.reviewedAt)}`
+            ? ` · ${statusLabel[request.status].toLowerCase()} ${stampDate(request.reviewedAt)}`
             : request.status === 'cancelled'
               ? ' · withdrawn by you'
               : ''}
@@ -278,9 +278,9 @@ function NewRequestForm({ compOffBalance }: { compOffBalance: number }) {
           value={type}
           onChange={(e) => setType(e.target.value as RequestType)}
         >
-          {TYPE_OPTIONS.map((t) => (
+          {typeOptions.map((t) => (
             <option key={t} value={t}>
-              {TYPE_LABEL[t]}
+              {typeLabel[t]}
             </option>
           ))}
         </select>
@@ -294,7 +294,7 @@ function NewRequestForm({ compOffBalance }: { compOffBalance: number }) {
             value={leaveKind}
             onChange={(e) => setLeaveKind(e.target.value as LeaveKindChoice)}
           >
-            {LEAVE_KIND_OPTIONS.map((k) => (
+            {leaveKindOptions.map((k) => (
               <option key={k.value} value={k.value}>
                 {k.value} · {k.label}
               </option>

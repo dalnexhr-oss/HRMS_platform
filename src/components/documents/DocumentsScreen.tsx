@@ -31,7 +31,7 @@ import type { DocumentStats, EmployeeDocumentRow, EmployeeOption } from '@/lib/q
 
 type ColKey = 'employee' | 'category' | 'title' | 'source' | 'status' | 'filed';
 
-const STATUS_TEXT: Record<string, string> = {
+const statusText: Record<string, string> = {
   verified: 'Verified',
   awaiting: 'Awaiting verification',
   returned: 'Returned',
@@ -41,12 +41,12 @@ const STATUS_TEXT: Record<string, string> = {
 // `get` yields the string each header menu sorts and filters on; '—' stands in
 // for blank so "no value" is itself pickable. `kind` picks the compare order —
 // Filed is a date and must sort chronologically, not A → Z.
-const COLS: { key: ColKey; label: string; kind?: ColKind; get: (d: EmployeeDocumentRow) => string }[] = [
+const cols: { key: ColKey; label: string; kind?: ColKind; get: (d: EmployeeDocumentRow) => string }[] = [
   { key: 'employee', label: 'Employee', get: (d) => d.name || '—' },
   { key: 'category', label: 'Category', get: (d) => documentCategoryLabel(d.category, d.source === 'issued') },
   { key: 'title', label: 'Document', get: (d) => d.title ?? '—' },
   { key: 'source', label: 'Source', get: (d) => (d.source === 'issued' ? 'HR issued' : 'Uploaded') },
-  { key: 'status', label: 'Status', get: (d) => STATUS_TEXT[d.status] ?? d.status },
+  { key: 'status', label: 'Status', get: (d) => statusText[d.status] ?? d.status },
   { key: 'filed', label: 'Filed', kind: 'date', get: (d) => d.uploadedAt.slice(0, 10) },
 ];
 
@@ -78,7 +78,7 @@ export function DocumentsScreen({
   // in one column never hides another column's choices.
   const options = useMemo(() => {
     const out = {} as Record<ColKey, string[]>;
-    for (const c of COLS) out[c.key] = distinctValues(register.map(c.get), c.kind);
+    for (const c of cols) out[c.key] = distinctValues(register.map(c.get), c.kind);
     return out;
   }, [register]);
 
@@ -90,7 +90,7 @@ export function DocumentsScreen({
         [d.name, d.code, d.title, d.category].some((v) => (v ?? '').toLowerCase().includes(term)),
       );
     }
-    for (const c of COLS) {
+    for (const c of cols) {
       if (c.kind === 'date') {
         const r = ranges[c.key];
         if (rangeActive(r)) out = out.filter((d) => inDateRange(c.get(d), r));
@@ -100,7 +100,7 @@ export function DocumentsScreen({
       if (sel?.length) out = out.filter((d) => sel.includes(c.get(d)));
     }
     if (sort) {
-      const col = COLS.find((c) => c.key === sort.key);
+      const col = cols.find((c) => c.key === sort.key);
       if (col) out = sortRows(out, col.get, col.kind ?? 'text', sort.dir);
     }
     return out;
@@ -291,7 +291,7 @@ export function DocumentsScreen({
           <table style={{ minWidth: 980 }}>
             <thead>
               <tr>
-                {COLS.map((c) => (
+                {cols.map((c) => (
                   <th key={c.key}>
                     <ThMenu
                       label={c.label}
@@ -313,7 +313,7 @@ export function DocumentsScreen({
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={COLS.length + 1} className="muted" style={{ padding: 16 }}>
+                  <td colSpan={cols.length + 1} className="muted" style={{ padding: 16 }}>
                     {register.length === 0
                       ? 'No documents on file yet. Upload one to start the register.'
                       : 'No documents match the current search or filters.'}

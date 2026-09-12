@@ -74,8 +74,8 @@ export function EmployeeHolidays({
   );
 }
 
-const SATURDAY = 6;
-const WEEKDAY_NAMES = [
+const saturday = 6;
+const weekdayNames = [
   'Sunday',
   'Monday',
   'Tuesday',
@@ -93,13 +93,13 @@ function weekOffSentence(policy: WeekOffPolicy): string {
 
   // Non-Saturday off weekdays, in the order they appear.
   const otherOff = policy.weekOffWeekdays
-    .filter((d) => d !== SATURDAY)
-    .map((d) => WEEKDAY_NAMES[d])
+    .filter((d) => d !== saturday)
+    .map((d) => weekdayNames[d])
     .filter(Boolean);
   if (otherOff.length) parts.push(`Every ${otherOff.join(' and ')} is off`);
 
   // Saturday clause only when Saturday is actually a week-off weekday.
-  if (policy.weekOffWeekdays.includes(SATURDAY)) {
+  if (policy.weekOffWeekdays.includes(saturday)) {
     const workSats = policy.workingSaturdays.slice().sort((a, b) => a - b);
     const offSats = [1, 2, 3, 4, 5].filter((n) => !policy.workingSaturdays.includes(n));
     if (!workSats.length) {

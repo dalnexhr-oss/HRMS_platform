@@ -35,7 +35,7 @@ export function EmployeesScreen({
   const { confirm, confirmDialog } = useConfirm();
   const { toast, toastNode } = useToast();
 
-  // Same 20-slot palette as TodayBoard's split bar (BRANCH_PALETTE), keyed by
+  // Same 20-slot palette as TodayBoard's split bar (branchPalette), keyed by
   // the branch's position in the (alphabetical) branches list — so a branch
   // wears one stable colour on /today and /employees alike.
   const branchColor = useMemo(() => {

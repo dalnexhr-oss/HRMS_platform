@@ -33,7 +33,7 @@ import type {
 } from 'mongodb';
 import { db } from '@/lib/db/mongo';
 import { policyFor, type CollectionPolicy } from '@/lib/db/policies';
-import { currentScope, SYSTEM_SCOPE, type Scope } from '@/lib/db/scope';
+import { currentScope, systemScope, type Scope } from '@/lib/db/scope';
 
 // Thrown when a write is refused. Carries a message safe to show a user.
 export class ScopeError extends Error {
@@ -45,7 +45,7 @@ export class ScopeError extends Error {
 }
 
 // Matches nothing. Used to express "denied" as a filter rather than a branch.
-const MATCH_NOTHING = { _id: { $in: [] as string[] } };
+const matchNothing = { _id: { $in: [] as string[] } };
 
 function and<T extends Document>(scope: Document, query: Filter<T>): Filter<T> {
   // $and rather than a spread: a spread silently drops the policy's constraint
@@ -84,7 +84,7 @@ export class ScopedCollection<T extends Document> {
 
   // The policy's read filter, or a match-nothing filter when denied.
   private readFilter(): Document {
-    return this.policy.read(this.scope) ?? MATCH_NOTHING;
+    return this.policy.read(this.scope) ?? matchNothing;
   }
 
   // The policy's write filter. Throws rather than silently matching nothing.
@@ -292,12 +292,12 @@ export function readFilterFor(
   viaParent?: string,
 ): Document {
   const policy = policyFor(collection);
-  if (!policy) return MATCH_NOTHING;
+  if (!policy) return matchNothing;
   // Reached through a parent this collection names as a gateway: the parent's
   // own filter has already decided reachability, exactly as the SQL `exists
   // (select 1 from <parent> …)` policy did. See CollectionPolicy.readableVia.
   if (viaParent && policy.readableVia?.includes(viaParent)) return {};
-  return policy.read(scope) ?? MATCH_NOTHING;
+  return policy.read(scope) ?? matchNothing;
 }
 
 function build<T extends Document>(
@@ -338,10 +338,10 @@ export function scopedFor<T extends Document>(
 
 // UNSCOPED access for scheduled jobs, migrations and maintenance — the equivalent of the old service-role key. Every call site is a place where the security boundary is deliberately not applied, so this name is meant to be greppable in review. It must never produce rows that are then handed back to the caller of a request: use it for work that is the same regardless of who triggered it (the nightly jobs, the expired-notice purge), never to answer "what may this user see". When the answer to that question is expressible but not by a per-collection policy, use afterParentCheck() instead — it says so at the call site.
 export function systemCollection<T extends Document>(name: string): ScopedCollection<T> {
-  return build<T>(name, SYSTEM_SCOPE);
+  return build<T>(name, systemScope);
 }
 
 // UNSCOPED access to a child collection whose access rule the CALLER has already applied by resolving the parent. policies.ts decides on one document at a time and cannot join, so a rule of the shape "you may read a comment when you may read its ticket" is not expressible there — the port's first attempt at approximating one on the child's own columns produced a different, wrong rule (an employee stopped seeing the staff replies on their own ticket). The caller instead reads the parents through a scoped handle and then reads children for exactly the parent ids that came back, which is the original rule precisely. Unlike systemCollection(), this IS reachable from a request. That is the point of the separate name: it marks the places where the check exists but lives in the caller, so a reviewer knows to go and look at it.
 export function afterParentCheck<T extends Document>(name: string): ScopedCollection<T> {
-  return build<T>(name, SYSTEM_SCOPE);
+  return build<T>(name, systemScope);
 }

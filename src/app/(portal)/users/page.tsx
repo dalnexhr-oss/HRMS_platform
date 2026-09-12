@@ -7,12 +7,12 @@ import type { AppRole } from '@/types/database';
 
 // User administration is admin/HR only. Anyone else is bounced rather than shown
 // a screen whose every control would be refused.
-const USER_ADMIN_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
+const userAdminRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 export default async function UsersPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
-  if (!role || !USER_ADMIN_ROLES.includes(role)) redirect('/today');
+  if (!role || !userAdminRoles.includes(role)) redirect('/today');
 
   const [result, employees] = await Promise.all([listUsers(), getEmployeeOptions()]);
 

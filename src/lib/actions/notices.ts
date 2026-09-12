@@ -10,10 +10,10 @@ import { uploadSharedFile, signedUrl } from '@/lib/storage';
 import { resolveBranchScope } from '@/lib/actions/_branch';
 
 // The duplicate-key code pgcompat reports (it maps MongoDB's 11000 onto it).
-const UNIQUE_VIOLATION = '23505';
+const uniqueViolation = '23505';
 
 // Notice attachments are PDFs only, capped like employee documents.
-const PDF_MAX_BYTES = 10 * 1024 * 1024;
+const pdfMaxBytes = 10 * 1024 * 1024;
 
 type PdfParse =
   | { ok: true; file: File | null } // null = no file chosen
@@ -26,7 +26,7 @@ function pdfField(formData: FormData): PdfParse {
   if (!/\.pdf$/i.test(file.name)) {
     return { ok: false, error: 'Notice attachments must be PDF files.' };
   }
-  if (file.size > PDF_MAX_BYTES) {
+  if (file.size > pdfMaxBytes) {
     return { ok: false, error: 'The PDF must be 10 MB or smaller.' };
   }
   return { ok: true, file };
@@ -64,7 +64,7 @@ export async function markNoticeRead(noticeId: string) {
 
   // Already read: the unique index on (notice_id, employee_id) rejected the
   // second insert, which is exactly what "idempotent" means here.
-  if (error && error.code !== UNIQUE_VIOLATION) {
+  if (error && error.code !== uniqueViolation) {
     return { ok: false, error: error.message };
   }
   revalidatePath('/me');

@@ -37,13 +37,13 @@ export interface ActionResult {
   error?: string;
 }
 
-const VERIFY_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
+const verifyRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 // Where UPLOADS go. Reads must not assume it — HR-issued letters live in
 // generated-documents and the row's `bucket` column (0039) says which is which.
-const UPLOAD_BUCKET: StorageBucket = 'employee-documents';
-const MAX_BYTES = 10 * 1024 * 1024; // 10 MB — certificates scan large
+const uploadBucket: StorageBucket = 'employee-documents';
+const maxBytes = 10 * 1024 * 1024; // 10 MB — certificates scan large
 
-// DOCUMENT_CATEGORIES used to live here, but this is a 'use server' module and
+// documentCategories used to live here, but this is a 'use server' module and
 // Next only allows async functions to be exported from one — a plain const
 // fails the build before type-checking even runs. It now lives in
 // @/lib/constants, which both this file and the client form can import.
@@ -55,7 +55,7 @@ export async function uploadEmployeeDocument(formData: FormData): Promise<Action
 
   const file = formData.get('file');
   if (!(file instanceof File) || file.size === 0) return { ok: false, error: 'Choose a file to upload.' };
-  if (file.size > MAX_BYTES) return { ok: false, error: 'Documents must be 10 MB or smaller.' };
+  if (file.size > maxBytes) return { ok: false, error: 'Documents must be 10 MB or smaller.' };
   const fileType = resolveUploadType(file.name, 'document');
   if (!fileType.ok) return fileType;
 
@@ -65,7 +65,7 @@ export async function uploadEmployeeDocument(formData: FormData): Promise<Action
 
   const { profile } = await getSession();
   if (!profile) return { ok: false, error: 'Your session has expired. Sign in again.' };
-  const isStaff = VERIFY_ROLES.includes(profile.role);
+  const isStaff = verifyRoles.includes(profile.role);
   const ownId = profile.employee_id;
 
   // Non-staff may only ever upload against their own record — this is what keeps
@@ -80,7 +80,7 @@ export async function uploadEmployeeDocument(formData: FormData): Promise<Action
 
   const dbc = await createClient();
   const up = await uploadFile(
-    UPLOAD_BUCKET,
+    uploadBucket,
     employeeId,
     file.name,
     await file.arrayBuffer(),
@@ -100,7 +100,7 @@ export async function uploadEmployeeDocument(formData: FormData): Promise<Action
       title,
       storage_path: up.path,
       uploaded_by: profile.id,
-      bucket: UPLOAD_BUCKET,
+      bucket: uploadBucket,
       doc_group: id,
       version: 1,
       superseded_at: null,
@@ -167,12 +167,12 @@ export async function replaceEmployeeDocument(
   previousId: string,
   formData: FormData,
 ): Promise<ActionResult> {
-  const gate = await requireRoles(VERIFY_ROLES, 'Replacing a document');
+  const gate = await requireRoles(verifyRoles, 'Replacing a document');
   if (!gate.ok) return gate;
 
   const file = formData.get('file');
   if (!(file instanceof File) || file.size === 0) return { ok: false, error: 'Choose the replacement file.' };
-  if (file.size > MAX_BYTES) return { ok: false, error: 'Documents must be 10 MB or smaller.' };
+  if (file.size > maxBytes) return { ok: false, error: 'Documents must be 10 MB or smaller.' };
   const fileType = resolveUploadType(file.name, 'document');
   if (!fileType.ok) return fileType;
 
@@ -216,7 +216,7 @@ export async function replaceEmployeeDocument(
   const category = previous.category ?? 'other';
 
   const up = await uploadFile(
-    UPLOAD_BUCKET,
+    uploadBucket,
     previous.employee_id,
     file.name,
     await file.arrayBuffer(),
@@ -234,7 +234,7 @@ export async function replaceEmployeeDocument(
       title,
       storage_path: up.path,
       uploaded_by: gate.profileId,
-      bucket: UPLOAD_BUCKET,
+      bucket: uploadBucket,
       // Rows predating versioning carry no group; the chain starts at the row
       // being replaced, which is exactly what mapDocument() already reports.
       doc_group: previous.doc_group ?? previous.id,
@@ -291,7 +291,7 @@ export async function verifyEmployeeDocument(
   verified: boolean,
   remark?: string,
 ): Promise<ActionResult> {
-  const gate = await requireRoles(VERIFY_ROLES, 'Verifying a document');
+  const gate = await requireRoles(verifyRoles, 'Verifying a document');
   if (!gate.ok) return gate;
 
   const cleanRemark = (remark ?? '').trim();
@@ -338,7 +338,7 @@ export async function verifyEmployeeDocument(
  * and nothing would show it.
  */
 export async function deleteEmployeeDocument(id: string): Promise<ActionResult> {
-  const gate = await requireRoles(VERIFY_ROLES, 'Deleting a document');
+  const gate = await requireRoles(verifyRoles, 'Deleting a document');
   if (!gate.ok) return gate;
 
   const dbc = await createClient();
@@ -372,7 +372,7 @@ export async function deleteEmployeeDocument(id: string): Promise<ActionResult> 
 
 /** Client-callable history for one employee (queries.ts is server-only). */
 export async function fetchEmployeeDocumentHistory(employeeId: string) {
-  const gate = await requireRoles(VERIFY_ROLES, 'Viewing an employee’s documents');
+  const gate = await requireRoles(verifyRoles, 'Viewing an employee’s documents');
   if (!gate.ok) return [];
   return readEmployeeDocumentHistory(employeeId);
 }
@@ -400,7 +400,7 @@ export async function getDocumentUrl(
   // HR-issued letters in generated-documents. Signing every path against the
   // former is what made every issued letter "Object not found". `bucket` arrived
   // in 0039; anything written before it is an upload.
-  const bucket = (data.bucket ?? UPLOAD_BUCKET) as StorageBucket;
+  const bucket = (data.bucket ?? uploadBucket) as StorageBucket;
   const signed = await signedUrl(bucket, data.storage_path);
   return signed.ok ? { ok: true, url: signed.url } : { ok: false, error: signed.error };
 }

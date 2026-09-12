@@ -9,8 +9,8 @@ import type { AppRole } from '@/types/database';
 // The HR dashboard aggregates live queues — never prerender a stale one.
 export const dynamic = 'force-dynamic';
 
-// HR management is admin/HR only, mirroring NAV_ROLE_GATED.hr.
-const HR_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
+// HR management is admin/HR only, mirroring TabRoleAuthorized.hr.
+const hrRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 // Active-roster headcount; null when it cannot be counted (shown as —).
 async function getHeadcount(): Promise<number | null> {
@@ -29,7 +29,7 @@ async function getHeadcount(): Promise<number | null> {
 export default async function HrDashboardPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
-  if (!role || !HR_ROLES.includes(role)) redirect('/today');
+  if (!role || !hrRoles.includes(role)) redirect('/today');
 
   const [requests, onLeaveToday, headcount] = await Promise.all([
     getRequests(),

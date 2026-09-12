@@ -27,7 +27,7 @@ export interface TodayBoardProps {
   periodMonthLabel: string;
 }
 
-const RUN_STATUS_LABEL: Record<PayrollRunView['status'], string> = {
+const runStatusLabel: Record<PayrollRunView['status'], string> = {
   draft: 'Draft',
   in_review: 'In review',
   locked: 'Locked',
@@ -190,7 +190,7 @@ export function TodayBoard({
         <div className="card kpi">
           <div className="lab">{periodMonthLabel} payroll</div>
           <div className="val" style={{ fontSize: 22, paddingTop: 6 }}>
-            {!run.ok ? '—' : run.data ? RUN_STATUS_LABEL[run.data.status] : 'Not started'}
+            {!run.ok ? '—' : run.data ? runStatusLabel[run.data.status] : 'Not started'}
           </div>
           <div className="note" style={run.ok ? undefined : { color: 'var(--ab)' }}>
             {run.ok ? (

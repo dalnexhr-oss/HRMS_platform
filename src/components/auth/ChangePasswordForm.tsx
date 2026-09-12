@@ -13,7 +13,7 @@ import { useActionState } from 'react';
 import { changePassword, type PasswordState } from '@/lib/actions/password';
 
 // Mirrors validatePassword() in lib/auth/password.ts.
-const MIN_LEN = 10;
+const minLen = 10;
 
 export function ChangePasswordForm({ email }: { email?: string | null }) {
   const [state, action, pending] = useActionState<PasswordState, FormData>(changePassword, {});
@@ -45,10 +45,10 @@ export function ChangePasswordForm({ email }: { email?: string | null }) {
             name="password"
             type="password"
             autoComplete="new-password"
-            minLength={MIN_LEN}
+            minLength={minLen}
             required
           />
-          <span className="hint">At least {MIN_LEN} characters.</span>
+          <span className="hint">At least {minLen} characters.</span>
         </div>
         <div className="f">
           <label htmlFor="cp-confirm">Confirm new password</label>
@@ -57,7 +57,7 @@ export function ChangePasswordForm({ email }: { email?: string | null }) {
             name="confirm"
             type="password"
             autoComplete="new-password"
-            minLength={MIN_LEN}
+            minLength={minLen}
             required
           />
         </div>

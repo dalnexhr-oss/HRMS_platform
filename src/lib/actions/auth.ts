@@ -24,7 +24,7 @@ export interface SignInState {
 }
 
 // One message for every credential failure — unknown email, wrong password, disabled account. Telling them apart is a free account-enumeration oracle, and none of the three is something the visitor can act on differently.
-const BAD_CREDENTIALS = 'That email and password do not match an account.';
+const badCredentials = 'That email and password do not match an account.';
 
 export async function signIn(_prev: SignInState, formData: FormData): Promise<SignInState> {
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
@@ -49,10 +49,10 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
 
   // Verify against a dummy hash when the user is absent so the response time
   // does not reveal whether the address exists.
-  const stored = user?.password_hash ?? DUMMY_HASH;
+  const stored = user?.password_hash ?? dummyHash;
   const ok = await verifyPassword(password, stored);
 
-  if (!user || !ok || user.disabled) return { error: BAD_CREDENTIALS };
+  if (!user || !ok || user.disabled) return { error: badCredentials };
 
   await users.updateOne({ _id: user._id }, { $set: { last_sign_in_at: new Date() } });
   await createSession(user);
@@ -76,5 +76,5 @@ export async function signOut() {
 
 // A real scrypt hash of a random string, used only to spend the same CPU time
 // on a missing account as on a real one. Its plaintext is unknown and unused.
-const DUMMY_HASH =
+const dummyHash =
   'scrypt$65536$8$1$CftBGH0+i21Hii5EPwDwQg==$CsAkgiwdSpCsLUVtHuOVbTMKVzfOfRfzRHrH+962fr+pEP6ZSr0n2BNFkhPBOxBMn8m8o/Bd2imihYsJE2m9Ng==';

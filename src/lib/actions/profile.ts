@@ -16,8 +16,8 @@ export interface ActionResult {
 
 // A 128×128 JPEG at q≈0.82 is ~8–16 KB once base64-encoded; this cap (≈375 KB of
 // base64) is generous headroom while still refusing a full-size photo.
-const MAX_DATA_URL_LEN = 500_000;
-const DATA_URL_RE = /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/]+=*$/;
+const maxDataUrlLen = 500_000;
+const dataUrlRe = /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/]+=*$/;
 
 // Set (or clear) the current user's avatar. null → remove (fall back to initials) 'preset:<id>' → a bundled shadcn avatar image 'data:image/…' → a small, client-resized photo Anything else is rejected.
 export async function updateAvatar(value: string | null): Promise<ActionResult> {
@@ -31,10 +31,10 @@ export async function updateAvatar(value: string | null): Promise<ActionResult> 
         return { ok: false, error: 'That avatar choice is not recognised.' };
       }
     } else if (value.startsWith('data:image/')) {
-      if (value.length > MAX_DATA_URL_LEN) {
+      if (value.length > maxDataUrlLen) {
         return { ok: false, error: 'That image is too large. Please choose a smaller photo.' };
       }
-      if (!DATA_URL_RE.test(value)) {
+      if (!dataUrlRe.test(value)) {
         return { ok: false, error: 'That file is not a supported image (use PNG, JPEG or WebP).' };
       }
     } else {

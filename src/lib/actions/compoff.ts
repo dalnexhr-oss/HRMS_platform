@@ -26,21 +26,21 @@ export interface ActionResult {
   error?: string;
 }
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
 // Statuses that mean "this was a day off". Working one of these earns a credit.
 // NOT exported: this file carries the 'use server' directive, and Next.js allows
 // a "use server" module to export only async functions — a `const` export throws
 // "A 'use server' file can only export async functions, found object" the moment
 // the module enters a client bundle. The constant is only used inside this file.
-const OFF_DAY_STATUSES = ['WO', 'OH'] as const;
+const offDayStatuses = ['WO', 'OH'] as const;
 
 // Grant a comp-off credit for an off day the employee worked. The unique (employee_id, earned_date) constraint makes a double-grant a no-op error rather than a duplicate credit.
 export async function grantCompOff(employeeId: string, earnedDate: string): Promise<ActionResult> {
   const gate = await requireStaff('Granting a comp off');
   if (!gate.ok) return gate;
 
-  if (!ISO_DATE.test(earnedDate)) return { ok: false, error: 'Invalid date for the comp off.' };
+  if (!isoDate.test(earnedDate)) return { ok: false, error: 'Invalid date for the comp off.' };
 
   const dbc = await createClient();
 
@@ -59,7 +59,7 @@ export async function grantCompOff(employeeId: string, earnedDate: string): Prom
   // Saturday grantable even though it is usually stamped plain 'P'.
   const policy = await getWeekOffPolicy();
   const isOffDay =
-    (OFF_DAY_STATUSES as readonly string[]).includes(day.status) ||
+    (offDayStatuses as readonly string[]).includes(day.status) ||
     isScheduledWeekOff(earnedDate, policy);
   const worked = day.punch_in !== null || Number(day.worked_minutes) > 0;
   if (!isOffDay || !worked) {
@@ -115,7 +115,7 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
   const takeDate = String(formData.get('take_date') ?? '').trim();
   const reason = String(formData.get('reason') ?? '').trim() || null;
 
-  if (!ISO_DATE.test(takeDate)) return { ok: false, error: 'Choose a valid date to take off.' };
+  if (!isoDate.test(takeDate)) return { ok: false, error: 'Choose a valid date to take off.' };
   // A comp off is time off still to be taken, so the day has to be ahead of the
   // credit being spent on it. Approval stamps the register with 'CO', and doing
   // that to a day already worked would overwrite what actually happened.

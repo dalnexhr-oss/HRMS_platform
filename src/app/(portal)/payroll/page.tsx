@@ -12,9 +12,9 @@ import { StatutoryExports } from '@/components/payroll/StatutoryExports';
 
 // Timestamps are rendered on the server only, so a fixed zone keeps them stable
 // and correct for the business rather than dependent on the host's TZ.
-const IST = 'Asia/Kolkata';
+const ist = 'Asia/Kolkata';
 
-const STATUS_LABEL: Record<PayrollRunView['status'], string> = {
+const runStatusLabel: Record<PayrollRunView['status'], string> = {
   draft: 'Draft',
   in_review: 'In review',
   locked: 'Locked',
@@ -32,7 +32,7 @@ function stamp(iso: string | null): string | null {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-    timeZone: IST,
+    timeZone: ist,
   });
 }
 
@@ -43,11 +43,11 @@ function monthLabel(periodMonth: string): string {
   return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
 
-const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+const monthRe = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 // '?m=2026-05' -> '2026-05-01'. Anything unparseable falls back to the current month (IST).
 function periodFromParam(m: string | undefined): string {
-  return m && MONTH_RE.test(m) ? `${m}-01` : currentPeriodMonth();
+  return m && monthRe.test(m) ? `${m}-01` : currentPeriodMonth();
 }
 
 /** Shift a 'YYYY-MM-01' by ±n months, returning the '?m=' param form 'YYYY-MM'. */
@@ -170,7 +170,7 @@ export default async function PayrollPage({
   ]);
 
   const label = monthLabel(run?.periodMonth ?? periodMonth);
-  const statusLabel = run ? STATUS_LABEL[run.status] : 'No run';
+  const statusLabel = run ? runStatusLabel[run.status] : 'No run';
 
   // Only milestones that have actually happened — a null timestamp means the
   // step hasn't occurred, so it isn't rendered. (The prototype's "Locks & pays

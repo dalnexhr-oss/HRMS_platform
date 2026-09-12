@@ -58,7 +58,7 @@ export interface BoardData {
 
 // Kept in step with the band headings in EmployeeScreen — the chip on a card
 // and the heading above it naming the same state differently reads as a bug.
-export const PRESENCE_LABEL: Record<Presence, string> = {
+export const presenceLabel: Record<Presence, string> = {
   in: 'In office',
   out: 'Clocked out',
   off: 'Away',

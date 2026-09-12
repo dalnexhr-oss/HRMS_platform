@@ -20,15 +20,15 @@ import { useToast, type ToastKind } from '@/components/ui/Toast';
 import type { ReimbursementView } from '@/lib/queries';
 import type { ReimbursementPurpose } from '@/types/database';
 
-const PURPOSE_LABEL: Record<ReimbursementPurpose, string> = {
+const purposeLabel: Record<ReimbursementPurpose, string> = {
   travel: 'Travel',
   material_purchase: 'Material purchase',
   other: 'Other expenses',
 };
 
-const PURPOSE_OPTIONS: ReimbursementPurpose[] = ['travel', 'material_purchase', 'other'];
+const purposeOptions: ReimbursementPurpose[] = ['travel', 'material_purchase', 'other'];
 
-const STATUS_LABEL: Record<ReimbursementView['status'], string> = {
+const statusLabel: Record<ReimbursementView['status'], string> = {
   pending: 'Pending',
   finance_review: 'With Finance',
   approved: 'Approved',
@@ -141,7 +141,7 @@ export function MyReimbursements({
                           </div>
                         )}
                       </td>
-                      <td>{PURPOSE_LABEL[c.purpose]}</td>
+                      <td>{purposeLabel[c.purpose]}</td>
                       <td className="mono">{formatDate(c.claimDate)}</td>
                       <td className="right mono">{c.kms ?? '—'}</td>
                       <td className="right mono" style={{ fontWeight: 700 }}>
@@ -149,7 +149,7 @@ export function MyReimbursements({
                       </td>
                       <td>
                         <span className="pill" style={statusPillStyle(c.status)}>
-                          {STATUS_LABEL[c.status]}
+                          {statusLabel[c.status]}
                         </span>
                       </td>
                       <td>
@@ -289,9 +289,9 @@ function ClaimForm({
             value={purpose}
             onChange={(e) => setPurpose(e.target.value as ReimbursementPurpose)}
           >
-            {PURPOSE_OPTIONS.map((p) => (
+            {purposeOptions.map((p) => (
               <option key={p} value={p}>
-                {PURPOSE_LABEL[p]}
+                {purposeLabel[p]}
               </option>
             ))}
           </select>

@@ -23,11 +23,11 @@ import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { toCoordinate } from '@/lib/db/money';
 
-const BUSINESS_TZ = 'Asia/Kolkata';
+const bussinessTimeZone = 'Asia/Kolkata';
 
 // Fallback radius when an office point is set without one. A branch's own
 // geofence_radius_m, or the geofence_radius_m setting, overrides it.
-const DEFAULT_GEOFENCE_M = 50;
+const defaultGeoRadius = 100;
 
 export type PunchKind = 'in' | 'out';
 
@@ -73,7 +73,7 @@ export interface PunchRecord {
 // Today's date and wall-clock time in the business timezone, not the server's.
 function localParts(date = new Date()): { date: string; time: string } {
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: BUSINESS_TZ,
+    timeZone: bussinessTimeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -128,7 +128,7 @@ export function distanceMetres(
   bLat: number,
   bLng: number,
 ): number {
-  const R = 6_371_000;
+  const earthRadiusM = 6_371_000;
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const dLat = toRad(bLat - aLat);
   const dLng = toRad(bLng - aLng);
@@ -136,7 +136,7 @@ export function distanceMetres(
   const lat2 = toRad(bLat);
   const h =
     Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  return 2 * earthRadiusM * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
 /** settings.value is jsonb, so a number may arrive as 50 or as "50". */
@@ -156,7 +156,7 @@ export interface OfficeGeofence {
 }
 
 /** Thrown when a punch arrives with no location and the policy demands one. */
-export const LOCATION_REQUIRED =
+export const locationRequired =
   'Location is required to punch. Allow location access for this site, then try again.';
 
 export interface PunchPolicy {
@@ -224,7 +224,7 @@ async function readBranchGeofence(employeeId: string): Promise<OfficeGeofence | 
     return {
       latitude,
       longitude,
-      radiusM: radius != null && radius > 0 ? radius : DEFAULT_GEOFENCE_M,
+      radiusM: radius != null && radius > 0 ? radius : defaultGeoRadius,
     };
   } catch {
     return null;
@@ -272,7 +272,7 @@ export async function readPunchPolicy(employeeId?: string | null): Promise<Punch
     office: {
       latitude,
       longitude,
-      radiusM: radius != null && radius > 0 ? radius : DEFAULT_GEOFENCE_M,
+      radiusM: radius != null && radius > 0 ? radius : defaultGeoRadius,
     },
     requireLocation,
   };
@@ -497,7 +497,7 @@ export async function recordPunch(
 
   // Refused for SHARING nothing, never for being somewhere else. Off-site is a
   // stamp, not a veto — see PunchPolicy.requireLocation.
-  if (requireLocation && !point) throw new Error(LOCATION_REQUIRED);
+  if (requireLocation && !point) throw new Error(locationRequired);
 
   const withinGeofence = classify(point, office);
 

@@ -32,9 +32,9 @@ import type {
   KtItemRow,
 } from '@/lib/queries';
 
-const STAGE_ORDER: ExitCaseRow['stage'][] = ['initiated', 'clearance', 'settlement', 'completed'];
+const stageOrder: ExitCaseRow['stage'][] = ['initiated', 'clearance', 'settlement', 'completed'];
 
-const STAGE_LABEL: Record<ExitCaseRow['stage'], string> = {
+const stageLabel: Record<ExitCaseRow['stage'], string> = {
   initiated: 'Initiated',
   clearance: 'Clearance',
   settlement: 'Settlement',
@@ -128,7 +128,7 @@ export function ExitsScreen({
               <tbody>
                 {cases.map((c) => {
                   const outstanding = c.assetsOutstanding + c.itemsOutstanding + c.clearanceItemsOpen;
-                  const nextStage = STAGE_ORDER[STAGE_ORDER.indexOf(c.stage) + 1];
+                  const nextStage = stageOrder[stageOrder.indexOf(c.stage) + 1];
                   return (
                     <tr key={c.id}>
                       <td>
@@ -148,7 +148,7 @@ export function ExitsScreen({
                               : { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' }
                           }
                         >
-                          {STAGE_LABEL[c.stage]}
+                          {stageLabel[c.stage]}
                         </span>
                       </td>
                       <td>
@@ -219,9 +219,9 @@ export function ExitsScreen({
                             <button
                               className="btn quiet"
                               disabled={pending}
-                              onClick={() => run(() => setExitStage(c.id, nextStage), `Moved to ${STAGE_LABEL[nextStage]}.`)}
+                              onClick={() => run(() => setExitStage(c.id, nextStage), `Moved to ${stageLabel[nextStage]}.`)}
                             >
-                              → {STAGE_LABEL[nextStage]}
+                              → {stageLabel[nextStage]}
                             </button>
                           )}
                           {c.stage !== 'completed' && (
@@ -515,7 +515,7 @@ function KtSection({
     };
   }, [exitCaseId]);
 
-  const NEXT: Record<string, string> = { pending: 'in_progress', in_progress: 'done', done: 'pending' };
+  const nextStatus: Record<string, string> = { pending: 'in_progress', in_progress: 'done', done: 'pending' };
 
   return (
     <>
@@ -566,7 +566,7 @@ function KtSection({
                       disabled={busy}
                       onClick={async () => {
                         setBusy(true);
-                        const res = await setKtStatus(r.id, NEXT[r.status]);
+                        const res = await setKtStatus(r.id, nextStatus[r.status]);
                         setBusy(false);
                         if (!res.ok) toast(res.error ?? 'Could not update the item.', 'error');
                         else await reload();

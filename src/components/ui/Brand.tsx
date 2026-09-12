@@ -14,8 +14,8 @@ import Image from 'next/image';
 // each surface then sets the height in CSS and the width follows automatically.
 //
 
-const INTRINSIC_W = 234;
-const INTRINSIC_H = 80;
+const intrinsicW = 234;
+const intrinsicH = 80;
 
 export function Brand({
   // Accessible name; the visible "HRMS." suffix is decorative alongside it.
@@ -30,8 +30,8 @@ export function Brand({
       <Image
         src="/logo.png"
         alt={label}
-        width={INTRINSIC_W}
-        height={INTRINSIC_H}
+        width={intrinsicW}
+        height={intrinsicH}
         className="brandmark-img"
         priority={priority}
       />

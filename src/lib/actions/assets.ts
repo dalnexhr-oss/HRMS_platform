@@ -19,10 +19,10 @@ export async function fetchAssetMaintenance(assetId: string) {
 }
 
 // Asset Management is admin/HR only — same gate as user administration.
-const ASSET_ADMIN_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
+const assetAdminRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 // The shape every date column on an asset is validated against.
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * The date rules an asset's own dates have to satisfy.
@@ -49,7 +49,7 @@ function checkAssetDates(fields: {
     [upto, 'warranty date'],
     [renew, 'warranty renewal date'],
   ] as const) {
-    if (value && !ISO_DATE.test(value)) return `Enter a valid ${label}.`;
+    if (value && !isoDate.test(value)) return `Enter a valid ${label}.`;
   }
 
   if (purchase && purchase > todayIST()) {
@@ -99,7 +99,7 @@ function assetFields(formData: FormData) {
 }
 
 export async function createAsset(formData: FormData) {
-  const gate = await requireRoles(ASSET_ADMIN_ROLES, 'Adding an asset');
+  const gate = await requireRoles(assetAdminRoles, 'Adding an asset');
   if (!gate.ok) return gate;
 
   const fields = assetFields(formData);
@@ -118,7 +118,7 @@ export async function createAsset(formData: FormData) {
 }
 
 export async function updateAsset(formData: FormData) {
-  const gate = await requireRoles(ASSET_ADMIN_ROLES, 'Updating an asset');
+  const gate = await requireRoles(assetAdminRoles, 'Updating an asset');
   if (!gate.ok) return gate;
 
   const id = String(formData.get('id') ?? '').trim();
@@ -144,7 +144,7 @@ export async function updateAsset(formData: FormData) {
 
 // Assign an asset to an employee (single holder). Snapshots name/code + notifies them.
 export async function assignAsset(formData: FormData) {
-  const gate = await requireRoles(ASSET_ADMIN_ROLES, 'Assigning an asset');
+  const gate = await requireRoles(assetAdminRoles, 'Assigning an asset');
   if (!gate.ok) return gate;
 
   const assetId = String(formData.get('asset_id') ?? '').trim();
@@ -211,7 +211,7 @@ export async function assignAsset(formData: FormData) {
 
 // Clear an asset's assignment (return/unassign) and notify the prior holder.
 export async function unassignAsset(id: string) {
-  const gate = await requireRoles(ASSET_ADMIN_ROLES, 'Unassigning an asset');
+  const gate = await requireRoles(assetAdminRoles, 'Unassigning an asset');
   if (!gate.ok) return gate;
 
   const dbc = await createClient();
@@ -266,7 +266,7 @@ export async function unassignAsset(id: string) {
 
 // Log a maintenance/service event for an asset (admin/HR).
 export async function createAssetMaintenance(formData: FormData) {
-  const gate = await requireRoles(ASSET_ADMIN_ROLES, 'Logging maintenance');
+  const gate = await requireRoles(assetAdminRoles, 'Logging maintenance');
   if (!gate.ok) return gate;
 
   const assetId = String(formData.get('asset_id') ?? '').trim();
@@ -283,12 +283,12 @@ export async function createAssetMaintenance(formData: FormData) {
   // interval, and it cannot run in reverse.
   const maintDate = text('maint_date') ?? todayIST();
   const nextDue = text('next_due');
-  if (!ISO_DATE.test(maintDate)) return { ok: false, error: 'Enter a valid maintenance date.' };
+  if (!isoDate.test(maintDate)) return { ok: false, error: 'Enter a valid maintenance date.' };
   if (maintDate > todayIST()) {
     return { ok: false, error: 'The maintenance date is in the future — log the work once it is done.' };
   }
   if (nextDue) {
-    if (!ISO_DATE.test(nextDue)) return { ok: false, error: 'Enter a valid next-due date.' };
+    if (!isoDate.test(nextDue)) return { ok: false, error: 'Enter a valid next-due date.' };
     if (nextDue < maintDate) {
       return { ok: false, error: 'The next service cannot be due before the one being logged.' };
     }
@@ -318,7 +318,7 @@ export async function createAssetMaintenance(formData: FormData) {
 }
 
 export async function deleteAsset(id: string) {
-  const gate = await requireRoles(ASSET_ADMIN_ROLES, 'Deleting an asset');
+  const gate = await requireRoles(assetAdminRoles, 'Deleting an asset');
   if (!gate.ok) return gate;
 
   const dbc = await createClient();

@@ -19,16 +19,16 @@ export interface ActionResult {
   warning?: string;
 }
 
-const REQUEST_TYPES: readonly RequestType[] = ['leave', 'site_visit', 'outdoor_duty', 'wfh'];
+const requestTypes: readonly RequestType[] = ['leave', 'site_visit', 'outdoor_duty', 'wfh'];
 // One paid-leave pool since the leave-salary policy (0038). CL/SL stay in the
 // enum for historic rows but a new request may no onger carry them.
-const LEAVE_TYPES: readonly LeaveType[] = ['PL', 'LWP', 'CL', 'SL'];
+const leaveTypes: readonly LeaveType[] = ['PL', 'LWP', 'CL', 'SL'];
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
 // Parse a 'YYYY-MM-DD' form value into a UTC-midnight Date, or null if unusable.
 function parseISODate(value: string): Date | null {
-  if (!ISO_DATE.test(value)) return null;
+  if (!isoDate.test(value)) return null;
   const d = new Date(`${value}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return null;
   // Reject roll-overs like 2026-02-31, which Date silently normalises.
@@ -38,8 +38,8 @@ function parseISODate(value: string): Date | null {
 
 /** Inclusive whole-day count between two ISO dates ('16th'..'16th' === 1 day). */
 function inclusiveDays(start: Date, end: Date): number {
-  const MS_PER_DAY = 86_400_000;
-  return Math.round((end.getTime() - start.getTime()) / MS_PER_DAY) + 1;
+  const msPerDay = 86_400_000;
+  return Math.round((end.getTime() - start.getTime()) / msPerDay) + 1;
 }
 
 /**
@@ -505,7 +505,7 @@ export async function reviewRequest(
 export async function createRequest(formData: FormData): Promise<ActionResult> {
   // --- validate the form before touching auth or the network -----------------
   const type = String(formData.get('type') ?? '').trim() as RequestType;
-  if (!REQUEST_TYPES.includes(type)) {
+  if (!requestTypes.includes(type)) {
     return { ok: false, error: 'Pick a request type.' };
   }
 
@@ -513,7 +513,7 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
   let leaveKind: LeaveType | null = null;
   if (type === 'leave') {
     const raw = String(formData.get('leave_kind') ?? '').trim() as LeaveType;
-    if (!LEAVE_TYPES.includes(raw)) {
+    if (!leaveTypes.includes(raw)) {
       return { ok: false, error: 'Pick a leave type (Paid leave / Leave without pay).' };
     }
     leaveKind = raw;

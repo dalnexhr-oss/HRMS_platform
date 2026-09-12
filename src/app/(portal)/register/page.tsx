@@ -2,7 +2,7 @@ import type { Route } from 'next';
 import Link from 'next/link';
 import { RegisterGrid } from '@/components/register/RegisterGrid';
 import { Stamp } from '@/components/ui/Stamp';
-import { REGISTER_LEGEND } from '@/lib/constants';
+import { registerLegend } from '@/lib/constants';
 import {
   currentPeriodMonth,
   getBranches,
@@ -20,14 +20,14 @@ import { exportRegisterXlsx } from '@/lib/actions/export';
 import type { AppRole } from '@/types/database';
 import type { RegisterEmployee } from '@/types/domain';
 
-const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+const monthRe = /^\d{4}-(0[1-9]|1[0-2])$/;
 
-// Roles offered the correction UI — must match WRITE_ROLES in src/lib/actions/attendance.ts, which in turn matches is_staff() behind the attendance_days write policy. NOT isStaffRole(): that is the portal READ set, so using it here would open the drawer for someone whose save is then refused.
-const CORRECTION_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
+// Roles offered the correction UI — must match writeRoles in src/lib/actions/attendance.ts, which in turn matches is_staff() behind the attendance_days write policy. NOT isStaffRole(): that is the portal READ set, so using it here would open the drawer for someone whose save is then refused.
+const correctionRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 // '?m=2026-05' -> '2026-05-01'. Anything unparseable falls back to the current month (IST).
 function periodFromParam(m: string | undefined): string {
-  return m && MONTH_RE.test(m) ? `${m}-01` : currentPeriodMonth();
+  return m && monthRe.test(m) ? `${m}-01` : currentPeriodMonth();
 }
 
 /** '2026-06-01' -> 'JUNE 2026'. */
@@ -108,7 +108,7 @@ export default async function RegisterPage({
     loadError = e instanceof Error ? e.message : String(e);
   }
 
-  const canCorrect = role != null && CORRECTION_ROLES.includes(role);
+  const canCorrect = role != null && correctionRoles.includes(role);
 
   const days = daysInMonth(periodMonth);
   // The schedule (Sundays + 1st/3rd/5th Saturdays) is authoritative for which
@@ -140,7 +140,7 @@ export default async function RegisterPage({
         {branches.length > 0 && (
           <div className="legend" role="group" aria-label="Filter by branch">
             <Link
-              href={withParams(m && MONTH_RE.test(m) ? m : periodMonth.slice(0, 7), null)}
+              href={withParams(m && monthRe.test(m) ? m : periodMonth.slice(0, 7), null)}
               className="pill"
               style={
                 branch == null
@@ -155,7 +155,7 @@ export default async function RegisterPage({
               return (
                 <Link
                   key={br.id}
-                  href={withParams(m && MONTH_RE.test(m) ? m : periodMonth.slice(0, 7), br.name)}
+                  href={withParams(m && monthRe.test(m) ? m : periodMonth.slice(0, 7), br.name)}
                   className="pill"
                   style={
                     on
@@ -184,7 +184,7 @@ export default async function RegisterPage({
         )}
 
         <div className="legend">
-          {REGISTER_LEGEND.map(([k]) => (
+          {registerLegend.map(([k]) => (
             <Stamp key={k} status={k} />
           ))}
         </div>

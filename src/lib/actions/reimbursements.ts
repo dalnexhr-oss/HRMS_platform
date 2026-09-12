@@ -28,8 +28,8 @@ export interface ActionResult {
   warning?: string;
 }
 
-const PURPOSES: readonly ReimbursementPurpose[] = ['travel', 'material_purchase', 'other'];
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const purposes: readonly ReimbursementPurpose[] = ['travel', 'material_purchase', 'other'];
+const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
 // Append one row to the claim's timeline. BEST-EFFORT, exactly like notify.ts: the business write is already committed and there is no transaction across the two, so a failed event must never turn a successful approval into an error. It is logged instead.
 async function logClaimEvent(
@@ -93,8 +93,8 @@ export async function createReimbursement(formData: FormData): Promise<ActionRes
   const remarks = String(formData.get('remarks') ?? '').trim() || null;
 
   if (!description) return { ok: false, error: 'Enter a description.' };
-  if (!PURPOSES.includes(purpose)) return { ok: false, error: 'Choose a purpose.' };
-  if (!ISO_DATE.test(claimDate)) return { ok: false, error: 'Choose a valid date.' };
+  if (!purposes.includes(purpose)) return { ok: false, error: 'Choose a purpose.' };
+  if (!isoDate.test(claimDate)) return { ok: false, error: 'Choose a valid date.' };
 
   const kmsRaw = money(formData.get('kms'));
   let amount: number;
@@ -481,8 +481,8 @@ export async function updateReimbursement(id: string, formData: FormData): Promi
   const remarks = String(formData.get('remarks') ?? '').trim() || null;
 
   if (!description) return { ok: false, error: 'Enter a description.' };
-  if (!PURPOSES.includes(purpose)) return { ok: false, error: 'Choose a purpose.' };
-  if (!ISO_DATE.test(claimDate)) return { ok: false, error: 'Choose a valid date.' };
+  if (!purposes.includes(purpose)) return { ok: false, error: 'Choose a purpose.' };
+  if (!isoDate.test(claimDate)) return { ok: false, error: 'Choose a valid date.' };
 
   const kmsRaw = money(formData.get('kms'));
   let amount: number;

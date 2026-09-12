@@ -4,10 +4,10 @@
 // tint, a coloured dot AND the word itself, so it survives both a washed-out
 // projector and colour-vision deficiency.
 import type { EmployeeData } from '@/lib/types/employee';
-import { PRESENCE_LABEL } from '@/lib/types/employee';
+import { presenceLabel } from '@/lib/types/employee';
 import { statusMeta } from '@/lib/constants';
 
-const TIME_FMT: Intl.DateTimeFormatOptions = {
+const timeFmt: Intl.DateTimeFormatOptions = {
   hour: '2-digit',
   minute: '2-digit',
   hourCycle: 'h23',
@@ -26,7 +26,7 @@ function clock(value: string | null): string | null {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? null
-    : new Intl.DateTimeFormat('en-IN', TIME_FMT).format(date);
+    : new Intl.DateTimeFormat('en-IN', timeFmt).format(date);
 }
 
 export function EmployeeCard({ employee }: { employee: EmployeeData }) {
@@ -41,7 +41,7 @@ export function EmployeeCard({ employee }: { employee: EmployeeData }) {
         </span>
         <span className="tv-state">
           <i className="dot" />
-          {PRESENCE_LABEL[employee.presence]}
+          {presenceLabel[employee.presence]}
         </span>
       </div>
 

@@ -14,7 +14,7 @@
 // change here IS a change to the security model and should be reviewed as
 // one.
 //
-// 2. FAIL CLOSED. `POLICIES` has no default entry. A collection that is not
+// 2. FAIL CLOSED. `policies` has no default entry. A collection that is not
 // listed is denied to everyone — so a newly ported collection is invisible
 // until someone decides who may read it, rather than world-readable until
 // someone notices.
@@ -35,7 +35,7 @@
 //
 import 'server-only';
 import type { Document } from 'mongodb';
-import { COLLECTIONS } from '@/lib/db/collections';
+import { collections } from '@/lib/db/collections';
 import type { Scope } from '@/lib/db/scope';
 
 // A Mongo filter ANDed into every query, or null to deny outright. Typed as a plain Document rather than Filter<T>: a policy is written once for a collection whose document type it does not know, and the driver's Filter<T> is a conditional type that cannot be satisfied generically. repo.ts casts at the single point where the concrete type is known.
@@ -58,8 +58,8 @@ export interface CollectionPolicy {
 // Building blocks. Each corresponds to one of the SQL predicates.
 //
 
-const DENY = () => null;
-const ALL = () => ({});
+const deny = () => null;
+const all = () => ({});
 
 // The scheduler and migrations only — no signed-in account satisfies this.
 const systemOnly = (s: Scope): ScopeFilter => (s.isSystem ? {} : null);
@@ -82,7 +82,7 @@ const ownUser =
   (s: Scope): ScopeFilter => ({ [field]: s.userId });
 
 // Any signed-in account. Scope is only ever built for one, so this is `{}`.
-const authenticated = ALL;
+const authenticated = all;
 
 // Insert allowed only for staff.
 const insertStaff = (s: Scope): string | null =>
@@ -140,13 +140,13 @@ const staffManagedEmployeeReadable = (field = 'employee_id'): CollectionPolicy =
   insert: insertStaff,
 });
 
-export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
+export const policies: Partial<Record<string, CollectionPolicy>> = {
   // --- identity -------------------------------------------------------------
   // `select using (id = auth.uid() or is_staff())`, `update using (id = auth.uid())`,
   // `all using (is_admin())`. Note the write rule is intentionally narrower than
   // the read rule: you may edit your own row, but role and tab access are
   // guarded again in lib/actions/users.ts, which is where privilege tiers live.
-  [COLLECTIONS.users]: {
+  [collections.users]: {
     read: (s) => (s.isStaff ? {} : { _id: s.userId }),
     write: (s) => (s.isAdminHr ? {} : { _id: s.userId }),
     insert: insertStaff,
@@ -155,10 +155,10 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
   // --- org ------------------------------------------------------------------
   // Readable by anyone signed in — branch and department names appear on almost
   // every screen, including an employee's own profile.
-  [COLLECTIONS.branches]: { read: authenticated, write: staffOnly, insert: insertStaff },
-  [COLLECTIONS.departments]: { read: authenticated, write: staffOnly, insert: insertStaff },
+  [collections.branches]: { read: authenticated, write: staffOnly, insert: insertStaff },
+  [collections.departments]: { read: authenticated, write: staffOnly, insert: insertStaff },
   // An employee may read their OWN record; staff read all.
-  [COLLECTIONS.employees]: {
+  [collections.employees]: {
     read: (s) => (s.isStaff ? {} : s.employeeId ? { _id: s.employeeId } : null),
     write: staffOnly,
     insert: insertStaff,
@@ -168,30 +168,30 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
   // Employees insert their own punches but never rewrite
   // history: write stays staff-only, matching the absence of an employee
   // UPDATE/DELETE policy on punch_events in SQL.
-  [COLLECTIONS.punchEvents]: {
+  [collections.punchEvents]: {
     read: staffOrOwn(),
     write: staffOnly,
     insert: insertStaffOrOwn(),
   },
-  [COLLECTIONS.attendanceDays]: {
+  [collections.attendanceDays]: {
     read: staffOrOwn(),
     // 0047 grants employees UPDATE on their own day so a punch-out can close it.
     write: staffOrOwn(),
     insert: insertStaffOrOwn(),
   },
-  [COLLECTIONS.lateMarks]: staffManagedEmployeeReadable(),
-  [COLLECTIONS.holidays]: { read: authenticated, write: staffOnly, insert: insertStaff },
+  [collections.lateMarks]: staffManagedEmployeeReadable(),
+  [collections.holidays]: { read: authenticated, write: staffOnly, insert: insertStaff },
 
   // --- leave ----------------------------------------------------------------
-  [COLLECTIONS.requests]: {
+  [collections.requests]: {
     read: staffOrOwn(),
     // `update using (employee_id = current_employee_id() and status = 'pending')`
     // — once a request is approved or rejected the employee can no longer touch it.
     write: ownEmployeeInState('employee_id', ['pending']),
     insert: insertStaffOrOwn('employee_id', { status: 'pending' }),
   },
-  [COLLECTIONS.leaveBalances]: staffManagedEmployeeReadable(),
-  [COLLECTIONS.leaveBalanceAdjustments]: staffManagedEmployeeReadable(),
+  [collections.leaveBalances]: staffManagedEmployeeReadable(),
+  [collections.leaveBalanceAdjustments]: staffManagedEmployeeReadable(),
   // 0009 granted UPDATE to staff only — and the comp-off feature that shipped
   // afterwards cannot work under that rule. applyCompOff() is an employee
   // action: it claims a credit ('available' -> 'applied'), links the request id
@@ -207,7 +207,7 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
   //   * is_applicable and employee_id are staff-only fields. is_applicable is
   //     the hold switch staff use to take a credit out of play (0041), so an
   //     employee able to set it could simply switch their own hold off.
-  [COLLECTIONS.compOffs]: {
+  [collections.compOffs]: {
     read: staffOrOwn(),
     write: ownEmployeeInState('employee_id', ['available', 'applied']),
     check: (s, fields) => {
@@ -221,8 +221,8 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
     },
     insert: insertStaff,
   },
-  [COLLECTIONS.leaveEncashment]: staffManagedEmployeeReadable(),
-  [COLLECTIONS.leaveSalaryWorkings]: staffManagedEmployeeReadable(),
+  [collections.leaveEncashment]: staffManagedEmployeeReadable(),
+  [collections.leaveSalaryWorkings]: staffManagedEmployeeReadable(),
 
   // --- payroll --------------------------------------------------------------
   // 0003 created payroll_runs_read as `using (is_authenticated())` and 0004's
@@ -232,16 +232,16 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
   // `payslips … payroll_runs!inner(period_month)` lookup on /me: an inner join
   // against a collection they could not read dropped the payslip, so netPay
   // read as "no payslip yet" every month.
-  [COLLECTIONS.payrollRuns]: { read: authenticated, write: staffOnly, insert: insertStaff },
-  [COLLECTIONS.payslips]: staffManagedEmployeeReadable(),
-  [COLLECTIONS.ptSlabs]: { read: staffOnly, write: staffOnly, insert: insertStaff },
+  [collections.payrollRuns]: { read: authenticated, write: staffOnly, insert: insertStaff },
+  [collections.payslips]: staffManagedEmployeeReadable(),
+  [collections.ptSlabs]: { read: staffOnly, write: staffOnly, insert: insertStaff },
 
   // --- assets and items -----------------------------------------------------
   // Assets scope on assigned_employee_id, not employee_id — the holder is on
   // the asset itself.
-  [COLLECTIONS.assets]: staffManagedEmployeeReadable('assigned_employee_id'),
-  [COLLECTIONS.assetAssignments]: staffManagedEmployeeReadable(),
-  [COLLECTIONS.assetMaintenance]: staffManaged,
+  [collections.assets]: staffManagedEmployeeReadable('assigned_employee_id'),
+  [collections.assetAssignments]: staffManagedEmployeeReadable(),
+  [collections.assetMaintenance]: staffManaged,
   // 0028 added items_read_assigned — `exists (select 1 from item_assignments a
   // where a.item_id = items.id and a.employee_id = current_employee_id())` —
   // with a comment saying it exists "so the nested item_name/category read on
@@ -251,11 +251,11 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
   //
   // A DIRECT read stays staff-only. Narrower than the SQL, and the only direct
   // reader is the staff /items screen.
-  [COLLECTIONS.items]: { ...staffManaged, readableVia: [COLLECTIONS.itemAssignments] },
-  [COLLECTIONS.itemAssignments]: staffManagedEmployeeReadable(),
+  [collections.items]: { ...staffManaged, readableVia: [collections.itemAssignments] },
+  [collections.itemAssignments]: staffManagedEmployeeReadable(),
 
   // --- documents and comms
-  [COLLECTIONS.employeeDocuments]: {
+  [collections.employeeDocuments]: {
     read: staffOrOwn(),
     write: staffOnly,
     // An employee may upload their own, but never pre-verify it.
@@ -263,28 +263,28 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
   },
   // `select using (is_portal() or published_at is not null)` — staff see drafts,
   // everyone else sees only what has been published.
-  [COLLECTIONS.notices]: {
+  [collections.notices]: {
     read: (s) => (s.isPortal ? {} : { published_at: { $ne: null } }),
     write: staffOnly,
     insert: insertStaff,
   },
-  [COLLECTIONS.policies]: {
+  [collections.policies]: {
     read: (s) => (s.isPortal ? {} : { published: true }),
     write: staffOnly,
     insert: insertStaff,
   },
-  [COLLECTIONS.policyAcknowledgements]: {
+  [collections.policyAcknowledgements]: {
     read: staffOrOwn(),
     write: staffOnly,
     insert: insertStaffOrOwn(),
   },
-  [COLLECTIONS.acknowledgements]: {
+  [collections.acknowledgements]: {
     read: staffOrOwn(),
     write: staffOnly,
     insert: insertStaffOrOwn(),
   },
   // Notifications scope on the USER, not the employee.
-  [COLLECTIONS.notifications]: {
+  [collections.notifications]: {
     read: ownUser('recipient_id'),
     write: ownUser('recipient_id'),
     // Only the system raises notifications; nothing user-facing inserts one.
@@ -299,7 +299,7 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
   // the rule exists to permit the one update it refused, and because
   // addTicketComment() never inspected the result, the ticket silently stayed
   // closed with HR never re-alerted.
-  [COLLECTIONS.helpdeskTickets]: {
+  [collections.helpdeskTickets]: {
     read: staffOrOwn(),
     write: staffOrOwn(),
     check: (s, fields) => {
@@ -323,7 +323,7 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
   // actions/helpdesk.addTicketComment() for the insert. This filter is what
   // anything else gets, and it is deliberately staff-only rather than
   // permissive.
-  [COLLECTIONS.helpdeskTicketComments]: {
+  [collections.helpdeskTicketComments]: {
     read: staffOnly,
     // Editing or deleting a comment is limited to its author either way.
     write: (s) => ({ author_id: s.userId }),
@@ -332,20 +332,20 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
   },
 
   // --- lifecycle
-  [COLLECTIONS.onboardingTemplates]: staffManaged,
-  [COLLECTIONS.onboardingTasks]: staffManagedEmployeeReadable(),
-  [COLLECTIONS.exitCases]: staffManagedEmployeeReadable(),
-  [COLLECTIONS.fullAndFinal]: staffManaged,
+  [collections.onboardingTemplates]: staffManaged,
+  [collections.onboardingTasks]: staffManagedEmployeeReadable(),
+  [collections.exitCases]: staffManagedEmployeeReadable(),
+  [collections.fullAndFinal]: staffManaged,
 
   // --- reimbursements
-  [COLLECTIONS.reimbursementClaims]: {
+  [collections.reimbursementClaims]: {
     read: staffOrOwn(),
     // `update using (employee_id = … and status in ('pending','rejected'))` —
     // a rejected claim may be corrected and resubmitted; an approved one may not.
     write: ownEmployeeInState('employee_id', ['pending', 'rejected']),
     insert: insertStaffOrOwn('employee_id', { status: 'pending' }),
   },
-  [COLLECTIONS.reimbursementEvents]: {
+  [collections.reimbursementEvents]: {
     read: staffOnly,
     write: staffOnly,
     insert: insertStaff,
@@ -356,10 +356,10 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
   // filter cannot join, so each is scoped to staff here and the parent check
   // lives in the action that reads it. Narrower than the SQL was, never wider:
   // an employee sees these through their exit case's own action, not directly.
-  [COLLECTIONS.approvalSteps]: staffManaged,
-  [COLLECTIONS.exitClearanceItems]: staffManaged,
-  [COLLECTIONS.exitInterviews]: staffManaged,
-  [COLLECTIONS.knowledgeTransferItems]: {
+  [collections.approvalSteps]: staffManaged,
+  [collections.exitClearanceItems]: staffManaged,
+  [collections.exitInterviews]: staffManaged,
+  [collections.knowledgeTransferItems]: {
     // The one exception: `handover_to = current_employee_id()` IS expressible,
     // and it is the whole point of the screen — the person receiving a handover
     // must be able to see what they are receiving.
@@ -367,16 +367,16 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
     write: staffOnly,
     insert: insertStaff,
   },
-  [COLLECTIONS.onboardingTemplateItems]: staffManaged,
+  [collections.onboardingTemplateItems]: staffManaged,
   // 0004 gave this the parent-join read `id in (select id from payslips where
   // employee_id = current_employee_id())`, and mapPayslip embeds it as
   // `payslip_adjustments(*)` — it is where the bonus and the deduction lines on
   // an employee's own payslip come from. Staff-only for a direct read.
-  [COLLECTIONS.payslipAdjustments]: { ...staffManaged, readableVia: [COLLECTIONS.payslips] },
+  [collections.payslipAdjustments]: { ...staffManaged, readableVia: [collections.payslips] },
 
   // `insert with check (employee_id = current_employee_id())`,
   // `select using (is_portal() or employee_id = current_employee_id())`.
-  [COLLECTIONS.noticeReads]: {
+  [collections.noticeReads]: {
     read: staffOrOwn(),
     write: staffOnly,
     insert: insertStaffOrOwn(),
@@ -384,7 +384,7 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
 
   // --- system
   // `all using (auth_role()::text = 'super_admin')`, `select using (is_portal())`.
-  [COLLECTIONS.roleTabAccess]: {
+  [collections.roleTabAccess]: {
     read: (s) => (s.isPortal ? {} : null),
     write: (s) => (s.isSuperAdmin ? {} : null),
     insert: insertSuperAdmin,
@@ -393,20 +393,20 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
   // Auth-owned. Read and written only by lib/auth/reset-tokens.ts, which holds
   // the collection directly — nothing may reach it through the repository, and
   // a token that could be listed would defeat the point of hashing it.
-  [COLLECTIONS.passwordResetTokens]: {
-    read: DENY,
-    write: DENY,
+  [collections.passwordResetTokens]: {
+    read: deny,
+    write: deny,
     insert: () => 'Password reset tokens are managed by the auth layer.',
   },
 
-  [COLLECTIONS.settings]: { read: authenticated, write: staffOnly, insert: insertStaff },
-  [COLLECTIONS.activityLog]: { read: staffOnly, write: DENY, insert: insertStaff },
+  [collections.settings]: { read: authenticated, write: staffOnly, insert: insertStaff },
+  [collections.activityLog]: { read: staffOnly, write: deny, insert: insertStaff },
   // The scheduler's idempotency ledger. Readable by staff for support, and
   // writable ONLY by the job runner: claiming a unit of work is an insert, and
   // releasing a claim whose work then failed is a delete — see
   // db/scheduler.ts. Denied outright to every account that can sign in, which
   // is what it was before the release path needed to exist.
-  [COLLECTIONS.cronRunLog]: {
+  [collections.cronRunLog]: {
     read: staffOnly,
     write: systemOnly,
     // systemOnly's shape, not insertSuperAdmin's: a super_admin is an account
@@ -421,5 +421,5 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
 
 // The policy for a collection, or undefined when none is declared (deny).
 export function policyFor(collection: string): CollectionPolicy | undefined {
-  return POLICIES[collection];
+  return policies[collection];
 }

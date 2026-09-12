@@ -15,9 +15,9 @@
 import ExcelJS from 'exceljs';
 import { minutesToHHMM } from '@/lib/format';
 import {
-  STATUS_FILL,
-  HEADER_FILL,
-  TIME_FORMAT,
+  statusFill,
+  headerFill,
+  timeFormat,
   clockToExcelTime,
 } from '@/lib/excel/registerStyle';
 import { writeBrandHeader, writeBrandOverlay } from '@/lib/excel/brand';
@@ -73,25 +73,25 @@ function safeText(v: unknown): string {
 
 // ---------------------------------------------------------------- geometry
 // Mirrors parseRegister.ts so the two stay in lockstep.
-const ROW_YEAR = 1;
-const ROW_MONTH = 2;
-const ROW_WEEKDAYS = 3;
-const ROW_DAY_NUMBERS = 4;
-const ROW_EMPL_ID_LABEL = 5;
-const BLOCK_START_ROW = 6;
-const BLOCK_STRIDE = 4;
-const COL_EMPL_ID = 1; // A
-const COL_LABEL = 2; // B
-const COL_FIRST_DAY = 3; // C
+const rowYear = 1;
+const rowMonth = 2;
+const rowWeekdays = 3;
+const rowDayNumbers = 4;
+const rowEmplIdLabel = 5;
+const blockStartRow = 6;
+const blockStride = 4;
+const colEmplId = 1; // A
+const colLabel = 2; // B
+const colFirstDay = 3; // C
 
 // The 9 summary count columns, in the register's own order.
-const COUNT_ORDER = ['P', 'T', 'LM', 'S', 'OH', 'L', 'CO', 'HD', 'WO'] as const;
+const countOrder = ['P', 'T', 'LM', 'S', 'OH', 'L', 'CO', 'HD', 'WO'] as const;
 
-const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const dowShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function weekdayFor(periodMonth: string, day: number): string {
   const d = new Date(`${periodMonth.slice(0, 7)}-${String(day).padStart(2, '0')}T00:00:00Z`);
-  return Number.isNaN(d.getTime()) ? '' : DOW_SHORT[d.getUTCDay()];
+  return Number.isNaN(d.getTime()) ? '' : dowShort[d.getUTCDay()];
 }
 
 /** 'DN001' -> 1, so the exported Empl. ID column round-trips through the parser. */
@@ -103,7 +103,7 @@ function emplIdOf(code: string): number | string {
 /** Count each status across the employee's day cells. */
 function countStatuses(days: DayCell[]): Record<string, number> {
   const counts: Record<string, number> = {};
-  for (const key of COUNT_ORDER) counts[key] = 0;
+  for (const key of countOrder) counts[key] = 0;
   for (const d of days) {
     if (d.status in counts) counts[d.status] += 1;
   }
@@ -119,73 +119,73 @@ function writeReferenceSheet(
   periodMonth: string,
 ): void {
   const year = Number(periodMonth.slice(0, 4));
-  const lastDayCol = COL_FIRST_DAY + days.length - 1;
+  const lastDayCol = colFirstDay + days.length - 1;
   const bandStart = lastDayCol + 1;
 
   // Header block — colours lifted from the reference sheet.
-  const yearCell = ws.getCell(ROW_YEAR, COL_LABEL);
+  const yearCell = ws.getCell(rowYear, colLabel);
   yearCell.value = year;
-  paint(yearCell, HEADER_FILL.period);
+  paint(yearCell, headerFill.period);
 
-  const monthCell = ws.getCell(ROW_MONTH, COL_LABEL);
+  const monthCell = ws.getCell(rowMonth, colLabel);
   monthCell.value = new Date(`${periodMonth.slice(0, 7)}-01T00:00:00Z`);
   monthCell.numFmt = 'mmm-yy';
-  paint(monthCell, HEADER_FILL.period);
+  paint(monthCell, headerFill.period);
 
   days.forEach((d, i) => {
-    const wd = ws.getCell(ROW_WEEKDAYS, COL_FIRST_DAY + i);
+    const wd = ws.getCell(rowWeekdays, colFirstDay + i);
     wd.value = weekdayFor(periodMonth, d);
-    paint(wd, HEADER_FILL.weekday);
+    paint(wd, headerFill.weekday);
 
-    const dn = ws.getCell(ROW_DAY_NUMBERS, COL_FIRST_DAY + i);
+    const dn = ws.getCell(rowDayNumbers, colFirstDay + i);
     dn.value = d;
     dn.font = { bold: true };
     dn.alignment = { horizontal: 'center' };
   });
 
-  COUNT_ORDER.forEach((key, i) => {
-    const c = ws.getCell(ROW_DAY_NUMBERS, bandStart + i);
+  countOrder.forEach((key, i) => {
+    const c = ws.getCell(rowDayNumbers, bandStart + i);
     c.value = key;
-    paint(c, HEADER_FILL.summary);
+    paint(c, headerFill.summary);
   });
-  ws.getCell(ROW_DAY_NUMBERS, bandStart + COUNT_ORDER.length).value = 'Working Days';
-  ws.getCell(ROW_DAY_NUMBERS, bandStart + COUNT_ORDER.length + 1).value =
+  ws.getCell(rowDayNumbers, bandStart + countOrder.length).value = 'Working Days';
+  ws.getCell(rowDayNumbers, bandStart + countOrder.length + 1).value =
     'to pay for (Working days + official Holidays + WO)';
-  paint(ws.getCell(ROW_DAY_NUMBERS, bandStart + COUNT_ORDER.length), HEADER_FILL.summary);
-  paint(ws.getCell(ROW_DAY_NUMBERS, bandStart + COUNT_ORDER.length + 1), HEADER_FILL.summary);
+  paint(ws.getCell(rowDayNumbers, bandStart + countOrder.length), headerFill.summary);
+  paint(ws.getCell(rowDayNumbers, bandStart + countOrder.length + 1), headerFill.summary);
 
-  const idCell = ws.getCell(ROW_EMPL_ID_LABEL, COL_EMPL_ID);
+  const idCell = ws.getCell(rowEmplIdLabel, colEmplId);
   idCell.value = 'Empl. ID';
-  paint(idCell, HEADER_FILL.emplId);
-  const nameCell = ws.getCell(ROW_EMPL_ID_LABEL, COL_LABEL);
+  paint(idCell, headerFill.emplId);
+  const nameCell = ws.getCell(rowEmplIdLabel, colLabel);
   nameCell.value = 'Name';
-  paint(nameCell, HEADER_FILL.emplId);
+  paint(nameCell, headerFill.emplId);
 
   // Employee blocks.
   employees.forEach((e, ix) => {
-    const top = BLOCK_START_ROW + ix * BLOCK_STRIDE;
+    const top = blockStartRow + ix * blockStride;
     const byDay = new Map(e.days.map((c) => [c.day, c]));
 
-    ws.getCell(top, COL_EMPL_ID).value = emplIdOf(e.code);
-    const blockName = ws.getCell(top, COL_LABEL);
+    ws.getCell(top, colEmplId).value = emplIdOf(e.code);
+    const blockName = ws.getCell(top, colLabel);
     blockName.value = safeText(e.name);
-    paint(blockName, HEADER_FILL.blockLabel);
+    paint(blockName, headerFill.blockLabel);
     blockName.alignment = { horizontal: 'left', vertical: 'middle' };
 
-    ws.getCell(top + 1, COL_LABEL).value = 'In';
-    ws.getCell(top + 2, COL_LABEL).value = 'Out';
-    ws.getCell(top + 3, COL_LABEL).value = 'Total Hrs Completed';
+    ws.getCell(top + 1, colLabel).value = 'In';
+    ws.getCell(top + 2, colLabel).value = 'Out';
+    ws.getCell(top + 3, colLabel).value = 'Total Hrs Completed';
     ws.getRow(top).font = { bold: true };
 
     days.forEach((d, i) => {
-      const col = COL_FIRST_DAY + i;
+      const col = colFirstDay + i;
       const cell = byDay.get(d);
 
       // Status: bold black on the reference sheet's fill for that code.
       const statusCell = ws.getCell(top, col);
       statusCell.value = cell?.status ?? '';
-      if (cell?.status && STATUS_FILL[cell.status]) {
-        paint(statusCell, STATUS_FILL[cell.status]);
+      if (cell?.status && statusFill[cell.status]) {
+        paint(statusCell, statusFill[cell.status]);
       }
 
       // Punches as REAL Excel times formatted h:mm, matching the reference —
@@ -202,28 +202,28 @@ function writeReferenceSheet(
           c.value = '';
         } else {
           c.value = serial;
-          c.numFmt = TIME_FORMAT;
+          c.numFmt = timeFormat;
         }
         c.alignment = { horizontal: 'center' };
       }
     });
 
     const counts = countStatuses(e.days);
-    COUNT_ORDER.forEach((key, i) => {
+    countOrder.forEach((key, i) => {
       ws.getCell(top, bandStart + i).value = counts[key];
     });
-    ws.getCell(top, bandStart + COUNT_ORDER.length).value = e.summary.working;
-    ws.getCell(top, bandStart + COUNT_ORDER.length + 1).value = e.summary.payable;
+    ws.getCell(top, bandStart + countOrder.length).value = e.summary.working;
+    ws.getCell(top, bandStart + countOrder.length + 1).value = e.summary.payable;
   });
 
   // Column widths: narrow day columns, wider identity columns.
-  ws.getColumn(COL_EMPL_ID).width = 9;
-  ws.getColumn(COL_LABEL).width = 22;
-  for (let c = COL_FIRST_DAY; c <= lastDayCol; c++) ws.getColumn(c).width = 7;
-  for (let i = 0; i < COUNT_ORDER.length; i++) ws.getColumn(bandStart + i).width = 5;
-  ws.getColumn(bandStart + COUNT_ORDER.length).width = 12;
-  ws.getColumn(bandStart + COUNT_ORDER.length + 1).width = 14;
-  ws.views = [{ state: 'frozen', xSplit: 2, ySplit: ROW_DAY_NUMBERS }];
+  ws.getColumn(colEmplId).width = 9;
+  ws.getColumn(colLabel).width = 22;
+  for (let c = colFirstDay; c <= lastDayCol; c++) ws.getColumn(c).width = 7;
+  for (let i = 0; i < countOrder.length; i++) ws.getColumn(bandStart + i).width = 5;
+  ws.getColumn(bandStart + countOrder.length).width = 12;
+  ws.getColumn(bandStart + countOrder.length + 1).width = 14;
+  ws.views = [{ state: 'frozen', xSplit: 2, ySplit: rowDayNumbers }];
 }
 
 function writeFlatSummarySheet(
@@ -332,10 +332,10 @@ export function writeDailyPunchSheet(
  * cosmetic — the parser reads neither.
  */
 function brandReferenceSheet(wb: ExcelJS.Workbook, ws: ExcelJS.Worksheet): void {
-  ws.getRow(ROW_YEAR).height = 22;
-  ws.getRow(ROW_MONTH).height = 22;
+  ws.getRow(rowYear).height = 22;
+  ws.getRow(rowMonth).height = 22;
   // Column C onward, rows 1–2: empty in both the export and the blank template.
-  writeBrandOverlay(wb, ws, { col: COL_FIRST_DAY - 1, row: 0, height: 44 });
+  writeBrandOverlay(wb, ws, { col: colFirstDay - 1, row: 0, height: 44 });
 }
 
 /**
@@ -373,8 +373,8 @@ function daysOfMonth(periodMonth: string): number[] {
   return Array.from({ length: n }, (_, i) => i + 1);
 }
 
-/** Code → human label, for the template's legend. Keep in step with KNOWN_STATUSES. */
-const STATUS_LEGEND: [string, string][] = [
+/** Code → human label, for the template's legend. Keep in step with knownStatuses. */
+const statusLegend: [string, string][] = [
   ['P', 'Present'],
   ['HD', 'Half day'],
   ['L', 'Leave'],
@@ -464,10 +464,10 @@ function writeTemplateGuideSheet(
     row.getCell(2).alignment = { wrapText: true, vertical: 'top' };
   }
 
-  for (const [code, label] of STATUS_LEGEND) {
+  for (const [code, label] of statusLegend) {
     const row = ws.addRow([code, label]);
     row.getCell(1).font = { bold: true };
-    if (STATUS_FILL[code]) paint(row.getCell(1), STATUS_FILL[code]);
+    if (statusFill[code]) paint(row.getCell(1), statusFill[code]);
   }
 }
 
@@ -559,7 +559,7 @@ export async function attendanceTemplateWorkbook(
 
 // ----------------------------------------------------------- reimbursements ---
 
-const PURPOSE_LABEL: Record<string, string> = {
+const purposeLabel: Record<string, string> = {
   travel: 'Travel',
   material_purchase: 'Material purchase',
   other: 'Other expenses',
@@ -611,7 +611,7 @@ export async function reimbursementsWorkbook(
       employee: safeText(c.employeeName),
       code: safeText(c.employeeCode),
       description: safeText(c.description),
-      purpose: PURPOSE_LABEL[c.purpose] ?? c.purpose,
+      purpose: purposeLabel[c.purpose] ?? c.purpose,
       date: c.claimDate,
       source: safeText(c.sourceMedium ?? ''),
       kms: c.kms ?? '',
@@ -725,7 +725,7 @@ export async function payrollWorkbook(
 
 // ------------------------------------------------------------- leave salary ---
 
-const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /**
  * The annual leave-salary working, one row per employee — the owner's sheet
@@ -777,7 +777,7 @@ export async function leaveSalaryWorkbook(
       name: safeText(r.name),
       salaryBefore: r.salaryBefore,
       salaryAfter: r.salaryAfter,
-      incrementFrom: `${MONTH_SHORT[r.incrementMonth - 1]} ${year}`,
+      incrementFrom: `${monthShort[r.incrementMonth - 1]} ${year}`,
       monthsP1,
       daysP1: fig.calendarDaysP1,
       presentP1: fig.presentP1,

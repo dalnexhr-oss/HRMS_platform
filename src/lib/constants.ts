@@ -1,8 +1,8 @@
 import type { AttendanceStatus } from '@/types/database';
 
 // Status stamp metadata: [short label, css class, human label].
-// Ported from STATUS_META in the prototype. 'S'/'T' reuse the outdoor-duty style.
-export const STATUS_META: Record<string, [string, string, string]> = {
+// Ported from attendanceStatusMeta in the prototype. 'S'/'T' reuse the outdoor-duty style.
+export const attendanceStatusMeta: Record<string, [string, string, string]> = {
   P: ['P', 'st-P', 'Present'],
   LM: ['LM', 'st-LM', 'Late mark'],
   HD: ['HD', 'st-HD', 'Half day'],
@@ -20,10 +20,10 @@ export const STATUS_META: Record<string, [string, string, string]> = {
 };
 
 export function statusMeta(s: AttendanceStatus | string) {
-  return STATUS_META[s] ?? STATUS_META.P;
+  return attendanceStatusMeta[s] ?? attendanceStatusMeta.P;
 }
 
-export const REGISTER_LEGEND: [AttendanceStatus, string][] = [
+export const registerLegend: [AttendanceStatus, string][] = [
   ['P', 'Present'],
   ['LM', 'Late mark'],
   ['HD', 'Half day'],
@@ -34,10 +34,10 @@ export const REGISTER_LEGEND: [AttendanceStatus, string][] = [
   ['S', 'Site / travel'],
 ];
 
-export const DOW = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+export const dow = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
 // Categorical palette for branch identity — the split bar and legend on /today and the branch chips on /employees. 20 fixed slots assigned by the branch's position in the (alphabetical) branch list, so a branch keeps its colour across both screens. The ORDER is deliberate, not cosmetic: it interleaves warm/cool hues so adjacent slots (which sit next to each other in the split bar) stay apart under colour-vision deficiency. Validated with the dataviz palette checker against the white card surface: lightness band, chroma floor and 3:1 contrast all pass; the one warn-band CVD pair (slots 6–7, mint↔red, deutan ΔE 6.2) is covered by secondary encoding — every legend row carries the branch name, and the split bar keeps 2px surface gaps between segments. Slot 1 stays in the Dalnex brand family. Don't re-order casually; re-run the validator if you do.
-export const BRANCH_PALETTE = [
+export const branchPalette = [
   '#2A78D6', // 1 blue
   '#06809C', // 2 teal
   '#EB6834', // 3 orange
@@ -62,11 +62,11 @@ export const BRANCH_PALETTE = [
 
 // Colour for the i-th branch (alphabetical index). Wraps past 20 branches.
 export function branchColorAt(i: number): string {
-  return BRANCH_PALETTE[i % BRANCH_PALETTE.length];
+  return branchPalette[i % branchPalette.length];
 }
 
 // Document types offered when an employee files paperwork. Free text in the DB; this just keeps the drop-down tidy. It lives here rather than beside the upload action because that module is `'use server'`, and Next allows only async function exports from one — a plain const there fails the build.
-export const DOCUMENT_CATEGORIES = [
+export const documentCategories = [
   // --- onboarding
   'offer_letter',
   'contract',
@@ -84,13 +84,13 @@ export const DOCUMENT_CATEGORIES = [
   'other',
 ] as const;
 
-export type DocumentCategory = (typeof DOCUMENT_CATEGORIES)[number];
+export type DocumentCategory = (typeof documentCategories)[number];
 
 // Categories the system ISSUES rather than accepts. generateExitDocument writes these into employee_documents itself, against the `generated-documents` bucket and already stamped verified — an HR-issued letter is authoritative the moment it is produced. They appear in the register alongside uploads but are never offered in an upload form, and nothing may replace one: reissuing means generating it again from /exits. NOTE the overlap: 'experience' is BOTH an uploadable category (the certificate from a previous employer) and the letter this company issues on exit. The category alone cannot tell them apart — the BUCKET can, which is why the register carries `source` and labels an issued row accordingly.
-export const GENERATED_DOCUMENT_CATEGORIES = ['relieving', 'experience', 'settlement'] as const;
+export const generatedDocumentCategories = ['relieving', 'experience', 'settlement'] as const;
 
 // Display names for every category, uploaded or issued.
-export const DOCUMENT_CATEGORY_LABEL: Record<string, string> = {
+export const documentCategoryLabels: Record<string, string> = {
   offer_letter: 'Offer letter',
   contract: 'Contract / agreement',
   joining_form: 'Joining form',
@@ -103,21 +103,21 @@ export const DOCUMENT_CATEGORY_LABEL: Record<string, string> = {
   resignation: 'Resignation',
   clearance: 'Clearance / exit',
   other: 'Other',
-  // Issued by HR (GENERATED_DOCUMENT_CATEGORIES), so these two are display-only
+  // Issued by HR (generatedDocumentCategories), so these two are display-only
   // — they are never offered in an upload form.
   relieving: 'Relieving letter',
   settlement: 'Full & final statement',
 };
 
-// The label to show for a row, given where its file came from. Only 'experience' needs the distinction — see the note on GENERATED_DOCUMENT_CATEGORIES — but routing every row through one function means a future overlap is handled in one place rather than at each table.
+// The label to show for a row, given where its file came from. Only 'experience' needs the distinction — see the note on generatedDocumentCategories — but routing every row through one function means a future overlap is handled in one place rather than at each table.
 export function documentCategoryLabel(category: string | null, issued = false): string {
   if (!category) return '—';
   if (issued && category === 'experience') return 'Experience letter';
-  return DOCUMENT_CATEGORY_LABEL[category] ?? category;
+  return documentCategoryLabels[category] ?? category;
 }
 
 // What every employee is expected to have on file. Drives the "missing" count on /documents and the gaps listed in an employee's drill-down. Deliberately short: it is the joining paperwork the company cannot operate without, not everything it might ever want. A category outside this list is welcome on file but never reported as missing.
-export const REQUIRED_DOCUMENT_CATEGORIES: readonly string[] = [
+export const requiredDocumentCategories: readonly string[] = [
   'offer_letter',
   'contract',
   'id_proof',
@@ -125,7 +125,7 @@ export const REQUIRED_DOCUMENT_CATEGORIES: readonly string[] = [
 ];
 
 // Every Indian state and union territory a branch may be registered in. Must stay in lockstep with the `indian_state` — the branch form offers these and resolveBranch validates against them, but the database enum has the final word. Note on payroll: professional tax comes from pt_slabs, which only seeds Maharashtra and Gujarat. fn_professional_tax returns 0 when a state has no slab rows, so a branch in any other state computes PT as nil until its slabs are added.
-export const INDIAN_STATES = [
+export const States = [
   // States (28)
   'Andhra Pradesh',
   'Arunachal Pradesh',
@@ -172,7 +172,7 @@ export const INDIAN_STATES = [
 //
 
 // Sidebar section headers. Declared as constants rather than typed inline on each row: a free-typed `group: 'Operations'` next to `group: 'Operate'` is how Import ended up alone under its own header, and the compiler could not see it. With NavItem['group'] bound to this object, the same slip is a build error. Each name states a domain ('Attendance', 'Company') rather than a frequency or a shrug — the old 'More' told the reader nothing, so every item under it had to be re-read on each visit.
-export const GROUPS = {
+export const groups = {
   ATTENDANCE: 'Attendance',
   WORKFORCE: 'Workforce',
   HR: 'HR',
@@ -181,16 +181,16 @@ export const GROUPS = {
   ADMIN: 'Admin',
 } as const;
 
-export type NavGroup = (typeof GROUPS)[keyof typeof GROUPS];
+export type NavGroup = (typeof groups)[keyof typeof groups];
 
 // Header order in the sidebar. The renderer walks this list, not NAV, and skips any group whose visible items come to zero — otherwise a role that cannot see Users, Import or Settings still gets a bare 'Admin' heading.
-export const GROUP_ORDER: NavGroup[] = [
-  GROUPS.ATTENDANCE,
-  GROUPS.WORKFORCE,
-  GROUPS.HR,
-  GROUPS.RESOURCES,
-  GROUPS.COMPANY,
-  GROUPS.ADMIN,
+export const groupOrder: NavGroup[] = [
+  groups.ATTENDANCE,
+  groups.WORKFORCE,
+  groups.HR,
+  groups.RESOURCES,
+  groups.COMPANY,
+  groups.ADMIN,
 ];
 
 export interface NavItem {
@@ -199,39 +199,39 @@ export interface NavItem {
   group: NavGroup;
 }
 
-// Every sidebar row, in render order within its group. `users` and `import` were previously injected by Sidebar.tsx and absent from this list. That split is what let their group names drift, and why 'import' had no TITLES row and no role gate. They are declared here now; Sidebar.tsx must no longer add them itself. 'My account' is deliberately absent — a personal profile is not navigation, and gating it alongside Users would have hidden it from the people who need it most. It belongs in the avatar menu beside Sign out.
-export const NAV: NavItem[] = [
-  { slug: 'today', label: 'Today', group: GROUPS.ATTENDANCE },
-  { slug: 'register', label: 'Monthly register', group: GROUPS.ATTENDANCE },
-  { slug: 'audit', label: 'Attendance audit', group: GROUPS.ATTENDANCE },
-  { slug: 'approvals', label: 'Approvals', group: GROUPS.ATTENDANCE },
-  { slug: 'tv', label: 'TV board', group: GROUPS.ATTENDANCE },
+// Every sidebar row, in render order within its group. `users` and `import` were previously injected by Sidebar.tsx and absent from this list. That split is what let their group names drift, and why 'import' had no TabTitles row and no role gate. They are declared here now; Sidebar.tsx must no longer add them itself. 'My account' is deliberately absent — a personal profile is not navigation, and gating it alongside Users would have hidden it from the people who need it most. It belongs in the avatar menu beside Sign out.
+export const navItems: NavItem[] = [
+  { slug: 'today', label: 'Today', group: groups.ATTENDANCE },
+  { slug: 'register', label: 'Monthly register', group: groups.ATTENDANCE },
+  { slug: 'audit', label: 'Attendance audit', group: groups.ATTENDANCE },
+  { slug: 'approvals', label: 'Approvals', group: groups.ATTENDANCE },
+  { slug: 'tv', label: 'TV board', group: groups.ATTENDANCE },
 
-  { slug: 'employees', label: 'Employees', group: GROUPS.WORKFORCE },
-  { slug: 'onboarding', label: 'Onboarding', group: GROUPS.WORKFORCE },
-  { slug: 'documents', label: 'Documents', group: GROUPS.WORKFORCE },
-  { slug: 'exits', label: 'Exits', group: GROUPS.WORKFORCE },
+  { slug: 'employees', label: 'Employees', group: groups.WORKFORCE },
+  { slug: 'onboarding', label: 'Onboarding', group: groups.WORKFORCE },
+  { slug: 'documents', label: 'Documents', group: groups.WORKFORCE },
+  { slug: 'exits', label: 'Exits', group: groups.WORKFORCE },
 
-  { slug: 'leaveManagment', label: 'Leave Management', group: GROUPS.HR },
-  { slug: 'leave', label: 'Leave salary', group: GROUPS.HR },
-  { slug: 'payroll', label: 'Payroll', group: GROUPS.HR },
-  { slug: 'reimbursements', label: 'Reimbursements', group: GROUPS.HR },
+  { slug: 'leaveManagment', label: 'Leave Management', group: groups.HR },
+  { slug: 'leave', label: 'Leave salary', group: groups.HR },
+  { slug: 'payroll', label: 'Payroll', group: groups.HR },
+  { slug: 'reimbursements', label: 'Reimbursements', group: groups.HR },
 
-  { slug: 'assets', label: 'Asset management', group: GROUPS.RESOURCES },
-  { slug: 'items', label: 'Inventory management', group: GROUPS.RESOURCES },
+  { slug: 'assets', label: 'Asset management', group: groups.RESOURCES },
+  { slug: 'items', label: 'Inventory management', group: groups.RESOURCES },
 
-  { slug: 'policies', label: 'Company policies', group: GROUPS.COMPANY },
-  { slug: 'holidays', label: 'Holidays', group: GROUPS.COMPANY },
-  { slug: 'notices', label: 'Notices', group: GROUPS.COMPANY },
-  { slug: 'helpdesk', label: 'Helpdesk', group: GROUPS.COMPANY },
+  { slug: 'policies', label: 'Company policies', group: groups.COMPANY },
+  { slug: 'holidays', label: 'Holidays', group: groups.COMPANY },
+  { slug: 'notices', label: 'Notices', group: groups.COMPANY },
+  { slug: 'helpdesk', label: 'Helpdesk', group: groups.COMPANY },
 
-  { slug: 'users', label: 'Users', group: GROUPS.ADMIN },
-  { slug: 'import', label: 'Import', group: GROUPS.ADMIN },
-  { slug: 'settings', label: 'Settings', group: GROUPS.ADMIN },
+  { slug: 'users', label: 'Users', group: groups.ADMIN },
+  { slug: 'import', label: 'Import', group: groups.ADMIN },
+  { slug: 'settings', label: 'Settings', group: groups.ADMIN },
 ];
 
 // Nav items only some roles may see. The page itself re-checks and redirects — this just avoids showing a link that would bounce. 'import' and 'settings' are new entries: both were reachable by every role because Sidebar.tsx injected Import outside this map, and Settings was simply never listed. A plain employee could open 'Rules & thresholds'.
-export const NAV_ROLE_GATED: Record<string, readonly string[]> = {
+export const TabRoleAuthorized: Record<string, readonly string[]> = {
   audit: ['super_admin', 'admin', 'hr'],
   onboarding: ['super_admin', 'admin', 'hr'],
   documents: ['super_admin', 'admin', 'hr'],
@@ -251,7 +251,7 @@ export const NAV_ROLE_GATED: Record<string, readonly string[]> = {
 // period, head-counts, pending queues) is filled in by pageHeader() from real
 // data, so a stale number is never invented here. The prototype's hardcoded
 // "Wednesday, 8 July 2026", "45 active" and "2 pending" used to live in this map.
-export const TITLES: Record<string, [string, string]> = {
+export const TabTitles: Record<string, [string, string]> = {
   today: ['Today', 'Live attendance · IST'],
   register: ['Monthly register', 'Attendance by month'],
   audit: ['Attendance audit', 'Who edited attendance & why'],
@@ -296,16 +296,16 @@ export interface TopbarStats {
   nightSweep: string | null;
 }
 
-const RUN_STATUS_LABEL: Record<string, string> = {
+const runStatusLabel: Record<string, string> = {
   draft: 'draft',
   in_review: 'in review',
   locked: 'locked',
   paid: 'paid',
 };
 
-// Title + subtitle for a page. Falls back to the static TITLES row whenever the figure behind a subtitle is unavailable, so a failed count degrades to a plain description rather than to a wrong number.
+// Title + subtitle for a page. Falls back to the static TabTitles row whenever the figure behind a subtitle is unavailable, so a failed count degrades to a plain description rather than to a wrong number.
 export function pageHeader(slug: string, stats?: TopbarStats | null): [string, string] {
-  const [title, fallback] = TITLES[slug] ?? ['', ''];
+  const [title, fallback] = TabTitles[slug] ?? ['', ''];
   if (!stats) return [title, fallback];
 
   switch (slug) {
@@ -319,7 +319,7 @@ export function pageHeader(slug: string, stats?: TopbarStats | null): [string, s
     }
 
     case 'payroll': {
-      const status = stats.runStatus ? RUN_STATUS_LABEL[stats.runStatus] ?? stats.runStatus : null;
+      const status = stats.runStatus ? runStatusLabel[stats.runStatus] ?? stats.runStatus : null;
       return [title, `${stats.periodLabel} · ${status ?? 'no run yet'}`];
     }
 
@@ -357,4 +357,4 @@ export function pageHeader(slug: string, stats?: TopbarStats | null): [string, s
  * 30-day sweep always ran first, everything older was already gone by the time
  * the 90-day job looked. Both callers now default to this constant.
  */
-export const NOTICE_RETENTION_DAYS = 30;
+export const noticeRetentionDays = 30;

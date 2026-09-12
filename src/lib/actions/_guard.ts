@@ -25,7 +25,7 @@ import type { AppRole } from '@/types/database';
 type DbClient = Awaited<ReturnType<typeof createClient>>;
 
 // Roles allowed to write. Matches is_staff() in the SQL exactly as of 0046, which withdrew the manager tier's write access and left managers at employee level. The set is spelled out here rather than imported from '@/lib/auth' so that widening the portal's READ roles can never silently widen who may write.
-export const WRITE_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
+export const writeRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
 export type StaffGate =
   | { ok: true; profileId: string; employeeId: string | null }
@@ -41,7 +41,7 @@ export async function requireStaff(action = 'This action'): Promise<StaffGate> {
   }
   const { profile } = await getSession();
   if (!profile) return { ok: false, error: 'You are not signed in.' };
-  if (!WRITE_ROLES.includes(profile.role)) {
+  if (!writeRoles.includes(profile.role)) {
     return {
       ok: false,
       error: `${action} needs a super admin, admin or HR account — yours is "${profile.role}".`,

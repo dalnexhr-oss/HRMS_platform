@@ -6,7 +6,7 @@
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createEmployee, updateEmployee } from '@/lib/actions/employees';
-import { INDIAN_STATES } from '@/lib/constants';
+import { States } from '@/lib/constants';
 // import { EMPLOYMENT_TYPES, EMPLOYMENT_TYPE_LABEL } from '@/types/app';
 import type { EmployeeEditRow, BranchRow } from '@/lib/queries';
 
@@ -213,7 +213,7 @@ function fmt(n: number | undefined, fallback: string): string {
 }
 
 /** Sentinel understood by resolveBranch in the employees actions. */
-const NEW_BRANCH = '__new__';
+const newBranch = '__new__';
 
 /**
  * Branch + gender row, plus the fields for creating a branch inline when
@@ -242,8 +242,8 @@ function BranchPicker({
 }) {
   // No branches at all (first run) → jump straight to the add-new fields, since
   // there is nothing to choose between.
-  const [sel, setSel] = useState(branchDefault || (options.length === 0 ? NEW_BRANCH : ''));
-  const adding = sel === NEW_BRANCH;
+  const [sel, setSel] = useState(branchDefault || (options.length === 0 ? newBranch : ''));
+  const adding = sel === newBranch;
 
   return (
     <>
@@ -259,7 +259,7 @@ function BranchPicker({
                 {o.label}
               </option>
             ))}
-            <option value={NEW_BRANCH}>+ Add new branch…</option>
+            <option value={newBranch}>+ Add new branch…</option>
           </select>
         </div>
         <SelectField
@@ -280,7 +280,7 @@ function BranchPicker({
             <SelectField
               name="branch_new_state"
               label="State / union territory"
-              options={INDIAN_STATES.map((s) => ({ value: s, label: s }))}
+              options={States.map((s) => ({ value: s, label: s }))}
             />
           </div>
           <div className="hint">

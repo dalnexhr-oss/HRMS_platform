@@ -20,12 +20,12 @@ import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import type { AppRole } from '@/types/database';
 
 // How long an issued token stays valid. One year unless overridden.
-export const SESSION_MAX_AGE_DAYS = Number(process.env.SESSION_MAX_AGE_DAYS ?? 365);
-export const SESSION_MAX_AGE_SECONDS = SESSION_MAX_AGE_DAYS * 24 * 60 * 60;
+export const sessionMaxAgeDays = Number(process.env.SESSION_MAX_AGE_DAYS ?? 365);
+export const sessionMaxAgeSeconds = sessionMaxAgeDays * 24 * 60 * 60;
 
-const ISSUER = 'dalnex-hrms';
-const AUDIENCE = 'dalnex-hrms-session';
-const ALG = 'HS256';
+const issuer = 'dalnex-hrms';
+const audience = 'dalnex-hrms-session';
+const alg = 'HS256';
 
 // Claims carried in the session cookie. Kept small — it ships on every request.
 export interface SessionClaims {
@@ -64,12 +64,12 @@ export function isAuthConfigured(): boolean {
 // Issue a session token for a user.
 export async function signSession(claims: SessionClaims): Promise<string> {
   return new SignJWT({ ...claims } as unknown as JWTPayload)
-    .setProtectedHeader({ alg: ALG })
+    .setProtectedHeader({ alg: alg })
     .setSubject(claims.sub)
-    .setIssuer(ISSUER)
-    .setAudience(AUDIENCE)
+    .setIssuer(issuer)
+    .setAudience(audience)
     .setIssuedAt()
-    .setExpirationTime(`${SESSION_MAX_AGE_DAYS}d`)
+    .setExpirationTime(`${sessionMaxAgeDays}d`)
     .sign(secretKey());
 }
 
@@ -87,9 +87,9 @@ export async function signSession(claims: SessionClaims): Promise<string> {
 export async function verifySession(token: string): Promise<SessionClaims | null> {
   try {
     const { payload } = await jwtVerify(token, secretKey(), {
-      issuer: ISSUER,
-      audience: AUDIENCE,
-      algorithms: [ALG],
+      issuer: issuer,
+      audience: audience,
+      algorithms: [alg],
     });
 
     // Shape-check rather than trusting the payload: a token signed with the

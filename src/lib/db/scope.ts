@@ -31,12 +31,12 @@ export interface Scope {
   isSuperAdmin: boolean;
   // Portal read tier. Mirrors is_portal().
   isPortal: boolean;
-  // True ONLY for SYSTEM_SCOPE — the scheduler and migrations, never a request. Every other flag here is a role tier that some real account can hold, so none of them can express "the job runner, and nobody who can sign in". A policy needs that to grant something to the scheduler alone: the cron ledger is the case — it must stay unwritable by any user while the job that wrote a claim is still able to take it back when its work fails.
+  // True ONLY for systemScope — the scheduler and migrations, never a request. Every other flag here is a role tier that some real account can hold, so none of them can express "the job runner, and nobody who can sign in". A policy needs that to grant something to the scheduler alone: the cron ledger is the case — it must stay unwritable by any user while the job that wrote a claim is still able to take it back when its work fails.
   isSystem: boolean;
 }
 
 // The system scope, used by cron jobs and migrations. Equivalent to the service-role key: it sees and writes everything. Reachable only through systemRepos(), which is deliberately awkward to call by accident.
-export const SYSTEM_SCOPE: Scope = {
+export const systemScope: Scope = {
   userId: '__system__',
   employeeId: null,
   role: 'super_admin',

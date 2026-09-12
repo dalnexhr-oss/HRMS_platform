@@ -51,7 +51,7 @@ const toOne = (table: string, localField: string): Relationship => ({
 });
 
 // Keyed by the PARENT table, then by the embed's alias as written in the select list. The parent matters: `employees(...)` means employee_id almost everywhere and handover_to on knowledge_transfer_items.
-export const RELATIONSHIPS: Record<string, Record<string, Relationship>> = {
+export const relationships: Record<string, Record<string, Relationship>> = {
   // --- employees and the things hanging off them
   // employees.branch_id -> branches.id, employees.department_id -> departments.id
   employees: {
@@ -111,5 +111,5 @@ export const RELATIONSHIPS: Record<string, Record<string, Relationship>> = {
 
 // The declared relationship, or null when there is none. The caller turns null into a thrown error naming both sides, so an embed added to a query without a matching entry here fails at the first call rather than rendering an empty column that looks like missing data.
 export function relationshipFor(parentTable: string, alias: string): Relationship | null {
-  return RELATIONSHIPS[parentTable]?.[alias] ?? null;
+  return relationships[parentTable]?.[alias] ?? null;
 }

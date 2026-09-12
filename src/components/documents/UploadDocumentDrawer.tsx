@@ -11,7 +11,7 @@
 import { useActionState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { uploadEmployeeDocument, replaceEmployeeDocument } from '@/lib/actions/documents';
-import { DOCUMENT_CATEGORIES, documentCategoryLabel } from '@/lib/constants';
+import { documentCategories, documentCategoryLabel } from '@/lib/constants';
 import type { EmployeeDocumentRow, EmployeeOption } from '@/lib/queries';
 
 type State = { ok?: boolean; error?: string };
@@ -115,7 +115,7 @@ export function UploadDocumentDrawer({
                 <div className="f">
                   <label htmlFor="doc-category">Category</label>
                   <select id="doc-category" name="category" defaultValue="offer_letter">
-                    {DOCUMENT_CATEGORIES.map((c) => (
+                    {documentCategories.map((c) => (
                       <option key={c} value={c}>
                         {documentCategoryLabel(c)}
                       </option>

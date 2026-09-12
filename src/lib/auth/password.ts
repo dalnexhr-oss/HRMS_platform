@@ -25,29 +25,33 @@ const scryptAsync = promisify(scrypt) as (
 
 // OWASP's floor for scrypt. N=2^16 costs ~64MB and ~100ms per hash, which is
 // the point — it is the attacker's cost too.
-const N = 65_536;
-const R = 8;
-const P = 1;
-const KEYLEN = 64;
-const SALT_BYTES = 16;
+// Prefixed rather than left as bare n/r/p: verifyPassword destructures its own
+// n, r and p out of the STORED hash, and a bare module-level n would be
+// shadowed by them — silently, and in the one function where using the wrong
+// cost parameters would make every check fail.
+const scryptN = 65_536;
+const scryptR = 8;
+const scryptP = 1;
+const keyLength = 64;
+const saltBytes = 16;
 // scrypt's default maxmem (32MB) is below what N=65536 needs, so it must be
 // raised explicitly or every call throws "memory limit exceeded".
-const MAXMEM = 192 * 1024 * 1024;
+const maxmem = 192 * 1024 * 1024;
 
 // Hash a plaintext password for storage.
 export async function hashPassword(password: string): Promise<string> {
-  const salt = randomBytes(SALT_BYTES);
-  const hash = await scryptAsync(password.normalize('NFKC'), salt, KEYLEN, {
-    N,
-    r: R,
-    p: P,
-    maxmem: MAXMEM,
+  const salt = randomBytes(saltBytes);
+  const hash = await scryptAsync(password.normalize('NFKC'), salt, keyLength, {
+    N: scryptN,
+    r: scryptR,
+    p: scryptP,
+    maxmem,
   });
   return [
     'scrypt',
-    N,
-    R,
-    P,
+    scryptN,
+    scryptR,
+    scryptP,
     salt.toString('base64'),
     hash.toString('base64'),
   ].join('$');
@@ -68,7 +72,7 @@ export async function verifyPassword(
       N: Number(n),
       r: Number(r),
       p: Number(p),
-      maxmem: MAXMEM,
+      maxmem,
     });
 
     // Length must match before timingSafeEqual, which throws on a mismatch.

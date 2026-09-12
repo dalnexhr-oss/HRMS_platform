@@ -48,12 +48,12 @@ export type CommitResult =
   | { ok: true; inserted: number; updated: number; skipped: number; errors: string[] }
   | { ok: false; error: string };
 
-// Roles that may actually write. Deliberately NOT isStaffRole() from @/lib/auth: that is the portal READ set, so gating on it would let a reader through to a write the policy layer then filters to zero rows — a write that reports success and changes nothing. An explicit set turns that into an honest, explained refusal. Mirrors _guard.ts WRITE_ROLES and IMPORT_ROLES in actions/export.ts.
-const IMPORT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
+// Roles that may actually write. Deliberately NOT isStaffRole() from @/lib/auth: that is the portal READ set, so gating on it would let a reader through to a write the policy layer then filters to zero rows — a write that reports success and changes nothing. An explicit set turns that into an honest, explained refusal. Mirrors _guard.ts writeRoles and importRoles in actions/export.ts.
+const importRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
-const UPSERT_CHUNK = 500;
-const SELECT_PAGE = 1000;
-const ON_CONFLICT = 'employee_id,work_date';
+const upsertChunk = 500;
+const selectPage = 1000;
+const onConflict = 'employee_id,work_date';
 
 interface UpsertRow {
   employee_id: string;
@@ -71,7 +71,7 @@ function errMessage(e: unknown): string {
 }
 
 // Largest register we will parse. next.config.mjs already caps the Server Action body at 10mb, but that limit is about TRANSPORT — this one is about what we agree to decompress. A 2MB .xlsx is a zip that can expand to gigabytes in exceljs (a zip bomb), so the size is checked before the buffer is read.
-const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const maxUploadBytes = 10 * 1024 * 1024;
 
 // Turn the uploaded FormData field into a parsed register.
 async function readUpload(formData: FormData): Promise<ParsedRegister> {
@@ -81,10 +81,10 @@ async function readUpload(formData: FormData): Promise<ParsedRegister> {
   }
   const upload = file as File;
   if (upload.size === 0) throw new Error('That file is empty.');
-  if (upload.size > MAX_UPLOAD_BYTES) {
+  if (upload.size > maxUploadBytes) {
     throw new Error(
       `That file is ${(upload.size / 1024 / 1024).toFixed(1)}MB — the register limit is ` +
-        `${MAX_UPLOAD_BYTES / 1024 / 1024}MB. Export a single month rather than a full year.`,
+        `${maxUploadBytes / 1024 / 1024}MB. Export a single month rather than a full year.`,
     );
   }
 
@@ -218,7 +218,7 @@ export async function previewImport(formData: FormData): Promise<PreviewResult> 
     // attacker-supplied .xlsx is the expensive part — leaving it ungated let any
     // authenticated user drive server CPU/memory with crafted workbooks, and
     // leaked the employee roster through the preview's matched/unmatched lists.
-    // Mirrors commitImport's IMPORT_ROLES (admin/hr).
+    // Mirrors commitImport's importRoles (admin/hr).
     const gate = await requireStaff('Previewing the register');
     if (!gate.ok) return { ok: false, error: gate.error };
 
@@ -258,7 +258,7 @@ async function fetchExistingKeys(
   const to = `${periodMonth.slice(0, 8)}${String(daysInMonth).padStart(2, '0')}`;
   const keys = new Set<string>();
 
-  for (let offset = 0; ; offset += SELECT_PAGE) {
+  for (let offset = 0; ; offset += selectPage) {
     // The order is load-bearing, not cosmetic: a paged read has no stability
     // guarantee without an ORDER BY, so an unordered paged read of
     // a full roster (~210 employees x ~30 days = ~6300 rows, i.e. 7 pages) can
@@ -271,7 +271,7 @@ async function fetchExistingKeys(
       .lte('work_date', to)
       .order('employee_id', { ascending: true })
       .order('work_date', { ascending: true })
-      .range(offset, offset + SELECT_PAGE - 1);
+      .range(offset, offset + selectPage - 1);
 
     if (error) {
       throw new Error(
@@ -280,7 +280,7 @@ async function fetchExistingKeys(
     }
     const page = (data ?? []) as { employee_id: string; work_date: string }[];
     for (const r of page) keys.add(`${r.employee_id}|${String(r.work_date).slice(0, 10)}`);
-    if (page.length < SELECT_PAGE) break;
+    if (page.length < selectPage) break;
   }
   return keys;
 }
@@ -301,7 +301,7 @@ export async function commitImport(formData: FormData): Promise<CommitResult> {
     const { userId, profile } = await getSession();
     if (!userId) return { ok: false, error: 'Sign in to import the register.' };
     const role = profile?.role;
-    if (!role || !IMPORT_ROLES.includes(role)) {
+    if (!role || !importRoles.includes(role)) {
       return {
         ok: false,
         error: `Importing the register needs an admin or HR account${role ? ` — yours is "${role}".` : '.'}`,
@@ -348,9 +348,9 @@ export async function commitImport(formData: FormData): Promise<CommitResult> {
     let updated = 0;
     let failedRows = 0;
 
-    for (let i = 0; i < rows.length; i += UPSERT_CHUNK) {
-      const chunk = rows.slice(i, i + UPSERT_CHUNK);
-      const { error } = await dbc.from('attendance_days').upsert(chunk, { onConflict: ON_CONFLICT });
+    for (let i = 0; i < rows.length; i += upsertChunk) {
+      const chunk = rows.slice(i, i + upsertChunk);
+      const { error } = await dbc.from('attendance_days').upsert(chunk, { onConflict: onConflict });
 
       if (error) {
         failedRows += chunk.length;

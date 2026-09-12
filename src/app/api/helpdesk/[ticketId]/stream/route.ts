@@ -16,7 +16,7 @@
 //
 // Runs on Node, not the edge: an SSE stream needs a long-lived process.
 //
-import { COLLECTIONS } from '@/lib/db/collections';
+import { collections } from '@/lib/db/collections';
 import { scoped } from '@/lib/db/repo';
 import { db, supportsTransactions } from '@/lib/db/mongo';
 import { currentScope } from '@/lib/db/scope';
@@ -25,9 +25,9 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 // How often the polling fallback looks for new messages.
-const POLL_MS = 2_000;
+const pollMs = 2_000;
 // Comment keeping proxies from closing an idle connection.
-const HEARTBEAT_MS = 25_000;
+const heartbeatMs = 25_000;
 
 export async function GET(
   req: Request,
@@ -41,7 +41,7 @@ export async function GET(
   // The ticket must be visible to this caller under the collection's policy.
   // Checking here means the stream cannot be used to read a ticket the drawer
   // would never have opened.
-  const tickets = await scoped<{ _id: string; status: string }>(COLLECTIONS.helpdeskTickets);
+  const tickets = await scoped<{ _id: string; status: string }>(collections.helpdeskTickets);
   const ticket = await tickets.findOne({ _id: ticketId });
   if (!ticket) return new Response('Not found.', { status: 404 });
 
@@ -63,7 +63,7 @@ export async function GET(
 
       const heartbeat = setInterval(() => {
         if (!closed) controller.enqueue(encoder.encode(': ping\n\n'));
-      }, HEARTBEAT_MS);
+      }, heartbeatMs);
 
       let cleanup = () => {};
 
@@ -93,7 +93,7 @@ export async function GET(
       if (req.signal.aborted) return stop();
 
       const database = await db();
-      const comments = database.collection(COLLECTIONS.helpdeskTicketComments);
+      const comments = database.collection(collections.helpdeskTicketComments);
 
       // The client may have gone during the await; opening a change stream or
       // a poll timer now would leak exactly what the listener above prevents.
@@ -138,7 +138,7 @@ export async function GET(
             // A transient read failure must not kill the stream; the next tick
             // picks up anything missed, because `since` only advances on success.
           }
-        }, POLL_MS);
+        }, pollMs);
         cleanup = () => clearInterval(timer);
       }
     },

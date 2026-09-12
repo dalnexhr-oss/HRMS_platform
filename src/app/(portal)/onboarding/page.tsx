@@ -7,12 +7,12 @@ import type { AppRole } from '@/types/database';
 
 // Onboarding is super-admin/admin/HR only, matching the onboarding policies and
 // the actions' own requireRoles gate.
-const ONBOARDING_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
+const onboardingRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 export default async function OnboardingPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
-  if (!role || !ONBOARDING_ROLES.includes(role)) redirect('/today');
+  if (!role || !onboardingRoles.includes(role)) redirect('/today');
 
   const [tasks, templates, employees] = await Promise.all([
     getOnboardingBoard(),

@@ -21,7 +21,7 @@ type ColKey =
   | 'code' | 'name' | 'category' | 'brand' | 'size' | 'unit'
   | 'total' | 'assigned' | 'remaining' | 'status' | 'returnable';
 
-const COLS: { key: ColKey; label: string; get: (i: ItemRow) => string; kind?: ColKind }[] = [
+const cols: { key: ColKey; label: string; get: (i: ItemRow) => string; kind?: ColKind }[] = [
   { key: 'code', label: 'Material / Tool ID', get: (i) => i.item_code ?? '—' },
   { key: 'name', label: 'Name', get: (i) => i.item_name || '—' },
   { key: 'category', label: 'Category', get: (i) => i.category ?? '—' },
@@ -54,7 +54,7 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
   // one column never hides another column's choices.
   const options = useMemo(() => {
     const out = {} as Record<ColKey, string[]>;
-    for (const c of COLS) out[c.key] = distinctValues(items.map(c.get), c.kind);
+    for (const c of cols) out[c.key] = distinctValues(items.map(c.get), c.kind);
     return out;
   }, [items]);
 
@@ -68,12 +68,12 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
         [i.item_name, i.item_code, i.category, i.brand].some((v) => (v ?? '').toLowerCase().includes(term)),
       );
     }
-    for (const c of COLS) {
+    for (const c of cols) {
       const sel = filters[c.key];
       if (sel?.length) rows = rows.filter((i) => sel.includes(c.get(i)));
     }
     if (sort) {
-      const col = COLS.find((c) => c.key === sort.key);
+      const col = cols.find((c) => c.key === sort.key);
       if (col) rows = sortRows(rows, col.get, col.kind ?? 'text', sort.dir);
     }
     return rows;
@@ -144,7 +144,7 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
           <table style={{ minWidth: 1000 }}>
             <thead>
               <tr>
-                {COLS.map((c) => (
+                {cols.map((c) => (
                   <th key={c.key} className={c.kind === 'number' ? 'right' : undefined}>
                     <ThMenu
                       label={c.label}

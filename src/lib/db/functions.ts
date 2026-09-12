@@ -13,26 +13,26 @@
 //
 import 'server-only';
 import { randomUUID } from 'node:crypto';
-import { COLLECTIONS, type BaseDoc } from '@/lib/db/collections';
+import { collections, type BaseDoc } from '@/lib/db/collections';
 import { scopedFor } from '@/lib/db/repo';
 import { registerRpc } from '@/lib/db/pgcompat';
-import { currentScope, SYSTEM_SCOPE, type Scope } from '@/lib/db/scope';
+import { currentScope, systemScope, type Scope } from '@/lib/db/scope';
 import { toDecimal } from '@/lib/db/money';
 import { AppRole } from '@/types/database';
 // The SQL used `now() at time zone 'Asia/Kolkata'`; this is the app's one
 // definition of that date. See the note on the same import in pgcompat.ts.
 import { todayIST } from '@/lib/format';
 
-// How one of these functions was invoked. THIS REPLACES A PRIVILEGE ESCALATION. The old helper resolved "no session" to SYSTEM_SCOPE, on the reasoning that `auth.uid() is null` in the SQL meant "invoked by pg_cron". That inference does not survive the port. In Postgres, a null auth.uid() really did mean there was no API request — the only way in was a database connection. Here `currentScope()` returns null for every authentication FAILURE as well: no cookie, a bad signature, an expired token, a bumped token_version, a disabled account. So a revoked or disabled user calling fn_provision_leave_balances was handed the system scope and sailed past the `isStaff` gate below, writing leave balances as the system. The scheduler is now identified by HOW it calls, not by what it lacks: it passes SCHEDULED as a separate argument. registerRpc() forwards only the caller-supplied args object and never this parameter, so the privilege cannot be requested over the wire.
+// How one of these functions was invoked. THIS REPLACES A PRIVILEGE ESCALATION. The old helper resolved "no session" to systemScope, on the reasoning that `auth.uid() is null` in the SQL meant "invoked by pg_cron". That inference does not survive the port. In Postgres, a null auth.uid() really did mean there was no API request — the only way in was a database connection. Here `currentScope()` returns null for every authentication FAILURE as well: no cookie, a bad signature, an expired token, a bumped token_version, a disabled account. So a revoked or disabled user calling fn_provision_leave_balances was handed the system scope and sailed past the `isStaff` gate below, writing leave balances as the system. The scheduler is now identified by HOW it calls, not by what it lacks: it passes SCHEDULED as a separate argument. registerRpc() forwards only the caller-supplied args object and never this parameter, so the privilege cannot be requested over the wire.
 export interface Invocation {
   readonly isScheduler: boolean;
 }
 
 // A request-borne call. The default, and never trusted.
-const REQUEST: Invocation = { isScheduler: false };
+const request: Invocation = { isScheduler: false };
 
 // An in-process scheduled job. Only db/scheduler.ts may pass this.
-export const SCHEDULED: Invocation = { isScheduler: true };
+export const scheduled: Invocation = { isScheduler: true };
 
 // The signed-in caller, or a refusal. Never falls back to the system.
 async function requireCaller(fn: string): Promise<Scope> {
@@ -51,7 +51,7 @@ class NotPermitted extends Error {
 
 /** A numeric setting with a default. Replaces fn_setting_numeric(). */
 async function settingNumeric(key: string, fallback: number): Promise<number> {
-  const settings = scopedFor<BaseDoc & { key: string; value: unknown }>(COLLECTIONS.settings, SYSTEM_SCOPE);
+  const settings = scopedFor<BaseDoc & { key: string; value: unknown }>(collections.settings, systemScope);
   const row = await settings.findOne({ key });
   const n = Number(row?.value ?? fallback);
   return Number.isFinite(n) ? n : fallback;
@@ -82,7 +82,7 @@ async function onLeaveToday(): Promise<OnLeaveRow[]> {
   if (!scope) throw new NotPermitted('fn_on_leave_today: not signed in');
 
   const today = todayIST();
-  const requests = scopedFor<BaseDoc>(COLLECTIONS.requests, SYSTEM_SCOPE);
+  const requests = scopedFor<BaseDoc>(collections.requests, systemScope);
 
   const rows = await requests.aggregate<OnLeaveRow & { _id: string }>([
     {
@@ -95,7 +95,7 @@ async function onLeaveToday(): Promise<OnLeaveRow[]> {
     },
     {
       $lookup: {
-        from: COLLECTIONS.employees,
+        from: collections.employees,
         localField: 'employee_id',
         foreignField: '_id',
         as: 'e',
@@ -147,7 +147,7 @@ async function initApprovalSteps(args: { p_request_id?: string }): Promise<numbe
   if (!scope.isStaff) {
     // Looked up through the system scope on purpose: the check must see the
     // real row, not one already filtered by the caller's own policy.
-    const all = scopedFor<BaseDoc>(COLLECTIONS.requests, SYSTEM_SCOPE);
+    const all = scopedFor<BaseDoc>(collections.requests, systemScope);
     const owned = await all.findOne({ _id: requestId, employee_id: scope.employeeId });
     if (!owned) {
       throw new NotPermitted(
@@ -161,7 +161,7 @@ async function initApprovalSteps(args: { p_request_id?: string }): Promise<numbe
   const configured = Math.trunc(await settingNumeric('leave_approval_levels', 1));
   const levels = Math.min(Math.max(configured, 1), 5);
 
-  const steps = scopedFor<BaseDoc>(COLLECTIONS.approvalSteps, SYSTEM_SCOPE);
+  const steps = scopedFor<BaseDoc>(collections.approvalSteps, systemScope);
   const roleFor = (n: number) => (n === 1 ? 'hr' : 'admin') as AppRole;
 
   let made = 0;
@@ -195,7 +195,7 @@ async function initApprovalSteps(args: { p_request_id?: string }): Promise<numbe
  */
 async function provisionLeaveBalances(
   args: { p_year?: number },
-  invocation: Invocation = REQUEST,
+  invocation: Invocation = request,
 ): Promise<number> {
   const year = Number(args.p_year);
 
@@ -217,8 +217,8 @@ async function provisionLeaveBalances(
   const cap = Math.max(await settingNumeric('leave_carry_forward_cap', 0), 0);
   const annual = await settingNumeric('leave_annual_pl', 15);
 
-  const employees = scopedFor<BaseDoc>(COLLECTIONS.employees, SYSTEM_SCOPE);
-  const balances = scopedFor<BaseDoc>(COLLECTIONS.leaveBalances, SYSTEM_SCOPE);
+  const employees = scopedFor<BaseDoc>(collections.employees, systemScope);
+  const balances = scopedFor<BaseDoc>(collections.leaveBalances, systemScope);
 
   // 'on_notice' still works and still takes leave; 'inactive' is excluded.
   const staff = await employees.find(
@@ -258,7 +258,7 @@ async function provisionLeaveBalances(
   }
 
   if (created > 0) {
-    const log = scopedFor<BaseDoc>(COLLECTIONS.activityLog, SYSTEM_SCOPE);
+    const log = scopedFor<BaseDoc>(collections.activityLog, systemScope);
     await log.insertOne({
       _id: randomUUID(),
       actor_id: null,

@@ -10,7 +10,7 @@
 //
 import { inr } from '@/lib/format';
 import type { PayslipRow } from '@/types/domain';
-import { COMPANY } from '@/lib/brand/company';
+import { company } from '@/lib/brand/company';
 
 // 'YYYY-MM-01' -> 'June 2026'; falls back gracefully.
 function monthLabel(periodMonth: string | null): string {
@@ -119,7 +119,7 @@ function payslipHtml(p: PayslipRow, logoUrl: string): string {
         <img src="${esc(logoUrl)}" alt="Dalnex" width="99" height="34"
           style="display:block;margin-bottom:8px" />
         <h1>Payslip</h1>
-        <div class="co">${esc(COMPANY)} · ${esc(period)}</div>
+        <div class="co">${esc(company)} · ${esc(period)}</div>
       </div>
       <button class="noprint" onclick="window.print()"
         style="padding:8px 14px;border:1px solid #1a1a1a;background:#1a1a1a;color:#fff;border-radius:8px;cursor:pointer;font:inherit;">

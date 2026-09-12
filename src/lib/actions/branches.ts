@@ -20,18 +20,18 @@
 //
 import { revalidatePath } from 'next/cache';
 import { requireRoles } from '@/lib/actions/_guard';
-import { COLLECTIONS, type BranchDoc, type EmployeeDoc } from '@/lib/db/collections';
+import { collections, type BranchDoc, type EmployeeDoc } from '@/lib/db/collections';
 import { scoped } from '@/lib/db/repo';
 import { withTransaction } from '@/lib/db/mongo';
 import { toCoordinate } from '@/lib/db/money';
-import { INDIAN_STATES } from '@/lib/constants';
+import { States } from '@/lib/constants';
 
 export interface ActionResult {
   ok: boolean;
   error?: string;
 }
 
-const BRANCH_ADMIN_ROLES = ['super_admin', 'admin', 'hr'] as const;
+const branchAdminRoles = ['super_admin', 'admin', 'hr'] as const;
 
 // Everything that renders branch names or state-derived payroll figures.
 function revalidateBranchSurfaces(): void {
@@ -45,7 +45,7 @@ function revalidateBranchSurfaces(): void {
 // Fallback radius for a branch whose office is set without one. Matches the
 // column default in lib/db/defaults.ts; the column is NOT NULL, so a blank
 // field has to resolve to a number rather than to null.
-const DEFAULT_GEOFENCE_RADIUS_M = 150;
+const defaultGeofenceRadiusM = 150;
 
 /**
  * Set (or clear) one branch's OFFICE LOCATION.
@@ -61,7 +61,7 @@ const DEFAULT_GEOFENCE_RADIUS_M = 150;
  * office_lat / office_lng settings.
  */
 export async function updateBranchLocation(id: string, formData: FormData): Promise<ActionResult> {
-  const gate = await requireRoles(BRANCH_ADMIN_ROLES, 'Setting a branch office location');
+  const gate = await requireRoles(branchAdminRoles, 'Setting a branch office location');
   if (!gate.ok) return gate;
   if (!id) return { ok: false, error: 'Which branch to update is missing.' };
 
@@ -90,7 +90,7 @@ export async function updateBranchLocation(id: string, formData: FormData): Prom
     }
   }
 
-  let radius = DEFAULT_GEOFENCE_RADIUS_M;
+  let radius = defaultGeofenceRadiusM;
   if (radiusRaw) {
     const parsed = Math.round(Number(radiusRaw));
     if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -100,7 +100,7 @@ export async function updateBranchLocation(id: string, formData: FormData): Prom
   }
 
   try {
-    const branches = await scoped<BranchDoc>(COLLECTIONS.branches);
+    const branches = await scoped<BranchDoc>(collections.branches);
     const matched = await branches.updateOne(
       { _id: id },
       {
@@ -139,14 +139,14 @@ function isDuplicateKey(e: unknown): boolean {
 
 // Rename a branch and/or move it to another state. Admin/HR, like /settings itself.
 export async function updateBranch(id: string, formData: FormData): Promise<ActionResult> {
-  const gate = await requireRoles(BRANCH_ADMIN_ROLES, 'Updating a branch');
+  const gate = await requireRoles(branchAdminRoles, 'Updating a branch');
   if (!gate.ok) return gate;
 
   const name = String(formData.get('name') ?? '').trim();
   const state = String(formData.get('state') ?? '').trim();
   if (!id) return { ok: false, error: 'Which branch to update is missing.' };
   if (!name) return { ok: false, error: 'Enter the branch name.' };
-  if (!(INDIAN_STATES as readonly string[]).includes(state)) {
+  if (!(States as readonly string[]).includes(state)) {
     return { ok: false, error: 'Pick the branch state or union territory.' };
   }
 
@@ -160,15 +160,15 @@ export async function updateBranch(id: string, formData: FormData): Promise<Acti
     // on the normal pool: the transaction wrapped nothing and a failure midway
     // left the copies permanently disagreeing with the branch.
     const matched = await withTransaction(async (session) => {
-      const branches = await scoped<BranchDoc>(COLLECTIONS.branches, session);
-      const employees = await scoped<EmployeeDoc>(COLLECTIONS.employees, session);
+      const branches = await scoped<BranchDoc>(collections.branches, session);
+      const employees = await scoped<EmployeeDoc>(collections.employees, session);
 
       const count = await branches.updateOne({ _id: id }, { $set: { name, state } });
       if (count === 0) return 0;
       // Every collection that keeps a copy of the branch name. Miss one and it
       // goes on showing a name the branch no longer has.
       await employees.updateMany({ branch_id: id }, { $set: { branch_name: name } });
-      for (const c of [COLLECTIONS.holidays, COLLECTIONS.notices]) {
+      for (const c of [collections.holidays, collections.notices]) {
         const repo = await scoped(c, session);
         await repo.updateMany({ branch_id: id }, { $set: { branch_name: name } });
       }
@@ -201,12 +201,12 @@ export async function updateBranch(id: string, formData: FormData): Promise<Acti
  * mistake.
  */
 export async function deleteBranch(id: string): Promise<ActionResult> {
-  const gate = await requireRoles(BRANCH_ADMIN_ROLES, 'Deleting a branch');
+  const gate = await requireRoles(branchAdminRoles, 'Deleting a branch');
   if (!gate.ok) return gate;
   if (!id) return { ok: false, error: 'Which branch to delete is missing.' };
 
   try {
-    const employees = await scoped<EmployeeDoc>(COLLECTIONS.employees);
+    const employees = await scoped<EmployeeDoc>(collections.employees);
     // Counts employees in ANY status, deactivated ones included: their payslips
     // and attendance still reference this branch, so removing it would break
     // history as surely as it would break a live roster.
@@ -218,7 +218,7 @@ export async function deleteBranch(id: string): Promise<ActionResult> {
       };
     }
 
-    const branches = await scoped<BranchDoc>(COLLECTIONS.branches);
+    const branches = await scoped<BranchDoc>(collections.branches);
     const deleted = await branches.deleteOne({ _id: id });
     if (deleted === 0) {
       return {
@@ -229,7 +229,7 @@ export async function deleteBranch(id: string): Promise<ActionResult> {
 
     // Departments were `on delete set null`, so they survive with no branch
     // rather than disappearing — same as before.
-    const departments = await scoped(COLLECTIONS.departments);
+    const departments = await scoped(collections.departments);
     await departments.updateMany({ branch_id: id }, { $set: { branch_id: null } });
 
     revalidateBranchSurfaces();

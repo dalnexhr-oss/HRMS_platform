@@ -9,14 +9,14 @@
 //
 
 // '01' … '50'.
-export const AVATAR_PRESET_IDS: readonly string[] = Array.from({ length: 50 }, (_, i) =>
+export const avatarPresetId: readonly string[] = Array.from({ length: 50 }, (_, i) =>
   String(i + 1).padStart(2, '0'),
 );
 
 export type AvatarPresetId = string;
 
 export function isAvatarPresetId(value: string): boolean {
-  return AVATAR_PRESET_IDS.includes(value);
+  return avatarPresetId.includes(value);
 }
 
 // Public path to the bundled image for a preset id (id is validated first).

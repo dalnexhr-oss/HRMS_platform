@@ -21,7 +21,7 @@ import { isConfigurableRole } from '@/lib/access';
 import { isEmployeeAreaRole } from '@/lib/roles';
 import type { AppRole } from '@/types/database';
 
-const ROLE_LABEL: Record<AppRole, string> = {
+const roleLabel: Record<AppRole, string> = {
   admin: 'Admin',
   super_admin: 'Super Admin',
   hr: 'HR',
@@ -29,11 +29,11 @@ const ROLE_LABEL: Record<AppRole, string> = {
   intern: 'Intern',
 };
 
-// Highest tier first — mirrors ROLE_TIER in lib/actions/users.ts.
-const ROLE_ORDER: AppRole[] = ['super_admin', 'admin', 'hr', 'employee', 'intern'];
+// Highest tier first — mirrors roleTier in lib/actions/users.ts.
+const roleOrder: AppRole[] = ['super_admin', 'admin', 'hr', 'employee', 'intern'];
 
-// Mirrors ROLE_TIER in lib/actions/users.ts — the server is the real gate.
-const ROLE_TIER: Record<AppRole, number> = {
+// Mirrors roleTier in lib/actions/users.ts — the server is the real gate.
+const roleTier: Record<AppRole, number> = {
   super_admin: 3,
   admin: 2,
   hr: 1,
@@ -85,7 +85,7 @@ export function UsersScreen({
 
   // Only offer roles at or below the caller's own tier — the same rule the
   // server enforces, so the dropdown can't suggest a refusal.
-  const assignable = ROLE_ORDER.filter((r) => ROLE_TIER[r] <= ROLE_TIER[callerRole]);
+  const assignable = roleOrder.filter((r) => roleTier[r] <= roleTier[callerRole]);
 
   function run(id: string, fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) {
     setBusy(id);
@@ -207,7 +207,7 @@ export function UsersScreen({
                   </td>
                   <td>
                     <span className="pill" style={rolePillStyle(u.role)}>
-                      {u.role ? ROLE_LABEL[u.role] : 'no profile'}
+                      {u.role ? roleLabel[u.role] : 'no profile'}
                     </span>
                   </td>
                   <td>
@@ -250,7 +250,7 @@ export function UsersScreen({
                         {!u.role && <option value="">no profile</option>}
                         {assignable.map((r) => (
                           <option key={r} value={r}>
-                            {ROLE_LABEL[r]}
+                            {roleLabel[r]}
                           </option>
                         ))}
                       </select>
@@ -456,7 +456,7 @@ function AddUserDrawer({
               <select name="role" value={role} onChange={(e) => setRole(e.target.value as AppRole)}>
                 {assignable.map((r) => (
                   <option key={r} value={r}>
-                    {ROLE_LABEL[r]}
+                    {roleLabel[r]}
                   </option>
                 ))}
               </select>

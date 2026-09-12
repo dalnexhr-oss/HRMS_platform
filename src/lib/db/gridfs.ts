@@ -34,7 +34,7 @@ export type StorageBucket =
   | 'notice-attachments';
 
 // Buckets whose objects belong to one employee, keyed by the folder prefix. The rest are company-wide: staff write, everyone signed in may read.
-const EMPLOYEE_SCOPED: ReadonlySet<StorageBucket> = new Set([
+const employeeScoped: ReadonlySet<StorageBucket> = new Set([
   'employee-documents',
   'reimbursement-receipts',
   'generated-documents',
@@ -72,7 +72,7 @@ async function requireScope(): Promise<Scope> {
 // The read rule for a stored file, per bucket. Staff read anything. An employee reads only what sits under their own folder, and only in the buckets that are folder-scoped at all.
 function assertMayRead(scope: Scope, bucket: StorageBucket, path: string): void {
   if (scope.isStaff) return;
-  if (!EMPLOYEE_SCOPED.has(bucket)) return; // company-wide: any signed-in reader
+  if (!employeeScoped.has(bucket)) return; // company-wide: any signed-in reader
   const owner = ownerOf(path);
   if (!owner || owner !== scope.employeeId) throw new StorageAccessError();
 }

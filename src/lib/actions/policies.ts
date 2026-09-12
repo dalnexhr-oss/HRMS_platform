@@ -7,7 +7,7 @@ import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/_guard';
 import { notifyEveryone } from '@/lib/notify';
 
 // Postgres unique_violation.
-const UNIQUE_VIOLATION = '23505';
+const uniqueViolation = '23505';
 
 // Employee acknowledges (marks as read) a company policy.
 export async function acknowledgePolicy(policyId: string) {
@@ -38,7 +38,7 @@ export async function acknowledgePolicy(policyId: string) {
     // A duplicate ack (already read) is a unique-violation — benign. Detect it by
     // SQL error CODE, not by substring-matching the English word 'duplicate',
     // which breaks on any wording/locale change.
-    if (error.code === UNIQUE_VIOLATION) {
+    if (error.code === uniqueViolation) {
       revalidatePath('/me');
       revalidatePath('/policies');
       return { ok: true };

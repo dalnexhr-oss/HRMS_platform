@@ -7,7 +7,7 @@ import type { TicketComment, TicketView } from '@/lib/queries';
 
 type TicketStatus = TicketView['status'];
 
-const STATUS_LABEL: Record<TicketStatus, string> = {
+const statusLabel: Record<TicketStatus, string> = {
   open: 'Open',
   in_progress: 'In progress',
   resolved: 'Resolved',
@@ -89,7 +89,7 @@ export function HelpdeskScreen({
                         <td>{t.category ?? <span className="muted">—</span>}</td>
                         <td>
                           <span className="pill" style={statusPillStyle(t.status)}>
-                            {STATUS_LABEL[t.status]}
+                            {statusLabel[t.status]}
                           </span>
                         </td>
                         <td>

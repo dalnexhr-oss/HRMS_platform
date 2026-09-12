@@ -5,7 +5,7 @@ import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { getSession, isStaffRole } from '@/lib/auth';
 import { canAccessTab, slugFromPathname } from '@/lib/access';
-import { NAV } from '@/lib/constants';
+import { navItems } from '@/lib/constants';
 import {
   getMyNotifications,
   getUnreadNotificationCount,
@@ -49,7 +49,7 @@ export default async function PortalLayout({ children }: { children: React.React
     // itself is the revoked tab, redirecting there re-enters this layout and
     // loops forever. With every tab revoked there is no portal left to show, so
     // say so on /login rather than spinning.
-    const fallback = NAV.find((n) => canAccessTab(profile.role, n.slug, access));
+    const fallback = navItems.find((n) => canAccessTab(profile.role, n.slug, access));
     redirect(
       fallback
         ? (`/${fallback.slug}` as Route)

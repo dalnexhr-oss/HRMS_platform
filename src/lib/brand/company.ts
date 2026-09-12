@@ -3,7 +3,7 @@
 // (payslip-print.ts is client-side; letters/templates are server-only).
 //
 
-export const COMPANY = 'Dalnex LLP';
+export const company = 'Dalnex LLP';
 
 // Brand teal — matches --brand in globals.css.
-export const BRAND_HEX = '#0E7A8F';
+export const brandHex = '#0E7A8F';

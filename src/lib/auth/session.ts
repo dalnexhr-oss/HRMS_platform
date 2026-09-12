@@ -21,15 +21,15 @@ import { cookies } from 'next/headers';
 import {
   signSession,
   verifySession,
-  SESSION_MAX_AGE_SECONDS,
+  sessionMaxAgeSeconds,
   type SessionClaims,
 } from '@/lib/auth/jwt';
-import { SESSION_COOKIE } from '@/lib/auth/session-shared';
+import { sessionCookie } from '@/lib/auth/session-shared';
 import { usersCollection, type UserDoc } from '@/lib/db/collections';
 import type { AppRole, Profile } from '@/types/database';
 
 // Re-exported so callers have one import for everything session-related.
-export { SESSION_COOKIE };
+export { sessionCookie };
 
 export interface SessionContext {
   userId: string | null;
@@ -37,7 +37,7 @@ export interface SessionContext {
   profile: Profile | null;
 }
 
-const EMPTY: SessionContext = { userId: null, email: null, profile: null };
+const empty: SessionContext = { userId: null, email: null, profile: null };
 
 // Cookie attributes. Shared by the set and clear paths so they cannot drift.
 function cookieOptions(maxAge: number) {
@@ -78,12 +78,12 @@ export async function createSession(user: UserDoc): Promise<void> {
     ver: user.token_version,
   };
   const token = await signSession(claims);
-  (await cookies()).set(SESSION_COOKIE, token, cookieOptions(SESSION_MAX_AGE_SECONDS));
+  (await cookies()).set(sessionCookie, token, cookieOptions(sessionMaxAgeSeconds));
 }
 
 // Clear the cookie on this device. This alone does NOT invalidate the token — anyone holding a copy could still use it for the rest of the year. Sign-out therefore also bumps token_version (see revokeAllSessions), which is the half that actually revokes.
 export async function destroySession(): Promise<void> {
-  (await cookies()).set(SESSION_COOKIE, '', cookieOptions(0));
+  (await cookies()).set(sessionCookie, '', cookieOptions(0));
 }
 
 // Invalidate every token issued to an account, on every device. Call on sign-out, password change, role change, and when disabling a login. Returns the new version, or null when the user no longer exists.
@@ -99,24 +99,24 @@ export async function revokeAllSessions(userId: string): Promise<number | null> 
 
 // The raw token, unverified. Use getSession() unless you need the string.
 export async function readSessionToken(): Promise<string | null> {
-  return (await cookies()).get(SESSION_COOKIE)?.value ?? null;
+  return (await cookies()).get(sessionCookie)?.value ?? null;
 }
 
 // Resolve the signed-in user. Memoised per request. Returns EMPTY for every failure mode — no cookie, bad signature, expired, revoked, disabled, deleted — because none of them is a state the UI can act on differently, and distinguishing them for the visitor leaks account existence. A database that is genuinely unreachable still throws, so a broken connection never masquerades as "signed out".
 export const getSession = cache(async function getSession(): Promise<SessionContext> {
   const token = await readSessionToken();
-  if (!token) return EMPTY;
+  if (!token) return empty;
 
   const claims = await verifySession(token);
-  if (!claims) return EMPTY;
+  if (!claims) return empty;
 
   const users = await usersCollection();
   const user = await users.findOne({ _id: claims.sub });
-  if (!user) return EMPTY;
+  if (!user) return empty;
 
   // The two revocation checks. Either one failing means this token is spent.
-  if (user.disabled) return EMPTY;
-  if (user.token_version !== claims.ver) return EMPTY;
+  if (user.disabled) return empty;
+  if (user.token_version !== claims.ver) return empty;
 
   return { userId: user._id, email: user.email, profile: toProfile(user) };
 });

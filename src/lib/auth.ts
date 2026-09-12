@@ -8,7 +8,7 @@
 // lib/auth/session.ts, underneath them.
 //
 export {
-  STAFF_ROLES,
+  staffRoles,
   isStaffRole,
   isEmployeeAreaRole,
   homeForRole,

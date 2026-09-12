@@ -9,7 +9,7 @@
 import { useToast } from '@/components/ui/Toast';
 import { PunchHistory } from './PunchHistory';
 import { GeoChip } from './GeoChip';
-import { usePunchClock, clock, duration, FAILURE_TEXT } from './usePunchClock';
+import { usePunchClock, clock, duration, failureText } from './usePunchClock';
 
 export { duration } from './usePunchClock';
 
@@ -77,12 +77,12 @@ export function Punch({ id }: { id?: string }) {
             ever pressed — not discovered afterwards. */}
         {state && (blocked === 'denied' || permission === 'denied') ? (
           <p className="punch-alert is-bad" role="alert">
-            <b>Location is blocked.</b> {FAILURE_TEXT.denied}
+            <b>Location is blocked.</b> {failureText.denied}
             {state.requireLocation ? ' You cannot punch until it is allowed.' : ''}
           </p>
         ) : state && blocked ? (
           <p className="punch-alert is-warn" role="alert">
-            {FAILURE_TEXT[blocked]}
+            {failureText[blocked]}
           </p>
         ) : state?.requireLocation && (permission === 'prompt' || permission === 'unsupported') ? (
           <p className="punch-alert is-info">

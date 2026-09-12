@@ -36,7 +36,7 @@ export type ExportResult =
   | { ok: true; filename: string; base64: string; mime?: string }
   | { ok: false; error: string };
 
-const TEXT_MIME = 'text/plain;charset=utf-8';
+const textMime = 'text/plain;charset=utf-8';
 
 function b64(bytes: Uint8Array): string {
   // Node Buffer is available in the Server Action runtime.
@@ -110,11 +110,11 @@ export async function exportAttendanceTemplateXlsx(periodMonth: string): Promise
   }
 }
 
-/** Roles that may import the register — mirrors IMPORT_ROLES in actions/import. */
-const IMPORT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
+/** Roles that may import the register — mirrors importRoles in actions/import. */
+const importRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 /** 'YYYY-MM' — the same shape /register and /payroll accept in their ?m= param. */
-const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+const monthRe = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 /**
  * Normalise a caller-supplied period month to 'YYYY-MM-01', or explain why it
@@ -129,7 +129,7 @@ function normalisePeriodMonth(
   input: string,
 ): { ok: true; periodMonth: string } | { ok: false; error: string } {
   const ym = input.slice(0, 7);
-  if (!MONTH_RE.test(ym)) {
+  if (!monthRe.test(ym)) {
     return { ok: false, error: `“${input}” is not a valid month. Expected YYYY-MM.` };
   }
   const year = Number(ym.slice(0, 4));
@@ -157,7 +157,7 @@ export async function exportRegisterImportTemplateXlsx(
 ): Promise<ExportResult> {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
-  if (!role || !IMPORT_ROLES.includes(role)) {
+  if (!role || !importRoles.includes(role)) {
     return {
       ok: false,
       error: `Downloading the import template needs an admin or HR account${
@@ -235,7 +235,7 @@ export async function exportPfEcr(periodMonth: string): Promise<ExportResult> {
       ok: true,
       filename: `PF_ECR_${periodMonth.slice(0, 7)}.txt`,
       base64: Buffer.from(text, 'utf-8').toString('base64'),
-      mime: TEXT_MIME,
+      mime: textMime,
     };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Export failed.' };

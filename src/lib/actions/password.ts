@@ -15,12 +15,12 @@ import {
   revokeAllSessions,
 } from '@/lib/auth/session';
 import { hashPassword, validatePassword, verifyPassword } from '@/lib/auth/password';
-import { consumeResetToken, createResetToken, RESET_TOKEN_TTL_MINUTES } from '@/lib/auth/reset-tokens';
+import { consumeResetToken, createResetToken, resetTokenTtlMinutes } from '@/lib/auth/reset-tokens';
 import { usersCollection, type UserDoc } from '@/lib/db/collections';
 import { isMongoConfigured } from '@/lib/db/mongo';
 import { escapeHtml, isEmailConfigured, sendEmail } from '@/lib/email';
 // One definition of the app's own origin, shared with actions/users.ts.
-import { appOrigin, ORIGIN_NOT_CONFIGURED } from '@/lib/auth/origin';
+import { appOrigin, originNotConfigured } from '@/lib/auth/origin';
 
 export interface PasswordState {
   error?: string;
@@ -50,7 +50,7 @@ export async function requestPasswordReset(
   // are resolved first — and no token is minted for a link that could not have
   // been built or sent.
   const origin = await appOrigin();
-  if (!origin) return { error: ORIGIN_NOT_CONFIGURED };
+  if (!origin) return { error: originNotConfigured };
 
   const emailConfigured = isEmailConfigured();
   if (!emailConfigured && process.env.NODE_ENV === 'production') {
@@ -86,13 +86,13 @@ export async function requestPasswordReset(
     subject: 'Reset your Dalnex HRMS password',
     text:
       `Hello ${greeting},\n\n` +
-      `Open this link to choose a new password. It expires in ${RESET_TOKEN_TTL_MINUTES} minutes ` +
+      `Open this link to choose a new password. It expires in ${resetTokenTtlMinutes} minutes ` +
       `and can be used once:\n\n${link}\n\n` +
       `If you did not ask for this, you can ignore this email — your password has not changed.\n`,
     html:
       `<p>Hello ${escapeHtml(greeting)},</p>` +
       `<p><a href="${escapeHtml(link)}">Choose a new password</a></p>` +
-      `<p>The link expires in ${RESET_TOKEN_TTL_MINUTES} minutes and can be used once.</p>` +
+      `<p>The link expires in ${resetTokenTtlMinutes} minutes and can be used once.</p>` +
       `<p>If you did not ask for this, you can ignore this email — your password has not changed.</p>`,
   });
 

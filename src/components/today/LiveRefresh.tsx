@@ -17,9 +17,9 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 // Matches the TV board's cadence — the same data, so the same freshness.
-const REFRESH_MS = 30_000;
+const refreshMs = 30_000;
 
-export function LiveRefresh({ intervalMs = REFRESH_MS }: { intervalMs?: number }) {
+export function LiveRefresh({ intervalMs = refreshMs }: { intervalMs?: number }) {
   const router = useRouter();
 
   useEffect(() => {

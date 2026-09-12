@@ -23,11 +23,11 @@ import type { Decimal128 } from 'mongodb';
 import { toMoney } from '@/lib/db/money';
 import type { AppRole, PayrollStatus } from '@/types/database';
 
-// Roles allowed to move money. Deliberately NOT `STAFF_ROLES` from @/lib/auth: that is the portal READ set, and gating on it let a reader through to writes the policy layer then filtered to zero rows — a write that reports success and changes nothing. An explicit set turns that into an honest, explained refusal. Matches _guard.ts WRITE_ROLES: super_admin, admin, hr.
-const PAYROLL_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
+// Roles allowed to move money. Deliberately NOT `staffRoles` from @/lib/auth: that is the portal READ set, and gating on it let a reader through to writes the policy layer then filtered to zero rows — a write that reports success and changes nothing. An explicit set turns that into an honest, explained refusal. Matches _guard.ts writeRoles: super_admin, admin, hr.
+const payrollRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
 // A run in one of these states is history; recompute/adjust must refuse.
-const FROZEN: readonly PayrollStatus[] = ['locked', 'paid'];
+const frozen: readonly PayrollStatus[] = ['locked', 'paid'];
 
 interface PgError {
   message: string;
@@ -55,7 +55,7 @@ async function gate(): Promise<Gate> {
 
   const { profile } = await getSession();
   if (!profile) return { ok: false, error: 'You are not signed in.' };
-  if (!PAYROLL_ROLES.includes(profile.role)) {
+  if (!payrollRoles.includes(profile.role)) {
     return {
       ok: false,
       error: `Payroll actions need an admin or HR account — yours is "${profile.role}".`,
@@ -194,7 +194,7 @@ export async function markRunPaid(runId: string): Promise<{ ok: boolean; error?:
 
 // ------------------------------------------------------------ adjustments ---
 
-const MONEY_FIELDS = [
+const moneyFields = [
   'advance_recovery',
   'bonus',
   'loss_damage',
@@ -203,9 +203,9 @@ const MONEY_FIELDS = [
   'reimbursement_bonus',
 ] as const;
 
-type MoneyField = (typeof MONEY_FIELDS)[number];
+type MoneyField = (typeof moneyFields)[number];
 
-const MONEY_LABEL: Record<MoneyField, string> = {
+const moneyLabel: Record<MoneyField, string> = {
   advance_recovery: 'Advance recovery',
   bonus: 'Bonus',
   loss_damage: 'Late marks / Loss & damage',
@@ -223,7 +223,7 @@ function money(formData: FormData, key: MoneyField): number | string {
   const raw = String(formData.get(key) ?? '').trim().replace(/[,\s₹]/g, '');
   if (!raw) return 0;
   const n = Number(raw);
-  if (!Number.isFinite(n)) return `${MONEY_LABEL[key]} must be a number (got "${raw}").`;
+  if (!Number.isFinite(n)) return `${moneyLabel[key]} must be a number (got "${raw}").`;
   // numeric(12,2) — round to paise so Postgres doesn't silently do it for us.
   return Math.round(n * 100) / 100;
 }
@@ -247,7 +247,7 @@ export async function saveAdjustments(
     if (!g.ok) return { ok: false, error: g.error };
 
     const values = {} as Record<MoneyField, number>;
-    for (const field of MONEY_FIELDS) {
+    for (const field of moneyFields) {
       const parsed = money(formData, field);
       if (typeof parsed === 'string') return { ok: false, error: parsed };
       values[field] = parsed;
@@ -300,7 +300,7 @@ export async function saveAdjustments(
           `read, so there is no way to tell whether it is locked. Refusing to write.`,
       };
     }
-    if (FROZEN.includes(run.status)) {
+    if (frozen.includes(run.status)) {
       return {
         ok: false,
         error: `${context}: this payroll run is ${run.status} — adjustments are frozen and cannot be changed.`,
@@ -314,7 +314,7 @@ export async function saveAdjustments(
         // converted on the way out: every adjustment column is `decimal`, and
         // a JS number is rejected by the validator.
         ...(Object.fromEntries(
-          MONEY_FIELDS.map((field) => [field, toMoney(values[field])]),
+          moneyFields.map((field) => [field, toMoney(values[field])]),
         ) as Record<MoneyField, Decimal128>),
         remarks: remarksRaw || null,
         updated_by: g.profileId,

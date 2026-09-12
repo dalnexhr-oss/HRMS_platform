@@ -17,7 +17,7 @@
 export type AttendanceStatus = 'P' | 'LM' | 'HD' | 'L' | 'WO' | 'OH' | 'AB' | 'S' | 'T' | 'CO';
 export type Gender = 'Male' | 'Female' | 'Other';
 export type EmployeeStatus = 'active' | 'on_notice' | 'inactive';
-export type IndianState = 'Maharashtra' | 'Gujarat';
+export type IndianState = 'Maharashtra' | 'Gujarat' | 'Delhi' | 'Karnataka' | 'Tamil Nadu' | 'West Bengal' | 'Rajasthan' | 'Uttar Pradesh' | 'Bihar' | 'Punjab' | 'Haryana' | 'Kerala' | 'Madhya Pradesh' | 'Chhattisgarh' | 'Odisha' | 'Jharkhand' | 'Assam' | 'Telangana' | 'Andhra Pradesh' | 'Jammu and Kashmir' | 'Uttarakhand' | 'Himachal Pradesh' | 'Tripura' | 'Meghalaya' | 'Manipur' | 'Nagaland' | 'Goa' | 'Arunachal Pradesh' | 'Mizoram' | 'Sikkim' | 'Puducherry';
 export type RequestType = 'leave' | 'site_visit' | 'outdoor_duty' | 'wfh' | 'comp_off';
 export type RequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
 export type LeaveType = 'PL' | 'CL' | 'SL' | 'LWP';
