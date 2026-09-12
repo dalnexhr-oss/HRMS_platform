@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Money. The replacement for 48 `numeric(12,2)` columns.
 //
 // THE RULE: money is never a JavaScript number in transit or at rest.
@@ -16,12 +16,12 @@
 //
 // Round once, at the end. Rounding each intermediate step is what makes a
 // payslip's components fail to add up to its total.
-// ============================================================================
+//
 import { Decimal128 } from 'mongodb';
 
 export type MoneyInput = Decimal128 | number | string | null | undefined;
 
-/** Paise for a stored/typed value. Exact; throws on nonsense rather than NaN. */
+// Paise for a stored/typed value. Exact; throws on nonsense rather than NaN.
 export function toPaise(value: MoneyInput): number {
   if (value === null || value === undefined) return 0;
 

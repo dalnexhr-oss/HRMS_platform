@@ -27,17 +27,17 @@ const LEAVE_KIND_LABEL: Record<string, string> = {
   
 };
 
-/** '2026-07-16' -> day-of-month number as a string. */
+// '2026-07-16' -> day-of-month number as a string.
 function dayOf(iso: string): number {
   return new Date(iso + 'T00:00:00').getDate();
 }
 
-/** '2026-07-16' -> 'Jul' (short month). */
+// '2026-07-16' -> 'Jul' (short month).
 function monthOf(iso: string): string {
   return new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { month: 'short' });
 }
 
-/** '2026-07-16'..'2026-07-17' -> '16 – 17 Jul'; spans months when needed. */
+// '2026-07-16'..'2026-07-17' -> '16 – 17 Jul'; spans months when needed.
 function dateRange(startIso: string, endIso: string): string {
   const startMonth = monthOf(startIso);
   const endMonth = monthOf(endIso);
@@ -152,9 +152,7 @@ function RequestCard({
         <button className="btn" onClick={() => decide('rejected')} disabled={busy}>
           Reject
         </button>
-        {/* Leave/WFH decisions are cross-checked against the register. Site
-            visits and outdoor duty would want a location map, which does not
-            exist yet — so no button is shown rather than a dead one. */}
+        {/* Leave/WFH decisions are cross-checked against the register. Site visits and outdoor duty would want a location map, which does not exist yet — so no button is shown rather than a dead one. */}
         {(request.type === 'leave' || request.type === 'wfh') && (
           <Link className="btn quiet" href="/register">
             View register
@@ -165,7 +163,7 @@ function RequestCard({
   );
 }
 
-/** Compose a human sentence describing the request from its fields. */
+// Compose a human sentence describing the request from its fields.
 function requestSentence(r: RequestView) {
   const range = dateRange(r.startDate, r.endDate);
   const reason = r.reason ? <>&ldquo;{r.reason}&rdquo;</> : null;

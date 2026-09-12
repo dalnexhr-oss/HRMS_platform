@@ -111,20 +111,12 @@ export default async function MePage() {
       employeeId ? getReadNoticeIds(employeeId) : Promise.resolve<string[]>([]),
       employeeId ? getEmployeeDocuments(employeeId) : Promise.resolve<EmployeeDocumentRow[]>([]),
       employeeId ? getMyOnboardingTasks(employeeId) : Promise.resolve<OnboardingTaskRow[]>([]),
-      // Who is out today — visible to everyone; degrades to [] on failure so a
-      // broken leave feed never blanks the whole dashboard.
       getOnLeaveToday().catch(() => [] as OnLeaveTodayRow[]),
     ]);
 
-  // Notices are company announcements — every employee sees all PUBLISHED ones
-  // (drafts stay staff-only), with the branch tag shown on each. They expire off
-  // the dashboard 30 days after publication (and are hard-deleted from the DB by
-  // the scheduled purge in /api/cron, and by the opportunistic one that runs
-  // when staff publish a notice).
-  // Compare epoch millis, not raw strings: a stored timestamp may serialise as
-  // '…+00:00' while toISOString() emits '…Z', so a lexicographic compare is
-  // unreliable.
-  // Ticket follow-up threads depend on the loaded ticket ids, so fetch after.
+    // Notices are company announcements, so the employee's own read/unread
+    // state is not part of the notice itself. F
+    // Fetch the read ids separately and filter the list here.
   const ticketComments = await getTicketComments(tickets.map((t) => t.id));
 
   const noticeCutoffMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
@@ -173,7 +165,7 @@ export default async function MePage() {
         <div>
           <h2>Hi, {displayName.split(' ')[0]}</h2>
           <div className="meta">
-            {/* an unlinked login has no code/branch — don't render a naked '·' */}
+            {/* an unlinked login has no code/branch */}
             {[overview.code, overview.branch].filter(Boolean).join(' · ') || 'No employee record linked'}
           </div>
         </div>
@@ -303,8 +295,7 @@ export default async function MePage() {
         </div>
       </div>
 
-      {/* company notices — the ids on these sections are notification targets
-          ('/me#notices' etc); NotificationBell scrolls to them on click. */}
+      {/* company notices — the ids on these sections are notification targets ('/me#notices' etc); NotificationBell scrolls to them on click. */}
       <div className="card" id="notices">
         <div className="hd">
           <h3>Notices</h3>

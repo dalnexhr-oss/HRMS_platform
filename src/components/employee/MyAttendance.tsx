@@ -5,10 +5,10 @@ import { Stamp } from '@/components/ui/Stamp';
 import { DOW } from '@/lib/constants';
 import type { DayCell } from '@/types/domain';
 
-/** Statuses that read as "you were at work" for the summary strip. */
+// Statuses that read as "you were at work" for the summary strip.
 const PRESENT_LIKE = new Set(['P', 'LM', 'S', 'T']);
 
-/** 'HH:MM' -> minutes. Returns 0 for null/blank so it can be summed safely. */
+// 'HH:MM' -> minutes. Returns 0 for null/blank so it can be summed safely.
 function hoursToMinutes(hours: string | null): number {
   if (!hours) return 0;
   const [h, m] = hours.split(':');

@@ -1,15 +1,15 @@
-// ============================================================================
+//
 // The user's avatar. One component for every surface (topbar, employee bar, the
 // /me hero, the account page) so the picture can never drift between them.
 //
 // The stored value is resolved in this order:
-//   'data:image/…'  → the uploaded, client-resized photo
-//   'preset:<id>'   → one of the bundled shadcn avatar images (public/avatars/)
-//   anything else    → the name's initials on the brand-coloured chip
+// 'data:image/…' → the uploaded, client-resized photo
+// 'preset:<id>' → one of the bundled shadcn avatar images (public/avatars/)
+// anything else → the name's initials on the brand-coloured chip
 //
 // No 'use client': this renders only markup (no hooks), so it is safe to use
 // from Server Components. The interactive picker is <AvatarMenu>.
-// ============================================================================
+//
 import { isAvatarPresetId, avatarPresetSrc } from '@/lib/avatar-presets';
 
 export function initials(name: string | null | undefined): string {
@@ -22,7 +22,7 @@ export function initials(name: string | null | undefined): string {
     .toUpperCase();
 }
 
-/** The inner content of an avatar chip: photo, preset image, or initials. */
+// The inner content of an avatar chip: photo, preset image, or initials.
 export function AvatarInner({ name, avatar }: { name?: string | null; avatar?: string | null }) {
   if (avatar && avatar.startsWith('data:image/')) {
     // A data-URL photo — next/image can't optimise these.
@@ -39,7 +39,7 @@ export function AvatarInner({ name, avatar }: { name?: string | null; avatar?: s
   return <>{initials(name)}</>;
 }
 
-/** A display-only avatar chip. `className` lets callers size it per surface. */
+// A display-only avatar chip. `className` lets callers size it per surface.
 export function Avatar({
   name,
   avatar,

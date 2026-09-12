@@ -1,6 +1,6 @@
 'use server';
 
-// ============================================================================
+//
 // Reimbursement claims: employee submits, staff approves.
 //
 // Travel claims derive their amount from kms × the settings-driven ₹/km rate.
@@ -10,7 +10,7 @@
 // On approval the amount is added to the employee's payslip
 // reimbursement_bonus adjustment for the claim's month and the payslip is
 // recomputed, so an approved claim is paid with salary.
-// ============================================================================
+//
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
@@ -24,21 +24,14 @@ import type { ReimbursementPurpose } from '@/types/database';
 export interface ActionResult {
   ok: boolean;
   error?: string;
-  /** The action SUCCEEDED but a side-effect needs attention (payroll run
-   *  locked, payslip missing, …). ok stays true — see requests.ts. */
+  // The action SUCCEEDED but a side-effect needs attention (payroll run locked, payslip missing, …). ok stays true — see requests.ts.
   warning?: string;
 }
 
 const PURPOSES: readonly ReimbursementPurpose[] = ['travel', 'material_purchase', 'other'];
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/**
- * Append one row to the claim's timeline.
- *
- * BEST-EFFORT, exactly like notify.ts: the business write is already committed
- * and there is no transaction across the two, so a failed event must never turn
- * a successful approval into an error. It is logged instead.
- */
+// Append one row to the claim's timeline. BEST-EFFORT, exactly like notify.ts: the business write is already committed and there is no transaction across the two, so a failed event must never turn a successful approval into an error. It is logged instead.
 async function logClaimEvent(
   dbc: Awaited<ReturnType<typeof createClient>>,
   claimId: string,
@@ -666,11 +659,7 @@ export async function markReimbursementPaid(id: string, paymentRef?: string): Pr
   return { ok: true };
 }
 
-/**
- * Attach (or replace) a receipt on a claim the employee owns and that is still
- * open. The file goes to the private reimbursement-receipts bucket (0032) under
- * the employee's own folder, which is what limits it to them + staff.
- */
+// Attach (or replace) a receipt on a claim the employee owns and that is still open. The file goes to the private reimbursement-receipts bucket (0032) under the employee's own folder, which is what limits it to them + staff.
 export async function uploadReimbursementReceipt(id: string, formData: FormData): Promise<ActionResult> {
   const db = requireDb('Attaching a receipt');
   if (!db.ok) return db;
@@ -737,7 +726,7 @@ export async function uploadReimbursementReceipt(id: string, formData: FormData)
   return { ok: true };
 }
 
-/** Resolve a claim receipt's file URL. The row read scopes it to owner or staff. */
+// Resolve a claim receipt's file URL. The row read scopes it to owner or staff.
 export async function getReceiptUrl(claimId: string): Promise<{ ok: boolean; url?: string; error?: string }> {
   const db = requireDb('Opening a receipt');
   if (!db.ok) return db;
@@ -755,7 +744,7 @@ export async function getReceiptUrl(claimId: string): Promise<{ ok: boolean; url
   return signed.ok ? { ok: true, url: signed.url } : { ok: false, error: signed.error };
 }
 
-/** Client-callable timeline fetch for a claim (queries.ts is server-only). */
+// Client-callable timeline fetch for a claim (queries.ts is server-only).
 export async function fetchClaimEvents(claimId: string) {
   return getReimbursementEvents(claimId);
 }

@@ -40,7 +40,8 @@ export function clock(value: string | null): string {
     : new Intl.DateTimeFormat('en-IN', TIME_FMT).format(date);
 }
 
-/** 138 -> '2h 18m'. Used for both today's total and the open session. */
+// The duration is always rounded down to the nearest minute, so a punch that is 1h 59m 59s long is reported as 1h 59m. The server does the same rounding, so the two numbers always match.
+
 export function duration(minutes: number): string {
   const safe = Math.max(0, Math.floor(minutes));
   const hours = Math.floor(safe / 60);
@@ -55,9 +56,7 @@ export function duration(minutes: number): string {
  */
 export const FAILURE_TEXT: Record<LocationFailure, string> = {
   denied:
-    'Location is blocked for this site. Open the padlock (or ⓘ) in the address bar, ' +
-    'set Location to Allow, then reload and try again. On a phone, also check that ' +
-    'location is enabled for your browser in the system settings.',
+    'Location is blocked for this site. Change your browser settings to allow it, then try again.',
   unavailable:
     'Your device could not get a location fix. Move somewhere with a clearer signal and try again.',
   timeout: 'Getting your location took too long. Try again.',
@@ -71,18 +70,11 @@ export interface PunchClock {
   loading: boolean;
   pending: boolean;
   isIn: boolean;
-  /** Minutes worked today, including the session that is still open. */
   worked: number;
-  /** Browser geolocation permission, read without prompting. */
   permission: PermissionState | 'unsupported' | null;
   /** Why the last location attempt failed, if it did. */
   blocked: LocationFailure | null;
-  /**
-   * Why the status could not be read. Reported rather than toasted: the usual
-   * cause is a login with no employee record behind it, which is permanent —
-   * a notice that scrolls away after four seconds is the wrong shape for it,
-   * and it would fire on every page the top-bar clock is mounted on.
-   */
+  /** Error message if the clock could not be loaded. */
   loadError: string | null;
   /** Bumped after every punch — feed it to PunchHistory as a refresh key. */
   version: number;

@@ -17,7 +17,7 @@ export function EmployeesScreen({
 }: {
   rows: EmployeeListRow[];
   departments: string[];
-  /** Real branches from the DB — the only values updateEmployee can resolve. */
+  // Real branches from the DB — the only values updateEmployee can resolve.
   branches?: BranchRow[];
 }) {
   const router = useRouter();

@@ -1,10 +1,10 @@
 'use server';
 
-// ============================================================================
+//
 // .xlsx export Server Actions. Build the workbook on the server (exceljs is
 // server-only) and return the bytes as base64 for the client to download. Both
 // exports carry payroll/attendance data, so they are staff-gated.
-// ============================================================================
+//
 import {
   getPayslips,
   getPunchLogToday,
@@ -43,7 +43,7 @@ function b64(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString('base64');
 }
 
-/** Days-of-month [1..N] for the given 'YYYY-MM-01'. */
+// Days-of-month [1..N] for the given 'YYYY-MM-01'.
 function daysOf(periodMonth: string): number[] {
   const d = new Date(`${periodMonth.slice(0, 7)}-01T00:00:00Z`);
   const n = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();

@@ -6,10 +6,10 @@ import { getSession } from '@/lib/auth';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/_guard';
 import { notifyEveryone } from '@/lib/notify';
 
-/** Postgres unique_violation. */
+// Postgres unique_violation.
 const UNIQUE_VIOLATION = '23505';
 
-/** Employee acknowledges (marks as read) a company policy. */
+// Employee acknowledges (marks as read) a company policy.
 export async function acknowledgePolicy(policyId: string) {
   const db = requireDb('Marking a policy as read');
   if (!db.ok) return db;
@@ -66,20 +66,7 @@ export async function acknowledgePolicy(policyId: string) {
   return { ok: true };
 }
 
-/**
- * Mark the "New policy to read: …" notification read once its policy has been
- * acknowledged, so the bell stops nagging about something already done.
- *
- * notifications (0012) carries no entity_id — only free text — so the one handle
- * on "the nag for THIS policy" is the exact title notifyEveryone wrote (see
- * createPolicy / setPolicyPublished below). Renaming a policy after publishing
- * orphans its nag; that is the cost of not having an entity id, and it fails
- * safe (a stale nag, never a wrongly-cleared one). The notifications policy
- * scopes the UPDATE to the caller's own rows, so this cannot touch anyone
- * else's notifications.
- *
- * Best-effort: a failure here must not fail the acknowledgement itself.
- */
+// Mark the "New policy to read: …" notification read once its policy has been acknowledged, so the bell stops nagging about something already done. notifications (0012) carries no entity_id — only free text — so the one handle on "the nag for THIS policy" is the exact title notifyEveryone wrote (see createPolicy / setPolicyPublished below). Renaming a policy after publishing orphans its nag; that is the cost of not having an entity id, and it fails safe (a stale nag, never a wrongly-cleared one). The notifications policy scopes the UPDATE to the caller's own rows, so this cannot touch anyone else's notifications. Best-effort: a failure here must not fail the acknowledgement itself.
 async function clearPolicyNag(
   dbc: Awaited<ReturnType<typeof createClient>>,
   policyId: string,

@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Domain types for the Dalnex HRMS schema — the shapes the UI reads.
 //
 // Hand-written and NOT generated: there is no schema to generate from any more.
@@ -9,7 +9,7 @@
 // because that is what crosses into a client component; collections.ts declares
 // them as the BSON Date they are stored as, and queries.ts converts between the
 // two in one place (see iso()).
-// ============================================================================
+//
 
 // 'CO' (comp off) must stay in step with the status enum in the attendance_days
 // validator. It was once missing here, so a comp-off day had no type-level

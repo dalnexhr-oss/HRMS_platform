@@ -20,8 +20,7 @@ export function EmployeeHolidays({
     <div>
       {policy && <WeekOffBanner policy={policy} />}
 
-      {/* Subscribe/download the personal .ics feed: approved leave, comp-off
-          credits and these holidays, in the employee's own calendar app. */}
+      {/* Subscribe/download the personal .ics feed: approved leave, comp-off credits and these holidays, in the employee's own calendar app. */}
       <div
         style={{
           display: 'flex',

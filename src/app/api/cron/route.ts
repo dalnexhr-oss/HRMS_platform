@@ -1,4 +1,3 @@
-// ============================================================================
 // Runs the scheduled jobs. Replaces pg_cron's in-database schedule.
 //
 // AUTHENTICATION: a shared secret in the Authorization header, NOT a session.
@@ -10,10 +9,9 @@
 // Every job is individually idempotent through cron_run_log, so a double fire,
 // a retry, or an operator curling this twice does the work once.
 //
-//   Daily, from the host:
-//     0 2 * * *  curl -fsS -H "Authorization: Bearer $CRON_SECRET" \
-//                  https://your-host/api/cron
-// ============================================================================
+// Daily, from the host:
+// 0 2 * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" \
+// https://your-host/api/cron
 import { NextResponse } from 'next/server';
 import { JOBS, runDailyJobs, type JobName } from '@/lib/db/scheduler';
 

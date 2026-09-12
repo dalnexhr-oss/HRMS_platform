@@ -1,6 +1,6 @@
 'use server';
 
-// ============================================================================
+//
 // Night sweep — close attendance days that have a punch-in but no punch-out.
 //
 // An open day reads as zero worked minutes, which silently inflates the payroll
@@ -8,7 +8,7 @@
 // auto punch-out time (default 18:00, settings.auto_punch_out_time) and the
 // worked minutes recomputed. Every sweep writes one activity_log entry so the
 // correction is auditable rather than invisible.
-// ============================================================================
+//
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/_guard';
@@ -30,10 +30,7 @@ interface OpenDay {
   punch_in: string | null;
 }
 
-/**
- * Close every open day on `dateISO` ('YYYY-MM-DD'). Defaults to today in the
- * business timezone (Asia/Kolkata) — the sweep is a same-evening job.
- */
+// Close every open day on `dateISO` ('YYYY-MM-DD'). Defaults to today in the business timezone (Asia/Kolkata) — the sweep is a same-evening job.
 export async function runNightSweep(dateISO?: string): Promise<SweepResult> {
   const gate = await requireStaff('Running the night sweep');
   if (!gate.ok) return gate;

@@ -6,7 +6,7 @@ import { printPayslip } from '@/lib/payslip-print';
 import { useToast } from '@/components/ui/Toast';
 import type { PayslipRow } from '@/types/domain';
 
-/** Everything withheld from the earned gross to reach net payable. */
+// Everything withheld from the earned gross to reach net payable.
 function totalDeductions(p: PayslipRow): number {
   return (
     p.shortfallAmount +
@@ -20,7 +20,7 @@ function totalDeductions(p: PayslipRow): number {
   );
 }
 
-/** 'YYYY-MM-01' -> 'June 2026'. */
+// 'YYYY-MM-01' -> 'June 2026'.
 function monthLabel(periodMonth: string | null): string | null {
   if (!periodMonth) return null;
   const d = new Date(`${periodMonth.slice(0, 7)}-01T00:00:00Z`);
@@ -34,13 +34,7 @@ function downloadPayslip(p: PayslipRow, onBlocked: () => void) {
 
 const POPUP_BLOCKED = 'Your browser blocked the payslip window. Allow pop-ups for this site and try again.';
 
-/**
- * The employee's own payslips, newest month first (the order `getMyPayslips`
- * returns them in). Reuses the payroll table's markup and inr() formatting.
- *
- * NOTE: `PayslipRow` carries no period month, so rows are labelled by their
- * position in that ordering rather than by a month we would have to invent.
- */
+// The payslip table is a single card, so it can be embedded in the employee dashboard or on its own page. The id prop is used to anchor the card from the nav link on the employee dashboard.
 export function MyPayslips({ payslips, id }: { payslips: PayslipRow[]; id?: string }) {
   const [open, setOpen] = useState<number | null>(null);
 

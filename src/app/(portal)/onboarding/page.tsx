@@ -23,11 +23,7 @@ export default async function OnboardingPage() {
   return (
     <>
       <OnboardingScreen tasks={tasks} templates={templates} employees={employees} />
-      {/* The verification queue used to render here as well. It moved to
-          /documents, which is now the single place employee paperwork is
-          worked on — a joiner's documents are the same documents as everyone
-          else's, and two queues meant two places to remember to look. This page
-          is the joiner CHECKLIST; the link is the seam between them. */}
+      {/* The verification queue used to render here as well. It moved to /documents, which is now the single place employee paperwork is worked on — a joiner's documents are the same documents as everyone else's, and two queues meant two places to remember to look. This page is the joiner CHECKLIST; the link is the seam between them. */}
       <div className="wrap">
         <div className="card">
           <div className="bd" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>

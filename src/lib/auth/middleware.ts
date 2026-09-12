@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Request gate. Replaces lib/dbc/middleware.ts.
 //
 // Runs on the EDGE runtime, so it can verify the JWT but cannot reach MongoDB.
@@ -10,7 +10,7 @@
 // What that means in practice: a revoked or disabled account still gets past
 // this file, and is then rejected by the layout's getSession() on the very same
 // request. No data is reachable in between.
-// ============================================================================
+//
 import { NextResponse, type NextRequest } from 'next/server';
 import { verifySession } from '@/lib/auth/jwt';
 import { SESSION_COOKIE } from '@/lib/auth/session-shared';

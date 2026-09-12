@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Stable type barrel — import app types from '@/types/database'.
 //
 // This used to re-export a 59KB file of Supabase-generated schema types
@@ -8,7 +8,7 @@
 // in src/lib/db/collections.ts, next to the collections they describe.
 //
 // The import path is unchanged so no call site had to move.
-// ============================================================================
+//
 
 // Hand-written domain types (AppRole, AttendanceStatus, LeaveType, Policy, …).
 export * from './app';

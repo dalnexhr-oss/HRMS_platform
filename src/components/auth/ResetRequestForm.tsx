@@ -23,8 +23,7 @@ export function ResetRequestForm() {
           way. It expires in an hour and can be used once.
         </div>
 
-        {/* Only ever set in development, when there is no SMTP server to send
-            through and the link would otherwise be unreachable. */}
+        {/* Only ever set in development, when there is no SMTP server to send through and the link would otherwise be unreachable. */}
         {state.devLink && (
           <div className="hint" style={{ marginTop: 10, wordBreak: 'break-all' }}>
             <b>Development:</b> email is not configured, so the link is shown here.

@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Import public holidays from Google Calendar.
 //
 // Google publishes its regional holiday calendars as PUBLIC .ics feeds, so this
@@ -7,9 +7,9 @@
 // only ever want the published holiday list, never anyone's personal calendar.
 //
 // SERVER ONLY (makes an outbound fetch).
-// ============================================================================
+//
 
-/** Google's public holiday calendars, by region. */
+// Google's public holiday calendars, by region.
 export const HOLIDAY_CALENDARS = {
   india: 'en.indian#holiday@group.v.calendar.google.com',
 } as const;
@@ -17,10 +17,10 @@ export const HOLIDAY_CALENDARS = {
 export type HolidayRegion = keyof typeof HOLIDAY_CALENDARS;
 
 export interface CalendarHoliday {
-  /** 'YYYY-MM-DD' */
+  // 'YYYY-MM-DD'
   date: string;
   name: string;
-  /** Google marks some religious dates as tentative (moon-sighting etc.). */
+  // Google marks some religious dates as tentative (moon-sighting etc.).
   tentative: boolean;
 }
 

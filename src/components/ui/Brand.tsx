@@ -1,6 +1,6 @@
 import Image from 'next/image';
 
-// ============================================================================
+//
 // The Dalnex brand mark: the logo wordmark followed by "HRMS.".
 //
 // One component for every surface so the logo can never drift out of sync
@@ -12,13 +12,13 @@ import Image from 'next/image';
 //
 // Intrinsic size is the real aspect ratio (3334x1142 ~ 2.92:1) scaled down;
 // each surface then sets the height in CSS and the width follows automatically.
-// ============================================================================
+//
 
 const INTRINSIC_W = 234;
 const INTRINSIC_H = 80;
 
 export function Brand({
-  /** Accessible name; the visible "HRMS." suffix is decorative alongside it. */
+  // Accessible name; the visible "HRMS." suffix is decorative alongside it.
   label = 'Dalnex HRMS',
   priority = false,
 }: {

@@ -1,28 +1,28 @@
-// ============================================================================
+//
 // The Dalnex letterhead for .xlsx exports. SERVER ONLY (exceljs).
 //
 // Two modes:
-//   writeBrandHeader  — rows 1–3 become a letterhead (logo, title, subtitle)
-//                       and the data header moves to HEADER_ROW. For report
-//                       sheets whose layout is ours to choose.
-//   writeBrandOverlay — a floating logo only; no cell is written and no row is
-//                       inserted. For sheets whose geometry is parsed back
-//                       (the register layout parseRegister.ts reads).
+// writeBrandHeader — rows 1–3 become a letterhead (logo, title, subtitle)
+// and the data header moves to HEADER_ROW. For report
+// sheets whose layout is ours to choose.
+// writeBrandOverlay — a floating logo only; no cell is written and no row is
+// inserted. For sheets whose geometry is parsed back
+// (the register layout parseRegister.ts reads).
 //
 // Call-order gotcha for banded sheets: exceljs's ws.columns setter writes any
 // `header` values straight into row 1, over the band. Builders therefore set
 // columns with key+width only and write the header row themselves:
 //
-//   ws.columns = COLUMNS.map(({ key, width }) => ({ key, width }));
-//   const headerRow = writeBrandHeader(wb, ws, { title });
-//   ws.getRow(headerRow).values = COLUMNS.map((c) => c.header);
-// ============================================================================
+// ws.columns = COLUMNS.map(({ key, width }) => ({ key, width }));
+// const headerRow = writeBrandHeader(wb, ws, { title });
+// ws.getRow(headerRow).values = COLUMNS.map((c) => c.header);
+//
 import type ExcelJS from 'exceljs';
 import { LOGO_ASPECT, LOGO_PNG_BASE64 } from '@/lib/brand/logo';
 import { COMPANY } from '@/lib/brand/company';
 import { todayIST } from '@/lib/format';
 
-/** The row a banded sheet's data header lands on (rows 1–3 are the band). */
+// The row a banded sheet's data header lands on (rows 1–3 are the band).
 export const HEADER_ROW = 4;
 
 // One embedded copy of the PNG per workbook, however many sheets use it.
@@ -37,10 +37,7 @@ function logoId(wb: ExcelJS.Workbook): number {
   return id;
 }
 
-/**
- * Float the logo over the sheet at a cell anchor (0-indexed col/row), sized by
- * height in px with the artwork's own aspect. Cells underneath stay untouched.
- */
+// Float the logo over the sheet at a cell anchor (0-indexed col/row), sized by height in px with the artwork's own aspect. Cells underneath stay untouched.
 export function writeBrandOverlay(
   wb: ExcelJS.Workbook,
   ws: ExcelJS.Worksheet,
@@ -53,11 +50,7 @@ export function writeBrandOverlay(
   });
 }
 
-/**
- * Write the rows 1–3 letterhead: logo, report title, subtitle (defaulting to
- * "Dalnex LLP · Generated YYYY-MM-DD"). Returns HEADER_ROW, where the caller
- * puts its data header.
- */
+// Write the rows 1–3 letterhead: logo, report title, subtitle (defaulting to "Dalnex LLP · Generated YYYY-MM-DD"). Returns HEADER_ROW, where the caller puts its data header.
 export function writeBrandHeader(
   wb: ExcelJS.Workbook,
   ws: ExcelJS.Worksheet,

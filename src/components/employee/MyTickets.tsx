@@ -21,10 +21,7 @@ function statusPillStyle(status: TicketView['status']): React.CSSProperties {
   return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
 }
 
-/**
- * The employee's own helpdesk tickets, plus a raise-ticket form. Each ticket
- * opens a real-time chat window with HR.
- */
+// The employee's own helpdesk tickets, plus a raise-ticket form. Each ticket opens a real-time chat window with HR.
 export function MyTickets({
   tickets,
   comments = {},

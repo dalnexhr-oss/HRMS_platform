@@ -8,11 +8,10 @@ import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { monthLabelUTC, monthOptionsAround } from '@/lib/format';
 import type { AppRole } from '@/types/database';
 
-/** Staff roles allowed to import — and so to download the blank template.
- *  Mirrors IMPORT_ROLES in actions/import.ts (commitImport). */
+// Staff roles allowed to import — and so to download the blank template. Mirrors IMPORT_ROLES in actions/import.ts (commitImport).
 const IMPORT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
-/** How far the "Other month" list reaches: next month down to 12 months back. */
+// How far the "Other month" list reaches: next month down to 12 months back.
 const MONTHS_BACK = 12;
 const MONTHS_AHEAD = 1;
 
@@ -27,7 +26,7 @@ export function ImportScreen({
 }: {
   canImport: boolean;
   role: AppRole | null;
-  /** First day of the current month in IST, resolved on the server. */
+  // First day of the current month in IST, resolved on the server.
   currentMonth: string;
 }) {
   const formRef = useRef<HTMLFormElement>(null);

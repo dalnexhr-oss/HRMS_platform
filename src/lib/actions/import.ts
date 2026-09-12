@@ -1,6 +1,6 @@
 'use server';
 
-// ============================================================================
+//
 // Monthly register import — preview + commit.
 //
 // Runs on the signed-in staff user's own session: the attendance_days and
@@ -9,7 +9,7 @@
 //
 // Nothing here fakes a success. When the database is reachable and a read or write
 // fails, the real error comes back to the caller.
-// ============================================================================
+//
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { isMongoConfigured, getEmployeeCodeMap } from '@/lib/queries';
@@ -35,10 +35,10 @@ export interface ImportPreview {
   periodMonth: string;
   daysInMonth: number;
   matched: MatchedEmployee[];
-  /** Empl. IDs in the sheet with no matching employees.code — never silently dropped. */
+  // Empl. IDs in the sheet with no matching employees.code — never silently dropped.
   unmatched: number[];
   warnings: string[];
-  /** attendance_days rows this import would write. */
+  // attendance_days rows this import would write.
   totalRows: number;
 }
 
@@ -48,15 +48,7 @@ export type CommitResult =
   | { ok: true; inserted: number; updated: number; skipped: number; errors: string[] }
   | { ok: false; error: string };
 
-/**
- * Roles that may actually write. Deliberately NOT isStaffRole() from
- * @/lib/auth: that is the portal READ set, so gating on it would let a reader
- * through to a write the policy layer then filters to zero rows — a write that
- * reports success and changes nothing. An explicit set turns that into an
- * honest, explained refusal.
- *
- * Mirrors _guard.ts WRITE_ROLES and IMPORT_ROLES in actions/export.ts.
- */
+// Roles that may actually write. Deliberately NOT isStaffRole() from @/lib/auth: that is the portal READ set, so gating on it would let a reader through to a write the policy layer then filters to zero rows — a write that reports success and changes nothing. An explicit set turns that into an honest, explained refusal. Mirrors _guard.ts WRITE_ROLES and IMPORT_ROLES in actions/export.ts.
 const IMPORT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 const UPSERT_CHUNK = 500;
@@ -78,15 +70,10 @@ function errMessage(e: unknown): string {
   return 'Unexpected error.';
 }
 
-/**
- * Largest register we will parse. next.config.mjs already caps the Server Action
- * body at 10mb, but that limit is about TRANSPORT — this one is about what we
- * agree to decompress. A 2MB .xlsx is a zip that can expand to gigabytes in
- * exceljs (a zip bomb), so the size is checked before the buffer is read.
- */
+// Largest register we will parse. next.config.mjs already caps the Server Action body at 10mb, but that limit is about TRANSPORT — this one is about what we agree to decompress. A 2MB .xlsx is a zip that can expand to gigabytes in exceljs (a zip bomb), so the size is checked before the buffer is read.
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
-/** Turn the uploaded FormData field into a parsed register. */
+// Turn the uploaded FormData field into a parsed register.
 async function readUpload(formData: FormData): Promise<ParsedRegister> {
   const file = formData.get('file');
   if (!file || typeof file === 'string') {
@@ -148,15 +135,12 @@ async function fetchNames(): Promise<Record<string, string>> {
   return out;
 }
 
-/**
- * Resolve every parsed block against the DB, and flatten to upsert rows.
- * Shared by preview and commit so the numbers shown are the numbers written.
- */
+// Resolve every parsed block against the DB, and flatten to upsert rows. Shared by preview and commit so the numbers shown are the numbers written.
 function planImport(
   reg: ParsedRegister,
   codeMap: Record<string, string>,
   names: Record<string, string>,
-  /** Auto punch-out time (minutes since midnight) for days left open. */
+  // Auto punch-out time (minutes since midnight) for days left open.
   autoOutMin: number,
 ) {
   const resolve = buildResolver(codeMap);

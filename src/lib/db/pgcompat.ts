@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // A PostgREST-shaped query builder backed by MongoDB. SERVER ONLY.
 //
 // WHY THIS EXISTS, and what it is not.
@@ -21,10 +21,10 @@
 //
 // NOT SUPPORTED, deliberately — each throws rather than silently doing the
 // wrong thing:
-//   * `.or()` across embedded resources
-//   * full-text search
-//   * `.explain()`
-// ============================================================================
+// `.or()` across embedded resources
+// full-text search
+// `.explain()`
+//
 import 'server-only';
 import type { Document, Filter } from 'mongodb';
 import { NotSignedInError, readFilterFor, scoped, scopedFor, type ScopedCollection } from '@/lib/db/repo';
@@ -52,7 +52,7 @@ export interface PgError {
   details?: string;
 }
 
-/** Postgres SQLSTATEs the app already branches on, so they must survive. */
+// Postgres SQLSTATEs the app already branches on, so they must survive.
 const DUPLICATE_KEY = '23505';
 const CHECK_VIOLATION = '23514';
 
@@ -71,46 +71,44 @@ function toPgError(e: unknown): PgError {
   return { message: err?.message ?? String(e) };
 }
 
-/** `id` is `_id` in MongoDB; everything else keeps its name. */
+// `id` is `_id` in MongoDB; everything else keeps its name.
 function col(name: string): string {
   return name === 'id' ? '_id' : name;
 }
 
-/** Documents come back with `_id`; callers expect `id`. Both are provided. */
+// Documents come back with `_id`; callers expect `id`. Both are provided.
 function outward<T extends Document>(doc: T | null): T | null {
   if (!doc) return null;
   if ('_id' in doc && !('id' in doc)) return { ...doc, id: doc._id } as T;
   return doc;
 }
 
-// ---------------------------------------------------------------------------
+//
 // Embedded selects
-// ---------------------------------------------------------------------------
+//
 
 interface Embed {
-  /** Collection to join, e.g. 'branches'. */
+  // Collection to join, e.g. 'branches'.
   table: string;
-  /** Alias in the result, e.g. 'branches' or 'actor'. */
+  // Alias in the result, e.g. 'branches' or 'actor'.
   alias: string;
-  /** Selected columns. A single '*' means every column. */
+  // Selected columns. A single '*' means every column.
   fields: string[];
-  /** Embeds nested INSIDE this one, e.g. employees(…, branches(name)). */
+  // Embeds nested INSIDE this one, e.g. employees(…, branches(name)).
   embeds: Embed[];
-  /** Field on the local document, or `_id` when the child holds the key. */
+  // Field on the local document, or `_id` when the child holds the key.
   localField: string;
-  /** Field on the joined document, `_id` for an ordinary to-one join. */
+  // Field on the joined document, `_id` for an ordinary to-one join.
   foreignField: string;
-  /** Many rows may match — PostgREST returns an array, so no $unwind. */
+  // Many rows may match — PostgREST returns an array, so no $unwind.
   toMany: boolean;
-  /** PostgREST's `!inner` — drop rows with no match. */
+  // PostgREST's `!inner` — drop rows with no match.
   inner: boolean;
-  /** PostgREST's aggregate form, `children(count)`. */
+  // PostgREST's aggregate form, `children(count)`.
   count: boolean;
 }
 
-/**
- * Split a select list on its TOP-LEVEL commas, leaving nested groups alone.
- */
+// Split a select list on its TOP-LEVEL commas, leaving nested groups alone.
 function splitFields(select: string): string[] {
   const parts: string[] = [];
   let depth = 0;
@@ -129,25 +127,7 @@ function splitFields(select: string): string[] {
   return parts;
 }
 
-/**
- * Parse a PostgREST select list into plain fields plus embedded resources.
- *
- * `'id, name, branches(name), actor:profiles(full_name)'`
- *   -> fields ['id','name'], embeds [branches, actor->profiles]
- *
- * NESTING IS THE POINT. The previous implementation matched an embed with
- * `\(([^)]*)\)$`, a character class that cannot contain a closing paren — so
- * `employees(code, full_name, branches(name))` failed to match and fell
- * through to `fields.push(part)`. That produced a projection on a field
- * literally named `employees(code, full_name, branches(name))`, which no
- * document has: no join ran, and the payroll table, the statutory returns and
- * the punch log all rendered blank employee columns with no error anywhere.
- * Here the body is taken by matching the FIRST '(' to the final ')' and parsed
- * recursively, so depth is unlimited.
- *
- * `parentTable` is needed because an embed's join key depends on BOTH sides —
- * see lib/db/relationships.ts.
- */
+// Parse a PostgREST select list into plain fields plus embedded resources. `'id, name, branches(name), actor:profiles(full_name)'` -> fields ['id','name'], embeds [branches, actor->profiles] NESTING IS THE POINT. The previous implementation matched an embed with `\(([^)]*)\)$`, a character class that cannot contain a closing paren — so `employees(code, full_name, branches(name))` failed to match and fell through to `fields.push(part)`. That produced a projection on a field literally named `employees(code, full_name, branches(name))`, which no document has: no join ran, and the payroll table, the statutory returns and the punch log all rendered blank employee columns with no error anywhere. Here the body is taken by matching the FIRST '(' to the final ')' and parsed recursively, so depth is unlimited. `parentTable` is needed because an embed's join key depends on BOTH sides — see lib/db/relationships.ts.
 function parseSelect(select: string, parentTable: string): { fields: string[]; embeds: Embed[] } {
   const fields: string[] = [];
   const embeds: Embed[] = [];
@@ -206,20 +186,7 @@ function parseSelect(select: string, parentTable: string): { fields: string[]; e
   return { fields, embeds };
 }
 
-/**
- * The $lookup (+ $unwind) stages for one embed, recursing into its own embeds.
- *
- * The sub-pipeline is where nesting is expressed: a nested embed's stages run
- * INSIDE the parent's lookup, so `employees(code, branches(name))` resolves the
- * branch on each joined employee before the employee is projected.
- *
- * `scope` is the caller. It is threaded all the way down because EVERY joined
- * collection needs its own policy applied: repo.aggregate() prepends the filter
- * for the collection the query started from and says in as many words that a
- * $lookup inside the pipeline is not scoped — which left every embedded select
- * reading the joined collection with no rule in front of it. Postgres applied
- * the joined table's RLS through the join; this is that, restored.
- */
+// The $lookup (+ $unwind) stages for one embed, recursing into its own embeds. The sub-pipeline is where nesting is expressed: a nested embed's stages run INSIDE the parent's lookup, so `employees(code, branches(name))` resolves the branch on each joined employee before the employee is projected. `scope` is the caller. It is threaded all the way down because EVERY joined collection needs its own policy applied: repo.aggregate() prepends the filter for the collection the query started from and says in as many words that a $lookup inside the pipeline is not scoped — which left every embedded select reading the joined collection with no rule in front of it. Postgres applied the joined table's RLS through the join; this is that, restored.
 function embedStages(embed: Embed, scope: Scope, parent: string): Document[] {
   const sub: Document[] = [];
 

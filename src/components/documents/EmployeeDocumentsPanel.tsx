@@ -22,20 +22,13 @@ import { openDocument } from './openDocument';
 import { StatusPill } from './StatusPill';
 import type { EmployeeDocumentRow } from '@/lib/queries';
 
-/** All versions of one document, current first. */
+// All versions of one document, current first.
 interface DocumentChain {
   current: EmployeeDocumentRow;
   history: EmployeeDocumentRow[];
 }
 
-/**
- * Group flat rows into chains by doc_group.
- *
- * The row with no supersession is the current one. A chain can legitimately
- * have none for a moment — replaceEmployeeDocument inserts the new version
- * before stamping the old one — so the newest version stands in rather than the
- * whole document disappearing from the panel.
- */
+// Group flat rows into chains by doc_group. The row with no supersession is the current one. A chain can legitimately have none for a moment — replaceEmployeeDocument inserts the new version before stamping the old one — so the newest version stands in rather than the whole document disappearing from the panel.
 function toChains(rows: EmployeeDocumentRow[]): DocumentChain[] {
   const byGroup = new Map<string, EmployeeDocumentRow[]>();
   for (const r of rows) {

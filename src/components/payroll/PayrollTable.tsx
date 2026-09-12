@@ -12,7 +12,7 @@ import type { PayrollRunView } from '@/lib/queries';
 
 type ActionResult = { ok: boolean; error?: string };
 
-/** One payslip's manual adjustments, as loaded by the page. */
+// One payslip's manual adjustments, as loaded by the page.
 export interface PayslipAdjustments {
   advanceRecovery: number;
   bonus: number;
@@ -33,19 +33,12 @@ export const EMPTY_ADJUSTMENTS: PayslipAdjustments = {
   remarks: '',
 };
 
-/** A locked or paid run is history — nothing about it may be recomputed. */
+// A locked or paid run is history — nothing about it may be recomputed.
 function isFrozen(run: PayrollRunView | null): boolean {
   return run ? run.status === 'locked' || run.status === 'paid' : true;
 }
 
-/**
- * Calendar days in the run's month — the denominator payable days are counted
- * against (the register's "to pay for" column: working days + OH + WO).
- *
- * Derived, not assumed: this used to be a hardcoded "of 30", which is simply
- * wrong for any 31-day month. Returns null when there's no run to derive it
- * from, in which case the denominator is omitted rather than guessed.
- */
+// Calendar days in the run's month — the denominator payable days are counted against (the register's "to pay for" column: working days + OH + WO). Derived, not assumed: this used to be a hardcoded "of 30", which is simply wrong for any 31-day month. Returns null when there's no run to derive it from, in which case the denominator is omitted rather than guessed.
 function daysInPeriod(periodMonth: string | null | undefined): number | null {
   if (!periodMonth) return null;
   const m = /^(\d{4})-(\d{2})/.exec(periodMonth);
@@ -55,7 +48,7 @@ function daysInPeriod(periodMonth: string | null | undefined): number | null {
   return Number.isNaN(d.getTime()) ? null : d.getUTCDate();
 }
 
-// ============================================================ run actions ===
+// ============================================================ run actions
 // Lives here (not in the page) because it needs handlers; the page keeps the
 // .run-banner markup and drops this in where the two buttons used to be.
 
@@ -66,7 +59,7 @@ export function RunActions({
 }: {
   run: PayrollRunView | null;
   payslipCount: number;
-  /** The month the page is showing, so a run can be opened when none exists. */
+  // The month the page is showing, so a run can be opened when none exists.
   periodMonth: string;
 }) {
   const [pending, startTransition] = useTransition();

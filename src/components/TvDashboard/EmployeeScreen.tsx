@@ -14,7 +14,7 @@ import type { BoardData, Presence } from '@/lib/types/employee';
 import { EmployeeCard } from './EmployeeCard';
 
 const POLL_MS = 30_000;
-/** Past this without a successful poll, the board admits it is stale. */
+// Past this without a successful poll, the board admits it is stale.
 const STALE_MS = 3 * POLL_MS;
 
 const BANDS: { key: Presence; label: string }[] = [
@@ -86,12 +86,10 @@ export function EmployeeScreen({ initial }: { initial: BoardData }) {
     <div className="tv">
       <header className="tv-head">
         <div className="tv-head-brand">
-          {/* The real mark, not a retyped wordmark — same component as the
-              sidebar and the login card, sized for the wall in globals.css. */}
+          {/* The real mark, not a retyped wordmark — same component as the sidebar and the login card, sized for the wall in globals.css. */}
           <Brand priority />
           <p>Attendance board</p>
-          {/* The board replaces the whole shell, so this is the only way back
-              out for someone who opened it from the sidebar. */}
+          {/* The board replaces the whole shell, so this is the only way back out for someone who opened it from the sidebar. */}
           <Link className="tv-exit" href="/today">
             ← Back to portal
           </Link>

@@ -1,6 +1,6 @@
 'use client';
 
-// ============================================================================
+//
 // HR dashboard — Leave Management tab.
 //
 // The complete history of employee leave requests: every submission with its
@@ -8,7 +8,7 @@
 // cost, the employee's reason, and the approver's decision remark. Decisions
 // happen on /approvals; rows land here automatically via revalidation, so this
 // tab is the audit trail rather than a second approval surface.
-// ============================================================================
+//
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { RequestView } from '@/lib/queries';
@@ -30,7 +30,7 @@ const KIND_LABEL: Record<string, string> = {
   LWP: 'Leave without pay',
 };
 
-/** '2026-07-16' -> '16 Jul 26'. */
+// '2026-07-16' -> '16 Jul 26'.
 function day(iso: string): string {
   const d = new Date(`${iso}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return iso;

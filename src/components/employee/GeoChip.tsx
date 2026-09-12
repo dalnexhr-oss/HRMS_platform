@@ -6,12 +6,12 @@
 // user reading it back — needs to be able to see *where* in one tap.
 //
 // three states, all meaningful:
-//   true   inside the office geofence
-//   false  outside it
-//   null   not classified — no coordinates, or no office configured. Rendering
-//          nothing is correct here; a null must never read as "off-site".
+// true inside the office geofence
+// false outside it
+// null not classified — no coordinates, or no office configured. Rendering
+// nothing is correct here; a null must never read as "off-site".
 
-/** A Google Maps pin at the punch's coordinates, in whichever app the device has. */
+// A Google Maps pin at the punch's coordinates, in whichever app the device has.
 export function mapsUrl(lat: number, lng: number): string {
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 }

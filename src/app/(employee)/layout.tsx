@@ -7,13 +7,7 @@ import { ProfileMenu } from '@/components/shell/ProfileMenu';
 import { Brand } from '@/components/ui/Brand';
 import { getMyNotifications, getUnreadNotificationCount } from '@/lib/queries';
 
-// Employee self-service shell — a slim top bar, no admin sidebar.
-//
-// The top bar carries the punch clock, not Sign out. Punching is done every day
-// in a hurry and used to sit far enough down /me to need a scroll, which put it
-// a few pixels from a button that ends the session — one slip and you were on
-// the login screen instead of clocked in. Sign out now lives at the foot of the
-// page, where it is deliberate rather than adjacent.
+// Employee self-service shell
 export default async function EmployeeLayout({ children }: { children: React.ReactNode }) {
   const [{ profile, email }, notifications, unread] = await Promise.all([
     getSession(),

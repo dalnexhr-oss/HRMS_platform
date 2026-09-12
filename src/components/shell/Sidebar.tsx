@@ -118,21 +118,17 @@ const FALLBACK_ICON = (
   </svg>
 );
 
-/** Icon for a nav slug, falling back per-screen rather than to one shared mark. */
+// Icon for a nav slug, falling back per-screen rather than to one shared mark.
 function iconFor(slug: string) {
   return ICONS[slug] ?? EXTRA_ICONS[slug] ?? FALLBACK_ICON;
 }
 
-/**
- * Drop the links this role would only be bounced from — the static gate in
- * constants.ts AND whatever the super admin has switched off on /access. Hiding
- * the link is cosmetic; the (portal) layout is what actually blocks the page.
- */
+// Drop the links this role would only be bounced from — the static gate in constants.ts AND whatever the super admin has switched off on /access. Hiding the link is cosmetic; the (portal) layout is what actually blocks the page.
 function visibleNav(role: AppRole | null | undefined, access: TabAccess): NavItem[] {
   return NAV.filter((n) => canAccessTab(role, n.slug, access));
 }
 
-/** Turn a role slug into a human label for the sidebar footer. */
+// Turn a role slug into a human label for the sidebar footer.
 const ROLE_LABEL: Record<string, string> = {
   admin: 'Administrator',
   super_admin: 'Super Admin',
@@ -148,7 +144,7 @@ export function Sidebar({
 }: {
   name?: string | null;
   role?: AppRole | null;
-  /** This account's tab switches; {} means nothing revoked. */
+  // This account's tab switches; {} means nothing revoked.
   access?: TabAccess;
 }) {
   const pathname = usePathname();
@@ -177,8 +173,7 @@ export function Sidebar({
 
   return (
     <>
-      {/* Sits over the topbar's reserved left gutter on mobile, so it reads as
-          part of the bar rather than as a floating button. */}
+      {/* Sits over the topbar's reserved left gutter on mobile, so it reads as part of the bar rather than as a floating button. */}
       <button
         type="button"
         className="nav-toggle"

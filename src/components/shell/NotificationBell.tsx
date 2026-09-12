@@ -25,10 +25,7 @@ const KIND_ICON: Record<string, string> = {
   system: '⚙️',
 };
 
-/**
- * Split a stored link into path + hash, rejecting anything that isn't a relative
- * in-app path so a stored value can never become an external redirect.
- */
+// Split a stored link into path + hash, rejecting anything that isn't a relative in-app path so a stored value can never become an external redirect.
 function splitLink(link: string | null): { path: string; hash: string | null } | null {
   if (!link || !link.startsWith('/') || link.startsWith('//')) return null;
   const i = link.indexOf('#');
@@ -36,13 +33,7 @@ function splitLink(link: string | null): { path: string; hash: string | null } |
   return { path: link.slice(0, i) || '/', hash: link.slice(i + 1) || null };
 }
 
-/**
- * Scroll a dashboard section into view and flash it.
- *
- * No-ops when the section isn't on the page — several /me cards render
- * conditionally (MyOnboarding disappears once the checklist is done), and a
- * missing target should still leave the notification marked read.
- */
+// Scroll a dashboard section into view and flash it. No-ops when the section isn't on the page — several /me cards render conditionally (MyOnboarding disappears once the checklist is done), and a missing target should still leave the notification marked read.
 function scrollToSection(id: string): void {
   const el = document.getElementById(id);
   if (!el) return;
@@ -51,7 +42,7 @@ function scrollToSection(id: string): void {
   window.setTimeout(() => el.classList.remove('jump-flash'), 1600);
 }
 
-/** '2026-07-21T10:20:00Z' -> '3h ago' / '2d ago'. */
+// "x minutes ago" for a notification timestamp. The server always sends UTC ISO strings, so the local timezone is applied here.
 function ago(iso: string): string {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return '';

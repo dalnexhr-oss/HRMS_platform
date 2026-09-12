@@ -21,37 +21,32 @@ export const dynamic = 'force-dynamic';
 
 const TZ = 'Asia/Kolkata';
 
-/** The documented rule: the 3rd late mark in a month becomes an auto half-day.
- *  Only used when the `mark_threshold` setting is missing or unreadable. */
+// The documented rule: the 3rd late mark in a month becomes an auto half-day. Only used when the `mark_threshold` setting is missing or unreadable.
 const DEFAULT_MARK_THRESHOLD = 3;
 
-/** How many names the marks-watch card lists. */
+// How many names the marks-watch card lists.
 const MARKS_WATCH_LIMIT = 5;
 
-/** 'YYYY-MM-DD' for the business timezone — matches the date the queries filter on. */
+// 'YYYY-MM-DD' for the business timezone — matches the date the queries filter on.
 function todayISO(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date());
 }
 
-/** '16 July' — the celebrations folio. */
+// '16 July' — the celebrations folio.
 function todayLabel(): string {
   return new Intl.DateTimeFormat('en-GB', { timeZone: TZ, day: 'numeric', month: 'long' }).format(
     new Date(),
   );
 }
 
-/** '2026-06-01' -> 'June'. */
+// '2026-06-01' -> 'June'.
 function monthLabelOf(periodMonth: string): string {
   return new Intl.DateTimeFormat('en-GB', { month: 'long' }).format(
     new Date(periodMonth + 'T00:00:00'),
   );
 }
 
-/**
- * Settle a query into a value-or-real-error. Each card fails on its own instead of
- * taking the page down, and the failure text is the query's actual message — we do
- * NOT fall back to stand-in data to paper over a broken database.
- */
+// Settle a query into a value-or-real-error. Each card fails on its own instead of taking the page down, and the failure text is the query's actual message — we do NOT fall back to stand-in data to paper over a broken database.
 async function load<T>(promise: Promise<T>): Promise<Loaded<T>> {
   try {
     return { ok: true, data: await promise };
@@ -60,11 +55,7 @@ async function load<T>(promise: Promise<T>): Promise<Loaded<T>> {
   }
 }
 
-/**
- * The late-mark threshold from settings. A settings failure must not blank the marks
- * card — the *counts* are the real data, and the threshold has a documented default —
- * so this degrades to DEFAULT_MARK_THRESHOLD rather than throwing.
- */
+// The late-mark threshold from settings. A settings failure must not blank the marks card — the *counts* are the real data, and the threshold has a documented default — so this degrades to DEFAULT_MARK_THRESHOLD rather than throwing.
 function markThreshold(settings: Loaded<SettingView[]>): number {
   if (!settings.ok) return DEFAULT_MARK_THRESHOLD;
   const raw = settings.data.find((s) => s.key === 'mark_threshold')?.value;
@@ -72,8 +63,7 @@ function markThreshold(settings: Loaded<SettingView[]>): number {
   return Number.isInteger(n) && n > 0 ? n : DEFAULT_MARK_THRESHOLD;
 }
 
-/** Real late-mark counts for the period, worst first. Derived from the register's
- *  per-employee LM tally (attendance_days.status = 'LM'). */
+// Real late-mark counts for the period, worst first. Derived from the register's per-employee LM tally (attendance_days.status = 'LM').
 function marksWatchFrom(register: RegisterEmployee[], threshold: number): MarkWatch[] {
   return register
     .filter((e) => e.summary.LM > 0)
@@ -104,9 +94,7 @@ export default async function TodayPage() {
 
   return (
     <>
-      {/* Punches land through /api/punch/*, which no page is subscribed to — so
-          the board re-reads itself on a timer rather than waiting for someone
-          to navigate. Renders nothing. */}
+      {/* Punches land through /api/punch/*, which no page is subscribed to — so the board re-reads itself on a timer rather than waiting for someone to navigate. Renders nothing. */}
       <LiveRefresh />
       <TodayBoard
         board={board}

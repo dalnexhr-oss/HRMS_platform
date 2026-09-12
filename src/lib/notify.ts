@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Notification dispatch. SERVER ONLY.
 //
 // Uses the SYSTEM client because a notification is addressed to SOMEONE ELSE:
@@ -9,7 +9,7 @@
 // Every function here is BEST-EFFORT and never throws. A failed notification
 // must not roll back the business action that triggered it — approving leave
 // still succeeds if the notification insert fails; it is logged instead.
-// ============================================================================
+//
 import { createServiceClient, isServiceRoleConfigured } from '@/lib/db/server';
 import type { AppRole } from '@/types/database';
 
@@ -31,16 +31,11 @@ export interface NotifyInput {
   kind: NotificationKind;
   title: string;
   body?: string | null;
-  /**
-   * In-app relative path, e.g. '/approvals'. A fragment is supported and is how
-   * employee notifications target a section of the dashboard ('/me#payslips') —
-   * NotificationBell scrolls to it itself, because the reader is usually already
-   * on that route and a same-URL navigation is a no-op.
-   */
+  // In-app relative path, e.g. '/approvals'. A fragment is supported and is how employee notifications target a section of the dashboard ('/me#payslips') — NotificationBell scrolls to it itself, because the reader is usually already on that route and a same-URL navigation is a no-op.
   link?: string | null;
 }
 
-/** Roles that review things — the audience for "something needs your attention". */
+// Roles that review things — the audience for "something needs your attention".
 const APPROVER_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
 function warn(context: string, detail: unknown): void {

@@ -15,7 +15,7 @@ import type { TicketComment, TicketView } from '@/lib/queries';
 type ChatTicket = Pick<TicketView, 'id' | 'subject' | 'status' | 'employeeName' | 'employeeCode'>;
 type TicketStatus = TicketView['status'];
 
-/** 'admin' -> 'Admin', 'hr' -> 'HR', etc. — labels a chat message's author. */
+// 'admin' -> 'Admin', 'hr' -> 'HR', etc. — labels a chat message's author.
 function roleLabel(role: string | null | undefined): string {
   switch (role) {
     case 'super_admin':
@@ -41,14 +41,14 @@ const STATUS_LABEL: Record<TicketStatus, string> = {
 };
 const STATUS_OPTIONS: TicketStatus[] = ['open', 'in_progress', 'resolved', 'closed'];
 
-/** ISO timestamp -> '15 Jul, 10:30'. */
+// ISO timestamp -> '15 Jul, 10:30'.
 function stampTime(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-/** Build a "row-mapped" comment from a Realtime payload.new row. */
+// Build a "row-mapped" comment from a Realtime payload.new row.
 function fromRow(r: any): TicketComment {
   return {
     id: r.id,

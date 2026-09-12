@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // The plpgsql functions the app called through `.rpc()`, in TypeScript.
 // SERVER ONLY.
 //
@@ -10,7 +10,7 @@
 //
 // Registered with pgcompat rather than imported directly, so a call site for a
 // function nobody has ported yet fails loudly instead of receiving null.
-// ============================================================================
+//
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { COLLECTIONS, type BaseDoc } from '@/lib/db/collections';
@@ -23,35 +23,18 @@ import { AppRole } from '@/types/database';
 // definition of that date. See the note on the same import in pgcompat.ts.
 import { todayIST } from '@/lib/format';
 
-/**
- * How one of these functions was invoked.
- *
- * THIS REPLACES A PRIVILEGE ESCALATION. The old helper resolved "no session"
- * to SYSTEM_SCOPE, on the reasoning that `auth.uid() is null` in the SQL meant
- * "invoked by pg_cron". That inference does not survive the port. In Postgres,
- * a null auth.uid() really did mean there was no API request — the only way in
- * was a database connection. Here `currentScope()` returns null for every
- * authentication FAILURE as well: no cookie, a bad signature, an expired
- * token, a bumped token_version, a disabled account. So a revoked or disabled
- * user calling fn_provision_leave_balances was handed the system scope and
- * sailed past the `isStaff` gate below, writing leave balances as the system.
- *
- * The scheduler is now identified by HOW it calls, not by what it lacks: it
- * passes SCHEDULED as a separate argument. registerRpc() forwards only the
- * caller-supplied args object and never this parameter, so the privilege
- * cannot be requested over the wire.
- */
+// How one of these functions was invoked. THIS REPLACES A PRIVILEGE ESCALATION. The old helper resolved "no session" to SYSTEM_SCOPE, on the reasoning that `auth.uid() is null` in the SQL meant "invoked by pg_cron". That inference does not survive the port. In Postgres, a null auth.uid() really did mean there was no API request — the only way in was a database connection. Here `currentScope()` returns null for every authentication FAILURE as well: no cookie, a bad signature, an expired token, a bumped token_version, a disabled account. So a revoked or disabled user calling fn_provision_leave_balances was handed the system scope and sailed past the `isStaff` gate below, writing leave balances as the system. The scheduler is now identified by HOW it calls, not by what it lacks: it passes SCHEDULED as a separate argument. registerRpc() forwards only the caller-supplied args object and never this parameter, so the privilege cannot be requested over the wire.
 export interface Invocation {
   readonly isScheduler: boolean;
 }
 
-/** A request-borne call. The default, and never trusted. */
+// A request-borne call. The default, and never trusted.
 const REQUEST: Invocation = { isScheduler: false };
 
-/** An in-process scheduled job. Only db/scheduler.ts may pass this. */
+// An in-process scheduled job. Only db/scheduler.ts may pass this.
 export const SCHEDULED: Invocation = { isScheduler: true };
 
-/** The signed-in caller, or a refusal. Never falls back to the system. */
+// The signed-in caller, or a refusal. Never falls back to the system.
 async function requireCaller(fn: string): Promise<Scope> {
   const scope = await currentScope();
   if (!scope) throw new NotPermitted(`${fn}: not signed in`);

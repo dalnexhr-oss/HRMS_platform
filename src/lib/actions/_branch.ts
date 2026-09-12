@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Resolving the branch a holiday or a notice belongs to.
 //
 // Not an action — the leading underscore marks it as a helper, same as
@@ -18,28 +18,21 @@
 //
 // updateBranch() keeps these copies in step when a branch is renamed. Writing
 // them here is the other half of that bargain.
-// ============================================================================
+//
 import type { createClient } from '@/lib/db/server';
 
 type DbClient = Awaited<ReturnType<typeof createClient>>;
 
-/** The denormalised branch columns: an id and the canonical name beside it. */
+// The denormalised branch columns: an id and the canonical name beside it.
 export interface BranchScope {
   branch_id: string | null;
   branch_name: string | null;
 }
 
-/** Both columns for "all branches" — the shape an empty selection resolves to. */
+// Both columns for "all branches" — the shape an empty selection resolves to.
 export const ALL_BRANCHES: BranchScope = { branch_id: null, branch_name: null };
 
-/**
- * Resolve a submitted branch name to the columns to store.
- *
- * The name is read back off the branch row rather than echoed from the form,
- * so 'pune' cannot be stored where the branch is really called 'Pune'. An
- * unknown name resolves to all-branches, which is what a blank selection means
- * and what these screens have always done with one.
- */
+// Resolve a submitted branch name to the columns to store. The name is read back off the branch row rather than echoed from the form, so 'pune' cannot be stored where the branch is really called 'Pune'. An unknown name resolves to all-branches, which is what a blank selection means and what these screens have always done with one.
 export async function resolveBranchScope(dbc: DbClient, branch: string): Promise<BranchScope> {
   const name = branch.trim();
   if (!name) return ALL_BRANCHES;

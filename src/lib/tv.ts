@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // The TV attendance board — one row per active employee, resolved for today.
 //
 // Live in/out comes from the punch_events trail, NOT from
@@ -7,7 +7,7 @@
 // someone who came back from lunch as gone. The last event per employee is the
 // only reliable answer. attendance_days is still read, for the day's HR status
 // (leave, week off, holiday) and the worked total.
-// ============================================================================
+//
 import { createClient } from '@/lib/db/server';
 import { todayIST } from '@/lib/format';
 // The board reads punch_events, so it uses the punch module's own definitions
@@ -27,11 +27,7 @@ function dayOf(timestamp: Date | string): string {
   );
 }
 
-/**
- * Day statuses that mean "not expected in", so an absent card is not alarming.
- * Approved leave is split out from the calendar reasons: on a wall board "on
- * leave" and "it is their week off" are different facts about a person.
- */
+// Day statuses that mean "not expected in", so an absent card is not alarming. Approved leave is split out from the calendar reasons: on a wall board "on leave" and "it is their week off" are different facts about a person.
 const LEAVE_STATUSES = new Set(['L', 'CO']);
 const OFF_STATUSES = new Set(['WO', 'OH']);
 

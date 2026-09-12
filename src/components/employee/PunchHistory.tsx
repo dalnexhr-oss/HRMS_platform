@@ -24,7 +24,7 @@ const TIME_FMT: Intl.DateTimeFormatOptions = {
   timeZone: 'Asia/Kolkata',
 };
 
-/** Calendar day in the business timezone — the key rows are grouped under. */
+// Calendar day in the business timezone — the key rows are grouped under.
 function dayKey(value: string): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(value));
 }

@@ -1,8 +1,8 @@
-// ============================================================================
+//
 // Database setup — collections, validators, indexes, and the first super admin.
 //
-//   npm run db:setup                     schema only
-//   npm run db:setup -- --admin --email you@company.com
+// npm run db:setup schema only
+// npm run db:setup -- --admin --email you@company.com
 //
 // Idempotent: re-running creates nothing twice and never touches a user unless
 // --admin names one.
@@ -10,7 +10,7 @@
 // The schema itself lives in scripts/schema.mjs (generated translation of the
 // SQL DDL + hand-written overrides). This file only applies it, so there is one
 // place to look for "what is the shape" and one for "how is it installed".
-// ============================================================================
+//
 import { MongoClient } from 'mongodb';
 import { randomBytes, randomUUID, scrypt } from 'node:crypto';
 import { promisify, parseArgs } from 'node:util';

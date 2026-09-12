@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Transactional email over your OWN SMTP server (nodemailer). SERVER ONLY.
 //
 // Deliberately NOT a third-party sending API — mail goes straight out through
@@ -8,28 +8,19 @@
 // employee still succeeds if the welcome mail fails — it is logged instead).
 //
 // Config (.env):
-//   SMTP_HOST      e.g. mail.dalnex.com
-//   SMTP_PORT      465 (implicit TLS) or 587 (STARTTLS). Default 587.
-//   SMTP_SECURE    'true' to force implicit TLS (set automatically when PORT=465)
-//   SMTP_USER      mailbox / auth user
-//   SMTP_PASS      mailbox password / app password
-//   EMAIL_FROM     "Dalnex HR <hr@dalnex.com>"
+// SMTP_HOST e.g. mail.dalnex.com
+// SMTP_PORT 465 (implicit TLS) or 587 (STARTTLS). Default 587.
+// SMTP_SECURE 'true' to force implicit TLS (set automatically when PORT=465)
+// SMTP_USER mailbox / auth user
+// SMTP_PASS mailbox password / app password
+// EMAIL_FROM "Dalnex HR <hr@dalnex.com>"
 //
 // When host/from are missing, sending is disabled and calls no-op with a warning
 // — exactly like notifications when the service key is absent. The `nodemailer`
 // package is imported lazily so a missing config never affects the rest of the app.
-// ============================================================================
+//
 
-/**
- * Escape the five XML entities for safe interpolation into an HTML email body.
- *
- * Anything that came out of the database goes through this. A person's own
- * full_name is set by whoever created the account, and it was being pasted
- * straight into the password-reset body — so an admin could store
- * `</p><a href="https://evil">click here</a>` and have it render as live markup
- * in a genuine reset email from this system's own domain, above the real link,
- * in the one message a recipient is primed to click.
- */
+// Escape the five XML entities for safe interpolation into an HTML email body. Anything that came out of the database goes through this. A person's own full_name is set by whoever created the account, and it was being pasted straight into the password-reset body — so an admin could store `</p><a href="https://evil">click here</a>` and have it render as live markup in a genuine reset email from this system's own domain, above the real link, in the one message a recipient is primed to click.
 export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -42,13 +33,11 @@ export function escapeHtml(value: string): string {
 export interface SendEmailInput {
   to: string | string[];
   subject: string;
-  /** Plain-text body. */
+  // Plain-text body.
   text: string;
-  /** Optional HTML body; falls back to `text` when omitted. */
+  // Optional HTML body; falls back to `text` when omitted.
   html?: string;
-  /** Optional file attachments. A `cid` makes the attachment inline-embeddable
-   *  from the HTML body via `<img src="cid:...">` (works in clients that block
-   *  remote images, no public URL needed). */
+  // Optional file attachments. A `cid` makes the attachment inline-embeddable from the HTML body via `<img src="cid:...">` (works in clients that block remote images, no public URL needed).
   attachments?: {
     filename: string;
     content: Uint8Array | Buffer;
@@ -66,7 +55,7 @@ interface SmtpConfig {
   from: string;
 }
 
-/** Resolve SMTP config from env, or null when the minimum (host + from) is absent. */
+// Resolve SMTP config from env, or null when the minimum (host + from) is absent.
 function smtpConfig(): SmtpConfig | null {
   const host = process.env.SMTP_HOST;
   const from = process.env.EMAIL_FROM;
@@ -84,7 +73,7 @@ function smtpConfig(): SmtpConfig | null {
   };
 }
 
-/** True when a host + from-address are present. Check before offering email. */
+// True when a host + from-address are present. Check before offering email.
 export function isEmailConfigured(): boolean {
   return smtpConfig() !== null;
 }

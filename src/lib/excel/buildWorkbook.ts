@@ -1,17 +1,17 @@
-// ============================================================================
+//
 // Server-only .xlsx builders (exceljs write path). SERVER ONLY — never import
 // into a client component; exceljs pulls in Node APIs. Server Actions call these
 // and hand the bytes to the browser as base64 (see actions/export.ts).
 //
 // The register export reproduces the COMPANY'S OWN register layout (the one
 // parseRegister.ts reads), so an exported file can be re-imported unchanged:
-//   B1 year · B2 month · row 3 weekday names · row 4 day numbers + summary
-//   headers · row 5 'Empl. ID' · rows 6+ employee blocks with STRIDE 4:
-//     k+0  A=Empl. ID, B=Name, day cols = status, then counts / working / payable
-//     k+1  B='In'                   day cols = punch-in
-//     k+2  B='Out'                  day cols = punch-out
-//     k+3  B='Total Hrs Completed'  day cols = hours worked
-// ============================================================================
+// B1 year · B2 month · row 3 weekday names · row 4 day numbers + summary
+// headers · row 5 'Empl. ID' · rows 6+ employee blocks with STRIDE 4:
+// k+0 A=Empl. ID, B=Name, day cols = status, then counts / working / payable
+// k+1 B='In' day cols = punch-in
+// k+2 B='Out' day cols = punch-out
+// k+3 B='Total Hrs Completed' day cols = hours worked
+//
 import ExcelJS from 'exceljs';
 import { minutesToHHMM } from '@/lib/format';
 import {
@@ -31,7 +31,7 @@ import type { LeaveSalaryViewRow } from '@/lib/leave-salary-view';
 // Pure module (no server deps) — safe here for the same reason inr/minutesToHHMM are.
 import { effectiveFigures } from '@/lib/leave-salary';
 
-/** 'YYYY-MM-01' -> 'June 2026'. */
+// 'YYYY-MM-01' -> 'June 2026'.
 export function monthTitle(periodMonth: string): string {
   const d = new Date(`${periodMonth.slice(0, 7)}-01T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return periodMonth;
@@ -71,7 +71,7 @@ function safeText(v: unknown): string {
   return /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
 }
 
-// ---------------------------------------------------------------- geometry ---
+// ---------------------------------------------------------------- geometry
 // Mirrors parseRegister.ts so the two stay in lockstep.
 const ROW_YEAR = 1;
 const ROW_MONTH = 2;
@@ -84,7 +84,7 @@ const COL_EMPL_ID = 1; // A
 const COL_LABEL = 2; // B
 const COL_FIRST_DAY = 3; // C
 
-/** The 9 summary count columns, in the register's own order. */
+// The 9 summary count columns, in the register's own order.
 const COUNT_ORDER = ['P', 'T', 'LM', 'S', 'OH', 'L', 'CO', 'HD', 'WO'] as const;
 
 const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

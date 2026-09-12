@@ -21,7 +21,7 @@ const STATUS_LABEL: Record<PayrollRunView['status'], string> = {
   paid: 'Paid',
 };
 
-/** timestamptz -> '30 Jun, 00:30'. null when the milestone hasn't happened. */
+// timestamptz -> '30 Jun, 00:30'. null when the milestone hasn't happened.
 function stamp(iso: string | null): string | null {
   if (!iso) return null;
   const d = new Date(iso);
@@ -36,7 +36,7 @@ function stamp(iso: string | null): string | null {
   });
 }
 
-/** '2026-06-01' -> 'June 2026'. */
+// '2026-06-01' -> 'June 2026'.
 function monthLabel(periodMonth: string): string {
   const d = new Date(periodMonth + 'T00:00:00Z');
   if (Number.isNaN(d.getTime())) return periodMonth;
@@ -45,7 +45,7 @@ function monthLabel(periodMonth: string): string {
 
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
-/** '?m=2026-05' -> '2026-05-01'. Anything unparseable falls back to the current month (IST). */
+// '?m=2026-05' -> '2026-05-01'. Anything unparseable falls back to the current month (IST).
 function periodFromParam(m: string | undefined): string {
   return m && MONTH_RE.test(m) ? `${m}-01` : currentPeriodMonth();
 }

@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Access policy per collection — the replacement for 114 RLS policies.
 //
 // This file IS the security boundary. Postgres used to refuse rows that were
@@ -7,23 +7,23 @@
 //
 // Three deliberate properties:
 //
-//  1. DECLARATIVE. Each entry keeps the shape of the row-level-security policy
-//     it replaces: a predicate per collection per operation, never imperative
-//     checks scattered through call sites. This file is now the only statement
-//     of who can see what — the SQL it was derived from has been deleted — so a
-//     change here IS a change to the security model and should be reviewed as
-//     one.
+// 1. DECLARATIVE. Each entry keeps the shape of the row-level-security policy
+// it replaces: a predicate per collection per operation, never imperative
+// checks scattered through call sites. This file is now the only statement
+// of who can see what — the SQL it was derived from has been deleted — so a
+// change here IS a change to the security model and should be reviewed as
+// one.
 //
-//  2. FAIL CLOSED. `POLICIES` has no default entry. A collection that is not
-//     listed is denied to everyone — so a newly ported collection is invisible
-//     until someone decides who may read it, rather than world-readable until
-//     someone notices.
+// 2. FAIL CLOSED. `POLICIES` has no default entry. A collection that is not
+// listed is denied to everyone — so a newly ported collection is invisible
+// until someone decides who may read it, rather than world-readable until
+// someone notices.
 //
-//  3. SEPARATE READ, WRITE AND INSERT. Several tables let an employee read
-//     their own rows but only modify them in a particular state — a
-//     reimbursement claim is editable while pending and frozen once reviewed.
-//     A single predicate cannot express that, and collapsing them is how the
-//     "edit an approved claim" bug gets written.
+// 3. SEPARATE READ, WRITE AND INSERT. Several tables let an employee read
+// their own rows but only modify them in a particular state — a
+// reimbursement claim is editable while pending and frozen once reviewed.
+// A single predicate cannot express that, and collapsing them is how the
+// "edit an approved claim" bug gets written.
 //
 // Returning null from read/write means DENY. Returning {} means no row filter,
 // i.e. the whole collection.
@@ -32,81 +32,42 @@
 // `auth_role()::text = 'super_admin'`. Both are now embedded in the user
 // document as `tab_access`, so that rule is enforced by the privilege tiers in
 // lib/actions/users.ts rather than by a collection filter.
-// ============================================================================
+//
 import 'server-only';
 import type { Document } from 'mongodb';
 import { COLLECTIONS } from '@/lib/db/collections';
 import type { Scope } from '@/lib/db/scope';
 
-/**
- * A Mongo filter ANDed into every query, or null to deny outright.
- *
- * Typed as a plain Document rather than Filter<T>: a policy is written once for
- * a collection whose document type it does not know, and the driver's Filter<T>
- * is a conditional type that cannot be satisfied generically. repo.ts casts at
- * the single point where the concrete type is known.
- */
+// A Mongo filter ANDed into every query, or null to deny outright. Typed as a plain Document rather than Filter<T>: a policy is written once for a collection whose document type it does not know, and the driver's Filter<T> is a conditional type that cannot be satisfied generically. repo.ts casts at the single point where the concrete type is known.
 export type ScopeFilter = Document | null;
 
 export interface CollectionPolicy {
-  /** Rows this caller may see. */
+  // Rows this caller may see.
   read(scope: Scope): ScopeFilter;
-  /** Rows this caller may update or delete. */
+  // Rows this caller may update or delete.
   write(scope: Scope): ScopeFilter;
-  /** Whether this caller may insert this document; a string is the refusal. */
+  // Whether this caller may insert this document; a string is the refusal.
   insert(scope: Scope, doc: Document): string | null;
-  /**
-   * SQL's WITH CHECK on an UPDATE: constrains the row the update PRODUCES,
-   * where write() constrains which row it may touch. `fields` is the update's
-   * $set payload. Returning a string refuses the write.
-   *
-   * Optional, and deliberately rare. Most tables put every condition in the
-   * USING clause, and those belong in write() — requests and
-   * reimbursement_claims are that shape, and folding their status into a check
-   * here would wrongly let an employee touch a decided row. Only a rule about
-   * the RESULT belongs here, and collapsing the two is not a simplification: it
-   * is how helpdesk_tickets ended up refusing the one update it was written to
-   * allow.
-   */
+  // SQL's WITH CHECK on an UPDATE: constrains the row the update PRODUCES, where write() constrains which row it may touch. `fields` is the update's $set payload. Returning a string refuses the write. Optional, and deliberately rare. Most tables put every condition in the USING clause, and those belong in write() — requests and reimbursement_claims are that shape, and folding their status into a check here would wrongly let an employee touch a decided row. Only a rule about the RESULT belongs here, and collapsing the two is not a simplification: it is how helpdesk_tickets ended up refusing the one update it was written to allow.
   check?(scope: Scope, fields: Document): string | null;
-  /**
-   * Parent collections through which this one may ALSO be read — SQL's
-   * `exists (select 1 from <parent> where … = current_employee_id())` shape.
-   *
-   * A read policy is handed one document and cannot join, which is why several
-   * of these had to be narrowed to staff-only during the port. But an EMBEDDED
-   * read already carries the join: the parent row was matched by the parent's
-   * own policy, and the lookup key is what ties the child to it. So naming the
-   * parent here says "reachable through that parent is reachable", which is
-   * precisely what the SQL policy said.
-   *
-   * Applies ONLY to an embed, and only for the named parent. A direct read of
-   * this collection still gets read() — narrower than the SQL was, never wider.
-   */
+  // Parent collections through which this one may ALSO be read — SQL's `exists (select 1 from <parent> where … = current_employee_id())` shape. A read policy is handed one document and cannot join, which is why several of these had to be narrowed to staff-only during the port. But an EMBEDDED read already carries the join: the parent row was matched by the parent's own policy, and the lookup key is what ties the child to it. So naming the parent here says "reachable through that parent is reachable", which is precisely what the SQL policy said. Applies ONLY to an embed, and only for the named parent. A direct read of this collection still gets read() — narrower than the SQL was, never wider.
   readableVia?: readonly string[];
 }
 
-// ---------------------------------------------------------------------------
+//
 // Building blocks. Each corresponds to one of the SQL predicates.
-// ---------------------------------------------------------------------------
+//
 
 const DENY = () => null;
 const ALL = () => ({});
 
-/** The scheduler and migrations only — no signed-in account satisfies this. */
+// The scheduler and migrations only — no signed-in account satisfies this.
 const systemOnly = (s: Scope): ScopeFilter => (s.isSystem ? {} : null);
 
-/** `is_staff()` — super_admin, admin, hr. */
+// `is_staff()` — super_admin, admin, hr.
 const staffOnly = (s: Scope): ScopeFilter => (s.isStaff ? {} : null);
 
-/**
- * `is_portal() or employee_id = current_employee_id()` — the most common shape.
- * Staff see everything; an employee sees their own rows and nothing else.
- *
- * An account with no employee record and no staff role sees NOTHING rather
- * than everything: matching on `null` would otherwise select every row whose
- * employee_id happens to be null.
- */
+// `is_portal() or employee_id = current_employee_id()` — the most common shape. Staff see everything; an employee sees their own rows and nothing else. An account with no employee record and no staff role sees NOTHING rather than everything: matching on `null` would otherwise select every row whose employee_id happens to be null.
 const staffOrOwn =
   (field = 'employee_id') =>
   (s: Scope): ScopeFilter => {
@@ -115,28 +76,22 @@ const staffOrOwn =
     return { [field]: s.employeeId };
   };
 
-/** `recipient_id = auth.uid()` / `user_id = auth.uid()`. */
+// `recipient_id = auth.uid()` / `user_id = auth.uid()`.
 const ownUser =
   (field: string) =>
   (s: Scope): ScopeFilter => ({ [field]: s.userId });
 
-/** Any signed-in account. Scope is only ever built for one, so this is `{}`. */
+// Any signed-in account. Scope is only ever built for one, so this is `{}`.
 const authenticated = ALL;
 
-/** Insert allowed only for staff. */
+// Insert allowed only for staff.
 const insertStaff = (s: Scope): string | null =>
   s.isStaff ? null : 'Only admin or HR can create this.';
 
 const insertSuperAdmin = (s: Scope): string | null =>
   s.isSuperAdmin ? null : 'Only a super admin can create this.';
 
-/**
- * Insert allowed for staff, or for an employee filing their OWN row.
- *
- * The employee branch checks the document rather than trusting the caller: a
- * Server Action is a public endpoint, so `employee_id` in the payload is
- * attacker-controlled and has to be compared, not read.
- */
+// Insert allowed for staff, or for an employee filing their OWN row. The employee branch checks the document rather than trusting the caller: a Server Action is a public endpoint, so `employee_id` in the payload is attacker-controlled and has to be compared, not read.
 const insertStaffOrOwn =
   (field = 'employee_id', requiredFields: Record<string, unknown> = {}) =>
   (s: Scope, doc: Document): string | null => {
@@ -289,7 +244,7 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
   [COLLECTIONS.items]: { ...staffManaged, readableVia: [COLLECTIONS.itemAssignments] },
   [COLLECTIONS.itemAssignments]: staffManagedEmployeeReadable(),
 
-  // --- documents and comms --------------------------------------------------
+  // --- documents and comms
   [COLLECTIONS.employeeDocuments]: {
     read: staffOrOwn(),
     write: staffOnly,
@@ -326,7 +281,7 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
     insert: insertStaff,
   },
   // 0021: `for update using (employee_id = current_employee_id())
-  //        with check (employee_id = current_employee_id() and status = 'open')`.
+  // with check (employee_id = current_employee_id() and status = 'open')`.
   //
   // The status lives in the CHECK, not the USING — the point of the policy is
   // that an employee may REOPEN a resolved or closed ticket by following up on
@@ -366,13 +321,13 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
       doc.author_id === s.userId ? null : 'You can only comment as yourself.',
   },
 
-  // --- lifecycle ------------------------------------------------------------
+  // --- lifecycle
   [COLLECTIONS.onboardingTemplates]: staffManaged,
   [COLLECTIONS.onboardingTasks]: staffManagedEmployeeReadable(),
   [COLLECTIONS.exitCases]: staffManagedEmployeeReadable(),
   [COLLECTIONS.fullAndFinal]: staffManaged,
 
-  // --- reimbursements -------------------------------------------------------
+  // --- reimbursements
   [COLLECTIONS.reimbursementClaims]: {
     read: staffOrOwn(),
     // `update using (employee_id = … and status in ('pending','rejected'))` —
@@ -386,7 +341,7 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
     insert: insertStaff,
   },
 
-  // --- rows scoped through a PARENT ------------------------------------------
+  // --- rows scoped through a PARENT
   // SQL expressed these as `exists (select 1 from <parent> ...)`. A Mongo
   // filter cannot join, so each is scoped to staff here and the parent check
   // lives in the action that reads it. Narrower than the SQL was, never wider:
@@ -417,7 +372,7 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
     insert: insertStaffOrOwn(),
   },
 
-  // --- system ---------------------------------------------------------------
+  // --- system
   // `all using (auth_role()::text = 'super_admin')`, `select using (is_portal())`.
   [COLLECTIONS.roleTabAccess]: {
     read: (s) => (s.isPortal ? {} : null),
@@ -454,7 +409,7 @@ export const POLICIES: Partial<Record<string, CollectionPolicy>> = {
   },
 };
 
-/** The policy for a collection, or undefined when none is declared (deny). */
+// The policy for a collection, or undefined when none is declared (deny).
 export function policyFor(collection: string): CollectionPolicy | undefined {
   return POLICIES[collection];
 }

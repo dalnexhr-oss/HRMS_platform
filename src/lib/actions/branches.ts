@@ -1,6 +1,6 @@
 'use server';
 
-// ============================================================================
+//
 // Branch management (Settings screen). Branches are CREATED inline from the
 // employee drawer (resolveBranch in employees.ts); this file is the other half
 // — fixing a branch that was set up wrong (typoed name, wrong state) and
@@ -8,16 +8,16 @@
 //
 // TWO THINGS THE PORT CHANGED, both because MongoDB has no foreign keys:
 //
-//  1. Deletion used to be blocked by `employees.branch_id … on delete restrict`
-//     — Postgres refused with 23503 and this file translated the error. Nothing
-//     refuses now, so the check is explicit and runs BEFORE the delete. Without
-//     it, deleting a branch would silently orphan every employee in it.
+// 1. Deletion used to be blocked by `employees.branch_id … on delete restrict`
+// — Postgres refused with 23503 and this file translated the error. Nothing
+// refuses now, so the check is explicit and runs BEFORE the delete. Without
+// it, deleting a branch would silently orphan every employee in it.
 //
-//  2. Renaming has to update employees.branch_name, which is denormalised onto
-//     each employee so list screens do not join. That copy is the price of the
-//     denormalisation, and forgetting it leaves the roster showing a name that
-//     no longer exists anywhere.
-// ============================================================================
+// 2. Renaming has to update employees.branch_name, which is denormalised onto
+// each employee so list screens do not join. That copy is the price of the
+// denormalisation, and forgetting it leaves the roster showing a name that
+// no longer exists anywhere.
+//
 import { revalidatePath } from 'next/cache';
 import { requireRoles } from '@/lib/actions/_guard';
 import { COLLECTIONS, type BranchDoc, type EmployeeDoc } from '@/lib/db/collections';
@@ -32,7 +32,7 @@ export interface ActionResult {
 
 const BRANCH_ADMIN_ROLES = ['super_admin', 'admin', 'hr'] as const;
 
-/** Everything that renders branch names or state-derived payroll figures. */
+// Everything that renders branch names or state-derived payroll figures.
 function revalidateBranchSurfaces(): void {
   revalidatePath('/settings');
   revalidatePath('/employees');
@@ -45,7 +45,7 @@ function isDuplicateKey(e: unknown): boolean {
   return typeof e === 'object' && e !== null && (e as { code?: number }).code === 11000;
 }
 
-/** Rename a branch and/or move it to another state. Admin/HR, like /settings itself. */
+// Rename a branch and/or move it to another state. Admin/HR, like /settings itself.
 export async function updateBranch(id: string, formData: FormData): Promise<ActionResult> {
   const gate = await requireRoles(BRANCH_ADMIN_ROLES, 'Updating a branch');
   if (!gate.ok) return gate;

@@ -9,7 +9,7 @@ import type { TicketComment } from '@/lib/queries';
 
 type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 
-/** Raise a new support ticket (status defaults to 'open'). Employee-facing. */
+// Raise a new support ticket (status defaults to 'open'). Employee-facing.
 export async function createTicket(formData: FormData) {
   const subject = String(formData.get('subject') ?? '').trim();
   if (!subject) return { ok: false, error: 'Subject is required.' };

@@ -4,10 +4,7 @@ import { getDocumentRegister, getEmployeeOptions, documentStats } from '@/lib/qu
 import { getSession } from '@/lib/auth';
 import type { AppRole } from '@/types/database';
 
-// The document register exposes every employee's paperwork, so it is gated to
-// the same tier that may verify it — VERIFY_ROLES in actions/documents.ts. The
-// nav gate in constants.ts only hides the link; this is the check that counts,
-// and the collection policies gate the data underneath either way.
+// Document management is accessible to super_admin/admin/HR.
 const DOCUMENT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 export default async function DocumentsPage() {

@@ -6,12 +6,12 @@ export interface PunchStatusResponse {
   lastPunchAt: string | null;
   lastKind: 'in' | 'out' | null;
   lastWithinGeofence: boolean | null;
-  /** Where that punch was taken, when the device shared it. */
+  // Where that punch was taken, when the device shared it.
   lastLat: number | null;
   lastLng: number | null;
   workedMinutes: number;
   geofenceConfigured: boolean;
-  /** Server policy: refuse a punch that shares no location at all. */
+  // Server policy: refuse a punch that shares no location at all.
   requireLocation: boolean;
 }
 
@@ -19,7 +19,7 @@ export interface PunchRecord {
   type: 'in' | 'out';
   timestamp: string;
   withinGeofence: boolean | null;
-  /** Coordinates of the punch, or null when the device shared none. */
+  // Coordinates of the punch, or null when the device shared none.
   lat: number | null;
   lng: number | null;
 }
@@ -31,7 +31,7 @@ export interface PunchResult {
   workedMinutes: number;
 }
 
-/** Coordinates are optional everywhere — a punch without them is still valid. */
+// Coordinates are optional everywhere — a punch without them is still valid.
 export interface PunchCoords {
   latitude: number;
   longitude: number;

@@ -1,11 +1,11 @@
-// ============================================================================
+//
 // Serves a stored file. Replaces Supabase's signed-URL origin.
 //
 // The session is checked on EVERY request, which is the whole point: a signed
 // URL carried its own authorisation, so a link copied out of the page stayed
 // good until it expired. This link is inert for anyone not signed in, and
 // ownership is re-verified against the caller's scope inside getObject().
-// ============================================================================
+//
 import { NextResponse } from 'next/server';
 import { getObject, StorageAccessError, type StorageBucket } from '@/lib/db/gridfs';
 

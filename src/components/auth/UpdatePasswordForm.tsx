@@ -1,16 +1,13 @@
 'use client';
 
 // Set a new password from a reset link.
-//
-// The token comes from the link's ?token= and rides along as a hidden field.
-// Redeeming it does NOT sign the user in — they type the new password once on
-// the login page, which proves it was stored as intended and catches a
-// password-manager mismatch immediately rather than at the next sign-in.
+// The token is a one-time secret that identifies the account and authorizes the change. 
+// It is never stored in a cookie or session, so it must be sent with the form.
 import { useActionState } from 'react';
 import Link from 'next/link';
 import { resetPassword, type PasswordState } from '@/lib/actions/password';
 
-/** Mirrors validatePassword() in lib/auth/password.ts. */
+// Mirrors validatePassword() in lib/auth/password.ts.
 const MIN_LEN = 10;
 
 export function UpdatePasswordForm({ token }: { token?: string }) {

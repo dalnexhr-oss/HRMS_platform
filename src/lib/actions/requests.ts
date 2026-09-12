@@ -14,12 +14,7 @@ import type { LeaveType, RequestType } from '@/types/database';
 export interface ActionResult {
   ok: boolean;
   error?: string;
-  /**
-   * The decision SUCCEEDED but a side-effect needs attention (balance not
-   * found, register not stamped, …). Callers must treat ok:true+warning as a
-   * success with a message — the old shape returned ok:false for these, which
-   * made screens render a completed approval as if it had failed.
-   */
+  // The decision SUCCEEDED but a side-effect needs attention (balance not found, register not stamped, …). Callers must treat ok:true+warning as a success with a message — the old shape returned ok:false for these, which made screens render a completed approval as if it had failed.
   warning?: string;
 }
 
@@ -30,7 +25,7 @@ const LEAVE_TYPES: readonly LeaveType[] = ['PL', 'LWP', 'CL', 'SL'];
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Parse a 'YYYY-MM-DD' form value into a UTC-midnight Date, or null if unusable. */
+// Parse a 'YYYY-MM-DD' form value into a UTC-midnight Date, or null if unusable.
 function parseISODate(value: string): Date | null {
   if (!ISO_DATE.test(value)) return null;
   const d = new Date(`${value}T00:00:00Z`);

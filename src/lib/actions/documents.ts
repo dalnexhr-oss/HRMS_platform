@@ -1,6 +1,6 @@
 'use server';
 
-// ============================================================================
+//
 // Employee document register + HR verification.
 //
 // Files live in the private `employee-documents` bucket (0032) under
@@ -9,16 +9,16 @@
 // request. Two invariants come straight from the migration and must not be
 // bypassed here:
 //
-//   1. `employee_documents_path_scoped` — the row's storage_path MUST begin with
-//      its own employee_id. That prefix is what lib/db/gridfs.ts checks to
-//      decide who may open the object, so a row whose path points into another
-//      employee's folder would hand out that employee's file.
-//   2. No self-verification — the employee insert policy pins verified_by /
-//      verified_at to null; only an admin/HR UPDATE can stamp them.
+// 1. `employee_documents_path_scoped` — the row's storage_path MUST begin with
+// its own employee_id. That prefix is what lib/db/gridfs.ts checks to
+// decide who may open the object, so a row whose path points into another
+// employee's folder would hand out that employee's file.
+// 2. No self-verification — the employee insert policy pins verified_by /
+// verified_at to null; only an admin/HR UPDATE can stamp them.
 //
 // The verify flow is modelled on reviewReimbursement: a decision, a reviewer, a
 // timestamp, and a remark that the subject can read.
-// ============================================================================
+//
 import { revalidatePath } from 'next/cache';
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@/lib/db/server';
@@ -48,14 +48,7 @@ const MAX_BYTES = 10 * 1024 * 1024; // 10 MB — certificates scan large
 // fails the build before type-checking even runs. It now lives in
 // @/lib/constants, which both this file and the client form can import.
 
-/**
- * Upload a document for an employee.
- *
- * An employee may upload their OWN (0037 insert-own policy); admin/HR may upload
- * for anyone. `targetEmployeeId` is therefore validated against the caller: a
- * non-staff caller can only ever write to their own id, which also satisfies the
- * path-scoping constraint.
- */
+// Upload a document for an employee. An employee may upload their OWN (0037 insert-own policy); admin/HR may upload for anyone. `targetEmployeeId` is therefore validated against the caller: a non-staff caller can only ever write to their own id, which also satisfies the path-scoping constraint.
 export async function uploadEmployeeDocument(formData: FormData): Promise<ActionResult> {
   const db = requireDb('Uploading a document');
   if (!db.ok) return db;

@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Whether a month is still open for attendance changes. ONE definition.
 //
 // Payslips are final once a run is locked, and the recompute is blocked from
@@ -13,15 +13,15 @@
 // behind a locked month, with the register then disagreeing with the payslips
 // that were already paid — and writing a second copy to fix that is how the
 // two would end up disagreeing about what "closed" means.
-// ============================================================================
+//
 
-/** The columns of a payroll_runs row this rule reads. */
+// The columns of a payroll_runs row this rule reads.
 export interface PayrollRunSeal {
   status?: string | null;
   month_closed_at?: Date | string | null;
 }
 
-/** 'YYYY-MM-DD' -> the 'YYYY-MM-01' key payroll_runs is stored under. */
+// 'YYYY-MM-DD' -> the 'YYYY-MM-01' key payroll_runs is stored under.
 export function periodMonthFor(workDate: string): string {
   return `${workDate.slice(0, 7)}-01`;
 }

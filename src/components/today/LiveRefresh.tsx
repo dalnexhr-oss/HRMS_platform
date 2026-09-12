@@ -16,17 +16,16 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-/** Matches the TV board's cadence — the same data, so the same freshness. */
+// Matches the TV board's cadence — the same data, so the same freshness.
 const REFRESH_MS = 30_000;
 
 export function LiveRefresh({ intervalMs = REFRESH_MS }: { intervalMs?: number }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Never refresh a hidden tab. This dashboard gets left open for days, and a
-    // background tab polling the database every 30s is pure server load that
-    // nobody is reading — the visibility handler below catches it up the moment
-    // it comes back to the front, so nothing is lost by staying quiet.
+    // Refresh on a visible tab every interval.
+    // The TV board is often left on a signed-in session for weeks, so it is gated like the portal. 
+    // The tab-access check is repeated HERE rather than inherited.
     const tick = () => {
       if (document.visibilityState === 'visible') router.refresh();
     };

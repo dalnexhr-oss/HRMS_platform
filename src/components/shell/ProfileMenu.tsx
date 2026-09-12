@@ -1,11 +1,11 @@
 'use client';
 
-// ============================================================================
+//
 // The top-bar profile icon. Clicking it opens a small identity card — the
 // avatar (or initials), name and basic info — plus a link to the account page
 // where the avatar and password are actually changed. It does NOT edit anything
 // itself; that lives on /account (staff) or /me (employees).
-// ============================================================================
+//
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
@@ -30,7 +30,7 @@ export function ProfileMenu({
   avatar?: string | null;
   role?: string | null;
   email?: string | null;
-  /** Where "My account" navigates — /account for staff, /me for employees. */
+  // Where "My account" navigates — /account for staff, /me for employees.
   accountHref: Route;
 }) {
   const [open, setOpen] = useState(false);

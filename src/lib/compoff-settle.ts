@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Comp-off settlement helpers.
 //
 // SECURITY: this is deliberately NOT a 'use server' module. These two functions
@@ -9,37 +9,12 @@
 // run, or releaseCompOff(requestId) to recycle an already-spent credit into a
 // free day off. Moving them here removes the action ids, so they are reachable
 // only from server code that imports them (reviewRequest).
-// ============================================================================
+//
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { requireOpenPayrollMonth } from '@/lib/actions/_guard';
 
-/**
- * Close the loop when a comp_off request is APPROVED: stamp the taken day 'CO'
- * and mark the credit used. Called from reviewRequest, which has already
- * verified the caller is staff.
- *
- * Returns a warning string when the side-effects failed, so the caller can tell
- * the user the decision saved but the follow-up did not.
- *
- * NOT TRANSACTIONAL, and the ORDER is what makes that acceptable. These are two
- * writes to two collections — mongo.ts names "comp-off settle" as a case
- * withTransaction exists for — but they run through the pgcompat builder, which
- * has no way to carry a session. So the ordering carries the safety instead:
- *
- *   stamp the day FIRST, close the credit second. An interruption between them
- *   leaves the day stamped 'CO' and the credit still 'applied'. A credit is only
- *   ever claimed from 'available' (actions/compoff.ts), so an 'applied' one
- *   cannot be spent again — it is STRANDED, which HR can correct, not
- *   double-spendable.
- *
- *   The reverse order fails badly: the credit is consumed and the employee never
- *   gets the day.
- *
- * Making this genuinely atomic means giving pgcompat session support, or porting
- * this file to the native scoped repository. Until then the ordering is the
- * guarantee, and it is deliberate.
- */
+// Close the loop when a comp_off request is APPROVED: stamp the taken day 'CO' and mark the credit used. Called from reviewRequest, which has already verified the caller is staff. Returns a warning string when the side-effects failed, so the caller can tell the user the decision saved but the follow-up did not. NOT TRANSACTIONAL, and the ORDER is what makes that acceptable. These are two writes to two collections — mongo.ts names "comp-off settle" as a case withTransaction exists for — but they run through the pgcompat builder, which has no way to carry a session. So the ordering carries the safety instead: stamp the day FIRST, close the credit second. An interruption between them leaves the day stamped 'CO' and the credit still 'applied'. A credit is only ever claimed from 'available' (actions/compoff.ts), so an 'applied' one cannot be spent again — it is STRANDED, which HR can correct, not double-spendable. The reverse order fails badly: the credit is consumed and the employee never gets the day. Making this genuinely atomic means giving pgcompat session support, or porting this file to the native scoped repository. Until then the ordering is the guarantee, and it is deliberate.
 export async function settleApprovedCompOff(requestId: string): Promise<string | null> {
   try {
     const dbc = await createClient();

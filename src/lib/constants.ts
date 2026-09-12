@@ -36,33 +36,18 @@ export const REGISTER_LEGEND: [AttendanceStatus, string][] = [
 
 export const DOW = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
-/**
- * Categorical palette for branch identity — the split bar and legend on /today
- * and the branch chips on /employees. 20 fixed slots assigned by the branch's
- * position in the (alphabetical) branch list, so a branch keeps its colour
- * across both screens.
- *
- * The ORDER is deliberate, not cosmetic: it interleaves warm/cool hues so
- * adjacent slots (which sit next to each other in the split bar) stay apart
- * under colour-vision deficiency. Validated with the dataviz palette checker
- * against the white card surface: lightness band, chroma floor and 3:1
- * contrast all pass; the one warn-band CVD pair (slots 6–7, mint↔red, deutan
- * ΔE 6.2) is covered by secondary encoding — every legend row carries the
- * branch name, and the split bar keeps 2px surface gaps between segments.
- * Slot 1 stays in the Dalnex brand family. Don't re-order casually; re-run the
- * validator if you do.
- */
+// Categorical palette for branch identity — the split bar and legend on /today and the branch chips on /employees. 20 fixed slots assigned by the branch's position in the (alphabetical) branch list, so a branch keeps its colour across both screens. The ORDER is deliberate, not cosmetic: it interleaves warm/cool hues so adjacent slots (which sit next to each other in the split bar) stay apart under colour-vision deficiency. Validated with the dataviz palette checker against the white card surface: lightness band, chroma floor and 3:1 contrast all pass; the one warn-band CVD pair (slots 6–7, mint↔red, deutan ΔE 6.2) is covered by secondary encoding — every legend row carries the branch name, and the split bar keeps 2px surface gaps between segments. Slot 1 stays in the Dalnex brand family. Don't re-order casually; re-run the validator if you do.
 export const BRANCH_PALETTE = [
-  '#2A78D6', // 1  blue
-  '#06809C', // 2  teal 
-  '#EB6834', // 3  orange
+  '#2A78D6', // 1 blue
+  '#06809C', // 2 teal
+  '#EB6834', // 3 orange
   '#0277BD', // 4 deep sky
-  '#C98500', // 5  gold
-  '#109566', // 6  mint
-  '#D03B3B', // 7  red
-  '#4A3AA7', // 8  indigo
-  '#6B21A8', // 9  purple
-  '#6B8E23', // 10  olive
+  '#C98500', // 5 gold
+  '#109566', // 6 mint
+  '#D03B3B', // 7 red
+  '#4A3AA7', // 8 indigo
+  '#6B21A8', // 9 purple
+  '#6B8E23', // 10 olive
   '#D55181', // 11 pink
   '#008300', // 12 green
   '#8C2F39', // 13 maroon
@@ -75,21 +60,14 @@ export const BRANCH_PALETTE = [
   '#2E7D52', // 20 forest
 ] as const;
 
-/** Colour for the i-th branch (alphabetical index). Wraps past 20 branches. */
+// Colour for the i-th branch (alphabetical index). Wraps past 20 branches.
 export function branchColorAt(i: number): string {
   return BRANCH_PALETTE[i % BRANCH_PALETTE.length];
 }
 
-/**
- * Document types offered when an employee files paperwork. Free text in the DB;
- * this just keeps the drop-down tidy.
- *
- * It lives here rather than beside the upload action because that module is
- * `'use server'`, and Next allows only async function exports from one — a
- * plain const there fails the build.
- */
+// Document types offered when an employee files paperwork. Free text in the DB; this just keeps the drop-down tidy. It lives here rather than beside the upload action because that module is `'use server'`, and Next allows only async function exports from one — a plain const there fails the build.
 export const DOCUMENT_CATEGORIES = [
-  // --- onboarding ---------------------------------------------------------
+  // --- onboarding
   'offer_letter',
   'contract',
   'joining_form',
@@ -99,32 +77,19 @@ export const DOCUMENT_CATEGORIES = [
   'bank',
   'nda',
   'onboarding_other',
-  // --- exit -----------------------------------------------------------------
+  // --- exit
   'resignation',
   'clearance',
-  // --- anything else --------------------------------------------------------
+  // --- anything else
   'other',
 ] as const;
 
 export type DocumentCategory = (typeof DOCUMENT_CATEGORIES)[number];
 
-/**
- * Categories the system ISSUES rather than accepts.
- *
- * generateExitDocument writes these into employee_documents itself, against the
- * `generated-documents` bucket and already stamped verified — an HR-issued
- * letter is authoritative the moment it is produced. They appear in the
- * register alongside uploads but are never offered in an upload form, and
- * nothing may replace one: reissuing means generating it again from /exits.
- *
- * NOTE the overlap: 'experience' is BOTH an uploadable category (the
- * certificate from a previous employer) and the letter this company issues on
- * exit. The category alone cannot tell them apart — the BUCKET can, which is
- * why the register carries `source` and labels an issued row accordingly.
- */
+// Categories the system ISSUES rather than accepts. generateExitDocument writes these into employee_documents itself, against the `generated-documents` bucket and already stamped verified — an HR-issued letter is authoritative the moment it is produced. They appear in the register alongside uploads but are never offered in an upload form, and nothing may replace one: reissuing means generating it again from /exits. NOTE the overlap: 'experience' is BOTH an uploadable category (the certificate from a previous employer) and the letter this company issues on exit. The category alone cannot tell them apart — the BUCKET can, which is why the register carries `source` and labels an issued row accordingly.
 export const GENERATED_DOCUMENT_CATEGORIES = ['relieving', 'experience', 'settlement'] as const;
 
-/** Display names for every category, uploaded or issued. */
+// Display names for every category, uploaded or issued.
 export const DOCUMENT_CATEGORY_LABEL: Record<string, string> = {
   offer_letter: 'Offer letter',
   contract: 'Contract / agreement',
@@ -143,27 +108,14 @@ export const DOCUMENT_CATEGORY_LABEL: Record<string, string> = {
   settlement: 'Full & final statement',
 };
 
-/**
- * The label to show for a row, given where its file came from.
- *
- * Only 'experience' needs the distinction — see the note on
- * GENERATED_DOCUMENT_CATEGORIES — but routing every row through one function
- * means a future overlap is handled in one place rather than at each table.
- */
+// The label to show for a row, given where its file came from. Only 'experience' needs the distinction — see the note on GENERATED_DOCUMENT_CATEGORIES — but routing every row through one function means a future overlap is handled in one place rather than at each table.
 export function documentCategoryLabel(category: string | null, issued = false): string {
   if (!category) return '—';
   if (issued && category === 'experience') return 'Experience letter';
   return DOCUMENT_CATEGORY_LABEL[category] ?? category;
 }
 
-/**
- * What every employee is expected to have on file.
- *
- * Drives the "missing" count on /documents and the gaps listed in an
- * employee's drill-down. Deliberately short: it is the joining paperwork the
- * company cannot operate without, not everything it might ever want. A category
- * outside this list is welcome on file but never reported as missing.
- */
+// What every employee is expected to have on file. Drives the "missing" count on /documents and the gaps listed in an employee's drill-down. Deliberately short: it is the joining paperwork the company cannot operate without, not everything it might ever want. A category outside this list is welcome on file but never reported as missing.
 export const REQUIRED_DOCUMENT_CATEGORIES: readonly string[] = [
   'offer_letter',
   'contract',
@@ -171,17 +123,7 @@ export const REQUIRED_DOCUMENT_CATEGORIES: readonly string[] = [
   'bank',
 ];
 
-/**
- * Every Indian state and union territory a branch may be registered in.
- * Must stay in lockstep with the `indian_state` enum (0001, extended in 0040) —
- * the branch form offers these and resolveBranch validates against them, but the
- * database enum has the final word.
- *
- * Note on payroll: professional tax comes from pt_slabs, which only seeds
- * Maharashtra and Gujarat. fn_professional_tax returns 0 when a state has no
- * slab rows, so a branch in any other state computes PT as nil until its slabs
- * are added.
- */
+// Every Indian state and union territory a branch may be registered in. Must stay in lockstep with the `indian_state` enum (0001, extended in 0040) — the branch form offers these and resolveBranch validates against them, but the database enum has the final word. Note on payroll: professional tax comes from pt_slabs, which only seeds Maharashtra and Gujarat. fn_professional_tax returns 0 when a state has no slab rows, so a branch in any other state computes PT as nil until its slabs are added.
 export const INDIAN_STATES = [
   // States (28)
   'Andhra Pradesh',
@@ -223,21 +165,11 @@ export const INDIAN_STATES = [
   'Puducherry',
 ] as const;
 
-// ---------------------------------------------------------------------------
+//
 // Portal navigation model
-// ---------------------------------------------------------------------------
+//
 
-/**
- * Sidebar section headers. Declared as constants rather than typed inline on
- * each row: a free-typed `group: 'Operations'` next to `group: 'Operate'` is
- * how Import ended up alone under its own header, and the compiler could not
- * see it. With NavItem['group'] bound to this object, the same slip is a build
- * error.
- *
- * Each name states a domain ('Attendance', 'Company') rather than a frequency
- * or a shrug — the old 'More' told the reader nothing, so every item under it
- * had to be re-read on each visit.
- */
+// Sidebar section headers. Declared as constants rather than typed inline on each row: a free-typed `group: 'Operations'` next to `group: 'Operate'` is how Import ended up alone under its own header, and the compiler could not see it. With NavItem['group'] bound to this object, the same slip is a build error. Each name states a domain ('Attendance', 'Company') rather than a frequency or a shrug — the old 'More' told the reader nothing, so every item under it had to be re-read on each visit.
 export const GROUPS = {
   ATTENDANCE: 'Attendance',
   WORKFORCE: 'Workforce',
@@ -249,11 +181,7 @@ export const GROUPS = {
 
 export type NavGroup = (typeof GROUPS)[keyof typeof GROUPS];
 
-/**
- * Header order in the sidebar. The renderer walks this list, not NAV, and
- * skips any group whose visible items come to zero — otherwise a role that
- * cannot see Users, Import or Settings still gets a bare 'Admin' heading.
- */
+// Header order in the sidebar. The renderer walks this list, not NAV, and skips any group whose visible items come to zero — otherwise a role that cannot see Users, Import or Settings still gets a bare 'Admin' heading.
 export const GROUP_ORDER: NavGroup[] = [
   GROUPS.ATTENDANCE,
   GROUPS.WORKFORCE,
@@ -269,18 +197,7 @@ export interface NavItem {
   group: NavGroup;
 }
 
-/**
- * Every sidebar row, in render order within its group.
- *
- * `users` and `import` were previously injected by Sidebar.tsx and absent from
- * this list. That split is what let their group names drift, and why 'import'
- * had no TITLES row and no role gate. They are declared here now; Sidebar.tsx
- * must no longer add them itself.
- *
- * 'My account' is deliberately absent — a personal profile is not navigation,
- * and gating it alongside Users would have hidden it from the people who need
- * it most. It belongs in the avatar menu beside Sign out.
- */
+// Every sidebar row, in render order within its group. `users` and `import` were previously injected by Sidebar.tsx and absent from this list. That split is what let their group names drift, and why 'import' had no TITLES row and no role gate. They are declared here now; Sidebar.tsx must no longer add them itself. 'My account' is deliberately absent — a personal profile is not navigation, and gating it alongside Users would have hidden it from the people who need it most. It belongs in the avatar menu beside Sign out.
 export const NAV: NavItem[] = [
   { slug: 'today', label: 'Today', group: GROUPS.ATTENDANCE },
   { slug: 'register', label: 'Monthly register', group: GROUPS.ATTENDANCE },
@@ -311,14 +228,7 @@ export const NAV: NavItem[] = [
   { slug: 'settings', label: 'Settings', group: GROUPS.ADMIN },
 ];
 
-/**
- * Nav items only some roles may see. The page itself re-checks and redirects —
- * this just avoids showing a link that would bounce.
- *
- * 'import' and 'settings' are new entries: both were reachable by every role
- * because Sidebar.tsx injected Import outside this map, and Settings was simply
- * never listed. A plain employee could open 'Rules & thresholds'.
- */
+// Nav items only some roles may see. The page itself re-checks and redirects — this just avoids showing a link that would bounce. 'import' and 'settings' are new entries: both were reachable by every role because Sidebar.tsx injected Import outside this map, and Settings was simply never listed. A plain employee could open 'Rules & thresholds'.
 export const NAV_ROLE_GATED: Record<string, readonly string[]> = {
   audit: ['super_admin', 'admin', 'hr'],
   onboarding: ['super_admin', 'admin', 'hr'],
@@ -364,30 +274,23 @@ export const TITLES: Record<string, [string, string]> = {
   account: ['My account', 'Your profile & password'],
 };
 
-/**
- * Live figures behind the topbar subtitles, resolved by the portal layout (see
- * getTopbarStats). Date labels are pre-formatted on the SERVER so the client
- * cannot hydrate a different day.
- *
- * The interface lives here rather than in queries.ts so the client-side Topbar
- * can import it without dragging a server-only module into the browser bundle.
- */
+// Live figures behind the topbar subtitles, resolved by the portal layout (see getTopbarStats). Date labels are pre-formatted on the SERVER so the client cannot hydrate a different day. The interface lives here rather than in queries.ts so the client-side Topbar can import it without dragging a server-only module into the browser bundle.
 export interface TopbarStats {
-  /** e.g. 'Saturday, 25 July 2026' — today in the business timezone. */
+  // e.g. 'Saturday, 25 July 2026' — today in the business timezone.
   todayLabel: string;
-  /** e.g. 'July 2026' — the current payroll period. */
+  // e.g. 'July 2026' — the current payroll period.
   periodLabel: string;
-  /** Current year in the business timezone. */
+  // Current year in the business timezone.
   year: number;
-  /** Active head-count, or null when the lookup failed. */
+  // Active head-count, or null when the lookup failed.
   activeEmployees: number | null;
-  /** Branch names, for the '· Pune & Vadodara' tail. */
+  // Branch names, for the '· Pune & Vadodara' tail.
   branches: string[];
-  /** Requests awaiting a decision, or null when the lookup failed. */
+  // Requests awaiting a decision, or null when the lookup failed.
   pendingApprovals: number | null;
-  /** payroll_runs.status for the current period; null when there is no run. */
+  // payroll_runs.status for the current period; null when there is no run.
   runStatus: string | null;
-  /** Configured auto punch-out time, already formatted ('11:00 PM'). */
+  // Configured auto punch-out time, already formatted ('11:00 PM').
   nightSweep: string | null;
 }
 
@@ -398,11 +301,7 @@ const RUN_STATUS_LABEL: Record<string, string> = {
   paid: 'paid',
 };
 
-/**
- * Title + subtitle for a page. Falls back to the static TITLES row whenever the
- * figure behind a subtitle is unavailable, so a failed count degrades to a plain
- * description rather than to a wrong number.
- */
+// Title + subtitle for a page. Falls back to the static TITLES row whenever the figure behind a subtitle is unavailable, so a failed count degrades to a plain description rather than to a wrong number.
 export function pageHeader(slug: string, stats?: TopbarStats | null): [string, string] {
   const [title, fallback] = TITLES[slug] ?? ['', ''];
   if (!stats) return [title, fallback];

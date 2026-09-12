@@ -1,6 +1,6 @@
 'use server';
 
-// ============================================================================
+//
 // Onboarding checklists.
 //
 // A joiner's first week was tribal knowledge: someone remembered to chase the
@@ -11,7 +11,7 @@
 // Templates are COPIED into onboarding_tasks at start, never referenced live —
 // editing a template must not rewrite the history of joiners already in flight
 // (the 0037 table comment is explicit about this).
-// ============================================================================
+//
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { requireRoles, wroteNothing } from '@/lib/actions/_guard';
@@ -27,16 +27,7 @@ const ONBOARDING_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 const TASK_STATUSES = ['pending', 'done', 'blocked'] as const;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/**
- * Copy a template's items onto an employee as their checklist.
- *
- * Idempotent in practice: if the employee already has tasks we leave them alone
- * rather than duplicating the list — HR clicking "start onboarding" twice is a
- * mis-click, not a request for eighteen tasks.
- *
- * `templateId` is optional; the newest ACTIVE template is used when omitted, so
- * `createEmployee` can call this with no knowledge of template ids.
- */
+// Copy a template's items onto an employee as their checklist. Idempotent in practice: if the employee already has tasks we leave them alone rather than duplicating the list — HR clicking "start onboarding" twice is a mis-click, not a request for eighteen tasks. `templateId` is optional; the newest ACTIVE template is used when omitted, so `createEmployee` can call this with no knowledge of template ids.
 export async function startOnboarding(
   employeeId: string,
   templateId?: string,

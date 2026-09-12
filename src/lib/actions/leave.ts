@@ -1,6 +1,6 @@
 'use server';
 
-// ============================================================================
+//
 // Paid-leave pool: annual provisioning and audited manual adjustments.
 //
 // Since the leave-salary policy there is ONE pool — PL, 15
@@ -11,7 +11,7 @@
 // Every write here is staff-gated at the app layer AND by the collection's
 // write policy. The settle routine carries its own authorisation check in the
 // body as well, because it runs with the caller's scope already resolved.
-// ============================================================================
+//
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
@@ -26,18 +26,12 @@ export interface ActionResult {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Sanity bound on a leave year — a typo'd 20265 must not provision anything. */
+// Sanity bound on a leave year — a typo'd 20265 must not provision anything.
 function validYear(y: number): boolean {
   return Number.isInteger(y) && y >= 2000 && y <= 2100;
 }
 
-/**
- * Open a leave year: credit each employee still on the roster the annual
- * paid-leave entitlement (15 days since 0038; PL only).
- *
- * Idempotent by construction (the SQL uses `on conflict do nothing`), so
- * re-running for the same year credits nobody twice — it just reports 0 created.
- */
+// Open a leave year: credit each employee still on the roster the annual paid-leave entitlement (15 days since 0038; PL only). Idempotent by construction (the SQL uses `on conflict do nothing`), so re-running for the same year credits nobody twice — it just reports 0 created.
 export async function provisionLeaveYear(year: number): Promise<ActionResult & { created?: number }> {
   const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Provisioning leave balances');
   if (!gate.ok) return gate;

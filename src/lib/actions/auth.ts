@@ -1,10 +1,10 @@
 'use server';
 
-// ============================================================================
+//
 // Sign in and sign out. Replaces the GoTrue calls that lived here.
 //
 // Runs on Node, not the edge: verifying a password needs node:crypto's scrypt.
-// ============================================================================
+//
 import { redirect } from 'next/navigation';
 import { homeForRole } from '@/lib/auth';
 import { isAuthConfigured } from '@/lib/auth/jwt';
@@ -23,11 +23,7 @@ export interface SignInState {
   error?: string;
 }
 
-/**
- * One message for every credential failure — unknown email, wrong password,
- * disabled account. Telling them apart is a free account-enumeration oracle,
- * and none of the three is something the visitor can act on differently.
- */
+// One message for every credential failure — unknown email, wrong password, disabled account. Telling them apart is a free account-enumeration oracle, and none of the three is something the visitor can act on differently.
 const BAD_CREDENTIALS = 'That email and password do not match an account.';
 
 export async function signIn(_prev: SignInState, formData: FormData): Promise<SignInState> {
@@ -70,13 +66,7 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
   redirect((safeNext ?? homeForRole(user.role)) as Parameters<typeof redirect>[0]);
 }
 
-/**
- * Sign out everywhere, not just here.
- *
- * Clearing the cookie only affects this browser, and the token stays valid for
- * the rest of its year. Bumping token_version is what actually revokes it, so
- * a copy taken from a shared machine stops working too.
- */
+// Sign out everywhere, not just here. Clearing the cookie only affects this browser, and the token stays valid for the rest of its year. Bumping token_version is what actually revokes it, so a copy taken from a shared machine stops working too.
 export async function signOut() {
   const { userId } = await getSession();
   if (userId) await revokeAllSessions(userId);

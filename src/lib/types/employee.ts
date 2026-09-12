@@ -5,20 +5,20 @@
 // would drag server-only code toward the browser bundle. @/lib/tv imports FROM
 // here, never the other way round.
 
-/** Where an employee stands right now. */
+// Where an employee stands right now.
 export type Presence =
-  /** punched in and still on the clock */
+  // punched in and still on the clock
   | 'in'
-  /** punched today, currently clocked out (gone home, or on a break) */
+  // punched today, currently clocked out (gone home, or on a break)
   | 'out'
-  /** leave, week off, holiday or comp off — not expected in */
+  // leave, week off, holiday or comp off — not expected in
   | 'off'
-  /** expected in, no punch yet today */
+  // expected in, no punch yet today
   | 'awaited'
-  /** on leave */
+  // on leave
   | 'leave';
 
-/** One employee as the board renders them. */
+// One employee as the board renders them.
 export interface EmployeeData {
   id: string;
   code: string;
@@ -27,14 +27,14 @@ export interface EmployeeData {
   department: string | null;
   branch: string | null;
   presence: Presence;
-  /** ISO timestamp of the last punch today, or null. */
+  // ISO timestamp of the last punch today, or null.
   lastPunchAt: string | null;
   lastKind: 'in' | 'out' | null;
-  /** true at office, false off-site, null when the punch was not classified. */
+  // true at office, false off-site, null when the punch was not classified.
   withinGeofence: boolean | null;
-  /** Minutes closed out today (an open session is not included). */
+  // Minutes closed out today (an open session is not included).
   workedMinutes: number;
-  /** The attendance_days status for today: 'P', 'L', 'WO'… or null. */
+  // The attendance_days status for today: 'P', 'L', 'WO'… or null.
   dayStatus: string | null;
 }
 
@@ -48,9 +48,9 @@ export interface BoardTotals {
 }
 
 export interface BoardData {
-  /** ISO date in the business timezone. */
+  // ISO date in the business timezone.
   date: string;
-  /** ISO timestamp the board was generated — the "as of" clock on screen. */
+  // ISO timestamp the board was generated — the "as of" clock on screen.
   generatedAt: string;
   rows: EmployeeData[];
   totals: BoardTotals;

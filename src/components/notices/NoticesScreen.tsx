@@ -19,7 +19,7 @@ export function NoticesScreen({
   branchNames = [],
 }: {
   notices: NoticeView[];
-  /** Real branch names from the DB — was a hardcoded Pune/Vadodara pair. */
+  // Real branch names from the DB — was a hardcoded Pune/Vadodara pair.
   branchNames?: string[];
 }) {
   const [editing, setEditing] = useState<NoticeView | null>(null);

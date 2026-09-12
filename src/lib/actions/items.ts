@@ -12,7 +12,7 @@ import { todayIST } from '@/lib/format';
 // Item Management is super-admin/admin/HR — same gate as assets and user admin.
 const ITEM_ADMIN_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
-/** Pull the item columns from the form; blank strings become null. */
+// Pull the item columns from the form; blank strings become null.
 function itemFields(formData: FormData) {
   const text = (k: string) => {
     const v = String(formData.get(k) ?? '').trim();

@@ -32,7 +32,7 @@ const ROLE_LABEL: Record<AppRole, string> = {
 // Highest tier first — mirrors ROLE_TIER in lib/actions/users.ts.
 const ROLE_ORDER: AppRole[] = ['super_admin', 'admin', 'hr', 'employee', 'intern'];
 
-/** Mirrors ROLE_TIER in lib/actions/users.ts — the server is the real gate. */
+// Mirrors ROLE_TIER in lib/actions/users.ts — the server is the real gate.
 const ROLE_TIER: Record<AppRole, number> = {
   super_admin: 3,
   admin: 2,
@@ -70,7 +70,7 @@ export function UsersScreen({
   users: ManagedUser[];
   employees: EmployeeOption[];
   callerRole: AppRole;
-  /** The signed-in user's own id, so self-destructive actions are disabled. */
+  // The signed-in user's own id, so self-destructive actions are disabled.
   selfId: string | null;
   loadError: string | null;
 }) {

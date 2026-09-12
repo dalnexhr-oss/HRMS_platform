@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Client-side payslip document renderer.
 //
 // Builds a self-contained, print-styled HTML payslip from a PayslipRow already
@@ -7,12 +7,12 @@
 // staff payroll table and the employee self-service dashboard — no server route
 // and no fetch-by-id, because the row it is handed already carries every figure
 // it prints.
-// ============================================================================
+//
 import { inr } from '@/lib/format';
 import type { PayslipRow } from '@/types/domain';
 import { COMPANY } from '@/lib/brand/company';
 
-/** 'YYYY-MM-01' -> 'June 2026'; falls back gracefully. */
+// 'YYYY-MM-01' -> 'June 2026'; falls back gracefully.
 function monthLabel(periodMonth: string | null): string {
   if (!periodMonth) return 'Pay period';
   const d = new Date(`${periodMonth.slice(0, 7)}-01T00:00:00Z`);

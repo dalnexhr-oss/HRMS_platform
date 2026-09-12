@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // The value each field takes when an insert omits it. Maintained by hand.
 //
 // Postgres applied a column DEFAULT when an INSERT omitted it; MongoDB has no
@@ -11,19 +11,19 @@
 // that needs a default, add it here too, and give it the BSON type the
 // validator in scripts/schema.generated.mjs declares — money must be
 // Decimal128, not a bare number, or the insert fails validation.
-// ============================================================================
+//
 import { Decimal128 } from 'mongodb';
 
-/** Marker for `now()` — resolved per insert, never at module load. */
+// Marker for `now()` — resolved per insert, never at module load.
 export const NOW = Symbol('now');
-/** Marker for `current_date` — an IST calendar date, as `YYYY-MM-DD`. */
+// Marker for `current_date` — an IST calendar date, as `YYYY-MM-DD`.
 export const TODAY = Symbol('today');
 
 const money = (v: string): Decimal128 => Decimal128.fromString(v);
 
 export type DefaultValue = string | number | boolean | Decimal128 | object | symbol;
 
-/** collection -> field -> the value Postgres would have supplied. */
+// collection -> field -> the value Postgres would have supplied.
 export const COLUMN_DEFAULTS: Record<string, Record<string, DefaultValue>> = {
   acknowledgements: {
     signed_at: NOW,

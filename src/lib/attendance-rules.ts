@@ -1,22 +1,22 @@
-// ============================================================================
+//
 // Shared attendance rules. SERVER ONLY (reads the settings table).
 //
 // Auto punch-out: when an employee punches in but never punches out, the day is
 // closed at a configured time (default 18:00) rather than left open — an open
 // day otherwise reads as zero worked minutes and silently inflates the payroll
 // hours-shortfall deduction. Applied in BOTH directions:
-//   * the register import (uploaded sheets with a blank Out cell), and
-//   * the night sweep (live punches left open).
-// ============================================================================
+// the register import (uploaded sheets with a blank Out cell), and
+// the night sweep (live punches left open).
+//
 import { createClient } from '@/lib/db/server';
 import { isMongoConfigured } from '@/lib/db/mongo';
 
-/** 18:00 in minutes since midnight — the documented default. */
+// 18:00 in minutes since midnight — the documented default.
 export const AUTO_PUNCH_OUT_DEFAULT_MIN = 18 * 60;
 
 const MINUTES_PER_DAY = 1440;
 
-/** 'HH:MM' (or 'HH:MM:SS') -> minutes since midnight, or null. */
+// 'HH:MM' (or 'HH:MM:SS') -> minutes since midnight, or null.
 export function clockToMinutes(value: unknown): number | null {
   if (typeof value !== 'string') return null;
   const m = /^(\d{1,2}):(\d{2})/.exec(value.trim());
@@ -25,7 +25,7 @@ export function clockToMinutes(value: unknown): number | null {
   return Number.isFinite(mins) && mins >= 0 && mins < MINUTES_PER_DAY ? mins : null;
 }
 
-/** minutes since midnight -> 'HH:MM'. */
+// minutes since midnight -> 'HH:MM'.
 export function minutesToClock(mins: number): string {
   const m = ((Math.round(mins) % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;

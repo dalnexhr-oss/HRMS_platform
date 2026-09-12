@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Generate RFC 5545 .ics calendar files (OUTBOUND).
 //
 // This is the mirror of `holidays/googleCalendar.ts`, which PARSES an inbound
@@ -7,90 +7,65 @@
 // import into Google Calendar / Outlook / Apple Calendar.
 //
 // Why hand-roll instead of pulling an ics library:
-//   1. We emit a tiny, fixed subset — all-day VEVENTs with UID/SUMMARY/
-//      DESCRIPTION. Every npm option ships timezone databases and RRULE engines
-//      we will never touch, for a format that is ~40 lines of string building.
-//   2. Calendar clients are unforgiving about the two things that actually
-//      matter — CRLF line endings and 75-OCTET line folding — and both are
-//      easier to get right (and to unit test) in code we own than to debug
-//      through a dependency.
-//   3. It stays pure. No fetch, no database, no next/*. That means an API route,
-//      a server action, a cron job or a test can all import it, and the same
-//      inputs always produce byte-identical output (callers pass `timestamp`).
+// 1. We emit a tiny, fixed subset — all-day VEVENTs with UID/SUMMARY/
+// DESCRIPTION. Every npm option ships timezone databases and RRULE engines
+// we will never touch, for a format that is ~40 lines of string building.
+// 2. Calendar clients are unforgiving about the two things that actually
+// matter — CRLF line endings and 75-OCTET line folding — and both are
+// easier to get right (and to unit test) in code we own than to debug
+// through a dependency.
+// 3. It stays pure. No fetch, no database, no next/*. That means an API route,
+// a server action, a cron job or a test can all import it, and the same
+// inputs always produce byte-identical output (callers pass `timestamp`).
 //
 // The two rules that break real calendars if you get them wrong:
-//   * DTEND IS EXCLUSIVE for DATE values. A one-day holiday on 2026-08-15 has
-//     DTEND;VALUE=DATE:20260816. Emitting 20260815 makes Google silently drop
-//     the event or render a zero-length blip; emitting the inclusive end of a
-//     multi-day range paints one day short. See buildEvent() below.
-//   * Folding is counted in OCTETS, not JS characters. "Diwali — दीपावली" is
-//     far more bytes than `String.length` suggests, and folding on character
-//     count produces lines over 75 octets that strict parsers reject. Worse,
-//     naively slicing a JS string can cut a surrogate pair in half.
+// DTEND IS EXCLUSIVE for DATE values. A one-day holiday on 2026-08-15 has
+// DTEND;VALUE=DATE:20260816. Emitting 20260815 makes Google silently drop
+// the event or render a zero-length blip; emitting the inclusive end of a
+// multi-day range paints one day short. See buildEvent() below.
+// Folding is counted in OCTETS, not JS characters. "Diwali — दीपावली" is
+// far more bytes than `String.length` suggests, and folding on character
+// count produces lines over 75 octets that strict parsers reject. Worse,
+// naively slicing a JS string can cut a surrogate pair in half.
 //
 // SAFE ANYWHERE (pure string functions, no I/O, no server-only imports).
-// ============================================================================
+//
 
-/** RFC 5545 §3.1: content lines are delimited by CRLF, never a bare LF. */
+// RFC 5545 §3.1: content lines are delimited by CRLF, never a bare LF.
 const CRLF = '\r\n';
 
-/** RFC 5545 §3.1: lines SHOULD NOT be longer than 75 octets, excluding CRLF. */
+// RFC 5545 §3.1: lines SHOULD NOT be longer than 75 octets, excluding CRLF.
 const MAX_OCTETS = 75;
 
-/** Identifies the product that wrote the file. Free text, but must be present. */
+// Identifies the product that wrote the file. Free text, but must be present.
 const PRODID = '-//Dalnex LLP//HRMS Calendar 1.0//EN';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** RFC 5545 UTC date-time, e.g. '20260729T101530Z'. */
+// RFC 5545 UTC date-time, e.g. '20260729T101530Z'.
 const ICS_STAMP = /^\d{8}T\d{6}Z$/;
 
 export interface CalendarEvent {
-  /**
-   * Globally unique, STABLE id for this event. Re-exporting the same holiday
-   * must reuse the same UID, otherwise subscribers accumulate duplicates
-   * instead of seeing an update. Prefer `${table}-${row.id}@dalnex-hrms`.
-   */
+  // Globally unique, STABLE id for this event. Re-exporting the same holiday must reuse the same UID, otherwise subscribers accumulate duplicates instead of seeing an update. Prefer `${table}-${row.id}@dalnex-hrms`.
   uid: string;
-  /** First day, 'YYYY-MM-DD'. */
+  // First day, 'YYYY-MM-DD'.
   start: string;
-  /**
-   * INCLUSIVE last day, 'YYYY-MM-DD'. Omit for a single-day event. This is the
-   * human meaning of "leave until the 20th"; the +1 conversion to RFC 5545's
-   * exclusive DTEND happens inside buildIcs so callers never have to think
-   * about it.
-   */
+  // INCLUSIVE last day, 'YYYY-MM-DD'. Omit for a single-day event. This is the human meaning of "leave until the 20th"; the +1 conversion to RFC 5545's exclusive DTEND happens inside buildIcs so callers never have to think about it.
   end?: string | null;
   summary: string;
   description?: string | null;
-  /**
-   * Defaults to true. Our event model carries dates only — no clock time — so
-   * all-day is the correct and normal shape for holidays, leave and WFH.
-   * Passing false emits a *floating* midnight-to-midnight DATE-TIME instead
-   * (no TZID, so each client renders it in its own local time), which is
-   * occasionally what an importer expects.
-   */
+  // Defaults to true. Our event model carries dates only — no clock time — so all-day is the correct and normal shape for holidays, leave and WFH. Passing false emits a *floating* midnight-to-midnight DATE-TIME instead (no TZID, so each client renders it in its own local time), which is occasionally what an importer expects.
   allDay?: boolean;
 }
 
 export interface BuildIcsOptions {
-  /** Shown as the calendar's name in most clients via X-WR-CALNAME. */
+  // Shown as the calendar's name in most clients via X-WR-CALNAME.
   calName?: string;
-  /**
-   * DTSTAMP for every VEVENT, as 'YYYYMMDDTHHMMSSZ' or any ISO-8601 string.
-   * Callers should pass this: it is the only non-deterministic input, so
-   * supplying it makes the output byte-stable and therefore testable (and lets
-   * an HTTP handler reuse one timestamp across a whole export).
-   */
+  // DTSTAMP for every VEVENT, as 'YYYYMMDDTHHMMSSZ' or any ISO-8601 string. Callers should pass this: it is the only non-deterministic input, so supplying it makes the output byte-stable and therefore testable (and lets an HTTP handler reuse one timestamp across a whole export).
   timestamp?: string;
 }
 
-/**
- * UTF-8 byte length of a string.
- *
- * `for…of` iterates by code point, so an astral character (emoji, some Indic
- * conjuncts) is measured once as 4 octets rather than twice as a surrogate.
- */
+// UTF-8 byte length of a string. `for…of` iterates by code point, so an astral character (emoji, some Indic conjuncts) is measured once as 4 octets rather than twice as a surrogate.
 function octetLength(text: string): number {
   let n = 0;
   for (const ch of text) {
@@ -100,14 +75,7 @@ function octetLength(text: string): number {
   return n;
 }
 
-/**
- * Split a line into the smallest units a fold may not break apart: one code
- * point, or a backslash escape kept with the character it escapes.
- *
- * Unfolding formally happens before unescaping, so splitting `\,` across a fold
- * is legal — but enough clients mis-handle it that keeping escape pairs atomic
- * is free insurance. Grouping never costs more than one extra octet.
- */
+// Split a line into the smallest units a fold may not break apart: one code point, or a backslash escape kept with the character it escapes. Unfolding formally happens before unescaping, so splitting `\,` across a fold is legal — but enough clients mis-handle it that keeping escape pairs atomic is free insurance. Grouping never costs more than one extra octet.
 function tokenize(line: string): string[] {
   const chars = Array.from(line);
   const tokens: string[] = [];
@@ -122,16 +90,7 @@ function tokenize(line: string): string[] {
   return tokens;
 }
 
-/**
- * Throw a readable error rather than emitting a calendar with a broken date.
- *
- * The shape check alone is not enough: '2026-02-30' and '2026-13-01' both match
- * the regex, and Date.UTC would silently roll them forward into March / next
- * January — so the file would look valid while every subscriber saw the wrong
- * day. The round-trip below rejects them at the source instead. It also rejects
- * years under 100, where Date.UTC's legacy two-digit-year rule maps 0026 to
- * 1926 and would corrupt addDays() the same way.
- */
+// Throw a readable error rather than emitting a calendar with a broken date. The shape check alone is not enough: '2026-02-30' and '2026-13-01' both match the regex, and Date.UTC would silently roll them forward into March / next January — so the file would look valid while every subscriber saw the wrong day. The round-trip below rejects them at the source instead. It also rejects years under 100, where Date.UTC's legacy two-digit-year rule maps 0026 to 1926 and would corrupt addDays() the same way.
 function assertIsoDate(value: string, field: string): void {
   if (!ISO_DATE.test(value)) {
     throw new Error(`Calendar ${field} must be 'YYYY-MM-DD', got '${value}'.`);

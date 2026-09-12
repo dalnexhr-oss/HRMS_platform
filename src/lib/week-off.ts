@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // The week-off schedule — which calendar days are scheduled off.
 //
 // Dalnex works the **2nd and 4th Saturday** of each month; the 1st, 3rd and 5th
@@ -7,16 +7,16 @@
 //
 // This module is the single implementation. It is PURE — no database, no React —
 // so the register, the comp-off check and any future scheduler all agree.
-// ============================================================================
+//
 
 export interface WeekOffPolicy {
-  /** Weekdays always off, JS getUTCDay(): 0=Sunday … 6=Saturday. */
+  // Weekdays always off, JS getUTCDay(): 0=Sunday … 6=Saturday.
   weekOffWeekdays: number[];
-  /** Saturdays of the month that ARE worked (1=first … 5=fifth). */
+  // Saturdays of the month that ARE worked (1=first … 5=fifth).
   workingSaturdays: number[];
 }
 
-/** Sundays off; Saturdays off except the 2nd and 4th, which are worked. */
+// Sundays off; Saturdays off except the 2nd and 4th, which are worked.
 export const DEFAULT_WEEK_OFF_POLICY: WeekOffPolicy = {
   weekOffWeekdays: [0, 6],
   workingSaturdays: [2, 4],
@@ -24,17 +24,14 @@ export const DEFAULT_WEEK_OFF_POLICY: WeekOffPolicy = {
 
 const SATURDAY = 6;
 
-/** Parse a settings jsonb value into a number[], or null when unusable. */
+// Parse a settings jsonb value into a number[], or null when unusable.
 function numberList(value: unknown): number[] | null {
   if (!Array.isArray(value)) return null;
   const out = value.map(Number).filter((n) => Number.isFinite(n));
   return out.length === value.length ? out : null;
 }
 
-/**
- * Build a policy from raw settings values, falling back per-field so one bad
- * setting can't silently disable the whole schedule.
- */
+// Build a policy from raw settings values, falling back per-field so one bad setting can't silently disable the whole schedule.
 export function policyFromSettings(
   weekOffWeekdays: unknown,
   workingSaturdays: unknown,
@@ -45,7 +42,7 @@ export function policyFromSettings(
   };
 }
 
-/** 'YYYY-MM-DD' -> a UTC Date, or null when unparseable. */
+// 'YYYY-MM-DD' -> a UTC Date, or null when unparseable.
 function utcDate(dateISO: string): Date | null {
   const d = new Date(`${dateISO}T00:00:00Z`);
   return Number.isNaN(d.getTime()) ? null : d;

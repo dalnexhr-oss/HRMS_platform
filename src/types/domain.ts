@@ -1,9 +1,9 @@
-// ============================================================================
+//
 // Derived / joined shapes used by the UI (views, aggregates, joins).
-// ============================================================================
+//
 import type { AttendanceStatus, Gender, IndianState } from './database';
 
-/** A register row: employee + monthly summary + 30-day strip. */
+// A register row: employee + monthly summary + 30-day strip.
 export interface RegisterEmployee {
   id: string;
   code: string;
@@ -34,14 +34,14 @@ export interface DayCell {
   isWeekOff: boolean;
 }
 
-/** A payslip joined to its employee for the payroll table. */
+// A payslip joined to its employee for the payroll table.
 export interface PayslipRow {
   id: string;
   code: string;
   name: string;
   branch: string;
   state: IndianState;
-  /** 'YYYY-MM-01' pay-period, so payslips label by month rather than position. */
+  // 'YYYY-MM-01' pay-period, so payslips label by month rather than position.
   periodMonth: string | null;
   payableDays: number;
   earnedGross: number;
@@ -57,14 +57,14 @@ export interface PayslipRow {
   professionalTax: number;
   netPayable: number;
   shortfallMinutes: number;
-  /** Manual adjustments (payslip_adjustments) — 0 when none are saved. */
+  // Manual adjustments (payslip_adjustments) — 0 when none are saved.
   advanceRecovery: number;
   lossDamage: number;
   otherDeductions: number;
-  /** ± carry-over: positive is an addition, negative a deduction. */
+  // ± carry-over: positive is an addition, negative a deduction.
   lastMonthBalance: number;
   reimbursementBonus: number;
-  /** Dedicated bonus payout (0042) — separate from reimbursement. */
+  // Dedicated bonus payout (0042) — separate from reimbursement.
   bonus: number;
 }
 

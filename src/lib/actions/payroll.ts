@@ -1,6 +1,6 @@
 'use server';
 
-// ============================================================================
+//
 // Payroll run actions: compute drafts, lock, mark paid, and edit the manual
 // adjustments that feed net_payable.
 //
@@ -13,7 +13,7 @@
 // src/lib/db/payroll.ts, registered as RPCs; they refuse an illegal transition
 // with an explicit message, and those are passed through to
 // the operator verbatim — they are the whole point of the guard.
-// ============================================================================
+//
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { isMongoConfigured } from '@/lib/db/mongo';
@@ -23,18 +23,10 @@ import type { Decimal128 } from 'mongodb';
 import { toMoney } from '@/lib/db/money';
 import type { AppRole, PayrollStatus } from '@/types/database';
 
-/**
- * Roles allowed to move money. Deliberately NOT `STAFF_ROLES` from @/lib/auth:
- * that is the portal READ set, and gating on it let a reader through to writes
- * the policy layer then filtered to zero rows — a write that reports success
- * and changes nothing. An explicit set turns that into an honest, explained
- * refusal.
- *
- * Matches _guard.ts WRITE_ROLES: super_admin, admin, hr.
- */
+// Roles allowed to move money. Deliberately NOT `STAFF_ROLES` from @/lib/auth: that is the portal READ set, and gating on it let a reader through to writes the policy layer then filtered to zero rows — a write that reports success and changes nothing. An explicit set turns that into an honest, explained refusal. Matches _guard.ts WRITE_ROLES: super_admin, admin, hr.
 const PAYROLL_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
-/** A run in one of these states is history; recompute/adjust must refuse. */
+// A run in one of these states is history; recompute/adjust must refuse.
 const FROZEN: readonly PayrollStatus[] = ['locked', 'paid'];
 
 interface PgError {
@@ -44,17 +36,14 @@ interface PgError {
   code?: string;
 }
 
-/**
- * Flatten a query error into one readable line. The summary arrives in
- * `message`; some errors put the useful half in `hint`/`details` instead.
- */
+// Flatten a query error into one readable line. The summary arrives in `message`; some errors put the useful half in `hint`/`details` instead.
 function pgMessage(error: PgError): string {
   return [error.message, error.details, error.hint].filter(Boolean).join(' — ');
 }
 
 type Gate = { ok: true; profileId: string } | { ok: false; error: string };
 
-/** Resolve the caller and prove they may run payroll. */
+// Resolve the caller and prove they may run payroll.
 async function gate(): Promise<Gate> {
   if (!isMongoConfigured()) {
     return {
@@ -75,7 +64,7 @@ async function gate(): Promise<Gate> {
   return { ok: true, profileId: profile.id };
 }
 
-/** Turn a thrown error (getSession, network, …) into a returned one. */
+// Turn a thrown error (getSession, network, …) into a returned one.
 function caught(context: string, e: unknown): { ok: false; error: string } {
   const message = e instanceof Error ? e.message : String(e);
   return { ok: false, error: `${context}: ${message}` };

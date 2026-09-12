@@ -1,9 +1,9 @@
-// ============================================================================
+//
 // Statutory filing builders — PF ECR, ESIC contribution, Professional Tax.
 // SERVER ONLY. Reads payslips joined to employee statutory identifiers and emits
 // the filing artifacts. These are DRAFTS to reconcile against the EPFO/ESIC/state
 // portals before submission — the wage bases follow the app's confirmed rules.
-// ============================================================================
+//
 import ExcelJS from 'exceljs';
 import { createClient } from '@/lib/db/server';
 import { monthTitle } from '@/lib/excel/buildWorkbook';
@@ -25,7 +25,7 @@ export interface StatutoryRow {
   professionalTax: number;
 }
 
-/** EPS wage ceiling (₹15,000) and EPS rate (8.33%). */
+// EPS wage ceiling (₹15,000) and EPS rate (8.33%).
 const EPS_CEILING = 15000;
 const EPS_RATE = 0.0833;
 
@@ -152,9 +152,9 @@ function header(row: ExcelJS.Row): void {
   row.font = { bold: true };
 }
 
-// --------------------------------------------------------------------- ESIC ---
+// --------------------------------------------------------------------- ESIC
 
-/** ESIC monthly contribution as .xlsx — covered employees only (esic_employee > 0). */
+// ESIC monthly contribution as .xlsx — covered employees only (esic_employee > 0).
 export async function buildEsicXlsx(rows: StatutoryRow[], periodMonth: string): Promise<Uint8Array> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Dalnex HRMS';

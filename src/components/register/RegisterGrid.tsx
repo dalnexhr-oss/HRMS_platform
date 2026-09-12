@@ -10,24 +10,17 @@ import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import type { DayCell, RegisterEmployee } from '@/types/domain';
 
-/** Statuses that mean the day was scheduled off — mirrors OFF_DAY_STATUSES. */
+// Statuses that mean the day was scheduled off — mirrors OFF_DAY_STATUSES.
 const OFF_DAY_STATUSES = new Set(['WO', 'OH']);
 
-/**
- * A comp off is owed when a day off carries real work.
- *
- * "Day off" is either stamp-based (WO/OH) or schedule-based (`scheduledOff` —
- * a Sunday or a 1st/3rd/5th Saturday). The schedule arm matters: an employee who
- * works a non-working Saturday is often stamped plain 'P', so a stamp-only check
- * would miss exactly the case this feature exists for.
- */
+// A comp off is owed when a day off carries real work. "Day off" is either stamp-based (WO/OH) or schedule-based (`scheduledOff` — a Sunday or a 1st/3rd/5th Saturday). The schedule arm matters: an employee who works a non-working Saturday is often stamped plain 'P', so a stamp-only check would miss exactly the case this feature exists for.
 export function isCompOffEligible(cell: DayCell | undefined, scheduledOff = false): boolean {
   if (!cell) return false;
   if (!OFF_DAY_STATUSES.has(cell.status) && !scheduledOff) return false;
   return cell.in !== null || (cell.hours !== null && cell.hours !== '00:00');
 }
 
-/** Stable key for "this employee, this day". */
+// Stable key for "this employee, this day".
 function compOffKey(employeeId: string, workDate: string): string {
   return `${employeeId}|${workDate}`;
 }

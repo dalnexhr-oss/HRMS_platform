@@ -25,7 +25,7 @@ const POP_W_DATE = 274;
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}/;
 
-/** An ISO day (or the day part of a timestamp) -> epoch ms. NaN-safe. */
+// An ISO day (or the day part of a timestamp) -> epoch ms. NaN-safe.
 function dateValue(v: string): number {
   const iso = ISO_DAY.exec(v);
   const t = Date.parse(iso ? `${iso[0]}T00:00:00` : v);

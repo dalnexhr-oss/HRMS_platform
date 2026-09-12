@@ -4,8 +4,7 @@ import { getAssets, getAssetSummary, getEmployeeOptions } from '@/lib/queries';
 import { getSession } from '@/lib/auth';
 import type { AppRole } from '@/types/database';
 
-// Asset Management is admin/HR only. Anyone else is bounced (the nav link is also
-// hidden for them via NAV_ROLE_GATED).
+// Asset Management is accessible to super_admin/admin/HR .
 const ASSET_ADMIN_ROLES: AppRole[] = ["super_admin", "admin", "hr"];
 
 export default async function AssetsPage() {

@@ -1,22 +1,22 @@
 'use server';
 
-// ============================================================================
+//
 // In-app e-signature.
 //
 // A signature is only evidence if the signer controls neither WHEN nor FROM
 // WHERE it was recorded. So:
-//   * `signed_at` is NEVER sent from here — the column default fires
-//     server-side, so the stored value is the server's clock and not the
-//     caller's. A crafted request cannot backdate a signature even if it
-//     bypasses this file entirely.
-//   * `ip` / `user_agent` are read from the REQUEST headers server-side, never
-//     accepted as arguments.
-//   * The table is append-only: no UPDATE or DELETE policy exists for any role,
-//     and staff may READ but never INSERT — a signature HR could forge proves
-//     nothing.
+// `signed_at` is NEVER sent from here — the column default fires
+// server-side, so the stored value is the server's clock and not the
+// caller's. A crafted request cannot backdate a signature even if it
+// bypasses this file entirely.
+// `ip` / `user_agent` are read from the REQUEST headers server-side, never
+// accepted as arguments.
+// The table is append-only: no UPDATE or DELETE policy exists for any role,
+// and staff may READ but never INSERT — a signature HR could forge proves
+// nothing.
 //
 // What the employee supplies is exactly one thing: their typed name.
-// ============================================================================
+//
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/db/server';
@@ -28,17 +28,11 @@ export interface ActionResult {
   error?: string;
 }
 
-/** Document kinds that may be acknowledged. Free text in the DB; bounded here. */
+// Document kinds that may be acknowledged. Free text in the DB; bounded here.
 const KINDS = ['policy', 'offer_letter', 'handbook', 'asset_declaration', 'fnf'] as const;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/**
- * Record the signed-in employee's acknowledgement of a document.
- *
- * `documentId` is optional — some acknowledgements (a handbook with no row of its
- * own) are free-standing. The unique index only applies when it is present, so a
- * genuinely re-issued document gets a new id and can be signed again.
- */
+// Record the signed-in employee's acknowledgement of a document. `documentId` is optional — some acknowledgements (a handbook with no row of its own) are free-standing. The unique index only applies when it is present, so a genuinely re-issued document gets a new id and can be signed again.
 export async function acknowledgeDocument(input: {
   kind: string;
   documentId?: string | null;

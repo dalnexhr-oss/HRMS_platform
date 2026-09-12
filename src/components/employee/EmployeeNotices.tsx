@@ -15,9 +15,9 @@ export function EmployeeNotices({
   canMark = false,
 }: {
   notices: NoticeView[];
-  /** Ids the employee has already marked read. */
+  // Ids the employee has already marked read.
   readIds?: string[];
-  /** False when the login isn't linked to an employee (can't record a read). */
+  // False when the login isn't linked to an employee (can't record a read).
   canMark?: boolean;
 }) {
   if (!notices.length) {

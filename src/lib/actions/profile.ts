@@ -1,8 +1,8 @@
 'use server';
 
-// ============================================================================
+//
 // The signed-in user's own profile edits. Currently just the avatar.
-// ============================================================================
+//
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
@@ -19,13 +19,7 @@ export interface ActionResult {
 const MAX_DATA_URL_LEN = 500_000;
 const DATA_URL_RE = /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/]+=*$/;
 
-/**
- * Set (or clear) the current user's avatar.
- *   null            → remove (fall back to initials)
- *   'preset:<id>'   → a bundled shadcn avatar image
- *   'data:image/…'  → a small, client-resized photo
- * Anything else is rejected.
- */
+// Set (or clear) the current user's avatar. null → remove (fall back to initials) 'preset:<id>' → a bundled shadcn avatar image 'data:image/…' → a small, client-resized photo Anything else is rejected.
 export async function updateAvatar(value: string | null): Promise<ActionResult> {
   const db = requireDb('Updating your picture');
   if (!db.ok) return db;

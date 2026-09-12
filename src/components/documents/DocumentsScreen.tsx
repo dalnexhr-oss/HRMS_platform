@@ -348,8 +348,7 @@ export function DocumentsScreen({
                             ✓
                           </button>
                         )}
-                        {/* An HR-issued letter is reproduced from the exit case,
-                            never replaced by an upload — see replaceEmployeeDocument. */}
+                        {/* An HR-issued letter is reproduced from the exit case, never replaced by an upload — see replaceEmployeeDocument. */}
                         {d.source === 'uploaded' && (
                           <button className="btn" onClick={() => setDrawer({ mode: 'replace', document: d })}>
                             ⟳ Replace
@@ -384,13 +383,7 @@ export function DocumentsScreen({
   );
 }
 
-/**
- * The employee name as a button that opens their drill-down.
- *
- * Styled inline rather than with a class: it is the only link-shaped button in
- * the app, and globals.css has no rule for one — adding a global class for a
- * single use would be the wrong place to put it.
- */
+// The employee name as a button that opens their drill-down. Styled inline rather than with a class: it is the only link-shaped button in the app, and globals.css has no rule for one — adding a global class for a single use would be the wrong place to put it.
 function EmployeeLink({
   row,
   onOpen,

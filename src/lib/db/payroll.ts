@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Payslip computation. SERVER ONLY.
 //
 // This is the highest-risk file in the codebase: it decides what lands in
@@ -15,20 +15,20 @@
 // and a payroll run is thousands of operations. Two rounding behaviours are
 // carried over deliberately because they change the figures:
 //
-//   * round(x, n) in Postgres rounds HALF AWAY FROM ZERO. JavaScript's
-//     Math.round rounds half UP, which differs for negatives — a deduction of
-//     -0.5 becomes -0 instead of -1 and never reconciles. scalePaise() handles
-//     this; nothing here calls Math.round on money directly.
+// round(x, n) in Postgres rounds HALF AWAY FROM ZERO. JavaScript's
+// Math.round rounds half UP, which differs for negatives — a deduction of
+// -0.5 becomes -0 instead of -1 and never reconciles. scalePaise() handles
+// this; nothing here calls Math.round on money directly.
 //
-//   * The shortfall uses floor(), NOT round(). The comment in the SQL is
-//     explicit that this matches the company register ("DN002: 21, not 22").
-//     Rounding it would overcharge every under-worked employee by up to a rupee.
+// The shortfall uses floor(), NOT round(). The comment in the SQL is
+// explicit that this matches the company register ("DN002: 21, not 22").
+// Rounding it would overcharge every under-worked employee by up to a rupee.
 //
 // THE FORMULA, from the register the company already runs on:
-//   working days (col AP) = P + CO + OH + T + S + LM + 0.5 x HD
-//   payable days (col AQ) = working days + WO        (week-offs ARE paid)
-//   Leave (L) is NOT payable and is excluded on purpose.
-// ============================================================================
+// working days (col AP) = P + CO + OH + T + S + LM + 0.5 x HD
+// payable days (col AQ) = working days + WO (week-offs ARE paid)
+// Leave (L) is NOT payable and is excluded on purpose.
+//
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import type { ClientSession } from 'mongodb';
@@ -39,10 +39,10 @@ import { withTransaction } from '@/lib/db/mongo';
 import { addPaise, fromPaise, roundToRupee, scalePaise, subPaise, toPaise } from '@/lib/db/money';
 import { registerRpc } from '@/lib/db/pgcompat';
 
-/** Statuses counted as a full working day. */
+// Statuses counted as a full working day.
 const FULL_DAY = ['P', 'CO', 'OH', 'T', 'S', 'LM'];
 
-/** A numeric setting with a default. Replaces fn_setting_numeric(). */
+// A numeric setting with a default. Replaces fn_setting_numeric().
 async function settingNumeric(key: string, fallback: number): Promise<number> {
   const settings = scopedFor<BaseDoc & { key: string; value: unknown }>(COLLECTIONS.settings, SYSTEM_SCOPE);
   const row = await settings.findOne({ key });
@@ -50,20 +50,13 @@ async function settingNumeric(key: string, fallback: number): Promise<number> {
   return Number.isFinite(n) ? n : fallback;
 }
 
-/** Days in the month a 'YYYY-MM-01' period refers to. */
+// Days in the month a 'YYYY-MM-01' period refers to.
 function daysInMonth(periodMonth: string): number {
   const [y, m] = periodMonth.split('-').map(Number);
   return new Date(Date.UTC(y, m, 0)).getUTCDate();
 }
 
-/**
- * fn_professional_tax — the slab matching state, gross, gender and month.
- *
- * The ordering is load-bearing and is copied exactly: a month-specific slab
- * beats a general one, a gender-specific slab beats a general one, and the
- * highest matching min_gross wins. Getting that order wrong silently picks a
- * different slab and quietly changes everyone's PT.
- */
+// fn_professional_tax — the slab matching state, gross, gender and month. The ordering is load-bearing and is copied exactly: a month-specific slab beats a general one, a gender-specific slab beats a general one, and the highest matching min_gross wins. Getting that order wrong silently picks a different slab and quietly changes everyone's PT.
 export async function professionalTax(
   state: string | null,
   grossPaise: number,
@@ -98,7 +91,7 @@ export interface PayslipComputation {
   worked_minutes: number;
   target_minutes: number;
   shortfall_minutes: number;
-  /** All amounts in paise; converted to Decimal128 on write. */
+  // All amounts in paise; converted to Decimal128 on write.
   per_day_rate: number;
   basic_earned: number;
   hra_earned: number;
@@ -113,12 +106,7 @@ export interface PayslipComputation {
   net_payable: number;
 }
 
-/**
- * Compute one payslip and upsert it. Mirrors fn_compute_payslip(employee, run).
- *
- * Returns the computed figures so a caller can diff them against the SQL
- * version before trusting the port on a real month.
- */
+// Compute one payslip and upsert it. Mirrors fn_compute_payslip(employee, run). Returns the computed figures so a caller can diff them against the SQL version before trusting the port on a real month.
 export async function computePayslip(
   employeeId: string,
   runId: string,

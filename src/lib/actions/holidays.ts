@@ -6,7 +6,7 @@ import { requireStaff, wroteNothing } from '@/lib/actions/_guard';
 import { fetchPublicHolidays } from '@/lib/holidays/googleCalendar';
 import { ALL_BRANCHES, resolveBranchScope } from '@/lib/actions/_branch';
 
-/** Add an official holiday. Blank branch = all branches (branch_id null). */
+// Add an official holiday. Blank branch = all branches (branch_id null).
 export async function addHoliday(formData: FormData) {
   const holiday_date = String(formData.get('holiday_date') ?? '').trim();
   const name = String(formData.get('name') ?? '').trim();
@@ -37,13 +37,7 @@ export type ImportHolidaysResult =
   | { ok: true; imported: number; skipped: number; tentative: string[]; year: number }
   | { ok: false; error: string };
 
-/**
- * Import a year's public holidays from Google's published India calendar.
- *
- * Imported as ALL-BRANCH holidays (branch_id null). Existing dates are skipped
- * rather than overwritten, so a holiday HR has already added or renamed — or a
- * branch-specific one — is never clobbered, and the import is safe to re-run.
- */
+// Import a year's public holidays from Google's published India calendar. Imported as ALL-BRANCH holidays (branch_id null). Existing dates are skipped rather than overwritten, so a holiday HR has already added or renamed — or a branch-specific one — is never clobbered, and the import is safe to re-run.
 export async function importHolidaysFromGoogle(year: number): Promise<ImportHolidaysResult> {
   const gate = await requireStaff('Importing holidays');
   if (!gate.ok) return gate;

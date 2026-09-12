@@ -22,9 +22,7 @@ export function LoginForm({
 
   return (
     <form action={action} className="login-form">
-      {/* Where middleware wanted to send them before the login gate stepped in.
-          signIn() only honours relative paths, so this cannot become an open
-          redirect. */}
+      {/* Where middleware wanted to send them before the login gate stepped in. signIn() only honours relative paths, so this cannot become an open redirect. */}
       {next && <input type="hidden" name="next" value={next} />}
       <div className="f">
         <label htmlFor="email">Email</label>

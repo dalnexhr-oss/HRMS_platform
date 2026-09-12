@@ -2,21 +2,11 @@ import Link from 'next/link';
 import { Stamp } from '@/components/ui/Stamp';
 import { ExportButton } from '@/components/today/ExportButton';
 import { NightSweepButton } from '@/components/today/NightSweepButton';
-// 20 distinct branch colours (shared with /employees), assigned by list position.
-// Replaces the old 6-var cycle where --brand and --od were near-identical teals,
-// so branches 1 and 3 looked like the same colour repeating.
 import { branchColorAt } from '@/lib/constants';
 import type { ActivityRow, PayrollRunView } from '@/lib/queries';
 import type { Celebration, MarkWatch, PunchLogRow, TodayKpis } from '@/types/domain';
 
-/**
- * Every section loads independently, so one broken query does not blank the whole
- * dashboard. A failure carries the REAL error message to the screen — we never swap
- * in stand-in data to hide it.
- *
- * `ok` is a literal discriminant on purpose: `error: string | null` would not narrow
- * `.data` for TypeScript, and it mirrors the { ok, error } shape server actions use.
- */
+// Every section loads independently, so one broken query does not blank the whole dashboard. A failure carries the REAL error message to the screen — we never swap in stand-in data to hide it. `ok` is a literal discriminant on purpose: `error: string | null` would not narrow `.data` for TypeScript, and it mirrors the { ok, error } shape server actions use.
 export type Loaded<T> = { ok: true; data: T } | { ok: false; error: string };
 
 export interface TodayBoardProps {
@@ -25,15 +15,15 @@ export interface TodayBoardProps {
   celebrations: Loaded<Celebration[]>;
   activity: Loaded<ActivityRow[]>;
   run: Loaded<PayrollRunView | null>;
-  /** Real late-mark counts for the period, worst first. */
+  // Real late-mark counts for the period, worst first.
   marks: Loaded<MarkWatch[]>;
-  /** Late marks that convert into an auto half-day — sets the meter's pip count. */
+  // Late marks that convert into an auto half-day — sets the meter's pip count.
   markThreshold: number;
-  /** Business date for the punch log / celebrations, 'YYYY-MM-DD' in Asia/Kolkata. */
+  // Business date for the punch log / celebrations, 'YYYY-MM-DD' in Asia/Kolkata.
   today: string;
-  /** '16 July' — the celebrations folio. */
+  // '16 July' — the celebrations folio.
   todayLabel: string;
-  /** The period the register/payroll cards describe, e.g. 'June'. */
+  // The period the register/payroll cards describe, e.g. 'June'.
   periodMonthLabel: string;
 }
 
@@ -44,7 +34,7 @@ const RUN_STATUS_LABEL: Record<PayrollRunView['status'], string> = {
   paid: 'Paid',
 };
 
-/** timestamptz -> '10 Jul' in the business timezone. */
+// timestamptz -> '10 Jul' in the business timezone.
 function stamp(ts: string): string {
   return new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Asia/Kolkata',

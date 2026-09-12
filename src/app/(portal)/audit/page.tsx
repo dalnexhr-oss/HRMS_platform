@@ -4,8 +4,7 @@ import { getSession } from '@/lib/auth';
 import { formatDate } from '@/lib/format';
 import type { AppRole } from '@/types/database';
 
-// Attendance audit trail is staff-only (admin/HR) — the same set that
-// may write attendance. Others are bounced; the nav link is hidden via NAV_ROLE_GATED.
+// Attendance audit trail is staff-only (super_admin/admin/HR)
 const AUDIT_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 const EVENT_LABEL: Record<string, string> = {

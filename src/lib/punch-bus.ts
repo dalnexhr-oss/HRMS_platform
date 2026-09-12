@@ -13,7 +13,7 @@
 
 const EVENT = 'hrms:punch-changed';
 
-/** Whoever raised the punch. Only used to skip the sender's own listener. */
+// Whoever raised the punch. Only used to skip the sender's own listener.
 export type PunchSource = 'topbar' | 'card';
 
 export function announcePunch(source: PunchSource): void {
@@ -21,7 +21,7 @@ export function announcePunch(source: PunchSource): void {
   window.dispatchEvent(new CustomEvent(EVENT, { detail: { source } }));
 }
 
-/** Subscribe to punches made *elsewhere*. Returns the unsubscribe function. */
+// Subscribe to punches made *elsewhere*. Returns the unsubscribe function.
 export function onPunchChange(self: PunchSource, handler: () => void): () => void {
   if (typeof window === 'undefined') return () => {};
   const listener = (event: Event) => {

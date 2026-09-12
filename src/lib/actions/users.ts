@@ -1,6 +1,6 @@
 'use server';
 
-// ============================================================================
+//
 // User administration — admin/HR create and manage login accounts.
 //
 // Ported from GoTrue's auth.admin.* API to the users collection. The privilege
@@ -13,7 +13,7 @@
 // "is the privileged client available" was a real precondition. Now every
 // query is equally privileged, which makes the caller's own role check the
 // whole of the defence rather than the outer half of it.
-// ============================================================================
+//
 import { revalidatePath } from 'next/cache';
 import { randomUUID } from 'node:crypto';
 import { requireRoles } from '@/lib/actions/_guard';
@@ -36,23 +36,14 @@ export interface ActionResult {
   error?: string;
 }
 
-/** Roles allowed to administer users. */
+// Roles allowed to administer users.
 const USER_ADMIN_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
 // Roles that may be assigned through this screen. NOT exported: a 'use server'
 // module may only export async functions, so the UI keeps its own display list.
 const ASSIGNABLE_ROLES: readonly AppRole[] = ['super_admin', 'admin', 'hr', 'employee', 'intern'];
 
-/**
- * User administration is TIERED, and every rule below derives from this one map.
- *
- * A caller may only grant a role, or act on an account holding a role, at or
- * below their own tier. The escalation this closes is not theoretical: before it,
- * updateUserRole checked only for the literal 'admin', so an HR account could set
- * anyone's role — including its own — to 'super_admin' and take the top tier in a
- * single request. Server Actions are public endpoints, so the UI never offering
- * the option was no defence.
- */
+// User administration is TIERED, and every rule below derives from this one map. A caller may only grant a role, or act on an account holding a role, at or below their own tier. The escalation this closes is not theoretical: before it, updateUserRole checked only for the literal 'admin', so an HR account could set anyone's role — including its own — to 'super_admin' and take the top tier in a single request. Server Actions are public endpoints, so the UI never offering the option was no defence.
 const ROLE_TIER: Record<AppRole, number> = {
   super_admin: 3,
   admin: 2,
@@ -66,7 +57,7 @@ function tierOf(role: AppRole | null | undefined): number {
   return role ? ROLE_TIER[role] ?? 0 : 0;
 }
 
-/** Role name as it reads in a refusal message. */
+// Role name as it reads in a refusal message.
 const TIER_LABEL: Record<AppRole, string> = {
   super_admin: 'super admin',
   admin: 'admin',
@@ -78,7 +69,7 @@ const TIER_LABEL: Record<AppRole, string> = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Case-insensitive lookup, matching the users_email_unique index. */
+// Case-insensitive lookup, matching the users_email_unique index.
 const EMAIL_COLLATION = { locale: 'en', strength: 2 } as const;
 
 export interface ManagedUser {
@@ -91,7 +82,7 @@ export interface ManagedUser {
   employeeName: string | null;
   lastSignInAt: string | null;
   createdAt: string;
-  /** No GoTrue equivalent — replaces "banned" and is checked on every request. */
+  // No GoTrue equivalent — replaces "banned" and is checked on every request.
   disabled: boolean;
 }
 
@@ -102,16 +93,7 @@ function databaseUnavailable(): ActionResult {
   };
 }
 
-/**
- * Refuse to let a non-admin act ON an account that outranks them.
- *
- * Without this, an 'hr' user could call setUserPassword('<admin-id>', '…')
- * straight over HTTP — Server Actions are public endpoints, so the UI not
- * showing a button is irrelevant — and sign in as that admin. That is strictly
- * worse than the escalation createUser/updateUserRole already refuse, because it
- * hands over an EXISTING admin session. Every path that mutates or can seize
- * another account must call this.
- */
+// Refuse to let a non-admin act ON an account that outranks them. Without this, an 'hr' user could call setUserPassword('<admin-id>', '…') straight over HTTP — Server Actions are public endpoints, so the UI not showing a button is irrelevant — and sign in as that admin. That is strictly worse than the escalation createUser/updateUserRole already refuse, because it hands over an EXISTING admin session. Every path that mutates or can seize another account must call this.
 async function assertMayActOnTarget(
   targetUserId: string,
   callerRole: AppRole,

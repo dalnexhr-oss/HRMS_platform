@@ -19,9 +19,9 @@ const TYPE_LABEL: Record<RequestType, string> = {
 // against a specific earned credit, which the CompOffs card handles.
 const TYPE_OPTIONS: RequestType[] = ['leave', 'site_visit', 'outdoor_duty', 'wfh'];
 
-// All four keys stay: historic requests still render their CL/SL tag. Only
-// LEAVE_KIND_OPTIONS below decides what a NEW request may carry — one paid
-// pool + leave-without-pay since the leave-salary policy.
+// The leave_kind enum is a superset of the leave_type enum, so the labels are not identical.
+//  The leave_type enum is used in the requests table, but comp off is absent from it because a comp off is not a leave kind: it is an application against an earned credit.
+//  The leave_kind enum is used in the leave_balances view, which includes comp off.
 const LEAVE_KIND_LABEL: Record<LeaveBalanceRow['type'], string> = {
   PL: 'Paid leave',
   CL: 'Casual leave',
@@ -29,15 +29,7 @@ const LEAVE_KIND_LABEL: Record<LeaveBalanceRow['type'], string> = {
   LWP: 'Leave without pay',
 };
 
-/**
- * What a NEW leave request may be filed as.
- *
- * 'CO' is deliberately not a LeaveType: comp off is absent from the leave_type
- * enum, so createRequest rejects it as a leave_kind. Picking it here files a
- * comp-off application against an earned credit via applyCompOff instead —
- * the only way a comp off can be taken, because the credit has to be claimed so
- * it cannot be spent twice.
- */
+// What a NEW leave request may be filed as. 'CO' is deliberately not a LeaveType: comp off is absent from the leave_type enum, so createRequest rejects it as a leave_kind. Picking it here files a comp-off application against an earned credit via applyCompOff instead — the only way a comp off can be taken, because the credit has to be claimed so it cannot be spent twice.
 const LEAVE_KIND_OPTIONS = [
   { value: 'CO', label: 'Comp off' },
   { value: 'LWP', label: 'Leave without pay' },
@@ -60,7 +52,7 @@ function statusPillStyle(status: RequestView['status']): React.CSSProperties {
   return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
 }
 
-/** ISO timestamp -> '12 Aug 2026'; null-safe. */
+// ISO timestamp -> '12 Aug 2026'; null-safe.
 function stampDate(iso: string | null): string | null {
   if (!iso) return null;
   const d = new Date(iso);
@@ -73,7 +65,7 @@ function stampDate(iso: string | null): string | null {
   });
 }
 
-/** '2026-07-16' -> '16 Jul'; collapses a same-day range. */
+// '2026-07-16' -> '16 Jul'; collapses a same-day range.
 function dateRange(startIso: string, endIso: string): string {
   const fmt = (iso: string) =>
     new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', {

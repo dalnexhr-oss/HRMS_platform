@@ -69,7 +69,7 @@ export default function PortalLoading() {
           padding: 24px 22px 20px;
         }
 
-        /* Shimmering skeleton blocks */
+        // Shimmering skeleton blocks
         .plx-bone {
           border-radius: 8px;
           background: linear-gradient(
@@ -82,7 +82,7 @@ export default function PortalLoading() {
           animation: plx-shimmer 1.4s ease infinite;
         }
 
-        /* Thin indeterminate bar — picks up your brand color if --accent exists */
+        // Thin indeterminate bar — picks up your brand color if --accent exists
         .plx-bar {
           position: relative;
           height: 3px;
@@ -102,7 +102,7 @@ export default function PortalLoading() {
           animation: plx-sweep 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
         }
 
-        /* Header */
+        // Header
         .plx-head {
           display: flex;
           align-items: flex-start;
@@ -114,7 +114,7 @@ export default function PortalLoading() {
         .plx-subtitle { width: 120px; height: 11px; margin-top: 9px; }
         .plx-action { width: 96px; height: 32px; border-radius: 8px; flex-shrink: 0; }
 
-        /* Stat cards */
+        // Stat cards
         .plx-stats {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
@@ -125,7 +125,7 @@ export default function PortalLoading() {
         .plx-stat-label { width: 64px; max-width: 80%; height: 10px; }
         .plx-stat-value { width: 84px; max-width: 60%; height: 22px; margin-top: 10px; }
 
-        /* Rows */
+        // Rows
         .plx-row { display: flex; align-items: center; gap: 12px; padding: 12px 2px; }
         .plx-row + .plx-row { border-top: 1px solid var(--line, rgba(15,42,68,.09)); }
         .plx-avatar { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; }
@@ -134,13 +134,13 @@ export default function PortalLoading() {
         .plx-line-dim { height: 10px; margin-top: 7px; opacity: 0.7; }
         .plx-pill { width: 58px; height: 20px; border-radius: 999px; flex-shrink: 0; }
 
-        /* Staggered entrance */
+        // Staggered entrance
         .plx-enter {
           opacity: 0;
           animation: plx-in 0.45s ease forwards;
         }
 
-        /* Mono status line with pulsing ellipsis */
+        // Mono status line with pulsing ellipsis
         .plx-status {
           margin: 18px 0 0;
           text-align: center;
@@ -170,7 +170,7 @@ export default function PortalLoading() {
           25% { opacity: 1; }
         }
 
-        /* Calm everything down for users who prefer reduced motion */
+        // Calm everything down for users who prefer reduced motion
         @media (prefers-reduced-motion: reduce) {
           .plx-bone { animation: none; background: var(--plx-base); }
           .plx-bar::after { animation: none; width: 100%; opacity: 0.2; }

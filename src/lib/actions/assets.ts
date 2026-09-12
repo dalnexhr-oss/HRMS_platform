@@ -10,7 +10,7 @@ import type { AppRole } from '@/types/database';
 import { todayIST } from '@/lib/format';
 import { toMoney } from '@/lib/db/money';
 
-/** Client-callable wrappers for the per-asset drawer (queries.ts is server-only). */
+// Client-callable wrappers for the per-asset drawer (queries.ts is server-only).
 export async function fetchAssetAssignments(assetId: string) {
   return getAssetAssignments(assetId);
 }
@@ -21,7 +21,7 @@ export async function fetchAssetMaintenance(assetId: string) {
 // Asset Management is admin/HR only — same gate as user administration.
 const ASSET_ADMIN_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
-/** Pull the asset columns from the form; blank strings become null. */
+// Pull the asset columns from the form; blank strings become null.
 function assetFields(formData: FormData) {
   const text = (k: string) => {
     const v = String(formData.get(k) ?? '').trim();
@@ -92,7 +92,7 @@ export async function updateAsset(formData: FormData) {
   return { ok: true };
 }
 
-/** Assign an asset to an employee (single holder). Snapshots name/code + notifies them. */
+// Assign an asset to an employee (single holder). Snapshots name/code + notifies them.
 export async function assignAsset(formData: FormData) {
   const gate = await requireRoles(ASSET_ADMIN_ROLES, 'Assigning an asset');
   if (!gate.ok) return gate;
@@ -159,7 +159,7 @@ export async function assignAsset(formData: FormData) {
   return { ok: true };
 }
 
-/** Clear an asset's assignment (return/unassign) and notify the prior holder. */
+// Clear an asset's assignment (return/unassign) and notify the prior holder.
 export async function unassignAsset(id: string) {
   const gate = await requireRoles(ASSET_ADMIN_ROLES, 'Unassigning an asset');
   if (!gate.ok) return gate;
@@ -214,7 +214,7 @@ export async function unassignAsset(id: string) {
   return { ok: true };
 }
 
-/** Log a maintenance/service event for an asset (admin/HR). */
+// Log a maintenance/service event for an asset (admin/HR).
 export async function createAssetMaintenance(formData: FormData) {
   const gate = await requireRoles(ASSET_ADMIN_ROLES, 'Logging maintenance');
   if (!gate.ok) return gate;

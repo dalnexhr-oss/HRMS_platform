@@ -1,6 +1,6 @@
 'use client';
 
-// ============================================================================
+//
 // The leave-salary working screen (replaces the PL/CL/SL balances admin).
 //
 // One row per employee, mirroring the owner's Excel: HR types the before/after
@@ -9,7 +9,7 @@
 // is a draft, frozen once it is finalized. The paid-leave pool (15 days/yr)
 // keeps a compact card below: approvals still deduct from it, so HR still
 // needs the provision button and an audited correction path.
-// ============================================================================
+//
 import { useMemo, useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { inr } from '@/lib/format';

@@ -1,8 +1,8 @@
-// ============================================================================
+//
 // One-time backfill: employees.branch_name / employees.department_name.
 //
-//   npm run db:backfill-names              report only, writes nothing
-//   npm run db:backfill-names -- --write   apply
+// npm run db:backfill-names report only, writes nothing
+// npm run db:backfill-names -- --write apply
 //
 // WHY THIS EXISTS. The Mongo port replaced the branches/departments JOIN with
 // two denormalised columns on the employee — v_today_board groups by
@@ -14,22 +14,22 @@
 // as "Unassigned".
 //
 // WHAT IT WILL AND WILL NOT DO.
-//   * The reference is the source of truth: the name is READ from the branch /
-//     department document that branch_id / department_id points at.
-//   * A null reference means legitimately unassigned. It is left null — an
-//     employee with no department genuinely has no department name, and
-//     inventing one would be worse than the blank.
-//   * A DANGLING reference (an id pointing at a row that no longer exists) is
-//     reported and left untouched. Nulling the cached name would destroy the
-//     only remaining record of it, and guessing a replacement is invention.
-//   * A cached name that DISAGREES with its reference is corrected, and counted
-//     separately so the change is never silent.
-//   * Only these two fields are ever written. No updated_at, no touch of
-//     anything else — this is a repair, not an edit anyone made.
+// The reference is the source of truth: the name is READ from the branch /
+// department document that branch_id / department_id points at.
+// A null reference means legitimately unassigned. It is left null — an
+// employee with no department genuinely has no department name, and
+// inventing one would be worse than the blank.
+// A DANGLING reference (an id pointing at a row that no longer exists) is
+// reported and left untouched. Nulling the cached name would destroy the
+// only remaining record of it, and guessing a replacement is invention.
+// A cached name that DISAGREES with its reference is corrected, and counted
+// separately so the change is never silent.
+// Only these two fields are ever written. No updated_at, no touch of
+// anything else — this is a repair, not an edit anyone made.
 //
 // IDEMPOTENT: the update set is computed by comparing the stored value with the
 // resolved one, so a second run finds nothing to do and reports 0.
-// ============================================================================
+//
 import { MongoClient } from 'mongodb';
 import { parseArgs } from 'node:util';
 

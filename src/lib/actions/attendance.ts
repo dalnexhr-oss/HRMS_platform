@@ -1,6 +1,6 @@
 'use server';
 
-// ============================================================================
+//
 // Server Action for manual attendance corrections.
 //
 // The register footer promises: "Any manual correction asks for a reason and is
@@ -11,7 +11,7 @@
 //
 // House rule, deliberately honoured here: we never return { ok: true } for a
 // write that did not write. A missing database is NOT a licence to fake a save.
-// ============================================================================
+//
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { isMongoConfigured } from '@/lib/queries';
@@ -23,46 +23,21 @@ import type { AppRole, AttendanceStatus } from '@/types/database';
 export interface CorrectionState {
   ok?: boolean;
   error?: string;
-  /** The write SUCCEEDED but a follow-up needs attention (e.g. the audit-log
-   *  entry failed). ok stays true — see requests.ts. */
+  // The write SUCCEEDED but a follow-up needs attention (e.g. the audit-log entry failed). ok stays true — see requests.ts.
   warning?: string;
 }
 
-/**
- * Roles that may WRITE attendance.
- *
- * Deliberately NOT isStaffRole(): that helper is the READ gate (is_portal()),
- * and the write gate is is_staff(). Checking the read gate here would wave a
- * portal reader through the whole correction drawer only to have the write
- * refused at the last step.
- *
- * Mirrored in src/app/(portal)/register/page.tsx (a 'use server' module may only
- * export async functions, so this cannot be shared from here).
- */
+// Roles that may WRITE attendance. Deliberately NOT isStaffRole(): that helper is the READ gate (is_portal()), and the write gate is is_staff(). Checking the read gate here would wave a portal reader through the whole correction drawer only to have the write refused at the last step. Mirrored in src/app/(portal)/register/page.tsx (a 'use server' module may only export async functions, so this cannot be shared from here).
 const WRITE_ROLES: AppRole[] = ['super_admin', 'admin', 'hr'];
 
-/**
- * Statuses an admin may set from the register.
- *
- * 'CO' (comp off) was withheld here while the AttendanceStatus union and
- * STATUS_META lacked it — a written 'CO' would have rendered as a "P" stamp.
- * Both now carry it (and 0009 makes comp off a real lifecycle), so it is
- * offered. Note the normal path for a comp off is the employee applying against
- * an earned credit; setting it here is the manual override.
- */
+// Statuses an admin may set from the register. 'CO' (comp off) was withheld here while the AttendanceStatus union and STATUS_META lacked it — a written 'CO' would have rendered as a "P" stamp. Both now carry it (and 0009 makes comp off a real lifecycle), so it is offered. Note the normal path for a comp off is the employee applying against an earned credit; setting it here is the manual override.
 const ALLOWED_STATUSES: AttendanceStatus[] = ['P', 'LM', 'HD', 'L', 'WO', 'OH', 'AB', 'S', 'T', 'CO'];
 
 function isAllowedStatus(v: string): v is AttendanceStatus {
   return (ALLOWED_STATUSES as string[]).includes(v);
 }
 
-/**
- * '' | null -> null (blank is legitimate: no punch). 'HH:MM' / 'HH:MM:SS' ->
- * 'HH:MM'. Anything else is a parse FAILURE, not a blank — returning null for
- * garbage would silently record "no punch" for a value the user actually typed.
- * The range check matters too: '99:99' matches the shape but is not a time, and
- * storing it would break every later comparison against it.
- */
+// '' | null -> null (blank is legitimate: no punch). 'HH:MM' / 'HH:MM:SS' -> 'HH:MM'. Anything else is a parse FAILURE, not a blank — returning null for garbage would silently record "no punch" for a value the user actually typed. The range check matters too: '99:99' matches the shape but is not a time, and storing it would break every later comparison against it.
 type TimeParse = { ok: true; value: string | null } | { ok: false };
 
 function timeField(v: FormDataEntryValue | null): TimeParse {

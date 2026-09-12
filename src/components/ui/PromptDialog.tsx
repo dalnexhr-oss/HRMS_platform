@@ -7,26 +7,26 @@
 // Matches the app's overlay/card look and the useConfirm() ergonomics.
 //
 // Two extra guards beyond a bare prompt:
-//   - `matchToken`: the confirm button stays disabled until the typed value
-//     equals the token (case-insensitive). This preserves the deliberate
-//     "type the email to confirm" friction on destructive actions.
-//   - `validate`: return an error string to block submission, or null to allow.
+// - `matchToken`: the confirm button stays disabled until the typed value
+// equals the token (case-insensitive). This preserves the deliberate
+// "type the email to confirm" friction on destructive actions.
+// - `validate`: return an error string to block submission, or null to allow.
 import { useCallback, useEffect, useState } from 'react';
 
 export interface PromptOptions {
   title?: string;
   message: string;
-  /** Prefilled input value. */
+  // Prefilled input value.
   defaultValue?: string;
   placeholder?: string;
   confirmLabel?: string;
   cancelLabel?: string;
   danger?: boolean;
-  /** 'text' | 'password' — mask the input for secrets (set-password). */
+  // 'text' | 'password' — mask the input for secrets (set-password).
   inputType?: 'text' | 'password';
-  /** Require the typed value to equal this token (case-insensitive) before confirming. */
+  // Require the typed value to equal this token (case-insensitive) before confirming.
   matchToken?: string;
-  /** Return an error message to block submit, or null/undefined to allow. */
+  // Return an error message to block submit, or null/undefined to allow.
   validate?: (value: string) => string | null | undefined;
 }
 

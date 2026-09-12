@@ -1,13 +1,13 @@
 'use client';
 
-// ============================================================================
+//
 // Admin-dashboard comp-off card (0041).
 //
 // One row per employee holding live credits: their usable balance, and each
 // credit as a pill with an applicable/not-applicable switch. A credit marked
 // not applicable stays on the books but cannot be applied for by the employee
 // until it is switched back; availing and expiry retire credits regardless.
-// ============================================================================
+//
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/format';

@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // The session cookie, and resolving it into a signed-in user.
 //
 // Replaces @dbc/ssr's cookie handling and lib/auth.ts's getSession().
@@ -7,14 +7,14 @@
 // unchanged — the port happens underneath them.
 //
 // Two-layer check, and both layers matter:
-//   1. The JWT signature and expiry — cheap, no I/O, works on the edge.
-//   2. token_version and disabled, read from the user document — this is what
-//      makes sign-out and account lockout take effect on a year-long token.
+// 1. The JWT signature and expiry — cheap, no I/O, works on the edge.
+// 2. token_version and disabled, read from the user document — this is what
+// makes sign-out and account lockout take effect on a year-long token.
 //
 // Layer 2 needs a database round trip, so it is memoised per request with
 // React cache(). One navigation touches getSession() from the layout, the page
 // and every Server Action guard; without the cache that is three queries.
-// ============================================================================
+//
 import 'server-only';
 import { cache } from 'react';
 import { cookies } from 'next/headers';
@@ -39,7 +39,7 @@ export interface SessionContext {
 
 const EMPTY: SessionContext = { userId: null, email: null, profile: null };
 
-/** Cookie attributes. Shared by the set and clear paths so they cannot drift. */
+// Cookie attributes. Shared by the set and clear paths so they cannot drift.
 function cookieOptions(maxAge: number) {
   return {
     httpOnly: true,
@@ -54,7 +54,7 @@ function cookieOptions(maxAge: number) {
   };
 }
 
-/** The users collection's document shape, minus the fields views never need. */
+// The users collection's document shape, minus the fields views never need.
 function toProfile(user: UserDoc): Profile {
   return {
     id: user._id,
@@ -68,12 +68,7 @@ function toProfile(user: UserDoc): Profile {
   };
 }
 
-/**
- * Issue a token for `user` and write the session cookie.
- *
- * Callable only where cookies are writable — Server Actions and Route Handlers,
- * not Server Components.
- */
+// Issue a token for `user` and write the session cookie. Callable only where cookies are writable — Server Actions and Route Handlers, not Server Components.
 export async function createSession(user: UserDoc): Promise<void> {
   const claims: SessionClaims = {
     sub: user._id,
@@ -86,23 +81,12 @@ export async function createSession(user: UserDoc): Promise<void> {
   (await cookies()).set(SESSION_COOKIE, token, cookieOptions(SESSION_MAX_AGE_SECONDS));
 }
 
-/**
- * Clear the cookie on this device.
- *
- * This alone does NOT invalidate the token — anyone holding a copy could still
- * use it for the rest of the year. Sign-out therefore also bumps token_version
- * (see revokeAllSessions), which is the half that actually revokes.
- */
+// Clear the cookie on this device. This alone does NOT invalidate the token — anyone holding a copy could still use it for the rest of the year. Sign-out therefore also bumps token_version (see revokeAllSessions), which is the half that actually revokes.
 export async function destroySession(): Promise<void> {
   (await cookies()).set(SESSION_COOKIE, '', cookieOptions(0));
 }
 
-/**
- * Invalidate every token issued to an account, on every device.
- *
- * Call on sign-out, password change, role change, and when disabling a login.
- * Returns the new version, or null when the user no longer exists.
- */
+// Invalidate every token issued to an account, on every device. Call on sign-out, password change, role change, and when disabling a login. Returns the new version, or null when the user no longer exists.
 export async function revokeAllSessions(userId: string): Promise<number | null> {
   const users = await usersCollection();
   const result = await users.findOneAndUpdate(
@@ -113,20 +97,12 @@ export async function revokeAllSessions(userId: string): Promise<number | null> 
   return result?.token_version ?? null;
 }
 
-/** The raw token, unverified. Use getSession() unless you need the string. */
+// The raw token, unverified. Use getSession() unless you need the string.
 export async function readSessionToken(): Promise<string | null> {
   return (await cookies()).get(SESSION_COOKIE)?.value ?? null;
 }
 
-/**
- * Resolve the signed-in user. Memoised per request.
- *
- * Returns EMPTY for every failure mode — no cookie, bad signature, expired,
- * revoked, disabled, deleted — because none of them is a state the UI can act
- * on differently, and distinguishing them for the visitor leaks account
- * existence. A database that is genuinely unreachable still throws, so a broken
- * connection never masquerades as "signed out".
- */
+// Resolve the signed-in user. Memoised per request. Returns EMPTY for every failure mode — no cookie, bad signature, expired, revoked, disabled, deleted — because none of them is a state the UI can act on differently, and distinguishing them for the visitor leaks account existence. A database that is genuinely unreachable still throws, so a broken connection never masquerades as "signed out".
 export const getSession = cache(async function getSession(): Promise<SessionContext> {
   const token = await readSessionToken();
   if (!token) return EMPTY;
@@ -145,7 +121,7 @@ export const getSession = cache(async function getSession(): Promise<SessionCont
   return { userId: user._id, email: user.email, profile: toProfile(user) };
 });
 
-/** The full user document for the signed-in account, or null. */
+// The full user document for the signed-in account, or null.
 export const getSessionUser = cache(async function getSessionUser(): Promise<UserDoc | null> {
   const token = await readSessionToken();
   if (!token) return null;
@@ -159,20 +135,14 @@ export const getSessionUser = cache(async function getSessionUser(): Promise<Use
   return user;
 });
 
-/**
- * Re-issue the cookie so it reflects the user's current claims.
- *
- * Needed after a role change or a token_version bump the user should survive
- * (their own password change, say) — otherwise their next request fails the
- * version check and signs them out.
- */
+// Re-issue the cookie so it reflects the user's current claims. Needed after a role change or a token_version bump the user should survive (their own password change, say) — otherwise their next request fails the version check and signs them out.
 export async function refreshSession(userId: string): Promise<void> {
   const users = await usersCollection();
   const user = await users.findOne({ _id: userId });
   if (user && !user.disabled) await createSession(user);
 }
 
-/** True when the role belongs to the staff portal. Mirrors lib/auth.ts. */
+// True when the role belongs to the staff portal. Mirrors lib/auth.ts.
 export function isStaffRole(role: AppRole | null | undefined): boolean {
   return role === 'super_admin' || role === 'admin' || role === 'hr';
 }

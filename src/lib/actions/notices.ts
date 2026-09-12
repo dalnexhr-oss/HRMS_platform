@@ -9,17 +9,17 @@ import { purgeExpiredNotices } from '@/lib/queries';
 import { uploadSharedFile, signedUrl } from '@/lib/storage';
 import { resolveBranchScope } from '@/lib/actions/_branch';
 
-/** The duplicate-key code pgcompat reports (it maps MongoDB's 11000 onto it). */
+// The duplicate-key code pgcompat reports (it maps MongoDB's 11000 onto it).
 const UNIQUE_VIOLATION = '23505';
 
-/** Notice attachments are PDFs only, capped like employee documents. */
+// Notice attachments are PDFs only, capped like employee documents.
 const PDF_MAX_BYTES = 10 * 1024 * 1024;
 
 type PdfParse =
   | { ok: true; file: File | null } // null = no file chosen
   | { ok: false; error: string };
 
-/** The optional `pdf` form field: absent/empty is fine; anything non-PDF is not. */
+// The optional `pdf` form field: absent/empty is fine; anything non-PDF is not.
 function pdfField(formData: FormData): PdfParse {
   const file = formData.get('pdf');
   if (!(file instanceof File) || file.size === 0) return { ok: true, file: null };
@@ -32,7 +32,7 @@ function pdfField(formData: FormData): PdfParse {
   return { ok: true, file };
 }
 
-/** Upload a notice PDF and return its storage path. */
+// Upload a notice PDF and return its storage path.
 async function uploadNoticePdf(
   file: File,
 ): Promise<{ ok: true; path: string } | { ok: false; error: string }> {

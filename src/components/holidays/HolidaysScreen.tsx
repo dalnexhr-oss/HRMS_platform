@@ -16,9 +16,9 @@ export function HolidaysScreen({
 }: {
   holidays: HolidayView[];
   year: number;
-  /** e.g. "Sun off · Sat off except 2nd, 4th" — the scheduled week-off rule. */
+  // e.g. "Sun off · Sat off except 2nd, 4th" — the scheduled week-off rule.
   weekOffSummary: string;
-  /** Real branch names from the DB — was a hardcoded Pune/Vadodara pair. */
+  // Real branch names from the DB — was a hardcoded Pune/Vadodara pair.
   branchNames?: string[];
 }) {
   // One shared confirm modal + toast stack for the whole screen.

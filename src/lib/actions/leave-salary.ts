@@ -1,6 +1,6 @@
 'use server';
 
-// ============================================================================
+//
 // Leave-salary workings: save, finalize, reopen, mark paid.
 //
 // The one rule of this file: THE SERVER COMPUTES. The client shows a live
@@ -10,7 +10,7 @@
 //
 // Status flow: draft → finalized → paid. Finalize re-snapshots and locks the
 // inputs; reopen (finalized → draft) exists for corrections; paid is terminal.
-// ============================================================================
+//
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { requireRoles, wroteNothing } from '@/lib/actions/_guard';
@@ -32,10 +32,7 @@ function validYear(y: number): boolean {
   return Number.isInteger(y) && y >= 2000 && y <= 2100;
 }
 
-/**
- * One employee-year of attendance, credit-weighted per month. ≤366 rows, so no
- * paging is needed here (the page-wide sweep in queries.ts is the paged one).
- */
+// One employee-year of attendance, credit-weighted per month. ≤366 rows, so no paging is needed here (the page-wide sweep in queries.ts is the paged one).
 async function loadPresence(
   dbc: Awaited<ReturnType<typeof createClient>>,
   employeeId: string,

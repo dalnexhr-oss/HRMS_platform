@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // The five SQL views, as aggregation pipelines. SERVER ONLY.
 //
 // Each view was declared `security_invoker = on`, meaning it ran as the caller
@@ -11,7 +11,7 @@
 // IST helper, because the board and the celebrations list are both "today in
 // India" and a server in another timezone would otherwise roll over at the
 // wrong hour.
-// ============================================================================
+//
 import 'server-only';
 import type { Document } from 'mongodb';
 import { COLLECTIONS } from '@/lib/db/collections';
@@ -21,16 +21,7 @@ import type { Scope } from '@/lib/db/scope';
 // note on the same import in pgcompat.ts.
 import { todayIST } from '@/lib/format';
 
-/**
- * The collection handle a view reads through.
- *
- * `security_invoker = on` meant the view ran as whoever queried it, so the
- * default is the signed-in caller's scope. An explicit scope is how the system
- * client reaches a view at all: it has no session, and calling scoped() with
- * none throws NotSignedInError — which pgcompat then reported as an empty
- * result set, so every scheduled or unauthenticated read of a view silently
- * returned nothing.
- */
+// The collection handle a view reads through. `security_invoker = on` meant the view ran as whoever queried it, so the default is the signed-in caller's scope. An explicit scope is how the system client reaches a view at all: it has no session, and calling scoped() with none throws NotSignedInError — which pgcompat then reported as an empty result set, so every scheduled or unauthenticated read of a view silently returned nothing.
 async function handle(name: string, scope?: Scope) {
   return scope ? scopedFor(name, scope) : await scoped(name);
 }

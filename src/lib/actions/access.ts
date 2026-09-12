@@ -1,12 +1,12 @@
 'use server';
 
-// ============================================================================
+//
 // Per-user tab access — the side panel on /users. Super admin only.
 //
 // Writes the user document's embedded `tab_access` map. Every rule the panel
 // shows is re-checked here, because a Server Action is a public endpoint: the
 // button only being rendered for a super admin proves nothing about the caller.
-// ============================================================================
+//
 import { revalidatePath } from 'next/cache';
 import { usersCollection } from '@/lib/db/collections';
 import { createClient } from '@/lib/db/server';
@@ -20,10 +20,10 @@ export interface ActionResult {
   error?: string;
 }
 
-/** Only a super admin administers access — never admin or HR themselves. */
+// Only a super admin administers access — never admin or HR themselves.
 const ACCESS_ADMIN_ROLES: readonly AppRole[] = ['super_admin'];
 
-/** The target's role, so both the caller and the rules can be checked against it. */
+// The target's role, so both the caller and the rules can be checked against it.
 async function targetRole(
   dbc: Awaited<ReturnType<typeof createClient>>,
   userId: string,

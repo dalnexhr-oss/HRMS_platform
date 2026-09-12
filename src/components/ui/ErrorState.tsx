@@ -13,7 +13,7 @@ export function ErrorState({
 }: {
   error: Error & { digest?: string };
   reset: () => void;
-  /** Human name of the area that failed, e.g. 'portal' or 'dashboard'. */
+  // Human name of the area that failed, e.g. 'portal' or 'dashboard'.
   area: string;
 }) {
   return (

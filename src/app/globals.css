@@ -1,28 +1,4 @@
-/* ============================================================================
-   Dalnex HRMS — global styles
-   "Soft Glass" theme — neumorphic depth + frosted glass, on a tinted canvas.
-
-   The rules of the theme, so later edits stay coherent:
-
-     · CANVAS is flat white — no tint, no gradient wash. Panels separate from
-       it by hairline + ambient shadow, so on a white ground the neumorphic
-       LIGHT half of each shadow pair is a no-op and the dark half carries the
-       depth alone. That is why --edge is a neutral hairline, not a white one.
-     · LAYOUT floats on a single --gutter. The sidebar, the topbar and the
-       screen all inset by it, which is what puts the gap between the sidebar
-       and the topbar; change --gutter and the whole shell re-spaces.
-     · GLASS is for chrome and floating panels only — sidebar, topbar, drawer
-       veil, modal, toasts, popovers. Translucency is held high enough that a
-       "barrier layer" of near-white always sits under text (contrast ≥ 4.5:1).
-     · NEUMORPHISM is for controls — buttons raise, inputs and progress tracks
-       press in. Every interactive surface also carries a 1px border, because
-       shadow alone is invisible to low-vision users.
-     · DENSE DATA stays solid and high-contrast. Register grids, payroll tables
-       and status stamps get crisp hairlines, not blur.
-
-   Fonts: Plus Jakarta Sans (UI + display, one family across weights) and
-   JetBrains Mono (figures, labels, tabular columns). Loaded in app/layout.tsx.
-   ============================================================================ */
+/* ============================================================================ Dalnex HRMS — global styles "Soft Glass" theme — neumorphic depth + frosted glass, on a tinted canvas. The rules of the theme, so later edits stay coherent: · CANVAS is flat white — no tint, no gradient wash. Panels separate from it by hairline + ambient shadow, so on a white ground the neumorphic LIGHT half of each shadow pair is a no-op and the dark half carries the depth alone. That is why --edge is a neutral hairline, not a white one. · LAYOUT floats on a single --gutter. The sidebar, the topbar and the screen all inset by it, which is what puts the gap between the sidebar and the topbar; change --gutter and the whole shell re-spaces. · GLASS is for chrome and floating panels only — sidebar, topbar, drawer veil, modal, toasts, popovers. Translucency is held high enough that a "barrier layer" of near-white always sits under text (contrast ≥ 4.5:1). · NEUMORPHISM is for controls — buttons raise, inputs and progress tracks press in. Every interactive surface also carries a 1px border, because shadow alone is invisible to low-vision users. · DENSE DATA stays solid and high-contrast. Register grids, payroll tables and status stamps get crisp hairlines, not blur. Fonts: Plus Jakarta Sans (UI + display, one family across weights) and JetBrains Mono (figures, labels, tabular columns). Loaded in app/layout.tsx. ============================================================================ */
 
 /* ============ tokens ============ */
 :root{
@@ -35,13 +11,9 @@
   --gutter:14px;    
   --gutter-top:8px;
 
-  /* The sheen used on every large glass panel: brightest at the top-left
-     corner, matching a light source above and to the left — the same source
-     the neumorphic shadow pairs below assume. */
+  /* The sheen used on every large glass panel: brightest at the top-left corner, matching a light source above and to the left — the same source the neumorphic shadow pairs below assume. */
   --sheen:linear-gradient(155deg,rgba(255,255,255,.92) 0%,rgba(255,255,255,.78) 44%,rgba(255,255,255,.72) 100%);
-  /* Panels that carry body text and tables (see the .card note) are flat white
-     on a white page — they are separated from the ground by the hairline and
-     the ambient shadow, not by fill. */
+  /* Panels that carry body text and tables (see the .card note) are flat white on a white page — they are separated from the ground by the hairline and the ambient shadow, not by fill. */
   --sheen-card:#FFFFFF;
   --sheen-soft:linear-gradient(180deg,rgba(15,42,68,.022),rgba(255,255,255,0));
   --blur:saturate(180%) blur(20px);
@@ -50,10 +22,7 @@
   /* ---- ink ---- */
   --ink:#0F2440; --ink-2:#39506F; --ink-3:#5E7392;
   --line:rgba(15,42,68,.09); --line-2:rgba(15,42,68,.16);
-  /* The 1px rim on every raised surface. On the old tinted canvas this was a
-     white highlight; on a flat white page a white rim is invisible, so it is
-     now a soft neutral hairline — that hairline is the ONLY thing separating a
-     white card from a white page at the top edge, where the shadow falls away. */
+  /* The 1px rim on every raised surface. On the old tinted canvas this was a white highlight; on a flat white page a white rim is invisible, so it is now a soft neutral hairline — that hairline is the ONLY thing separating a white card from a white page at the top edge, where the shadow falls away. */
   --edge:rgba(15,42,68,.11);
 
   /* ---- brand ---- */
@@ -81,10 +50,7 @@
   --mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",monospace;
   --display:var(--sans);
 
-  /* ---- neumorphic depth ----
-     Offsets are equal on both axes and the blur is ~2x the offset — the
-     standard soft-UI ratio. The dark half is a desaturated slate rather than
-     grey, so it stays in the same family as the canvas tint. */
+  /* ---- neumorphic depth ---- Offsets are equal on both axes and the blur is ~2x the offset — the standard soft-UI ratio. The dark half is a desaturated slate rather than grey, so it stays in the same family as the canvas tint. */
   --nu-hi:rgba(255,255,255,.95);
   --nu-lo:rgba(143,164,197,.40);
   --nu-raise-sm:3px 3px 8px var(--nu-lo),-3px -3px 8px var(--nu-hi);
@@ -93,8 +59,7 @@
   --nu-press-deep:inset 5px 5px 12px rgba(143,164,197,.48),inset -4px -4px 10px rgba(255,255,255,.95);
 
   /* ---- cast shadows (ambient, tinted to the canvas rather than to black) -- */
-  /* a shade heavier than on the old tinted ground: on flat white the shadow
-     does the separating work the canvas tint used to share */
+  /* a shade heavier than on the old tinted ground: on flat white the shadow does the separating work the canvas tint used to share */
   --shadow:0 1px 2px rgba(23,60,102,.06),0 10px 26px rgba(23,60,102,.11);
   --shadow-lift:0 2px 6px rgba(23,60,102,.08),0 18px 42px rgba(23,60,102,.16);
   --shadow-pop:0 18px 48px rgba(23,60,102,.20);
@@ -117,8 +82,7 @@ body{
   text-rendering:optimizeLegibility;
   min-height:100vh;
 }
-/* The ground is flat white — no gradient wash, no tint. Depth comes entirely
-   from the hairlines and ambient shadows on the panels above it. */
+/* The ground is flat white — no gradient wash, no tint. Depth comes entirely from the hairlines and ambient shadows on the panels above it. */
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 a{color:inherit;text-decoration:none}
 :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px}
@@ -127,9 +91,7 @@ a{color:inherit;text-decoration:none}
   *,*::before,*::after{animation:none!important;transition:none!important}
   html{scroll-behavior:auto}
 }
-/* backdrop-filter is near-universal now, but where it is missing the glass
-   would render as flat translucency over the aurora and text contrast would
-   collapse. Fall back to opaque surfaces instead of pretty ones. */
+/* backdrop-filter is near-universal now, but where it is missing the glass would render as flat translucency over the aurora and text contrast would collapse. Fall back to opaque surfaces instead of pretty ones. */
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
   .topbar,.modal-card,.toast,.avatar-pop,.th-pop{background:#FBFCFE!important}
   .overlay,.modal{background:rgba(16,46,80,.52)!important}
@@ -137,12 +99,7 @@ a{color:inherit;text-decoration:none}
 }
 
 /* ============ shell ============ */
-/* Everything in the shell floats on one --gutter rhythm: the sidebar is inset
-   on three sides, .main carries the same inset on its own three, and that
-   shared gutter is what puts the gap between the sidebar and the topbar. The
-   sidebar column is --gutter wider than the panel so the panel's own left
-   margin comes out of it and the panel still ends flush at the column edge —
-   it stretches the full height of the viewport, not just the content. */
+/* Everything in the shell floats on one --gutter rhythm: the sidebar is inset on three sides, .main carries the same inset on its own three, and that shared gutter is what puts the gap between the sidebar and the topbar. The sidebar column is --gutter wider than the panel so the panel's own left margin comes out of it and the panel still ends flush at the column edge — it stretches the full height of the viewport, not just the content. */
 .shell{display:grid;grid-template-columns:calc(248px + var(--gutter)) 1fr;min-height:100vh}
 .sidebar{
   margin:var(--gutter-top) 0 var(--gutter) var(--gutter);
@@ -151,8 +108,7 @@ a{color:inherit;text-decoration:none}
   display:flex;flex-direction:column;
   border-radius:var(--radius);overflow:hidden;
   color:var(--spine-text);
-  /* the logo gradient, held at .94 alpha — deep enough that white nav labels
-     stay above 5:1 against every stop, sheer enough to read as glass */
+  /* the logo gradient, held at .94 alpha — deep enough that white nav labels stay above 5:1 against every stop, sheer enough to read as glass */
   background:linear-gradient(165deg,rgba(28,160,203,.94) 0%,rgba(39,134,190,.95) 50%,rgba(51,103,173,.96) 100%);
   -webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
   border:1px solid rgba(255,255,255,.28);
@@ -161,17 +117,12 @@ a{color:inherit;text-decoration:none}
     inset 0 1px 0 rgba(255,255,255,.38),
     inset 0 -1px 0 rgba(255,255,255,.10);
 }
-/* The brand block is a near-white panel so the Dalnex logo shows in full
-   colour — identical to the login card — rather than inverted to white. */
+/* The brand block is a near-white panel so the Dalnex logo shows in full colour — identical to the login card — rather than inverted to white. */
 .brand{padding:15px 18px 13px;border-bottom:1px solid rgba(255,255,255,.55);background:rgba(255,255,255,.94);-webkit-backdrop-filter:var(--blur-sm);backdrop-filter:var(--blur-sm)}
 .brand .eyebrow{font:600 10px/1 var(--mono);letter-spacing:.18em;color:#7FA3A9;text-transform:uppercase}
 .brand h1{margin:6px 0 0;font:700 22px/1 var(--display);color:var(--ink);letter-spacing:-.02em}
 .brand h1 span{color:var(--brand)}
-/* Vertical rhythm is tuned so all 19 rows across 6 headers clear the fold on a
-   1080p laptop. The old 9px row / 16px header padding totalled ~1078px of nav
-   against a 100vh column — on Windows at 125% display scaling that buried
-   everything from Policies down behind a scrollbar, and the sidebar read as if
-   it had lost its bottom half. */
+/* Vertical rhythm is tuned so all 19 rows across 6 headers clear the fold on a 1080p laptop. The old 9px row / 16px header padding totalled ~1078px of nav against a 100vh column — on Windows at 125% display scaling that buried everything from Policies down behind a scrollbar, and the sidebar read as if it had lost its bottom half. */
 .nav{padding:10px 10px;overflow-y:auto;overflow-x:hidden;flex:1;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.32) transparent}
 .nav::-webkit-scrollbar{width:6px}
 .nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.28);border-radius:99px}
@@ -197,11 +148,9 @@ a{color:inherit;text-decoration:none}
 .side-foot{padding:14px 20px;border-top:1px solid rgba(255,255,255,.20);font:500 11px/1.5 var(--mono);color:#D6ECF4}
 .side-foot b{color:#fff;font-weight:600}
 
-/* .main is also the root of the employee portal, which has no sidebar — so the
-   gutter lives here rather than on .shell, and both layouts inset identically. */
+/* .main is also the root of the employee portal, which has no sidebar — so the gutter lives here rather than on .shell, and both layouts inset identically. */
 .main{min-width:0;padding:var(--gutter-top) var(--gutter) 0}
-/* The topbar is a floating rounded panel on the same gutter as the sidebar,
-   not a full-bleed bar welded to the window edge. */
+/* The topbar is a floating rounded panel on the same gutter as the sidebar, not a full-bleed bar welded to the window edge. */
 .topbar{
   position:sticky;top:var(--gutter-top);z-index:30;display:flex;align-items:center;gap:16px;
   padding:13px 22px;
@@ -210,34 +159,21 @@ a{color:inherit;text-decoration:none}
   -webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
   border:2px solid var(--edge);
   box-shadow:var(--shadow)}
-/* Once the topbar sticks, the gutter above it would be a window onto the
-   content scrolling past. This cap is a child, so it travels with the bar and
-   keeps that strip opaque. */
+/* Once the topbar sticks, the gutter above it would be a window onto the content scrolling past. This cap is a child, so it travels with the bar and keeps that strip opaque. */
 .topbar::before{content:"";position:absolute;left:0;right:0;bottom:100%;height:var(--gutter-top);background:var(--paper)}
-/* Titles run to "Inventory management"; on a phone that used to wrap to two
-   lines and push the bar to 88px tall. It truncates instead — the bar keeps one
-   height on every screen, which is the whole point of a fixed chrome. */
+/* Titles run to "Inventory management"; on a phone that used to wrap to two lines and push the bar to 88px tall. It truncates instead — the bar keeps one height on every screen, which is the whole point of a fixed chrome. */
 .topbar h2{margin:0;font:700 21px/1.15 var(--display);color:var(--ink);letter-spacing:-.024em;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .topbar .sub{color:var(--ink-3);font:500 12px var(--mono);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .topbar .grow{flex:1}
-/* The bar is a single nowrap row, so when it runs out of width something has to
-   give — and by default that was the last child, which is now the punch button.
-   Everything on the right is a control and cannot shrink, so the brand is made
-   the only flexible thing in the row: it scales down (object-fit keeps the
-   aspect) and, on a phone, drops its wordmark rather than shoving the punch
-   button off the edge. */
+/* The bar is a single nowrap row, so when it runs out of width something has to give — and by default that was the last child, which is now the punch button. Everything on the right is a control and cannot shrink, so the brand is made the only flexible thing in the row: it scales down (object-fit keeps the aspect) and, on a phone, drops its wordmark rather than shoving the punch button off the edge. */
 .topbar > div:first-child{min-width:0}
 .topbar .brandmark{min-width:0;overflow:hidden}
 .topbar .brandmark-img{flex:0 1 auto;min-width:0;object-position:left center}
 .topbar .who{flex:none}
 .who{display:flex;align-items:center;gap:10px;font-weight:600;font-size:13px;color:var(--ink)}
-/* ---- the punch clock in the top bar --------------------------------------
-   The most-pressed control in the employee app, and the reason Sign out is no
-   longer up here: the two sat a few pixels apart and one slip ended the
-   session instead of starting the day. It is the only filled button in the
-   bar, so it cannot be mistaken for anything else. */
+/* ---- the punch clock in the top bar -------------------------------------- The most-pressed control in the employee app, and the reason Sign out is no longer up here: the two sat a few pixels apart and one slip ended the session instead of starting the day. It is the only filled button in the bar, so it cannot be mistaken for anything else. */
 .punch-top{display:flex;align-items:center;gap:10px;flex:none}
 .punch-top-read{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:99px;
   font:600 11.5px var(--mono);color:var(--ink-2);background:var(--card-2);border:1px solid var(--edge)}
@@ -248,9 +184,7 @@ a{color:inherit;text-decoration:none}
 .punch-top-read b{font-weight:700;letter-spacing:-.01em}
 .punch-top-btn{min-width:108px;justify-content:center}
 
-/* ---- page foot -----------------------------------------------------------
-   Sign out ends the session, is wanted once a day at most, and is now the last
-   thing on the page rather than the first thing under the thumb. */
+/* ---- page foot ----------------------------------------------------------- Sign out ends the session, is wanted once a day at most, and is now the last thing on the page rather than the first thing under the thumb. */
 .me-foot{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
   margin:0 0 var(--gutter);padding:14px 20px;
   background:var(--sheen-card);border:1px solid var(--edge);
@@ -315,26 +249,13 @@ a{color:inherit;text-decoration:none}
 .avatar-swatch:hover{box-shadow:0 0 0 3px var(--brand-soft);transform:scale(1.08)}
 .avatar-swatch.is-selected{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
 .avatar-swatch:disabled{opacity:.6;cursor:default}
-/* No horizontal padding of its own — .main already supplies the gutter, so
-   cards line up flush with the topbar panel above them. */
+/* No horizontal padding of its own — .main already supplies the gutter, so cards line up flush with the topbar panel above them. */
 .screen{padding:var(--gutter) 0 56px;animation:fade .25s ease;background:transparent}
 @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .wrap{max-width:1260px;margin:0 auto}
 
 /* ============ primitives ============ */
-/* The core panel: white on white, held apart from the page by a hairline and
-   an ambient shadow. The hairline matters most at the top edge, where the
-   shadow falls away to nothing.
-
-   DO NOT add backdrop-filter here. A non-none backdrop-filter (like transform
-   or filter) makes the element a containing block for *every* descendant,
-   position:fixed included — and most screens render their .overlay, .drawer,
-   .modal and .toast-wrap INSIDE their root .card (see RegisterGrid, which also
-   sets overflow:hidden). Blurring the card would re-anchor those to the card
-   and clip them. Frost belongs on the chrome that has no fixed descendants:
-   .sidebar, .topbar, .overlay, .modal, .toast, .avatar-pop, .th-pop. This also
-   happens to be the accessible arrangement — dense tables want a solid
-   barrier layer under the text, not a blur. The same applies to .drawer. */
+/* The core panel: white on white, held apart from the page by a hairline and an ambient shadow. The hairline matters most at the top edge, where the shadow falls away to nothing. DO NOT add backdrop-filter here. A non-none backdrop-filter (like transform or filter) makes the element a containing block for *every* descendant, position:fixed included — and most screens render their .overlay, .drawer, .modal and .toast-wrap INSIDE their root .card (see RegisterGrid, which also sets overflow:hidden). Blurring the card would re-anchor those to the card and clip them. Frost belongs on the chrome that has no fixed descendants: .sidebar, .topbar, .overlay, .modal, .toast, .avatar-pop, .th-pop. This also happens to be the accessible arrangement — dense tables want a solid barrier layer under the text, not a blur. The same applies to .drawer. */
 .card{
   background:var(--sheen-card);
   border:1px solid var(--edge);
@@ -345,9 +266,7 @@ a{color:inherit;text-decoration:none}
 .card .hd h3{margin:0;font:700 14.5px/1.2 var(--sans);color:var(--ink);letter-spacing:-.015em}
 .card .hd .folio{font:600 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
 .card .bd{padding:18px 20px}
-/* A notification jumps to a section by id. The topbar is sticky at ~58px, so
-   without this the target lands underneath it. The flash is what makes a
-   same-page jump legible — the page is already open, so nothing else changes. */
+/* A notification jumps to a section by id. The topbar is sticky at ~58px, so without this the target lands underneath it. The flash is what makes a same-page jump legible — the page is already open, so nothing else changes. */
 .card[id],.two-col[id]{scroll-margin-top:96px}
 @keyframes jumpflash{from{box-shadow:0 0 0 3px var(--brand),0 0 28px rgba(14,122,143,.45)}to{box-shadow:0 0 0 3px transparent,0 0 28px transparent}}
 .jump-flash{animation:jumpflash 1.6s ease-out}
@@ -358,8 +277,7 @@ a{color:inherit;text-decoration:none}
   display:inline-flex;align-items:center;gap:8px;
   padding:10px 16px;border-radius:12px;
   font-weight:600;font-size:13px;letter-spacing:-.005em;
-  /* A two-line button is always a layout bug, never a design: "Sign out" and
-     "Night sweep" were both breaking in half in a squeezed mobile bar. */
+  /* A two-line button is always a layout bug, never a design: "Sign out" and "Night sweep" were both breaking in half in a squeezed mobile bar. */
   white-space:nowrap;
   border:1px solid var(--edge);
   background:linear-gradient(180deg,#FFFFFF,#E9EEF6);
@@ -377,8 +295,7 @@ a{color:inherit;text-decoration:none}
 .btn.quiet{background:rgba(255,255,255,.50);border-color:var(--line-2);color:var(--ink-2);box-shadow:none}
 .btn.quiet:hover{background:rgba(255,255,255,.85);box-shadow:var(--nu-raise-sm)}
 .btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
-/* wires straight into the pending pattern:
-   <button className="btn primary" aria-busy={pending}>Approve</button> */
+/* wires straight into the pending pattern: <button className="btn primary" aria-busy={pending}>Approve</button> */
 .btn[aria-busy="true"]{position:relative;color:transparent;pointer-events:none}
 .btn[aria-busy="true"]::after{content:"";position:absolute;inset:0;margin:auto;
   width:14px;height:14px;border-radius:50%;
@@ -400,8 +317,7 @@ tr:last-child td{border-bottom:0}
 tbody tr{transition:background-color var(--t-fast) var(--ease)}
 tbody tr:hover{background:rgba(255,255,255,.62)}
 
-/* column-header sort/filter dropdowns (asset & inventory tables). The trigger
-   inherits the th's mono/uppercase look; the pop resets to body type. */
+/* column-header sort/filter dropdowns (asset & inventory tables). The trigger inherits the th's mono/uppercase look; the pop resets to body type. */
 .th-btn{display:inline-flex;align-items:center;gap:5px;background:none;border:0;padding:0;cursor:pointer;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit}
 .th-btn:hover{color:var(--ink)}
 .th-btn.on{color:var(--brand)}
@@ -419,8 +335,7 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 .th-pop-opt:hover{background:rgba(255,255,255,.75)}
 .th-pop-opt input{margin:0;flex:none;accent-color:var(--brand)}
 .th-pop-opt span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* Date columns swap the value checklist for presets + a from/to pair. The
-   chips wrap, so a column that only warrants two of them takes one row. */
+/* Date columns swap the value checklist for presets + a from/to pair. The chips wrap, so a column that only warrants two of them takes one row. */
 .th-pop-chips{display:flex;flex-wrap:wrap;gap:5px;padding:1px 2px 8px}
 .th-chip{padding:4px 9px;border:1px solid var(--edge);border-radius:99px;background:rgba(255,255,255,.55);font:600 11px var(--sans);color:var(--ink-2);cursor:pointer;white-space:nowrap;transition:border-color var(--t-fast) var(--ease),color var(--t-fast) var(--ease),background var(--t-fast) var(--ease)}
 .th-chip:hover{border-color:rgba(14,122,143,.35);color:var(--brand)}
@@ -433,8 +348,7 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 .th-pop-dates input:disabled{opacity:.55;cursor:not-allowed}
 .th-pop-note{margin:7px 3px 1px;font-size:11px;line-height:1.35;color:var(--ink-3)}
 
-/* status stamps — dense data, so these stay opaque and crisp. A hairline
-   highlight on top is the only nod to the soft theme. */
+/* status stamps — dense data, so these stay opaque and crisp. A hairline highlight on top is the only nod to the soft theme. */
 .stamp{display:inline-grid;place-items:center;min-width:32px;height:23px;padding:0 6px;border-radius:8px;font:600 10.5px var(--mono);letter-spacing:.04em;border:1px solid;box-shadow:inset 0 1px 0 rgba(255,255,255,.75),0 1px 2px rgba(23,60,102,.08)}
 .st-P{color:var(--p);background:var(--p-bg);border-color:var(--p-line)}
 .st-LM{color:var(--lm);background:var(--lm-bg);border-color:var(--lm-line)}
@@ -464,10 +378,7 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 
 /* ============ dashboard ============ */
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-/* Five-across, for a band that genuinely has five figures (the document
-   register). Without it the fifth card drops onto a row of its own and reads
-   as an afterthought rather than part of the set. Narrower windows fall back
-   through the same two breakpoints as .kpis. */
+/* Five-across, for a band that genuinely has five figures (the document register). Without it the fifth card drops onto a row of its own and reads as an afterthought rather than part of the set. Narrower windows fall back through the same two breakpoints as .kpis. */
 .kpis.five{grid-template-columns:repeat(5,1fr)}
 .kpi{padding:18px 20px}
 .kpi:hover{box-shadow:var(--shadow-lift),inset 0 1px 0 rgba(255,255,255,.65);transform:translateY(-2px)}
@@ -475,18 +386,10 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 .kpi .val{font:700 36px/1.05 var(--display);margin-top:8px;color:var(--ink);letter-spacing:-.035em}
 .kpi .note{margin-top:6px;font-size:12px;color:var(--ink-2)}
 .kpi .val small{font:600 15px var(--sans);color:var(--ink-3);letter-spacing:-.01em}
-/* 2px gaps between segments: reads as a segmented meter, and keeps adjacent
-   branch colours apart for colour-vision-deficient readers (the palette's one
-   warn-band pair relies on this + the named legend rows). The track is
-   recessed so the fill looks like it sits inside the card. */
+/* 2px gaps between segments: reads as a segmented meter, and keeps adjacent branch colours apart for colour-vision-deficient readers (the palette's one warn-band pair relies on this + the named legend rows). The track is recessed so the fill looks like it sits inside the card. */
 .split{display:flex;gap:2px;height:11px;border-radius:99px;overflow:hidden;margin-top:12px;border:1px solid var(--edge);background:var(--card-2);box-shadow:var(--nu-press)}
 .split i{display:block;min-width:2px}
-/* Branch legend under the headcount split bar: one row per branch (name left,
-   count right), same dashed-row idiom as .watch below. The CARD never grows
-   with the roster: the list is hard-capped at ~2 rows (plus a sliver of the
-   3rd, which signals there is more) and everything beyond scrolls INSIDE the
-   list. The band is .no-stretch, so the sibling KPI cards are independent of
-   this card's height either way. */
+/* Branch legend under the headcount split bar: one row per branch (name left, count right), same dashed-row idiom as .watch below. The CARD never grows with the roster: the list is hard-capped at ~2 rows (plus a sliver of the 3rd, which signals there is more) and everything beyond scrolls INSIDE the list. The band is .no-stretch, so the sibling KPI cards are independent of this card's height either way. */
 .branch-list{margin-top:8px;font:500 11.5px var(--mono);color:var(--ink-2);max-height:58px;overflow-y:auto;overscroll-behavior:contain}
 .branch-list .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed var(--line)}
 .branch-list .row:last-child{border-bottom:0}
@@ -513,8 +416,7 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 .month-nav button:active{box-shadow:var(--nu-press)}
 .month-nav .cur{padding:8px 14px;font:600 13px var(--mono);border-left:1px solid var(--line);border-right:1px solid var(--line);color:var(--ink)}
 .legend{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
-/* The register is a dense grid: it keeps a solid-ish ground so the hairlines
-   and stamps stay crisp instead of swimming in blur. */
+/* The register is a dense grid: it keeps a solid-ish ground so the hairlines and stamps stay crisp instead of swimming in blur. */
 .register{overflow:hidden;background:rgba(255,255,255,.80)}
 .reg-scroll{overflow-x:auto}
 .reg-table{display:grid;grid-template-columns:250px 1fr;min-width:0}
@@ -581,12 +483,7 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
   -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
   transition:opacity var(--t-med) var(--ease),visibility var(--t-med) var(--ease)}
 .overlay.on{opacity:1;visibility:visible}
-/* No backdrop-filter here either — drawers host confirm dialogs and toasts
-   (AssignItemDrawer, ExitsScreen), and blurring would re-anchor those fixed
-   nodes to the 470px column. The frost comes from .overlay sitting behind it,
-   which is a leaf element and can blur freely. Note the closed state's
-   translateX already forms a containing block; it resolves to none on .on,
-   which is the only state where a nested dialog can be open. */
+/* No backdrop-filter here either — drawers host confirm dialogs and toasts (AssignItemDrawer, ExitsScreen), and blurring would re-anchor those fixed nodes to the 470px column. The frost comes from .overlay sitting behind it, which is a leaf element and can blur freely. Note the closed state's translateX already forms a containing block; it resolves to none on .on, which is the only state where a nested dialog can be open. */
 .drawer{position:fixed;top:0;right:0;bottom:0;width:470px;max-width:92vw;
   background:linear-gradient(200deg,rgba(255,255,255,.96) 0%,rgba(255,255,255,.90) 60%,rgba(255,255,255,.94) 100%);
   border-left:1px solid var(--edge);
@@ -631,9 +528,7 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 .chat-status{padding:6px 10px;border:1px solid var(--edge);border-radius:10px;font:inherit;font-size:12px;background:linear-gradient(180deg,#E7ECF4,#F6F8FC);color:var(--ink);box-shadow:var(--nu-press)}
 .chat-status:focus{outline:none;border-color:rgba(14,122,143,.45);box-shadow:var(--nu-press),var(--ring)}
 
-/* Centered confirmation modal — themed replacement for window.confirm().
-   It carries its own veil; if you already render .overlay.on behind it,
-   delete the background/backdrop-filter here to avoid double-dimming. */
+/* Centered confirmation modal — themed replacement for window.confirm(). It carries its own veil; if you already render .overlay.on behind it, delete the background/backdrop-filter here to avoid double-dimming. */
 .modal{position:fixed;inset:0;z-index:62;display:flex;align-items:center;justify-content:center;padding:20px;
   background:rgba(16,46,80,.32);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);animation:dx-veil .16s ease}
 .modal-card{background:var(--sheen);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--edge);border-radius:20px;box-shadow:0 32px 72px rgba(23,60,102,.30),inset 0 1px 0 rgba(255,255,255,.7);width:452px;max-width:92vw;overflow:hidden;animation:modal-in .18s var(--ease)}
@@ -672,22 +567,16 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
   border:1px solid var(--edge);box-shadow:var(--nu-raise)}
 
 /* ============ login ============ */
-/* White here too, to match the app shell — the card carries itself on its
-   shadow alone. */
+/* White here too, to match the app shell — the card carries itself on its shadow alone. */
 .login-shell{min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--paper)}
 .login-card{width:100%;max-width:404px;padding:32px 30px;border-radius:22px;
   box-shadow:0 24px 56px rgba(23,60,102,.16),var(--nu-raise)}
-/* ---- brand mark (logo + "HRMS.") -------------------------------------------
-   One markup shape (components/ui/Brand.tsx), sized per surface here. */
+/* ---- brand mark (logo + "HRMS.") ------------------------------------------- One markup shape (components/ui/Brand.tsx), sized per surface here. */
 .brandmark{display:inline-flex;align-items:center;gap:9px;line-height:1}
 .brandmark-img{display:block;height:26px;width:auto;object-fit:contain}
 .brandmark-txt{font:700 22px/1 var(--display);letter-spacing:-.025em;white-space:nowrap}
 
-/* sidebar brand — a white panel (see .brand), so the Dalnex mark shows in full
-   colour exactly like the login card, NOT inverted to white. The Dalnex logo is
-   deliberately the dominant element: at 42px it is well over twice the height of
-   the 18px "HRMS." wordmark, so the size difference is unmistakable. "HRMS." is
-   dark ink with the teal dot, mirroring the login. */
+/* sidebar brand — a white panel (see .brand), so the Dalnex mark shows in full colour exactly like the login card, NOT inverted to white. The Dalnex logo is deliberately the dominant element: at 42px it is well over twice the height of the 18px "HRMS." wordmark, so the size difference is unmistakable. "HRMS." is dark ink with the teal dot, mirroring the login. */
 .brand .brandmark{display:flex;align-items:center;justify-content:flex-start;gap:8px}
 .brand .brandmark-img{display:block;height:42px;width:auto;flex-shrink:0}
 .brand .brandmark-txt{
@@ -758,8 +647,7 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
   animation:dx-spin .7s linear infinite}
 
 /* ============ extras ============ */
-/* <table class="sticky-th"> inside a scrolling card keeps its header pinned.
-   The header must be opaque enough to hide rows sliding under it. */
+/* <table class="sticky-th"> inside a scrolling card keeps its header pinned. The header must be opaque enough to hide rows sliding under it. */
 .sticky-th th{position:sticky;top:0;z-index:1;background:#E4EAF3}
 
 /* payroll & KPI figures align like a ledger */
@@ -786,8 +674,7 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 /* ============ attendance clock (employee punch card) ============ */
 .punch-face{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
 .punch-read{flex:1;min-width:200px}
-/* The state chip is the first thing read, so presence is carried by the word,
-   the dot colour AND the fill — never colour alone. */
+/* The state chip is the first thing read, so presence is carried by the word, the dot colour AND the fill — never colour alone. */
 .punch-state{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border-radius:99px;
   font:600 11.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;
   color:var(--ink-2);background:var(--card-2);border:1px solid var(--edge)}
@@ -797,9 +684,7 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 @keyframes punch-pulse{50%{box-shadow:0 0 0 6px rgba(23,114,69,0)}}
 .punch-elapsed{font:700 34px/1.05 var(--display);letter-spacing:-.035em;color:var(--ink);margin-top:10px}
 .punch-meta{margin-top:4px;font-size:12.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-/* The at-office / off-site stamp. When the punch carries coordinates it is a
-   link to that spot on Google Maps — "off-site" with no where is an accusation
-   with no evidence — so it gets a pin glyph and a real press affordance. */
+/* The at-office / off-site stamp. When the punch carries coordinates it is a link to that spot on Google Maps — "off-site" with no where is an accusation with no evidence — so it gets a pin glyph and a real press affordance. */
 .punch-geo{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
   font:600 9.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;
   padding:3px 8px;border-radius:99px;border:1px solid}
@@ -813,13 +698,10 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 .punch-geo.is-link:hover svg{opacity:1}
 .punch-geo.is-link:active{transform:translateY(0);box-shadow:none}
 .punch-geo.is-link:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-/* The day's single most-used control: oversized on every viewport, not just
-   touch ones, because it is tapped in a hurry on the way in. */
+/* The day's single most-used control: oversized on every viewport, not just touch ones, because it is tapped in a hurry on the way in. */
 .punch-btn{min-width:172px;min-height:52px;justify-content:center;font-size:15px;border-radius:14px}
 .punch-note{margin:14px 0 0;font-size:12px;line-height:1.55}
-/* Location state. A blocked permission is the one thing that stops a punch
-   dead, so it gets a full alert block rather than muted helper text — it has to
-   be impossible to press the button without having seen it. */
+/* Location state. A blocked permission is the one thing that stops a punch dead, so it gets a full alert block rather than muted helper text — it has to be impossible to press the button without having seen it. */
 .punch-alert{margin:16px 0 0;padding:12px 14px;border-radius:12px;
   font-size:12.5px;line-height:1.6;border:1px solid}
 .punch-alert b{font-weight:700}
@@ -827,10 +709,7 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 .punch-alert.is-warn{color:var(--lm);background:var(--lm-bg);border-color:var(--lm-line)}
 .punch-alert.is-info{color:var(--ink-2);background:var(--card-2);border-color:var(--edge)}
 
-/* ---- the punch trail under the clock ------------------------------------
-   Its own panel inside the card: the card above is read for *today*, this is
-   the record. The API returns the last 100 punches, so the list scrolls in a
-   fixed box rather than running several screens down the page. */
+/* ---- the punch trail under the clock ------------------------------------ Its own panel inside the card: the card above is read for *today*, this is the record. The API returns the last 100 punches, so the list scrolls in a fixed box rather than running several screens down the page. */
 .punch-history{padding:0 20px 18px;background:var(--sheen-card);
   border:1px solid var(--edge);border-radius:var(--radius);box-shadow:var(--shadow)}
 .punch-history .fold{margin-top:0}
@@ -842,14 +721,11 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 .punch-scroll::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:99px}
 .punch-day{margin-bottom:14px}
 .punch-day:last-child{margin-bottom:0}
-/* Rides along at the top of the scroll box, so a row three days back is still
-   attributable to a date without scrolling back up. */
+/* Rides along at the top of the scroll box, so a row three days back is still attributable to a date without scrolling back up. */
 .punch-day-hd{position:sticky;top:0;z-index:1;padding:2px 0 6px;background:var(--sheen-card);
   font:600 10px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
 .punch-day-rows{display:flex;flex-direction:column;gap:6px}
-/* Three columns, not three things in a row: In/Out and the time are fixed
-   width and the stamp is pinned right, so the day reads down a column instead
-   of trailing off wherever the previous value happened to end. */
+/* Three columns, not three things in a row: In/Out and the time are fixed width and the stamp is pinned right, so the day reads down a column instead of trailing off wherever the previous value happened to end. */
 .punch-row{display:flex;align-items:center;gap:12px;padding:7px 12px;border-radius:10px;
   background:var(--card-2);border:1px solid var(--edge);
   transition:background-color var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease)}
@@ -862,15 +738,12 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 .punch-row .punch-geo{margin-left:auto}
 
 /* ============ TV attendance board (/tv) ============ */
-/* Everything here is sized in clamp() against the viewport: the same markup has
-   to be legible on a laptop preview and across a room on a 4K wall panel. */
+/* Everything here is sized in clamp() against the viewport: the same markup has to be legible on a laptop preview and across a room on a 4K wall panel. */
 .tv-shell{min-height:100dvh;background:var(--paper)}
 .tv{min-height:100dvh;display:flex;flex-direction:column;padding:clamp(16px,2.2vw,34px)}
 .tv-head{display:flex;align-items:flex-start;gap:clamp(16px,2.5vw,40px);flex-wrap:wrap;
   padding-bottom:clamp(12px,1.4vw,20px);border-bottom:2px solid var(--line-2)}
-/* The board uses the real <Brand> mark, like the sidebar and login card. It is
-   the largest instance in the app — this is read from across a room — so the
-   logo and the "HRMS." wordmark are scaled together against the viewport. */
+/* The board uses the real <Brand> mark, like the sidebar and login card. It is the largest instance in the app — this is read from across a room — so the logo and the "HRMS." wordmark are scaled together against the viewport. */
 .tv-head-brand .brandmark{gap:clamp(8px,.7vw,14px);align-items:center}
 .tv-head-brand .brandmark-img{height:clamp(30px,3vw,60px);width:auto}
 .tv-head-brand .brandmark-txt{font-size:clamp(20px,2vw,40px);color:var(--ink);letter-spacing:-.03em}
@@ -919,8 +792,7 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 .tv-foot{margin:clamp(8px,.7vw,14px) 0 0;font-size:clamp(11px,.78vw,15px);color:var(--ink-2)}
 .tv-flag{margin-left:7px;font:600 9px var(--mono);letter-spacing:.08em;text-transform:uppercase;
   color:var(--lm);background:var(--lm-bg);border:1px solid var(--lm-line);padding:2px 7px;border-radius:99px}
-/* Presence tints. Each pairs with the spelled-out label in .tv-state, so the
-   board still parses on a washed-out projector or in greyscale. */
+/* Presence tints. Each pairs with the spelled-out label in .tv-state, so the board still parses on a washed-out projector or in greyscale. */
 .tv-card.is-in{background:linear-gradient(155deg,#F1F9F4,#E8F4EC);border-color:var(--p-line)}
 .tv-card.is-in .tv-state{color:var(--p)}
 .tv-card.is-in .tv-state .dot{background:var(--p);box-shadow:0 0 0 3px rgba(23,114,69,.18)}
@@ -928,8 +800,7 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
 .tv-card.is-awaited{background:#FDFBF6;border-color:var(--lm-line)}
 .tv-card.is-awaited .tv-state{color:var(--lm)}
 .tv-card.is-awaited .tv-state .dot{background:var(--lm)}
-/* Approved leave is a decision, not an absence — it keeps its own colour rather
-   than being dimmed away like a week off. */
+/* Approved leave is a decision, not an absence — it keeps its own colour rather than being dimmed away like a week off. */
 .tv-card.is-leave{background:linear-gradient(155deg,#F4F6FB,#E9ECF5);border-color:var(--lv-line)}
 .tv-card.is-leave .tv-state{color:var(--lv)}
 .tv-card.is-leave .tv-state .dot{background:var(--lv)}
@@ -943,26 +814,14 @@ tbody tr:hover{background:rgba(255,255,255,.62)}
   .exp-col{border-right:0;border-bottom:1px dashed var(--line-2)}
 }
 
-/* Stop iOS inflating text in rotated/narrow columns, which silently breaks
-   every carefully-set size below. */
+/* Stop iOS inflating text in rotated/narrow columns, which silently breaks every carefully-set size below. */
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 
 /* The menu button and its scrim exist only below the drawer breakpoint. */
 .nav-toggle{display:none}
 .nav-scrim{display:none}
 
-/* --------------------------------------------------------------------------
-   Below 860px the sidebar stops being furniture and becomes a drawer.
-
-   It used to collapse to a 64px icon rail. On a phone that rail ate a sixth of
-   the screen to show nothing but glyphs — and the labels were hidden, so the
-   nav was unusable to anyone who did not already know the icons. A real
-   off-canvas drawer gives the content the full width AND brings the labels
-   back. Sidebar.tsx owns the .open flag and the scrim.
-
-   860px (not 1120px) because Windows display scaling makes an ordinary laptop
-   report ~1024 CSS px, and the sidebar used to look like it had closed itself.
-   -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- Below 860px the sidebar stops being furniture and becomes a drawer. It used to collapse to a 64px icon rail. On a phone that rail ate a sixth of the screen to show nothing but glyphs — and the labels were hidden, so the nav was unusable to anyone who did not already know the icons. A real off-canvas drawer gives the content the full width AND brings the labels back. Sidebar.tsx owns the .open flag and the scrim. 860px (not 1120px) because Windows display scaling makes an ordinary laptop report ~1024 CSS px, and the sidebar used to look like it had closed itself. -------------------------------------------------------------------------- */
 @media (max-width:860px){
   :root{--gutter:10px}
 
@@ -982,8 +841,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
     transition:opacity var(--t-med) var(--ease),visibility var(--t-med) var(--ease)}
   .nav-scrim.on{opacity:1;visibility:visible}
 
-  /* Sits inside the topbar's reserved left gutter, so it reads as part of the
-     bar. 44px square — the minimum comfortable touch target. */
+  /* Sits inside the topbar's reserved left gutter, so it reads as part of the bar. 44px square — the minimum comfortable touch target. */
   .nav-toggle{display:inline-flex;align-items:center;justify-content:center;
     position:fixed;top:calc(var(--gutter) + 7px);left:calc(var(--gutter) + 7px);
     width:44px;height:44px;z-index:72;
@@ -991,9 +849,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
     background:#fff;box-shadow:var(--nu-raise-sm)}
   .nav-toggle svg{width:21px;height:21px}
   .nav-toggle:active{box-shadow:var(--nu-press)}
-  /* The toggle keeps one position in both states so it stays where the thumb
-     learned it — which means the open drawer's brand has to start after it,
-     rather than underneath it with the logo half covered. */
+  /* The toggle keeps one position in both states so it stays where the thumb learned it — which means the open drawer's brand has to start after it, rather than underneath it with the logo half covered. */
   .sidebar .brand{padding-left:calc(var(--gutter) + 58px)}
   .shell .topbar{padding-left:62px}
 
@@ -1003,9 +859,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   .topbar .sub{display:none}
   .topbar h2{font-size:17px}
 
-  /* A table cannot reflow, so let it scroll inside its own card rather than
-     stretch the page. Scoped with :has() so card bodies WITHOUT a table keep
-     overflow:visible and their popovers are not clipped. */
+  /* A table cannot reflow, so let it scroll inside its own card rather than stretch the page. Scoped with :has() so card bodies WITHOUT a table keep overflow:visible and their popovers are not clipped. */
   .card .bd:has(table){overflow-x:auto;-webkit-overflow-scrolling:touch}
   .card .bd:has(table) table{min-width:520px}
   /* The register's frozen name column is 250px of a 390px screen. */
@@ -1030,21 +884,14 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   .exp-grid{grid-template-columns:1fr}
   .wrap.grid,.grid{gap:12px}
 
-  /* 16px is the threshold below which iOS Safari zooms the page on focus and
-     never zooms back — the single most disorienting mobile form bug there is.
-     Every text control gets it, not just .f input. */
+  /* 16px is the threshold below which iOS Safari zooms the page on focus and never zooms back — the single most disorienting mobile form bug there is. Every text control gets it, not just .f input. */
   .f input,.f select,.login-form input,.adj input,.search input,
   .chat-composer textarea,.chat-status,.th-pop-find,.th-pop-dates input{font-size:16px}
 
   /* Comfortable touch targets. 44px is the WCAG 2.2 / platform minimum. */
   .btn{min-height:44px;padding:11px 16px}
 
-  /* The employee bar carries four things on a 360px screen: brand, bell,
-     avatar, punch. In that order of expendability — the wordmark goes (the
-     logo still identifies the app), then the running total (the button is the
-     point of the control, and the same number is on the clock card a scroll
-     away), then the padding. The height stays at the 44px target throughout.
-     .topbar-scoped so these beat the generic .btn padding directly above. */
+  /* The employee bar carries four things on a 360px screen: brand, bell, avatar, punch. In that order of expendability — the wordmark goes (the logo still identifies the app), then the running total (the button is the point of the control, and the same number is on the clock card a scroll away), then the padding. The height stays at the 44px target throughout. .topbar-scoped so these beat the generic .btn padding directly above. */
   .topbar{padding:10px 12px;gap:8px}
   .topbar .brandmark-txt{display:none}
   .topbar .brandmark-img{height:24px}
@@ -1070,18 +917,14 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   .modal-card .m-hd,.modal-card .m-bd,.modal-card .m-ft{padding-left:16px;padding-right:16px}
   .chat-row{max-width:92%}
 
-  /* The board is a wall display, but it still has to survive being opened on a
-     phone to check the floor. */
+  /* The board is a wall display, but it still has to survive being opened on a phone to check the floor. */
   .tv-head{gap:12px}
   .tv-kpis{margin-left:0;width:100%;justify-content:space-between;gap:10px}
   .tv-clock{align-items:flex-start}
   .tv-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
 }
 
-/* Blur is the most expensive part of this theme, and iOS Safari in particular
-   struggles with backdrop-filter on position:fixed elements while scrolling.
-   On small/touch viewports drop the frost and keep the depth cues, which are
-   free. Cards and drawers are untouched — they never blurred to begin with. */
+/* Blur is the most expensive part of this theme, and iOS Safari in particular struggles with backdrop-filter on position:fixed elements while scrolling. On small/touch viewports drop the frost and keep the depth cues, which are free. Cards and drawers are untouched — they never blurred to begin with. */
 @media (max-width:600px){
   .topbar,.modal-card,.toast,.avatar-pop,.th-pop{
     -webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(255,255,255,.95)}
@@ -1090,8 +933,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
     -webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(16,46,80,.48)}
 }
 
-/* Coarse pointers get the larger targets regardless of viewport width — a
-   tablet in landscape is wide but still touched. */
+/* Coarse pointers get the larger targets regardless of viewport width — a tablet in landscape is wide but still touched. */
 @media (pointer:coarse){
   .btn{min-height:44px}
   .nav a{padding:10px 12px}
@@ -1099,8 +941,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 }
 
 /* ---- print — attendance registers & payslips ----------------------------- */
-/* Every glass/soft effect is flattened: blur and coloured shadow either vanish
-   or turn to mud on paper, and toner should not be spent on an aurora. */
+/* Every glass/soft effect is flattened: blur and coloured shadow either vanish or turn to mud on paper, and toner should not be spent on an aurora. */
 @media print{
   .sidebar,.topbar,.toast-wrap,.drawer,.overlay,.modal,.btn,.side-foot,
   .nav-toggle,.nav-scrim,.punch-btn,.me-foot{

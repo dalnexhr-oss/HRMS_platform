@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Where a post-sign-in `?next=` may point.
 //
 // THE ATTACK. An open redirect on a login page is a phishing multiplier: the
@@ -19,24 +19,12 @@
 // A path survives only if it parses to the same origin as the base we resolve
 // against, which no absolute URL, protocol-relative URL, backslash trick or
 // non-http scheme can do.
-// ============================================================================
+//
 
-/**
- * A sentinel origin used only for resolution.
- *
- * The real deployment origin is not needed and deliberately not used: we are
- * asking "does this value stay relative", and any fixed origin answers that.
- * Using a placeholder also means the check behaves identically in development,
- * in CI and in production rather than depending on configuration being right.
- */
+// A sentinel origin used only for resolution. The real deployment origin is not needed and deliberately not used: we are asking "does this value stay relative", and any fixed origin answers that. Using a placeholder also means the check behaves identically in development, in CI and in production rather than depending on configuration being right.
 const BASE = 'https://redirect.invalid';
 
-/**
- * The path to redirect to, or null when the value cannot be trusted.
- *
- * Returns a path-with-query-and-fragment, never an absolute URL, so the caller
- * can hand it straight to redirect().
- */
+// The path to redirect to, or null when the value cannot be trusted. Returns a path-with-query-and-fragment, never an absolute URL, so the caller can hand it straight to redirect().
 export function safeRedirectPath(value: string | null | undefined): string | null {
   if (!value) return null;
 

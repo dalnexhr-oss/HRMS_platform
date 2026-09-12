@@ -28,8 +28,7 @@ export function PunchToggle() {
   return (
     <div className="punch-top">
       {toastNode}
-      {/* Today's running total, so the bar states where you stand before you
-          press anything. Hidden on narrow screens — the button is the point. */}
+      {/* Today's running total, so the bar states where you stand before you press anything. Hidden on narrow screens — the button is the point. */}
       <span className={`punch-top-read${isIn ? ' on' : ''}`} aria-hidden={loading}>
         <i className="dot" />
         <b className="mono">{loading ? '—' : duration(worked)}</b>

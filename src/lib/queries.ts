@@ -1,17 +1,17 @@
-// ============================================================================
+//
 // Data access layer. These run in Server Components.
 //
 // THE ONE RULE — read before editing:
-//   When a query fails, the error is THROWN, not swallowed. A broken database
-//   must never be indistinguishable from a working one.
+// When a query fails, the error is THROWN, not swallowed. A broken database
+// must never be indistinguishable from a working one.
 //
-//   const { data, error } = await ...;
-//   if (error) fail('context', error);                 // surface it
-//   return map(data);
+// const { data, error } = await ...;
+// if (error) fail('context', error); // surface it
+// return map(data);
 //
 // A legitimately empty result (no payroll run for the month yet) returns an
 // empty array — that is an empty state, not an error.
-// ============================================================================
+//
 import type { TabAccess } from '@/lib/access';
 import { createClient } from '@/lib/db/server';
 import { minutesToHHMM, trimTime } from '@/lib/format';
@@ -44,44 +44,21 @@ import { deleteExpiredNotices } from '@/lib/db/scheduler';
 // The implementation lives in @/lib/db/mongo (single source of truth).
 export { isMongoConfigured };
 
-// ------------------------------------------------------------------ utils ---
+// ------------------------------------------------------------------ utils
 
-/**
- * A BSON Date as the ISO string the view layer expects.
- *
- * Postgres returned timestamptz already serialised; the driver returns a real
- * Date. Every mapper that used to pass a timestamp straight through goes via
- * this, so a Date never reaches a client component (React cannot serialise one
- * across the boundary without turning it back into a string anyway).
- *
- * Calendar days do NOT come through here — they are stored as strings on
- * purpose and are already in the right shape.
- */
+// A BSON Date as the ISO string the view layer expects. Postgres returned timestamptz already serialised; the driver returns a real Date. Every mapper that used to pass a timestamp straight through goes via this, so a Date never reaches a client component (React cannot serialise one across the boundary without turning it back into a string anyway). Calendar days do NOT come through here — they are stored as strings on purpose and are already in the right shape.
 function iso(value: unknown): string {
   if (value instanceof Date) return value.toISOString();
   return (value as string | null) ?? '';
 }
 
-/**
- * The same, but null stays null.
- *
- * Use wherever the target field is nullable — a read_at, a published_at.
- * Flattening those to '' would make "never read" render as an empty date
- * instead of being absent, and `publishedAt != null` checks would start
- * returning true for unpublished rows.
- */
+// The same, but null stays null. Use wherever the target field is nullable — a read_at, a published_at. Flattening those to '' would make "never read" render as an empty date instead of being absent, and `publishedAt != null` checks would start returning true for unpublished rows.
 function isoOrNull(value: unknown): string | null {
   if (value === null || value === undefined) return null;
   return iso(value);
 }
 
-/**
- * First day of the CURRENT month in IST — the default period everywhere.
- * Evaluated at call time (it is used as a default parameter below), so a
- * long-running server crosses month boundaries correctly. Replaces the
- * prototype-era hardcoded '2026-06-01', which pinned /payroll, /today and
- * /me to June 2026 forever.
- */
+// First day of the CURRENT month in IST — the default period everywhere. Evaluated at call time (it is used as a default parameter below), so a long-running server crosses month boundaries correctly. Replaces the prototype-era hardcoded '2026-06-01', which pinned /payroll, /today and /me to June 2026 forever.
 export function currentPeriodMonth(): string {
   return todayISO().slice(0, 8) + '01';
 }
@@ -93,11 +70,7 @@ interface QueryError {
   code?: string;
 }
 
-/**
- * Turn a query error into a real, debuggable Error and throw it. The query
- * layer reports failures as plain objects; throwing one raw loses the stack and
- * renders as "{}" in Next's error overlay.
- */
+// Turn a query error into a real, debuggable Error and throw it. The query layer reports failures as plain objects; throwing one raw loses the stack and renders as "{}" in Next's error overlay.
 function fail(context: string, error: QueryError): never {
   const detail = [error.message, error.details, error.hint].filter(Boolean).join(' — ');
   const code = error.code ? ` (${error.code})` : '';
@@ -2500,7 +2473,7 @@ export async function getTicketComments(
   return byTicket;
 }
 
-// --------------------------------------------------------------- settings ---
+// --------------------------------------------------------------- settings
 export interface SettingView {
   key: string;
   value: unknown;
@@ -2508,9 +2481,9 @@ export interface SettingView {
   description: string | null;
 }
 
-/** App settings. */
-// ------------------------------------------------------------- topbar ---
-/** '23:00' (or a JSON-quoted "23:00") -> '11:00 PM'. Null when unparseable. */
+// App settings.
+// ------------------------------------------------------------- topbar
+// '23:00' (or a JSON-quoted "23:00") -> '11:00 PM'. Null when unparseable.
 function prettyClock(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const m = /^"?(\d{1,2}):(\d{2})/.exec(value);

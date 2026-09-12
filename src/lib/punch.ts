@@ -1,54 +1,54 @@
-// ============================================================================
+//
 // Live punch in / punch out — server side.
 //
 // Two tables are involved and they play different roles:
-//   punch_events   the immutable trail. Every tap lands here, with whatever
-//                  coordinates the browser was willing to give us.
-//   attendance_days the ONE resolved row per employee per day that the register
-//                  and payroll read. It is never written incrementally — it is
-//                  recomputed from the day's events after every punch, so a day
-//                  with four punches (in, lunch out, back in, out) totals
-//                  correctly instead of losing the first session.
+// punch_events the immutable trail. Every tap lands here, with whatever
+// coordinates the browser was willing to give us.
+// attendance_days the ONE resolved row per employee per day that the register
+// and payroll read. It is never written incrementally — it is
+// recomputed from the day's events after every punch, so a day
+// with four punches (in, lunch out, back in, out) totals
+// correctly instead of losing the first session.
 //
 // Location is recorded and classified, never enforced: a punch is accepted with
 // no coordinates at all (permission denied, no GPS, desktop browser). What the
 // geofence decides is only whether the punch is stamped as at-office or
 // off-site, for HR to review.
-// ============================================================================
+//
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { toCoordinate } from '@/lib/db/money';
 
 const BUSINESS_TZ = 'Asia/Kolkata';
 
-/** Fallback when no radius is configured. The office setting overrides it. */
+// Fallback when no radius is configured. The office setting overrides it.
 const DEFAULT_GEOFENCE_M = 50;
 
 export type PunchKind = 'in' | 'out';
 
-/** Browser coordinates, or null when the device would not give them. */
+// Browser coordinates, or null when the device would not give them.
 export interface PunchCoords {
   latitude: number;
   longitude: number;
-  /** GPS accuracy in metres, if the browser reported it. */
+  // GPS accuracy in metres, if the browser reported it.
   accuracy?: number | null;
 }
 
 export interface PunchStatus {
   status: 'in' | 'out';
-  /** ISO timestamp of the most recent punch today, or null if none yet. */
+  // ISO timestamp of the most recent punch today, or null if none yet.
   lastPunchAt: string | null;
   lastKind: PunchKind | null;
-  /** true / false / null — null means "not classified" (no coords or no office). */
+  // true / false / null — null means "not classified" (no coords or no office).
   lastWithinGeofence: boolean | null;
-  /** Where that punch was taken, when the device shared it. Drives the map link. */
+  // Where that punch was taken, when the device shared it. Drives the map link.
   lastLat: number | null;
   lastLng: number | null;
-  /** Minutes closed out today. An open session is not counted until punch out. */
+  // Minutes closed out today. An open session is not counted until punch out.
   workedMinutes: number;
-  /** Whether an office location is configured at all. */
+  // Whether an office location is configured at all.
   geofenceConfigured: boolean;
-  /** Whether the server will refuse a punch that shares no location. */
+  // Whether the server will refuse a punch that shares no location.
   requireLocation: boolean;
 }
 
@@ -56,14 +56,14 @@ export interface PunchRecord {
   type: PunchKind;
   timestamp: string;
   withinGeofence: boolean | null;
-  /** Coordinates of the punch, or null when the device shared none. */
+  // Coordinates of the punch, or null when the device shared none.
   lat: number | null;
   lng: number | null;
 }
 
 // ------------------------------------------------------------ time helpers --
 
-/** Today's date and wall-clock time in the business timezone, not the server's. */
+// Today's date and wall-clock time in the business timezone, not the server's.
 function localParts(date = new Date()): { date: string; time: string } {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: BUSINESS_TZ,

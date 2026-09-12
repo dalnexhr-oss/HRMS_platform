@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Personal calendar feed (.ics) — subscribe to your own HR calendar.
 //
 // Returns the signed-in employee's approved leave, their comp-off credits and
@@ -16,14 +16,14 @@
 // The collection policies do the real scoping: `requests` and `comp_offs` are
 // already restricted to the caller, so this route cannot return another
 // employee's leave even if the employee id were tampered with.
-// ============================================================================
+//
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { getHolidays } from '@/lib/queries';
 import { buildIcs, type CalendarEvent } from '@/lib/ics';
 
-/** Always evaluated per-request: the feed is per-user and changes as leave is approved. */
+// Always evaluated per-request: the feed is per-user and changes as leave is approved.
 export const dynamic = 'force-dynamic';
 
 export async function GET(): Promise<Response> {
@@ -36,7 +36,7 @@ export async function GET(): Promise<Response> {
   const dbc = await createClient();
   const events: CalendarEvent[] = [];
 
-  // --- company holidays (everyone sees these) -------------------------------
+  // --- company holidays (everyone sees these)
   try {
     for (const h of await getHolidays()) {
       events.push({
@@ -65,8 +65,6 @@ export async function GET(): Promise<Response> {
       events.push({
         uid: `request-${r.id}@dalnex-hrms`,
         start: String(r.start_date).slice(0, 10),
-        // `end` is the INCLUSIVE last day; buildIcs converts it to RFC 5545's
-        // exclusive DTEND, so a single-day leave does not bleed into the next.
         end: String(r.end_date).slice(0, 10),
         summary: kind.charAt(0).toUpperCase() + kind.slice(1),
         description: 'Approved by Dalnex HR.',
@@ -98,8 +96,6 @@ export async function GET(): Promise<Response> {
     headers: {
       'Content-Type': 'text/calendar; charset=utf-8',
       'Content-Disposition': 'attachment; filename="dalnex-hr.ics"',
-      // Per-user content — never let a shared cache serve one employee's
-      // calendar to another.
       'Cache-Control': 'private, no-store',
     },
   });

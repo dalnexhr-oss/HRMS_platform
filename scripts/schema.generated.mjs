@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Collection validators and indexes — the MongoDB schema, edited by hand.
 //
 // This began as a mechanical translation of the Postgres DDL the app was
@@ -11,23 +11,23 @@
 // The translation rules below are kept because they explain the shapes already
 // in this file — why a calendar day is a string and an instant is a BSON date —
 // and any new field should follow them:
-//   uuid, text        -> string            (uuid PKs keep their value, so every
-//                                           existing foreign-key string stays valid)
-//   date              -> "YYYY-MM-DD"      BSON Date is a UTC instant; a calendar
-//                                          day round-tripped through it shifts in IST
-//   time              -> "HH:MM"           BSON has no time-of-day type
-//   timestamptz       -> BSON date         these genuinely are instants
-//   numeric(p,s)      -> decimal           money is never float64
-//   integer           -> int | long
-//   jsonb             -> subdocument
-//   enum type         -> enum, including every later `alter type ... add value`
-//   unique (...)      -> unique index      the ONLY thing preventing duplicates now
-//   references        -> plain index       no foreign keys exist to enforce
+// uuid, text -> string (uuid PKs keep their value, so every
+// existing foreign-key string stays valid)
+// date -> "YYYY-MM-DD" BSON Date is a UTC instant; a calendar
+// day round-tripped through it shifts in IST
+// time -> "HH:MM" BSON has no time-of-day type
+// timestamptz -> BSON date these genuinely are instants
+// numeric(p,s) -> decimal money is never float64
+// integer -> int | long
+// jsonb -> subdocument
+// enum type -> enum, including every later `alter type ... add value`
+// unique (...) -> unique index the ONLY thing preventing duplicates now
+// references -> plain index no foreign keys exist to enforce
 //
 // NOT translated, because a JSON Schema cannot express them: cross-field CHECK
 // constraints. Those appear in OVERRIDES as $expr clauses, or are enforced in
 // the action that writes the collection.
-// ============================================================================
+//
 
 export const GENERATED = {
   "branches": {

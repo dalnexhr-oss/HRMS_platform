@@ -12,7 +12,7 @@
 import { useActionState } from 'react';
 import { changePassword, type PasswordState } from '@/lib/actions/password';
 
-/** Mirrors validatePassword() in lib/auth/password.ts. */
+// Mirrors validatePassword() in lib/auth/password.ts.
 const MIN_LEN = 10;
 
 export function ChangePasswordForm({ email }: { email?: string | null }) {
@@ -20,9 +20,7 @@ export function ChangePasswordForm({ email }: { email?: string | null }) {
 
   return (
     <form action={action}>
-      {/* Not sent anywhere: the server identifies the account from the session
-          cookie, never from a field the browser could change. Kept as a prop so
-          the account pages can go on labelling the form with the address. */}
+      {/* The server identifies the account from the session cookie, never from a field the browser could change. Kept as a prop so the account pages can go on labelling the form with the address. */}
       {email && (
         <p className="muted" style={{ marginTop: 0 }}>
           Signed in as {email}.

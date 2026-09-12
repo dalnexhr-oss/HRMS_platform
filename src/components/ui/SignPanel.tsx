@@ -15,10 +15,10 @@ export function SignPanel({
   kind,
   documentId,
   label = 'Sign to acknowledge',
-  /** Existing signature, when the document has already been signed. */
+  // Existing signature, when the document has already been signed.
   signedName,
   signedAt,
-  /** Supply a toast from the parent to avoid stacking one per row. */
+  // Supply a toast from the parent to avoid stacking one per row.
   toast: parentToast,
 }: {
   kind: string;

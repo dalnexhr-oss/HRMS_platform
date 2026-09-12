@@ -1,19 +1,19 @@
 'use client';
 
-// ============================================================================
+//
 // The clickable avatar chip in the top bar. Clicking it opens a small popover to
-//   • upload a photo (resized client-side to 128×128 so it stays a few KB), or
-//   • pick one of the bundled shadcn avatar images, or
-//   • remove the picture (back to initials).
+// • upload a photo (resized client-side to 128×128 so it stays a few KB), or
+// • pick one of the bundled shadcn avatar images, or
+// • remove the picture (back to initials).
 // The chosen value is persisted by the updateAvatar server action.
-// ============================================================================
+//
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AvatarInner } from '@/components/ui/Avatar';
 import { updateAvatar } from '@/lib/actions/profile';
 import { AVATAR_PRESET_IDS, avatarPresetLabel } from '@/lib/avatar-presets';
 
-/** Draw the file onto a 128×128 canvas (centre-cropped) and return a JPEG data URL. */
+// Draw the file onto a 128×128 canvas (centre-cropped) and return a JPEG data URL.
 async function fileToAvatarDataUrl(file: File): Promise<string> {
   const SIZE = 128;
   // imageOrientation:'from-image' honours EXIF so portrait phone photos aren't
@@ -46,8 +46,7 @@ export function AvatarMenu({
 }: {
   name?: string | null;
   avatar?: string | null;
-  /** Which edge the popover anchors to. 'right' for a right-aligned trigger
-   *  (topbar); 'left' when the trigger sits at the left (account page). */
+  // Which edge the popover anchors to. 'right' for a right-aligned trigger (topbar); 'left' when the trigger sits at the left (account page).
   align?: 'left' | 'right';
 }) {
   const router = useRouter();

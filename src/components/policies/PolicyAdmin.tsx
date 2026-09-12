@@ -13,9 +13,9 @@ export function PolicyAdmin({
   headcount = 0,
 }: {
   policies: Policy[];
-  /** policy_id -> employees who have filed a read receipt. */
+  // policy_id -> employees who have filed a read receipt.
   ackCounts?: Record<string, number>;
-  /** Active headcount — the denominator for "n/N read". */
+  // Active headcount — the denominator for "n/N read".
   headcount?: number;
 }) {
   const [editing, setEditing] = useState<Policy | null>(null);

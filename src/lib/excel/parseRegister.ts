@@ -1,29 +1,29 @@
-// ============================================================================
+//
 // Pure parser for the company's monthly attendance register (.xlsx).
 //
 // No database, no React, no I/O beyond the buffer handed in — so it can be
 // unit-tested and run anywhere.
 //
 // LAYOUT (verified against "reference for desktop app (1).xlsx", Sheet1):
-//   B1            year (2026)
-//   B2            the month, as a real date (2026-06-01)
-//   row 3         C..AF weekday names; AQ.. a legend ('P ' = Present with CO)
-//   row 4         C..AF day-of-month 1..30/31; then the summary headers
-//                 (P,T,LM,S,OH,L,CO,HD,WO) at AG..AO; AP 'Working Days'
-//                 — both bands are located by content, not hardcoded, because
-//                 C..AF is exactly 30 wide and cannot be right for every month.
-//   row 5         A 'Empl. ID'; C..AF per-day target hours; AP..BP payroll headers
-//   rows 6+       employee blocks, STRIDE 4:
-//     k+0  A = Empl. ID, C..AF = status code, AG..AO = counts,
-//          AP = working days, AQ = 'to pay for' days
-//     k+1  B = 'In'                  C..AF punch-in
-//     k+2  B = 'Out'                 C..AF punch-out
-//     k+3  B = 'Total Hrs Completed' C..AF worked; AS month total
+// B1 year (2026)
+// B2 the month, as a real date (2026-06-01)
+// row 3 C..AF weekday names; AQ.. a legend ('P ' = Present with CO)
+// row 4 C..AF day-of-month 1..30/31; then the summary headers
+// (P,T,LM,S,OH,L,CO,HD,WO) at AG..AO; AP 'Working Days'
+// — both bands are located by content, not hardcoded, because
+// C..AF is exactly 30 wide and cannot be right for every month.
+// row 5 A 'Empl. ID'; C..AF per-day target hours; AP..BP payroll headers
+// rows 6+ employee blocks, STRIDE 4:
+// k+0 A = Empl. ID, C..AF = status code, AG..AO = counts,
+// AP = working days, AQ = 'to pay for' days
+// k+1 B = 'In' C..AF punch-in
+// k+2 B = 'Out' C..AF punch-out
+// k+3 B = 'Total Hrs Completed' C..AF worked; AS month total
 //
 // TIME VALUES: exceljs hands back real Date objects (epoch 1899-12-30), *not*
 // the raw Excel fractions the spec describes. Both are handled — see
 // excelValueToMinutes. A zero/blank time means "no punch" -> null.
-// ============================================================================
+//
 import ExcelJS from 'exceljs';
 
 export interface ParsedDay {
@@ -36,39 +36,32 @@ export interface ParsedDay {
 
 export interface ParsedEmployee {
   emplId: number;
-  /** Derived key: 'DN' + zero-padded id. Resolved to employees.id by the importer. */
+  // Derived key: 'DN' + zero-padded id. Resolved to employees.id by the importer.
   code: string;
   days: ParsedDay[];
   counts: Record<string, number>;
   workingDays: number | null;
   payableDays: number | null;
-  /** 1-indexed worksheet row the block starts on — for error messages. */
+  // 1-indexed worksheet row the block starts on — for error messages.
   rowNumber: number;
 }
 
 export interface ParsedRegister {
   year: number;
-  /** 'YYYY-MM-01' */
+  // 'YYYY-MM-01'
   periodMonth: string;
   daysInMonth: number;
   employees: ParsedEmployee[];
   warnings: string[];
 }
 
-/**
- * Status codes the attendance_days validator accepts. A code outside this set
- * is surfaced as an error rather than quietly dropped.
- */
+// Status codes the attendance_days validator accepts. A code outside this set is surfaced as an error rather than quietly dropped.
 export const KNOWN_STATUSES = ['P', 'LM', 'HD', 'L', 'WO', 'OH', 'AB', 'S', 'T', 'CO'] as const;
 export type KnownStatus = (typeof KNOWN_STATUSES)[number];
 
 const KNOWN_SET = new Set<string>(KNOWN_STATUSES);
 
-/**
- * Spellings seen in the sheet + its legend that aren't literal enum members.
- * 'P ' (trailing space) is the legend's "Present with CO"; it still books as a
- * present day, and TRIM collapses it into 'P' before we ever get here.
- */
+// Spellings seen in the sheet + its legend that aren't literal enum members. 'P ' (trailing space) is the legend's "Present with CO"; it still books as a present day, and TRIM collapses it into 'P' before we ever get here.
 const STATUS_ALIASES: Record<string, string> = {
   PRESENT: 'P',
   'P ADJUSTED': 'P',
@@ -91,7 +84,7 @@ const STATUS_ALIASES: Record<string, string> = {
   TRAVELLING: 'T',
 };
 
-// --------------------------------------------------------------- geometry ---
+// --------------------------------------------------------------- geometry
 const ROW_YEAR = 1;
 const ROW_MONTH = 2;
 const ROW_DAY_NUMBERS = 4;
@@ -103,40 +96,25 @@ const COL_LABEL = 2; // B
 const COL_FIRST_DAY = 3; // C
 const MAX_DAY_COLUMNS = 31;
 
-/**
- * The summary band (counts, then Working Days, then 'to pay for') is FOUND by
- * its header rather than assumed to be at a fixed letter.
- *
- * In the June 2026 sample the days occupy C..AF (exactly 30 columns) and the
- * band starts at AG(33) — matching the layout note. But C..AF holds only 30
- * days, so a 31-day month must put day 31 somewhere, and a 28-day month leaves
- * a gap. Whether such sheets shift the band or pin it at AG is unknowable from
- * a June-only sample. Both hardcoding AG and hugging the last day column get
- * one of those cases wrong, so instead we scan right from the end of the day
- * columns for the 'P' header. That resolves to AG..AO / AP / AQ on the real
- * sheet and stays correct either way.
- */
+// The summary band (counts, then Working Days, then 'to pay for') is FOUND by its header rather than assumed to be at a fixed letter. In the June 2026 sample the days occupy C..AF (exactly 30 columns) and the band starts at AG(33) — matching the layout note. But C..AF holds only 30 days, so a 31-day month must put day 31 somewhere, and a 28-day month leaves a gap. Whether such sheets shift the band or pin it at AG is unknowable from a June-only sample. Both hardcoding AG and hugging the last day column get one of those cases wrong, so instead we scan right from the end of the day columns for the 'P' header. That resolves to AG..AO / AP / AQ on the real sheet and stays correct either way.
 const SUMMARY_COUNT_COLUMNS = 9; // P,T,LM,S,OH,L,CO,HD,WO
 const OFFSET_WORKING_DAYS = SUMMARY_COUNT_COLUMNS; // AP, relative to band start
 const OFFSET_PAYABLE_DAYS = SUMMARY_COUNT_COLUMNS + 1; // AQ
-/** How far past the day columns to look for the band's 'P' header. */
+// How far past the day columns to look for the band's 'P' header.
 const SUMMARY_SEARCH_SPAN = 10;
 
-/** Excel serial 0. Workbooks using the 1904 system shift this — see parse(). */
+// Excel serial 0. Workbooks using the 1904 system shift this — see parse().
 const EXCEL_EPOCH_1900 = Date.UTC(1899, 11, 30);
 const EXCEL_EPOCH_1904 = Date.UTC(1904, 0, 1);
 
 const MS_PER_MIN = 60_000;
 const MINUTES_PER_DAY = 1440;
 
-// ------------------------------------------------------------- primitives ---
+// ------------------------------------------------------------- primitives
 
 type CellLike = ExcelJS.CellValue;
 
-/**
- * Unwrap the shapes exceljs hands back: formula results, rich text, hyperlinks
- * and shared-string objects all arrive as objects rather than scalars.
- */
+// Unwrap the shapes exceljs hands back: formula results, rich text, hyperlinks and shared-string objects all arrive as objects rather than scalars.
 function unwrap(v: CellLike): unknown {
   if (v === null || v === undefined) return null;
   if (v instanceof Date) return v;
@@ -171,15 +149,7 @@ function asNumber(v: CellLike): number | null {
   return null;
 }
 
-/**
- * Convert a duration/time cell to whole minutes.
- *
- * exceljs normally resolves these to Date objects anchored at the workbook's
- * epoch, but a raw fraction (0.385416.. = 09:15) shows up when a cell has no
- * date format. Both are supported. Values may legitimately exceed 24h (the
- * month's total-hours cell), so this returns elapsed minutes since the epoch
- * rather than a clock reading.
- */
+// Convert a duration/time cell to whole minutes. exceljs normally resolves these to Date objects anchored at the workbook's epoch, but a raw fraction (0.385416.. = 09:15) shows up when a cell has no date format. Both are supported. Values may legitimately exceed 24h (the month's total-hours cell), so this returns elapsed minutes since the epoch rather than a clock reading.
 export function excelValueToMinutes(v: CellLike, date1904 = false): number | null {
   const u = unwrap(v);
   if (u === null || u === undefined || u === '') return null;
@@ -203,7 +173,7 @@ export function excelValueToMinutes(v: CellLike, date1904 = false): number | nul
   return null;
 }
 
-/** A punch is a clock reading; 0 (or blank) means the employee never punched. */
+// A punch is a clock reading; 0 (or blank) means the employee never punched.
 function toPunchMinutes(v: CellLike, date1904: boolean): number | null {
   const mins = excelValueToMinutes(v, date1904);
   if (mins === null || mins <= 0) return null;
@@ -211,7 +181,7 @@ function toPunchMinutes(v: CellLike, date1904: boolean): number | null {
   return ((mins % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
 }
 
-/** Minutes since midnight -> 'HH:MM' (a Postgres `time` literal). */
+// Minutes since midnight -> 'HH:MM' (a Postgres `time` literal).
 export function minutesToClock(mins: number | null): string | null {
   if (mins === null) return null;
   const m = ((Math.round(mins) % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;

@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // File storage helpers. SERVER ONLY (used from server actions).
 //
 // The bucket names and the `<employeeId>/<uuid>-<filename>` key shape are
@@ -9,7 +9,7 @@
 // from the session.
 //
 // The upload-type whitelist below is the interesting part of this file.
-// ============================================================================
+//
 import {
   objectUrl,
   putObject,
@@ -20,19 +20,19 @@ import { SYSTEM_SCOPE } from '@/lib/db/scope';
 
 export type StorageBucket = GridBucket;
 
-/** Strip path separators and odd characters from a user-supplied filename. */
+// Strip path separators and odd characters from a user-supplied filename.
 function safeName(filename: string): string {
   const base = filename.split(/[\\/]/).pop() ?? 'file';
   return base.replace(/[^\w.\-]+/g, '_').slice(0, 120) || 'file';
 }
 
-// ---------------------------------------------------------------------------
+//
 // Upload-type whitelist. The browser's file.type is attacker-controlled: an
 // HTML file uploaded with type text/html would be SERVED as a rendered page
 // from the file URL (stored XSS on the storage origin, reachable by HR via
 // the verification queue). So the stored contentType is derived from the file
 // EXTENSION against this whitelist, and file.type is never trusted.
-// ---------------------------------------------------------------------------
+//
 const EXTENSION_TYPES: Record<string, string> = {
   pdf: 'application/pdf',
   png: 'image/png',
@@ -46,18 +46,15 @@ const EXTENSION_TYPES: Record<string, string> = {
 };
 
 const UPLOAD_KIND_EXTS = {
-  /** Certificates, ID proofs, offer letters… */
+  // Certificates, ID proofs, offer letters…
   document: ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'doc', 'docx', 'xls', 'xlsx'],
-  /** Receipts are photos or PDFs. */
+  // Receipts are photos or PDFs.
   receipt: ['pdf', 'png', 'jpg', 'jpeg', 'webp'],
 } as const;
 
 export type UploadKind = keyof typeof UPLOAD_KIND_EXTS;
 
-/**
- * Validate a user upload's filename against the whitelist for its kind and
- * return the contentType to store. Refuses unknown/missing extensions.
- */
+// Validate a user upload's filename against the whitelist for its kind and return the contentType to store. Refuses unknown/missing extensions.
 export function resolveUploadType(
   filename: string,
   kind: UploadKind,

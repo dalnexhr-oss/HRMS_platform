@@ -15,18 +15,10 @@ import { sendEmail, isEmailConfigured } from '@/lib/email';
 import { buildWelcomeEmail } from '@/lib/documents/templates';
 import { startOnboarding } from '@/lib/actions/onboarding';
 
-/** Transient failures worth a second try; a missing account is not one. */
+// Transient failures worth a second try; a missing account is not one.
 const LOGIN_UPDATE_ATTEMPTS = 3;
 
-/**
- * Enable or disable sign-in for every login account linked to an employee.
- *
- * Reversible by design: it mirrors deactivate/reactivate and leaves the
- * login → employee link intact for when they come back.
- *
- * A real failure to update an existing account IS reported, so the caller never
- * claims to have removed access it could not remove.
- */
+// Enable or disable sign-in for every login account linked to an employee. Reversible by design: it mirrors deactivate/reactivate and leaves the login → employee link intact for when they come back. A real failure to update an existing account IS reported, so the caller never claims to have removed access it could not remove.
 async function setEmployeeLoginAccess(
   employeeId: string,
   enabled: boolean,

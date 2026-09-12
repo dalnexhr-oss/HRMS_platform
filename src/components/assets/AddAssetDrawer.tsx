@@ -17,7 +17,7 @@ export function AddAssetDrawer({
 }: {
   open: boolean;
   onClose: () => void;
-  /** When set, the drawer edits this asset instead of creating a new one. */
+  // When set, the drawer edits this asset instead of creating a new one.
   asset?: AssetRow | null;
 }) {
   const router = useRouter();

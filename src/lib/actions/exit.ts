@@ -1,6 +1,6 @@
 'use server';
 
-// ============================================================================
+//
 // Employee exit workflow.
 //
 // Before this, "offboarding" was one button that flipped employees.status to
@@ -13,7 +13,7 @@
 // locks the leaver out of the self-service pages they still need (exit
 // interview, knowledge transfer, their own payslips), which is exactly the
 // mistake the old single button made.
-// ============================================================================
+//
 import { revalidatePath } from 'next/cache';
 import { toMoney } from '@/lib/db/money';
 import { createClient } from '@/lib/db/server';
@@ -39,7 +39,7 @@ import type { AppRole } from '@/types/database';
 export interface ActionResult {
   ok: boolean;
   error?: string;
-  /** The action SUCCEEDED but a follow-up needs attention. ok stays true. */
+  // The action SUCCEEDED but a follow-up needs attention. ok stays true.
   warning?: string;
 }
 
@@ -53,13 +53,7 @@ function today(): string {
   return todayIST();
 }
 
-/**
- * Open an exit case and put the employee on notice.
- *
- * `employees.status = 'on_notice'` finally uses the enum value that has existed
- * since 0001 and was never written: the roster can now distinguish "leaving" from
- * "gone", and the leave provisioner (0036) deliberately still credits them.
- */
+// Open an exit case and put the employee on notice. `employees.status = 'on_notice'` finally uses the enum value that has existed since 0001 and was never written: the roster can now distinguish "leaving" from "gone", and the leave provisioner (0036) deliberately still credits them.
 export async function initiateExit(input: {
   employeeId: string;
   resignationDate: string;

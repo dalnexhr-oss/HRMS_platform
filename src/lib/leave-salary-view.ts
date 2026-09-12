@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // The /leave page's view-model, shared with the .xlsx export.
 //
 // One builder produces the merged rows (roster × presence × saved workings)
@@ -7,7 +7,7 @@
 //
 // Server-only by dependency (it calls the data layer); the pure math it leans
 // on lives in @/lib/leave-salary, which the client table also imports.
-// ============================================================================
+//
 import {
   getLeaveSalaryPresence,
   getLeaveSalaryRoster,
@@ -16,40 +16,36 @@ import {
 } from '@/lib/queries';
 import { computeLeaveSalary, type LeaveSalaryResult } from '@/lib/leave-salary';
 
-/** Increment month when nothing is saved: April — appraisals land in March. */
+// Increment month when nothing is saved: April — appraisals land in March.
 export const DEFAULT_INCREMENT_MONTH = 4;
 
 export interface LeaveSalaryViewRow {
   employeeId: string;
   code: string;
   name: string;
-  /** false = inactive employee kept on the sheet by a saved working. */
+  // false = inactive employee kept on the sheet by a saved working.
   onRoster: boolean;
-  /** Inputs — the saved working wins; otherwise both default to gross. */
+  // Inputs — the saved working wins; otherwise both default to gross.
   salaryBefore: number;
   salaryAfter: number;
   incrementMonth: number;
   remarks: string;
-  /** Credit-weighted presence per month (index 0 = Jan), from attendance. */
+  // Credit-weighted presence per month (index 0 = Jan), from attendance.
   monthlyPresence: number[];
-  /** HR-typed denominators from the saved working (0041); null = automatic. */
+  // HR-typed denominators from the saved working (0041); null = automatic.
   calendarDaysP1Override: number | null;
   calendarDaysP2Override: number | null;
-  /** Computed from CURRENT attendance + the inputs above. */
+  // Computed from CURRENT attendance + the inputs above.
   live: LeaveSalaryResult;
-  /** The saved row, when one exists. Authoritative once status ≠ draft. */
+  // The saved row, when one exists. Authoritative once status ≠ draft.
   working: LeaveSalaryWorkingRow | null;
-  /**
-   * A finalized/paid snapshot no longer matches current attendance — someone
-   * edited the register after the working was locked. The snapshot stays
-   * authoritative; this flag is how the UI says "look again".
-   */
+  // A finalized/paid snapshot no longer matches current attendance — someone edited the register after the working was locked. The snapshot stays authoritative; this flag is how the UI says "look again".
   drift: boolean;
 }
 
 export interface LeaveSalaryView {
   year: number;
-  /** false when the leave_salary_workings collection does not exist yet. */
+  // false when the leave_salary_workings collection does not exist yet.
   migrated: boolean;
   rows: LeaveSalaryViewRow[];
 }

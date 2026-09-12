@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // File storage on GridFS. SERVER ONLY — replaces Supabase Storage.
 //
 // Four buckets became four GridFS bucket names in the same database, so files
@@ -21,7 +21,7 @@
 // authorisation, which meant a leaked link was a leaked file until it expired.
 // Files are now streamed by a Route Handler that checks the session on every
 // request, so a copied link is worthless to anyone not signed in.
-// ============================================================================
+//
 import 'server-only';
 import { GridFSBucket, ObjectId, type GridFSFile } from 'mongodb';
 import { db } from '@/lib/db/mongo';
@@ -33,17 +33,14 @@ export type StorageBucket =
   | 'generated-documents'
   | 'notice-attachments';
 
-/**
- * Buckets whose objects belong to one employee, keyed by the folder prefix.
- * The rest are company-wide: staff write, everyone signed in may read.
- */
+// Buckets whose objects belong to one employee, keyed by the folder prefix. The rest are company-wide: staff write, everyone signed in may read.
 const EMPLOYEE_SCOPED: ReadonlySet<StorageBucket> = new Set([
   'employee-documents',
   'reimbursement-receipts',
   'generated-documents',
 ]);
 
-/** GridFS names its collections `<bucket>.files` / `<bucket>.chunks`. */
+// GridFS names its collections `<bucket>.files` / `<bucket>.chunks`.
 function bucketName(bucket: StorageBucket): string {
   return bucket.replace(/-/g, '_');
 }
@@ -52,7 +49,7 @@ async function gridfs(bucket: StorageBucket): Promise<GridFSBucket> {
   return new GridFSBucket(await db(), { bucketName: bucketName(bucket) });
 }
 
-/** The employee id a key belongs to: the first path segment. */
+// The employee id a key belongs to: the first path segment.
 function ownerOf(path: string): string | null {
   const first = path.split('/')[0];
   return first && first !== path ? first : null;
@@ -72,12 +69,7 @@ async function requireScope(): Promise<Scope> {
   return scope;
 }
 
-/**
- * The read rule for a stored file, per bucket.
- *
- * Staff read anything. An employee reads only what sits under their own folder,
- * and only in the buckets that are folder-scoped at all.
- */
+// The read rule for a stored file, per bucket. Staff read anything. An employee reads only what sits under their own folder, and only in the buckets that are folder-scoped at all.
 function assertMayRead(scope: Scope, bucket: StorageBucket, path: string): void {
   if (scope.isStaff) return;
   if (!EMPLOYEE_SCOPED.has(bucket)) return; // company-wide: any signed-in reader
@@ -85,13 +77,7 @@ function assertMayRead(scope: Scope, bucket: StorageBucket, path: string): void 
   if (!owner || owner !== scope.employeeId) throw new StorageAccessError();
 }
 
-/**
- * The write rule.
- *
- * Stricter than reading on purpose: generated-documents holds relieving letters
- * and F&F statements, which the employee they concern must never be able to
- * write. They may read their own; only staff and system jobs create them.
- */
+// The write rule. Stricter than reading on purpose: generated-documents holds relieving letters and F&F statements, which the employee they concern must never be able to write. They may read their own; only staff and system jobs create them.
 function assertMayWrite(scope: Scope, bucket: StorageBucket, path: string): void {
   if (scope.isStaff) return;
   if (bucket === 'generated-documents' || bucket === 'notice-attachments') {
@@ -127,7 +113,7 @@ async function findFile(bucket: StorageBucket, path: string): Promise<GridFSFile
   return file ?? null;
 }
 
-/** Store bytes at `path`. The caller must already have built a scoped key. */
+// Store bytes at `path`. The caller must already have built a scoped key.
 export async function putObject(
   bucket: StorageBucket,
   path: string,
@@ -162,7 +148,7 @@ export async function putObject(
   };
 }
 
-/** Read a whole object. Used by the PDF pipeline and the download route. */
+// Read a whole object. Used by the PDF pipeline and the download route.
 export async function getObject(
   bucket: StorageBucket,
   path: string,
@@ -184,7 +170,7 @@ export async function getObject(
   };
 }
 
-/** Metadata without transferring the bytes. */
+// Metadata without transferring the bytes.
 export async function statObject(
   bucket: StorageBucket,
   path: string,
@@ -196,7 +182,7 @@ export async function statObject(
   return file ? toStored(file) : null;
 }
 
-/** Remove every revision at `path`. Best-effort, like the old bucket remove. */
+// Remove every revision at `path`. Best-effort, like the old bucket remove.
 export async function deleteObject(
   bucket: StorageBucket,
   path: string,
@@ -211,13 +197,7 @@ export async function deleteObject(
   return files.length > 0;
 }
 
-/**
- * The URL that serves a file.
- *
- * Replaces createSignedUrl. It carries no credential and never expires, because
- * it is not the thing being trusted — the route checks the session on every
- * request. A link copied out of the page is inert for anyone else.
- */
+// The URL that serves a file. Replaces createSignedUrl. It carries no credential and never expires, because it is not the thing being trusted — the route checks the session on every request. A link copied out of the page is inert for anyone else.
 export function objectUrl(bucket: StorageBucket, path: string): string {
   return `/api/files/${bucket}/${path.split('/').map(encodeURIComponent).join('/')}`;
 }

@@ -3,14 +3,10 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { LOCATION_REQUIRED, recordPunch, type PunchCoords, type PunchKind } from '@/lib/punch';
 
-/** Pages a punch changes: the board and its punch log, the register, /me. */
+// Pages a punch changes: the board and its punch log, the register, /me.
 const AFFECTED_PATHS = ['/today', '/register', '/me'];
 
-/**
- * Coordinates are OPTIONAL. A body with no usable lat/lng is not an error —
- * the browser may have denied permission or have no GPS at all — it just means
- * the punch is stored unclassified rather than at-office or off-site.
- */
+// Coordinates are OPTIONAL. A body with no usable lat/lng is not an error — the browser may have denied permission or have no GPS at all — it just means the punch is stored unclassified rather than at-office or off-site.
 function readCoords(body: unknown): PunchCoords | null {
   if (!body || typeof body !== 'object') return null;
   const record = body as Record<string, unknown>;

@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Document templates — the WORDS of every system-generated HR document.
 //
 // Companion to ./letters.ts: that module owns *layout* (A4, wrapping, fonts) and
@@ -11,24 +11,24 @@
 // Three rules shape everything below, all of them learned the hard way:
 //
 // 1. NO AMBIENT TIME. Not one `new Date()` / `Date.now()`. Every date is an
-//    input, because these documents are regenerated on demand (an employee
-//    re-downloads a relieving letter a year later) and the reissued copy MUST be
-//    byte-identical to the original. A server-clock date would also silently
-//    shift by a day whenever the container runs in UTC and the office is IST.
+// input, because these documents are regenerated on demand (an employee
+// re-downloads a relieving letter a year later) and the reissued copy MUST be
+// byte-identical to the original. A server-clock date would also silently
+// shift by a day whenever the container runs in UTC and the office is IST.
 //
 // 2. NO RUPEE SIGN IN LETTER TEXT. renderLetterPdf embeds StandardFonts.Helvetica,
-//    which is WinAnsi-encoded; U+20B9 (₹) is not in WinAnsi and pdf-lib THROWS on
-//    encode rather than dropping the glyph — so a single ₹ in an F&F statement
-//    fails the whole download. Money in LetterSpec is therefore "Rs. 1,23,456.00".
-//    (src/lib/format.ts `inr()` keeps the ₹ — that output is for the browser.)
-//    Amounts also carry 2 decimals here, unlike the rounded UI figures, because a
-//    settlement statement is an accounting record and must foot exactly.
+// which is WinAnsi-encoded; U+20B9 (₹) is not in WinAnsi and pdf-lib THROWS on
+// encode rather than dropping the glyph — so a single ₹ in an F&F statement
+// fails the whole download. Money in LetterSpec is therefore "Rs. 1,23,456.00".
+// (src/lib/format.ts `inr()` keeps the ₹ — that output is for the browser.)
+// Amounts also carry 2 decimals here, unlike the rounded UI figures, because a
+// settlement statement is an accounting record and must foot exactly.
 //
 // 3. NO INVENTED FACTS. Relieving/experience letters assert only what the HRMS
-//    actually stores: identity, dates, designation. Nothing about performance,
-//    conduct, or eligibility for rehire — those are claims the database cannot
-//    back and that carry real legal weight for the firm.
-// ============================================================================
+// actually stores: identity, dates, designation. Nothing about performance,
+// conduct, or eligibility for rehire — those are claims the database cannot
+// back and that carry real legal weight for the firm.
+//
 import type { LetterSpec } from './letters';
 // One escaper for every HTML email body in the app, next to sendEmail().
 import { escapeHtml } from '@/lib/email';
@@ -36,7 +36,7 @@ import { escapeHtml } from '@/lib/email';
 import { COMPANY } from '@/lib/brand/company';
 import { logoPngBytes } from '@/lib/brand/logo';
 
-/** Rendered under "For Dalnex LLP" in the signatory block of every letter. */
+// Rendered under "For Dalnex LLP" in the signatory block of every letter.
 const SIGNATORY_NAME = 'Authorised Signatory';
 const SIGNATORY_TITLE = 'Human Resources';
 
@@ -57,20 +57,13 @@ const MONTH_ABBR = [
 
 interface DateParts {
   y: number;
-  /** 1-12. */
+  // 1-12.
   m: number;
-  /** 1-31. */
+  // 1-31.
   d: number;
 }
 
-/**
- * Split a 'YYYY-MM-DD' string into calendar parts, or null when unparseable.
- *
- * Deliberately string-based rather than `new Date(iso)`: a date can arrive as a
- * bare '2026-07-27' or as '2026-07-27T00:00:00+00:00', and Date would
- * re-interpret that in the server's zone and hand back the previous day for any
- * negative-offset host. Matching the leading Y-M-D takes both shapes literally.
- */
+// Split a 'YYYY-MM-DD' string into calendar parts, or null when unparseable. Deliberately string-based rather than `new Date(iso)`: a date can arrive as a bare '2026-07-27' or as '2026-07-27T00:00:00+00:00', and Date would re-interpret that in the server's zone and hand back the previous day for any negative-offset host. Matching the leading Y-M-D takes both shapes literally.
 function parseIsoDate(iso: string | null | undefined): DateParts | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec((iso ?? '').trim());
   if (!m) return null;
@@ -81,11 +74,7 @@ function parseIsoDate(iso: string | null | undefined): DateParts | null {
   return { y, m: mo, d };
 }
 
-/**
- * '2026-07-27' -> '27 Jul 2026'. Falls back to the raw input when it does not
- * look like an ISO date, so a bad value shows up in the document as the odd
- * string it is instead of as a plausible-but-wrong date.
- */
+// '2026-07-27' -> '27 Jul 2026'. Falls back to the raw input when it does not look like an ISO date, so a bad value shows up in the document as the odd string it is instead of as a plausible-but-wrong date.
 function formatDate(iso: string): string {
   const p = parseIsoDate(iso);
   if (!p) return (iso ?? '').trim();

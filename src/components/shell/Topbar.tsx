@@ -25,7 +25,7 @@ export function Topbar({
   email?: string | null;
   notifications?: NotificationRow[];
   unread?: number;
-  /** Live figures for the subtitle, resolved server-side by the portal layout. */
+  // Live figures for the subtitle, resolved server-side by the portal layout.
   stats?: TopbarStats | null;
 }) {
   const pathname = usePathname();
@@ -43,8 +43,7 @@ export function Topbar({
         </div>
       </div>
       <div className="grow" />
-      {/* Driven by the night_sweep_time setting — hidden when it is unset rather
-          than advertising a sweep time the job does not actually use. */}
+      {/* Driven by the night_sweep_time setting — hidden when it is unset rather than advertising a sweep time the job does not actually use. */}
       {stats?.nightSweep && (
         <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
           <span className="dot" style={{ background: 'var(--ok)' }} />

@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // The schema applied to MongoDB: base definitions + overrides, composed by
 // buildSchema() and applied by db-setup.mjs.
 //
@@ -11,25 +11,17 @@
 // validators.
 //
 // Three kinds of thing belong here:
-//   1. Cross-field constraints. $jsonSchema compares a field to a literal,
-//      never to another field, so these are expressed as $expr clauses.
-//   2. Format checks (PAN, Aadhaar, IFSC).
-//   3. Fields and indexes that exist only in the MongoDB model: denormalised
-//      names, and indexes for queries that used to be served by a view.
-// ============================================================================
+// 1. Cross-field constraints. $jsonSchema compares a field to a literal,
+// never to another field, so these are expressed as $expr clauses.
+// 2. Format checks (PAN, Aadhaar, IFSC).
+// 3. Fields and indexes that exist only in the MongoDB model: denormalised
+// names, and indexes for queries that used to be served by a view.
+//
 import { GENERATED } from './schema.generated.mjs';
 
 const TEXT = { bsonType: ['string', 'null'] };
 
-/**
- * Per-collection adjustments.
- *   drop            - do not create this collection at all
- *   properties      - merged over the generated properties
- *   required        - replaces the generated required list
- *   expr            - an $expr clause ANDed with $jsonSchema
- *   indexes         - appended to the generated indexes
- *   replaceIndexes  - replaces the generated indexes entirely
- */
+// Per-collection adjustments. drop - do not create this collection at all properties - merged over the generated properties required - replaces the generated required list expr - an $expr clause ANDed with $jsonSchema indexes - appended to the generated indexes replaceIndexes - replaces the generated indexes entirely
 const OVERRIDES = {
   // user_tab_access is a per-user map, and a per-user map belongs on the user.
   // It is embedded as users.tab_access, so the collection does not exist.
@@ -140,7 +132,7 @@ const OVERRIDES = {
 
 };
 
-// --- collections with no SQL ancestor ---------------------------------------
+// --- collections with no SQL ancestor
 
 const APP_ROLES = ['super_admin', 'admin', 'hr', 'manager', 'employee'];
 
@@ -214,7 +206,7 @@ const EXTRA_COLLECTIONS = {
   },
 };
 
-/** The final schema: generated, overridden, plus the collections SQL never had. */
+// The final schema: generated, overridden, plus the collections SQL never had.
 export function buildSchema() {
   const schema = {};
 

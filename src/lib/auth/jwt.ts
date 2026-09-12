@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Session tokens. Signed JWTs, HS256, valid for one year.
 //
 // Uses `jose` rather than jsonwebtoken because middleware runs on the EDGE
@@ -15,11 +15,11 @@
 // The trade-off that remains: a stolen cookie stays useful until someone
 // notices and bumps the counter. That is the cost of a year-long session, and
 // it is why the cookie is httpOnly, sameSite=lax and secure in production.
-// ============================================================================
+//
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import type { AppRole } from '@/types/database';
 
-/** How long an issued token stays valid. One year unless overridden. */
+// How long an issued token stays valid. One year unless overridden.
 export const SESSION_MAX_AGE_DAYS = Number(process.env.SESSION_MAX_AGE_DAYS ?? 365);
 export const SESSION_MAX_AGE_SECONDS = SESSION_MAX_AGE_DAYS * 24 * 60 * 60;
 
@@ -27,15 +27,15 @@ const ISSUER = 'dalnex-hrms';
 const AUDIENCE = 'dalnex-hrms-session';
 const ALG = 'HS256';
 
-/** Claims carried in the session cookie. Kept small — it ships on every request. */
+// Claims carried in the session cookie. Kept small — it ships on every request.
 export interface SessionClaims {
-  /** users._id */
+  // users._id
   sub: string;
   email: string;
   role: AppRole;
-  /** employees._id, or null for staff with no employee record. */
+  // employees._id, or null for staff with no employee record.
   eid: string | null;
-  /** Mirrors users.token_version. A mismatch means the session was revoked. */
+  // Mirrors users.token_version. A mismatch means the session was revoked.
   ver: number;
 }
 
@@ -55,13 +55,13 @@ function secretKey(): Uint8Array {
   return (cachedKey = new TextEncoder().encode(secret));
 }
 
-/** True when a usable AUTH_SECRET is configured. Never throws. */
+// True when a usable AUTH_SECRET is configured. Never throws.
 export function isAuthConfigured(): boolean {
   const secret = process.env.AUTH_SECRET;
   return Boolean(secret && secret.length >= 32);
 }
 
-/** Issue a session token for a user. */
+// Issue a session token for a user.
 export async function signSession(claims: SessionClaims): Promise<string> {
   return new SignJWT({ ...claims } as unknown as JWTPayload)
     .setProtectedHeader({ alg: ALG })

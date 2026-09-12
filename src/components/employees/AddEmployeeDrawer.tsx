@@ -20,23 +20,13 @@ export function AddEmployeeDrawer({
 }: {
   open: boolean;
   onClose: () => void;
-  /** When set, the drawer edits this employee instead of creating a new one. */
+  // When set, the drawer edits this employee instead of creating a new one.
   employee?: EmployeeEditRow | null;
-  /** Existing department names, shown as combobox suggestions (pick or type new). */
+  // Existing department names, shown as combobox suggestions (pick or type new).
   departments?: string[];
-  /**
-   * Real branches from the DB. Previously this list was hardcoded to Pune and
-   * Vadodara, so the form could offer a branch that no longer existed in the
-   * table — updateEmployee then failed its name lookup, and the save was lost.
-   */
+  // Real branches from the DB. Previously this list was hardcoded to Pune and Vadodara, so the form could offer a branch that no longer existed in the table — updateEmployee then failed its name lookup, and the save was lost.
   branches?: BranchRow[];
-  /**
-   * Bumped by the parent on every open. Part of the form key, so each open
-   * remounts from freshly loaded values — and, crucially, CLOSING never changes
-   * the key. Re-keying on close remounted the form mid-animation and visibly
-   * reset every uncontrolled field (the branch select snapped to its first
-   * option, Pune) on a record the user had just saved.
-   */
+  // Bumped by the parent on every open. Part of the form key, so each open remounts from freshly loaded values — and, crucially, CLOSING never changes the key. Re-keying on close remounted the form mid-animation and visibly reset every uncontrolled field (the branch select snapped to its first option, Pune) on a record the user had just saved.
   formSeq?: number;
 }) {
   const router = useRouter();
@@ -58,12 +48,9 @@ export function AddEmployeeDrawer({
         ? [{ value: employee.branch, label: employee.branch }]
         : [];
 
-  // Submitted by hand rather than through <form action={…}> / useActionState.
-  // React 19 automatically RESETS an uncontrolled form once its action settles —
-  // including when the action fails. That wiped every field back to its
-  // defaultValue on a failed save, so a rejected branch change looked exactly
-  // like the server had silently reverted it to the stored value. Handling
-  // submit ourselves keeps the typed values on screen next to the error.
+  // The form is uncontrolled, so the submit handler reads the values from the DOM. It does not use the `employee` prop to prefill values,
+  //  because that would make it controlled and require a state update on every keystroke.
+  //  Instead, the form is keyed by the employee code (or 'new') and the `formSeq` prop, so every open remounts it with fresh defaults.
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);

@@ -14,7 +14,7 @@ const TIME_FMT: Intl.DateTimeFormatOptions = {
   timeZone: 'Asia/Kolkata',
 };
 
-/** Two-letter monogram — 'Rahul Gupta' -> 'RG'. */
+// The initials of a name, for the big mono letters in the top-left corner of the card.
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '—';

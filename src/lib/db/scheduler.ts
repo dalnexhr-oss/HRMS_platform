@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // Scheduled jobs. SERVER ONLY — replaces the seven pg_cron jobs.
 //
 // pg_cron ran inside the database and could call plpgsql directly. There is no
@@ -21,7 +21,7 @@
 // next day. Here they are separate writes to separate collections, so the
 // claim is released explicitly on failure — see claimed() and cronRelease().
 // Without that, one bad night meant the job was skipped for ever.
-// ============================================================================
+//
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { COLLECTIONS, type BaseDoc } from '@/lib/db/collections';

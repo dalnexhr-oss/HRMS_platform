@@ -1,4 +1,4 @@
-// ============================================================================
+//
 // System document generation (PDF). SERVER ONLY.
 //
 // Produces simple, professional single-column letters (relieving / experience /
@@ -10,22 +10,22 @@
 // This is intentionally layout-light: an A4 page, a heading, dated body
 // paragraphs and a signatory block. Richer templating (letterhead image, tables)
 // can grow here without changing callers.
-// ============================================================================
+//
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { LOGO_ASPECT, logoPngBytes } from '@/lib/brand/logo';
 
 export interface LetterSpec {
-  /** Heading, e.g. "Relieving Letter" or "Full & Final Settlement". */
+  // Heading, e.g. "Relieving Letter" or "Full & Final Settlement".
   title: string;
-  /** Reference/date line under the title, e.g. "Ref: DN-REL-DN001 · 27 Jul 2026". */
+  // Reference/date line under the title, e.g. "Ref: DN-REL-DN001 · 27 Jul 2026".
   reference?: string;
-  /** Salutation, e.g. "Dear Meera Kulkarni,". */
+  // Salutation, e.g. "Dear Meera Kulkarni,".
   salutation?: string;
-  /** Body paragraphs, rendered in order with spacing between. */
+  // Body paragraphs, rendered in order with spacing between.
   paragraphs: string[];
-  /** Simple label/value lines rendered as a block (e.g. F&F line items). */
+  // Simple label/value lines rendered as a block (e.g. F&F line items).
   lines?: { label: string; value: string }[];
-  /** Closing, e.g. "For Dalnex LLP". */
+  // Closing, e.g. "For Dalnex LLP".
   signatoryName?: string;
   signatoryTitle?: string;
 }
@@ -34,7 +34,7 @@ const A4 = { width: 595.28, height: 841.89 };
 const MARGIN = 56;
 const CONTENT_WIDTH = A4.width - MARGIN * 2;
 
-/** Greedy word-wrap to a pixel width for the given font/size. */
+// Greedy word-wrap to a pixel width for the given font/size.
 function wrap(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
   const words = text.split(/\s+/);
   const lines: string[] = [];

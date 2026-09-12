@@ -173,8 +173,7 @@ export function MyReimbursements({
                               </button>
                             </>
                           )}
-                          {/* A rejection is no longer terminal (0035): correct it
-                              and resubmit — saving puts it back in the queue. */}
+                          {/* A rejection is no longer terminal (0035): correct it and resubmit — saving puts it back in the queue. */}
                           {c.status === 'rejected' && (
                             <button
                               className="btn quiet"
@@ -236,7 +235,7 @@ function ClaimForm({
   toast,
 }: {
   ratePerKm: number;
-  /** When set, the form edits this pending claim instead of creating a new one. */
+  // When set, the form edits this pending claim instead of creating a new one.
   claim: ReimbursementView | null;
   onDone: () => void;
   toast: (message: string, kind?: ToastKind) => void;
@@ -373,9 +372,7 @@ function ClaimForm({
         />
       </div>
 
-      {/* Receipt upload is only offered when EDITING an existing claim: the file
-          needs a claim id to attach to, so a new claim is saved first, then the
-          receipt added from the row. */}
+      {/* Receipt upload is only offered when EDITING an existing claim: the file needs a claim id to attach to, so a new claim is saved first, then the receipt added from the row. */}
       {editing && (
         <div className="f">
           <label>Receipt</label>
@@ -400,11 +397,7 @@ function ClaimForm({
   );
 }
 
-/**
- * Attach (or replace) a receipt on an existing claim. Uploads straight to the
- * private reimbursement-receipts bucket via the server action, which puts it in
- * the employee's own folder, which is what limits it to them + staff.
- */
+// Attach (or replace) a receipt on an existing claim. Uploads straight to the private reimbursement-receipts bucket via the server action, which puts it in the employee's own folder, which is what limits it to them + staff.
 function ReceiptUpload({
   claimId,
   hasReceipt,
