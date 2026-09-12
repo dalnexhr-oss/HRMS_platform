@@ -9,10 +9,53 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/format';
-import { uploadEmployeeDocument, getDocumentUrl } from '@/lib/actions/documents';
+import { getDocumentUrl } from '@/lib/actions/documents';
 import { documentCategories } from '@/lib/constants';
 import { useToast } from '@/components/ui/Toast';
 import type { EmployeeDocumentRow } from '@/lib/queries';
+
+// Mirrors maxBytes in lib/documents/upload.ts. Checked HERE as well so an
+// oversize file is refused instantly, instead of being uploaded in full and
+// only then rejected — which on a phone is the slowest possible way to find out.
+const maxBytes = 10 * 1024 * 1024;
+
+/**
+ * Send the file to the streaming upload route, reporting progress.
+ *
+ * XMLHttpRequest rather than fetch: it is still the only API that reports
+ * UPLOAD progress in every browser this runs on. The file is the raw body
+ * (the route reads its metadata from the query string), so nothing has to be
+ * buffered into a multipart envelope on either side.
+ */
+function uploadWithProgress(
+  file: File,
+  category: string,
+  onProgress: (percent: number) => void,
+): Promise<{ ok: boolean; error?: string }> {
+  return new Promise((resolve) => {
+    const query = new URLSearchParams({ filename: file.name, category, title: file.name });
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `/api/documents/upload?${query}`);
+    xhr.responseType = 'json';
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    // The bytes are gone but the server is still storing and filing them; show
+    // the bar full rather than stalled at 99%.
+    xhr.upload.onload = () => onProgress(100);
+
+    xhr.onload = () => {
+      const body = xhr.response as { ok?: boolean; error?: string } | null;
+      if (xhr.status >= 200 && xhr.status < 300 && body?.ok) resolve({ ok: true });
+      else resolve({ ok: false, error: body?.error ?? `The upload failed (${xhr.status}).` });
+    };
+    xhr.onerror = () => resolve({ ok: false, error: 'The upload failed — check your connection.' });
+    xhr.onabort = () => resolve({ ok: false, error: 'The upload was cancelled.' });
+
+    xhr.send(file);
+  });
+}
 
 const categoryLabel: Record<string, string> = {
   offer_letter: 'Offer letter',
@@ -32,6 +75,8 @@ export function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[
   const router = useRouter();
   const [category, setCategory] = useState<string>('id_proof');
   const [busy, setBusy] = useState(false);
+  // null when idle; 0-100 while a file is in flight.
+  const [progress, setProgress] = useState<number | null>(null);
   const [, startTransition] = useTransition();
   const { toast, toastNode } = useToast();
 
@@ -84,22 +129,63 @@ export function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[
               onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
+                // Refuse before sending anything. The server checks again — it
+                // has to, the route is reachable directly — but finding out
+                // after a full upload is the worst place to learn it.
+                if (file.size > maxBytes) {
+                  e.target.value = '';
+                  toast(
+                    `That file is ${(file.size / 1024 / 1024).toFixed(1)} MB. Documents must be 10 MB or smaller.`,
+                    'error',
+                  );
+                  return;
+                }
                 setBusy(true);
-                const fd = new FormData();
-                fd.set('file', file);
-                fd.set('category', category);
-                fd.set('title', file.name);
-                const res = await uploadEmployeeDocument(fd);
+                setProgress(0);
+                const res = await uploadWithProgress(file, category, setProgress);
                 setBusy(false);
+                setProgress(null);
                 e.target.value = '';
                 if (!res.ok) toast(res.error ?? 'The upload failed.', 'error');
                 else {
                   toast('Document filed — HR will verify it.', 'success');
+                  // The route revalidates /me server-side, but this component
+                  // was not rendered by a Server Action, so nothing pushes the
+                  // fresh tree down on its own — unlike an action call, which
+                  // carries the re-render in its own response.
                   startTransition(() => router.refresh());
                 }
               }}
             />
-            <span className="hint">{busy ? 'Uploading…' : 'JPG/PNG/PDF, up to 10 MB.'}</span>
+            {progress === null ? (
+              <span className="hint">JPG/PNG/PDF, up to 10 MB.</span>
+            ) : (
+              <span className="hint" style={{ gap: 10, alignItems: 'center' }}>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    flex: 1,
+                    height: 6,
+                    borderRadius: 999,
+                    background: 'var(--line-2)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <span
+                    style={{
+                      display: 'block',
+                      width: `${progress}%`,
+                      height: '100%',
+                      background: 'var(--p)',
+                      transition: 'width .15s linear',
+                    }}
+                  />
+                </span>
+                <span className="mono" style={{ whiteSpace: 'nowrap' }}>
+                  {progress < 100 ? `${progress}%` : 'Filing…'}
+                </span>
+              </span>
+            )}
           </div>
         </div>
 

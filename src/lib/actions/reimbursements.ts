@@ -698,7 +698,7 @@ export async function uploadReimbursementReceipt(id: string, formData: FormData)
     'reimbursement-receipts',
     employeeId,
     file.name,
-    await file.arrayBuffer(),
+    file,
     fileType.contentType,
   );
   if (!up.ok) return { ok: false, error: up.error ?? 'The receipt could not be uploaded.' };

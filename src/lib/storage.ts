@@ -14,11 +14,13 @@ import {
   objectUrl,
   putObject,
   statObject,
+  type StorableBody,
   type StorageBucket as GridBucket,
 } from '@/lib/db/gridfs';
 import { systemScope } from '@/lib/db/scope';
 
 export type StorageBucket = GridBucket;
+export type { StorableBody };
 
 // Strip path separators and odd characters from a user-supplied filename.
 function safeName(filename: string): string {
@@ -83,6 +85,10 @@ function objectPath(employeeId: string, filename: string): string {
 export interface UploadResult {
   ok: boolean;
   path?: string;
+  // Bytes actually written. Worth reporting because a streamed body has no
+  // length until it ends — the upload route has no Content-Length to trust when
+  // the request is chunked, and this is how it finds out what it really stored.
+  size?: number;
   error?: string;
 }
 
@@ -94,13 +100,16 @@ export async function uploadFile(
   bucket: StorageBucket,
   employeeId: string,
   filename: string,
-  body: ArrayBuffer | Uint8Array | Blob,
+  // A File/Blob or a stream is piped straight through — see putObject. Pass the
+  // File itself rather than `await file.arrayBuffer()`: buffering it first
+  // undoes the streaming and holds the whole upload in memory.
+  body: StorableBody,
   contentType?: string,
 ): Promise<UploadResult> {
   const path = objectPath(employeeId, filename);
   try {
-    await putObject(bucket, path, body, contentType);
-    return { ok: true, path };
+    const stored = await putObject(bucket, path, body, contentType);
+    return { ok: true, path, size: stored.size };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Upload failed.' };
   }
@@ -115,7 +124,10 @@ export async function uploadSharedFile(
   bucket: StorageBucket,
   folder: string,
   filename: string,
-  body: ArrayBuffer | Uint8Array | Blob,
+  // A File/Blob or a stream is piped straight through — see putObject. Pass the
+  // File itself rather than `await file.arrayBuffer()`: buffering it first
+  // undoes the streaming and holds the whole upload in memory.
+  body: StorableBody,
   contentType?: string,
 ): Promise<UploadResult> {
   const path = `${folder}/${crypto.randomUUID()}-${safeName(filename)}`;
@@ -138,7 +150,10 @@ export async function uploadFileService(
   bucket: StorageBucket,
   employeeId: string,
   filename: string,
-  body: ArrayBuffer | Uint8Array | Blob,
+  // A File/Blob or a stream is piped straight through — see putObject. Pass the
+  // File itself rather than `await file.arrayBuffer()`: buffering it first
+  // undoes the streaming and holds the whole upload in memory.
+  body: StorableBody,
   contentType?: string,
 ): Promise<UploadResult> {
   const path = objectPath(employeeId, filename);

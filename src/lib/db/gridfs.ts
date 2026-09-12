@@ -23,9 +23,11 @@
 // request, so a copied link is worthless to anyone not signed in.
 //
 import 'server-only';
-import { GridFSBucket, ObjectId, type GridFSFile } from 'mongodb';
-import { db } from '@/lib/db/mongo';
-import { currentScope, type Scope } from '@/lib/db/scope';
+import {Readable} from 'node:stream';
+import {pipeline} from 'node:stream/promises';
+import {GridFSBucket, ObjectId, type GridFSFile} from 'mongodb';
+import {db} from '@/lib/db/mongo';
+import {currentScope, type Scope} from '@/lib/db/scope';
 
 export type StorageBucket =
   | 'employee-documents'
@@ -44,9 +46,10 @@ const employeeScoped: ReadonlySet<StorageBucket> = new Set([
 function bucketName(bucket: StorageBucket): string {
   return bucket.replace(/-/g, '_');
 }
+const chunkSizeBytes = 4 * 1024 * 1024;
 
 async function gridfs(bucket: StorageBucket): Promise<GridFSBucket> {
-  return new GridFSBucket(await db(), { bucketName: bucketName(bucket) });
+  return new GridFSBucket(await db(), { bucketName: bucketName(bucket), chunkSizeBytes });
 }
 
 // The employee id a key belongs to: the first path segment.
@@ -113,37 +116,70 @@ async function findFile(bucket: StorageBucket, path: string): Promise<GridFSFile
   return file ?? null;
 }
 
-// Store bytes at `path`. The caller must already have built a scoped key.
+/**
+ * What `putObject` will store: bytes already in hand, or something that can
+ * produce them a piece at a time.
+ *
+ * A Blob (which a `File` from a form is) and a ReadableStream are STREAMED —
+ * see below for why that matters on anything the size of a scan.
+ */
+export type StorableBody = ArrayBuffer | Uint8Array | Blob | ReadableStream<Uint8Array>;
+
+/**
+ * Store bytes at `path`. The caller must already have built a scoped key.
+ *
+ * A Blob or a stream is piped rather than materialised. The old form called
+ * `.arrayBuffer()` and then `Buffer.from()` on the result, so filing a 10 MB
+ * document held THREE copies of it at once — the Blob's own bytes, the
+ * ArrayBuffer, and the Buffer copy — before the first byte reached mongod.
+ * Piping holds one chunk at a time and starts writing immediately, which is
+ * also what lets an upload route overlap storing with receiving.
+ *
+ * `size` is reported from what was actually written, not from what the caller
+ * claimed, so a stream whose length is not known up front is still accurate.
+ */
 export async function putObject(
   bucket: StorageBucket,
   path: string,
-  body: ArrayBuffer | Uint8Array | Blob,
+  body: StorableBody,
   contentType = 'application/octet-stream',
   scope?: Scope,
 ): Promise<StoredFile> {
   const s = scope ?? (await requireScope());
   assertMayWrite(s, bucket, path);
 
-  const bytes =
-    body instanceof Blob
-      ? Buffer.from(await body.arrayBuffer())
-      : Buffer.from(body as ArrayBuffer);
-
   const fs = await gridfs(bucket);
-  const id = await new Promise<ObjectId>((resolve, reject) => {
-    const stream = fs.openUploadStream(path, {
-      metadata: { contentType, uploadedBy: s.userId, employeeId: ownerOf(path) },
-    });
-    stream.on('error', reject);
-    stream.on('finish', () => resolve(stream.id as ObjectId));
-    stream.end(bytes);
+  const upload = fs.openUploadStream(path, {
+    metadata: { contentType, uploadedBy: s.userId, employeeId: ownerOf(path) },
   });
 
+  const source =
+    body instanceof Blob
+      ? Readable.fromWeb(body.stream() as Parameters<typeof Readable.fromWeb>[0])
+      : body instanceof ReadableStream
+        ? Readable.fromWeb(body as Parameters<typeof Readable.fromWeb>[0])
+        : Readable.from([Buffer.from(body as ArrayBuffer)]);
+
+  // pipeline, not .pipe(): it propagates an error in EITHER direction and
+  // destroys the other end, so a source that fails midway cannot leave the
+  // GridFS stream hanging open.
+  //
+  // abort() on failure is the other half. Destroying the stream stops it; only
+  // abort() removes the chunks already written, and without it a connection
+  // dropped mid-upload would leave megabytes in <bucket>.chunks that no files
+  // document points at and nothing ever collects.
+  try {
+    await pipeline(source, upload);
+  } catch (e) {
+    await upload.abort().catch(() => undefined);
+    throw e;
+  }
+
   return {
-    id: String(id),
+    id: String(upload.id as ObjectId),
     path,
     contentType,
-    size: bytes.byteLength,
+    size: upload.length,
     uploadedAt: new Date(),
   };
 }

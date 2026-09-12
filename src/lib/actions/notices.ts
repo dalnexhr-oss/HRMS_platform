@@ -40,7 +40,7 @@ async function uploadNoticePdf(
     'notice-attachments',
     'notices',
     file.name,
-    await file.arrayBuffer(),
+    file,
     'application/pdf',
   );
   if (!up.ok || !up.path) {

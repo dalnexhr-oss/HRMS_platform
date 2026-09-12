@@ -25,30 +25,31 @@ import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { requireDb, requireRoles, wroteNothing } from '@/lib/actions/_guard';
 import { uploadFile, signedUrl, resolveUploadType, type StorageBucket } from '@/lib/storage';
-import { notifyEmployee, notifyApprovers } from '@/lib/notify';
-import {
-  getEmployeeDocuments as readEmployeeDocuments,
-  getEmployeeDocumentHistory as readEmployeeDocumentHistory,
-} from '@/lib/queries';
-import type { AppRole } from '@/types/database';
+import { notifyEmployee } from '@/lib/notify';
+import {maxBytes, recordUploadedDocument, resolveTargetEmployee, uploadBucket, verifyRoles,} from '@/lib/documents/upload';
+import { getEmployeeDocuments as readEmployeeDocuments, getEmployeeDocumentHistory as readEmployeeDocumentHistory} from '@/lib/queries';
 
 export interface ActionResult {
   ok: boolean;
   error?: string;
 }
 
-const verifyRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
-// Where UPLOADS go. Reads must not assume it — HR-issued letters live in
-// generated-documents and the row's `bucket` column (0039) says which is which.
-const uploadBucket: StorageBucket = 'employee-documents';
-const maxBytes = 10 * 1024 * 1024; // 10 MB — certificates scan large
-
 // documentCategories used to live here, but this is a 'use server' module and
 // Next only allows async functions to be exported from one — a plain const
 // fails the build before type-checking even runs. It now lives in
-// @/lib/constants, which both this file and the client form can import.
+// @/lib/constants, which both this file and the client form can import. The
+// same rule is why verifyRoles, uploadBucket and maxBytes moved to
+// lib/documents/upload.ts, which the streaming upload route shares.
 
-// Upload a document for an employee. An employee may upload their OWN (0037 insert-own policy); admin/HR may upload for anyone. `targetEmployeeId` is therefore validated against the caller: a non-staff caller can only ever write to their own id, which also satisfies the path-scoping constraint.
+/**
+ * Upload a document for an employee, as a Server Action.
+ *
+ * Used by the STAFF drawers. The employee's own locker posts to
+ * /api/documents/upload instead, because FormData means Next buffers the whole
+ * file before this function starts and offers the browser no progress events —
+ * fine for a small file HR is attaching, not for a phone scan. Both paths share
+ * resolveTargetEmployee and recordUploadedDocument so the rules cannot drift.
+ */
 export async function uploadEmployeeDocument(formData: FormData): Promise<ActionResult> {
   const db = requireDb('Uploading a document');
   if (!db.ok) return db;
@@ -61,87 +62,35 @@ export async function uploadEmployeeDocument(formData: FormData): Promise<Action
 
   const category = String(formData.get('category') ?? '').trim() || 'other';
   const title = String(formData.get('title') ?? '').trim() || file.name;
-  const requested = String(formData.get('employee_id') ?? '').trim();
 
   const { profile } = await getSession();
   if (!profile) return { ok: false, error: 'Your session has expired. Sign in again.' };
-  const isStaff = verifyRoles.includes(profile.role);
-  const ownId = profile.employee_id;
 
-  // Non-staff may only ever upload against their own record — this is what keeps
-  // the storage path (and therefore the row's scoping constraint) honest.
-  const employeeId = isStaff && requested ? requested : ownId;
-  if (!employeeId) {
-    return { ok: false, error: 'Your login is not linked to an employee record, so documents cannot be filed.' };
-  }
-  if (!isStaff && employeeId !== ownId) {
-    return { ok: false, error: 'You can only upload documents against your own record.' };
-  }
+  const filer = {
+    id: profile.id,
+    role: profile.role,
+    fullName: profile.full_name ?? null,
+    employeeId: profile.employee_id ?? null,
+  };
+  const target = resolveTargetEmployee(filer, String(formData.get('employee_id') ?? '').trim());
+  if (!target.ok) return target;
 
-  const dbc = await createClient();
-  const up = await uploadFile(
-    uploadBucket,
-    employeeId,
-    file.name,
-    await file.arrayBuffer(),
-    fileType.contentType,
-  );
-  if (!up.ok) return { ok: false, error: up.error ?? 'The document could not be uploaded.' };
-
-  // A first version: its own group, version 1, current. replaceEmployeeDocument
-  // is what continues a chain — this only ever starts one.
-  const id = randomUUID();
-  const { data, error } = await dbc
-    .from('employee_documents')
-    .insert({
-      id,
-      employee_id: employeeId,
-      category,
-      title,
-      storage_path: up.path,
-      uploaded_by: profile.id,
-      bucket: uploadBucket,
-      doc_group: id,
-      version: 1,
-      superseded_at: null,
-      // Written out rather than left absent. The insert policy pins both to
-      // null on a new row — invariant 2 above — and stating them here says at
-      // the write site that an upload is never self-verified, the same way
-      // replaceEmployeeDocument does.
-      verified_by: null,
-      verified_at: null,
-    })
-    .select('id');
-  if (error) {
-    // 23514 = the path-scoping check. Should be unreachable given the guard
-    // above, but say something useful rather than leaking a constraint name.
-    if (error.code === '23514') {
-      return { ok: false, error: 'The upload was rejected because its storage path did not match the employee.' };
-    }
-    return { ok: false, error: error.message };
-  }
-  if (wroteNothing(data)) {
-    return { ok: false, error: 'The document was not filed — your account may not have permission.' };
+  // The File is handed over whole rather than buffered here: putObject pipes a
+  // Blob, so the bytes go to mongod a chunk at a time instead of being copied
+  // twice on the way.
+  const up = await uploadFile(uploadBucket, target.employeeId, file.name, file, fileType.contentType);
+  if (!up.ok || !up.path) {
+    return { ok: false, error: up.error ?? 'The document could not be uploaded.' };
   }
 
-  // Put it in front of HR only when the employee filed it themselves; a document
-  // HR just uploaded needs no notification back to HR.
-  if (!isStaff) {
-    await notifyApprovers(
-      {
-        kind: 'system',
-        title: `${profile.full_name ?? 'An employee'} uploaded a document`,
-        body: `${title} — awaiting verification.`,
-        link: '/onboarding',
-      },
-      profile.id,
-    );
-  }
-
-  revalidatePath('/me');
-  revalidatePath('/documents');
-  revalidatePath('/onboarding');
-  return { ok: true };
+  return recordUploadedDocument({
+    filer,
+    employeeId: target.employeeId,
+    isStaff: target.isStaff,
+    category,
+    title,
+    storagePath: up.path,
+  });
 }
 
 /**
@@ -215,13 +164,7 @@ export async function replaceEmployeeDocument(
   // document, and letting it change category would break the chain's meaning.
   const category = previous.category ?? 'other';
 
-  const up = await uploadFile(
-    uploadBucket,
-    previous.employee_id,
-    file.name,
-    await file.arrayBuffer(),
-    fileType.contentType,
-  );
+  const up = await uploadFile(uploadBucket, previous.employee_id, file.name, file, fileType.contentType);
   if (!up.ok) return { ok: false, error: up.error ?? 'The replacement could not be uploaded.' };
 
   const nextId = randomUUID();
