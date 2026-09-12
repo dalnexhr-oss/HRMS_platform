@@ -1,24 +1,13 @@
 'use server';
 
-//
-// Employee document register + HR verification.
-//
-// Files live in the private `employee-documents` bucket (0032) under
-// `<employee_id>/<uuid>-<filename>`; the row only ever carries the path, and
-// the bytes are served by /api/files, which re-checks the session on every
-// request. Two invariants come straight from the migration and must not be
-// bypassed here:
-//
-// 1. `employee_documents_path_scoped` — the row's storage_path MUST begin with
-// its own employee_id. That prefix is what lib/db/gridfs.ts checks to
-// decide who may open the object, so a row whose path points into another
-// employee's folder would hand out that employee's file.
-// 2. No self-verification — the employee insert policy pins verified_by /
-// verified_at to null; only an admin/HR UPDATE can stamp them.
-//
-// The verify flow is modelled on reviewReimbursement: a decision, a reviewer, a
-// timestamp, and a remark that the subject can read.
-//
+/**
+ * Employee document register and verification server actions.
+ *
+ * Core invariants:
+ * 1. Path scoping: `storage_path` must start with target `employee_id` to enforce tenant isolation.
+ * 2. Unverified by default: Initial uploads set `verified_by` and `verified_at` to null; only admin/HR may verify.
+ */
+
 import { revalidatePath } from 'next/cache';
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@/lib/db/server';
@@ -26,29 +15,26 @@ import { getSession } from '@/lib/auth';
 import { requireDb, requireRoles, wroteNothing } from '@/lib/actions/_guard';
 import { uploadFile, signedUrl, resolveUploadType, type StorageBucket } from '@/lib/storage';
 import { notifyEmployee } from '@/lib/notify';
-import {maxBytes, recordUploadedDocument, resolveTargetEmployee, uploadBucket, verifyRoles,} from '@/lib/documents/upload';
-import { getEmployeeDocuments as readEmployeeDocuments, getEmployeeDocumentHistory as readEmployeeDocumentHistory} from '@/lib/queries';
+import {
+  maxBytes,
+  recordUploadedDocument,
+  resolveTargetEmployee,
+  uploadBucket,
+  verifyRoles,
+} from '@/lib/documents/upload';
+import {
+  getEmployeeDocuments as readEmployeeDocuments,
+  getEmployeeDocumentHistory as readEmployeeDocumentHistory,
+} from '@/lib/queries';
 
 export interface ActionResult {
   ok: boolean;
   error?: string;
 }
 
-// documentCategories used to live here, but this is a 'use server' module and
-// Next only allows async functions to be exported from one — a plain const
-// fails the build before type-checking even runs. It now lives in
-// @/lib/constants, which both this file and the client form can import. The
-// same rule is why verifyRoles, uploadBucket and maxBytes moved to
-// lib/documents/upload.ts, which the streaming upload route shares.
-
 /**
- * Upload a document for an employee, as a Server Action.
- *
- * Used by the STAFF drawers. The employee's own locker posts to
- * /api/documents/upload instead, because FormData means Next buffers the whole
- * file before this function starts and offers the browser no progress events —
- * fine for a small file HR is attaching, not for a phone scan. Both paths share
- * resolveTargetEmployee and recordUploadedDocument so the rules cannot drift.
+ * Uploads and records an employee document via Server Action (staff drawer workflow).
+ * Self-service employee locker uploads stream via `/api/documents/upload` instead.
  */
 export async function uploadEmployeeDocument(formData: FormData): Promise<ActionResult> {
   const db = requireDb('Uploading a document');
@@ -94,23 +80,8 @@ export async function uploadEmployeeDocument(formData: FormData): Promise<Action
 }
 
 /**
- * Replace a document with a newer file, KEEPING the one it replaces.
- *
- * This is the "a document changes during onboarding or later in employment"
- * case: an ID proof expires, HR returns a scan that was cut off, a bank letter
- * is reissued. The old row is not edited in place and not deleted — it is
- * stamped superseded and stays on file, because "what did we hold in March" is
- * a question an audit asks and an overwritten row cannot answer.
- *
- * The new version always lands AWAITING VERIFICATION, whatever the state of the
- * one it replaces. A replacement that inherited a verified stamp would let a
- * verified document be swapped for an unchecked file without anyone looking at
- * it, which is the whole point of the verification step.
- *
- * ORDER MATTERS. The new row is inserted first and the old one is stamped
- * second: an interruption between them leaves two current versions (visible,
- * fixable) rather than none (the document vanishes from the register while its
- * file still exists). The reverse order can lose sight of a document entirely.
+ * Replaces an existing document with a new version, preserving the original.
+ * This ensures audit continuity — the previous document remains on file even after replacement.
  */
 export async function replaceEmployeeDocument(
   previousId: string,
@@ -339,10 +310,7 @@ export async function getDocumentUrl(
   if (error) return { ok: false, error: error.message };
   if (!data?.storage_path) return { ok: false, error: 'That document is not available to you.' };
 
-  // Documents arrive from two buckets — uploads land in employee-documents,
-  // HR-issued letters in generated-documents. Signing every path against the
-  // former is what made every issued letter "Object not found". `bucket` arrived
-  // in 0039; anything written before it is an upload.
+  // Resolve storage bucket (defaults to 'employee-documents' for legacy uploads).
   const bucket = (data.bucket ?? uploadBucket) as StorageBucket;
   const signed = await signedUrl(bucket, data.storage_path);
   return signed.ok ? { ok: true, url: signed.url } : { ok: false, error: signed.error };

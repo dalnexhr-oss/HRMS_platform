@@ -1,33 +1,15 @@
+// Payslip computation and payroll run state transitions. SERVER ONLY.
 //
-// Payslip computation. SERVER ONLY.
+// Financial Arithmetic Invariants:
+// - All monetary calculations are performed in integer paise (see lib/db/money.ts)
+//   and converted to Decimal128 solely at the persistence boundary to eliminate IEEE-754 precision drift.
+// - Symmetric half-away-from-zero rounding is applied to deductions and earnings.
+// - Working hours shortfall deduction is floored to whole rupees matching statutory registers.
 //
-// This is the highest-risk file in the codebase: it decides what lands in
-// someone's bank account. It began as a line-by-line port of a plpgsql
-// function, which was then the specification. That SQL has been deleted, so
-// this file is now the specification — the rules it encodes are stated in the
-// comments below and in the README's payroll section, and they should be
-// changed only together.
-//
-// THE ARITHMETIC RULE
-//
-// Every money value is handled in integer PAISE (lib/db/money.ts) and converted
-// to Decimal128 only when written. Postgres numeric is exact; a float64 is not,
-// and a payroll run is thousands of operations. Two rounding behaviours are
-// carried over deliberately because they change the figures:
-//
-// round(x, n) in Postgres rounds HALF AWAY FROM ZERO. JavaScript's
-// Math.round rounds half UP, which differs for negatives — a deduction of
-// -0.5 becomes -0 instead of -1 and never reconciles. scalePaise() handles
-// this; nothing here calls Math.round on money directly.
-//
-// The shortfall uses floor(), NOT round(). The comment in the SQL is
-// explicit that this matches the company register ("DN002: 21, not 22").
-// Rounding it would overcharge every under-worked employee by up to a rupee.
-//
-// THE FORMULA, from the register the company already runs on:
-// working days (col AP) = P + CO + OH + T + S + LM + 0.5 x HD
-// payable days (col AQ) = working days + WO (week-offs ARE paid)
-// Leave (L) is NOT payable and is excluded on purpose.
+// Day Computation Formulas:
+// - Working days = P + CO + OH + T + S + LM + 0.5 * HD
+// - Payable days = Working days + WO (week-offs are paid)
+// - Unpaid leave (L) is excluded from payable days.
 //
 import 'server-only';
 import { randomUUID } from 'node:crypto';
@@ -42,7 +24,7 @@ import { registerRpc } from '@/lib/db/pgcompat';
 // Statuses counted as a full working day.
 const fullDay = ['P', 'CO', 'OH', 'T', 'S', 'LM'];
 
-// A numeric setting with a default. Replaces fn_setting_numeric().
+// Retrieves a numeric configuration setting with a fallback default.
 async function settingNumeric(key: string, fallback: number): Promise<number> {
   const settings = scopedFor<BaseDoc & { key: string; value: unknown }>(collections.settings, systemScope);
   const row = await settings.findOne({ key });
@@ -56,7 +38,8 @@ function daysInMonth(periodMonth: string): number {
   return new Date(Date.UTC(y, m, 0)).getUTCDate();
 }
 
-// fn_professional_tax — the slab matching state, gross, gender and month. The ordering is load-bearing and is copied exactly: a month-specific slab beats a general one, a gender-specific slab beats a general one, and the highest matching min_gross wins. Getting that order wrong silently picks a different slab and quietly changes everyone's PT.
+// Calculates professional tax based on state, gross pay, gender, and month.
+// Precedence order: month-specific > gender-specific > highest min_gross threshold.
 export async function professionalTax(
   state: string | null,
   grossPaise: number,
@@ -106,7 +89,10 @@ export interface PayslipComputation {
   net_payable: number;
 }
 
-// Compute one payslip and upsert it. Mirrors fn_compute_payslip(employee, run). Returns the computed figures so a caller can diff them against the SQL version before trusting the port on a real month.
+/**
+ * Computes earnings, deductions, and net payable amounts for an employee in a payroll run,
+ * persisting the resulting draft/recomputed payslip.
+ */
 export async function computePayslip(
   employeeId: string,
   runId: string,
@@ -171,22 +157,12 @@ export async function computePayslip(
   let shortfallAmount = 0;
   if (targetMinutes > 0 && workedMinutes < targetMinutes) {
     shortfallMinutes = targetMinutes - workedMinutes;
-    // floor() TO THE RUPEE, not to the paisa — see the header.
-    //
-    // The SQL evaluated this expression on a numeric denominated in RUPEES, so
-    // floor() dropped the fraction of a rupee. perDayRate here is in paise, so
-    // a bare Math.floor() drops the fraction of a PAISA instead, which is very
-    // nearly no rounding at all: at ₹1,000/day, 555 full-day minutes and 137
-    // short, the register says ₹246 and this said ₹246.84. Every under-worked
-    // employee's deduction disagreed with the register by up to ₹0.99 — on the
-    // one figure this file's header singles out as deliberately floored.
+    // Floor shortfall deduction to whole rupees (100 paise) per payroll specification.
     shortfallAmount = Math.floor((perDayRate / fullDayMin) * shortfallMinutes / 100) * 100;
   }
 
   // --- statutory deductions -------------------------------------------------
-  // round(x, 0) — PF and ESIC are whole rupees, so round to 100 paise.
-  // roundToRupee(), NOT Math.round: Postgres rounds half AWAY FROM ZERO, and
-  // the difference lands on a negative net payable. See money.ts.
+  // PF and ESIC round half away from zero to whole rupees (100 paise multiples).
   const toRupee = roundToRupee;
 
   const pfEmployee = toRupee(scalePaise(fromPaise(basicEarned), 0.12));
@@ -204,9 +180,7 @@ export async function computePayslip(
   const adjustments = scopedFor<BaseDoc>(collections.payslipAdjustments, systemScope, session);
 
   const existing = await payslips.findOne({ payroll_run_id: runId, employee_id: employeeId });
-  // payslip_adjustments is keyed BY THE PAYSLIP ID (`where id = v_slip_id`),
-  // not by a separate column — so there are no adjustments until a payslip
-  // exists, which is why a first run never has them and a recompute does.
+  // payslip_adjustments shares primary key with the payslip record; absent on initial run.
   const adj = existing ? await adjustments.findOne({ _id: existing._id as string }) : null;
 
   const advance = toPaise((adj?.advance_recovery as never) ?? 0);
@@ -248,7 +222,7 @@ export async function computePayslip(
     earned_gross: earnedGross,
     shortfall_amount: shortfallAmount,
     pf_employee: pfEmployee,
-    // pf_employer mirrors pf_employee in the SQL — both are `v_pf`.
+    // Statutory employer PF contribution matches employee contribution.
     pf_employer: pfEmployee,
     esic_employee: esicEmployee,
     esic_employer: esicEmployer,
@@ -274,8 +248,7 @@ export async function computePayslip(
 
   const now = new Date();
   if (existing) {
-    // `on conflict ... do update` — a recompute overwrites the figures but
-    // leaves status alone, so a locked or paid run is not silently reopened.
+    // Recomputation updates financial amounts while preserving existing status.
     await payslips.updateOne(
       { _id: existing._id as string },
       {
@@ -307,13 +280,8 @@ export async function computePayslip(
 }
 
 // ---------------------------------------------------------------------------
-// Run-level state machine — compute, lock, mark-paid.
-//
-// The guards are the point. A locked or paid run is history: recomputing it
-// would silently rewrite payslips that have already been issued. That is a
-// thrown Error, which pgcompat's rpc() turns back into `{ error }` — the shape
-// callRunRpc already branches on, so the refusal reaches the user as a message
-// instead of corrupting the run.
+// Run lifecycle state machine: compute -> lock -> mark-paid.
+// Mutations on locked or paid runs throw to protect finalized financial records.
 // ---------------------------------------------------------------------------
 
 type RunStatus = 'draft' | 'in_review' | 'locked' | 'paid';
@@ -336,22 +304,12 @@ async function runStatus(runId: string, session?: ClientSession): Promise<RunSta
 }
 
 /**
- * fn_compute_run — recompute every active employee's payslip for the run.
+ * Recomputes payslips for all active employees in a draft or in-review payroll run.
  *
- * Draft and in_review may be recomputed; locked and paid may not.
- *
- * NOT one transaction, unlike lockRun and markRunPaid below, and the ordering
- * is what makes that safe rather than an oversight. Each payslip is a single
- * document write, atomic on its own, and the run's status is flipped LAST — so
- * an interruption anywhere in the loop leaves the run in draft or in_review
- * with some payslips recomputed, which is precisely the state a recompute is
- * allowed and designed to be run against. Nothing is issued and nothing is
- * frozen until lockRun.
- *
- * Wrapping the loop instead would put an unbounded number of employees inside
- * one transaction, where it would hit the 60-second lifetime limit and abort
- * the entire run — trading a recoverable partial recompute for a payroll that
- * cannot be computed at all.
+ * Note: Individual employee payslips are updated iteratively rather than in a single
+ * unbounded multi-document transaction to prevent transaction timeout (60s limit).
+ * The run status transition occurs as the terminal step, ensuring partial failures
+ * remain safely retryable.
  */
 export async function computeRun(runId: string): Promise<void> {
   const status = await runStatus(runId);
@@ -366,8 +324,7 @@ export async function computeRun(runId: string): Promise<void> {
     await computePayslip(String(employee._id), runId);
   }
 
-  // `status = case when status = 'draft' then 'in_review' else status end` —
-  // an in_review run stays in_review rather than being pushed forward again.
+  // Advance draft runs to in_review; maintain in_review state if already set.
   await runs().updateOne(
     { _id: runId },
     {
@@ -380,16 +337,10 @@ export async function computeRun(runId: string): Promise<void> {
 }
 
 /**
- * fn_lock_run — freeze the run and mark its payslips generated.
+ * Freezes a payroll run and marks all associated payslips as 'generated'.
  *
- * TRANSACTIONAL, and this is the case mongo.ts names when it explains why
- * withTransaction exists. Two writes have to land together: the payslips going
- * to 'generated' and the run going to 'locked'. Between them, a dropped
- * connection or a process restart used to leave N payslips marked generated on
- * a run still sitting in 'in_review' — a state computeRun accepts, so the next
- * recompute would silently rewrite the figures on payslips that had already
- * been issued. The status read joins the transaction too, so the guard cannot
- * be decided on a run that another caller locks a moment later.
+ * Executed inside an atomic transaction to ensure payslip states and run lock
+ * status transition synchronously.
  */
 export async function lockRun(runId: string): Promise<void> {
   await withTransaction(async (session) => {
@@ -413,10 +364,8 @@ export async function lockRun(runId: string): Promise<void> {
 }
 
 /**
- * fn_mark_run_paid — a run must be locked before it can be paid.
- *
- * Transactional for the same reason as lockRun: payslips marked paid on a run
- * that is not is a discrepancy nothing downstream would ever reconcile.
+ * Transitions a locked payroll run and all its payslips to 'paid' status.
+ * Requires the run to be in 'locked' status prior to transition.
  */
 export async function markRunPaid(runId: string): Promise<void> {
   await withTransaction(async (session) => {
@@ -445,7 +394,7 @@ export function registerPayrollFunctions(): void {
   registerRpc('fn_compute_payslip', async (a) => {
     const { p_employee_id, p_run_id } = a as { p_employee_id: string; p_run_id: string };
     await computePayslip(p_employee_id, p_run_id);
-    return null; // the SQL returned void
+    return null;
   });
   registerRpc('fn_compute_run', async (a) => {
     await computeRun((a as { p_run_id: string }).p_run_id);

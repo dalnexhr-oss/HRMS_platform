@@ -1,17 +1,9 @@
 'use server';
 
+// Server Actions for onboarding checklist lifecycle and task assignment.
 //
-// Onboarding checklists.
-//
-// A joiner's first week was tribal knowledge: someone remembered to chase the
-// signed offer letter, someone else remembered the laptop, and nobody could say
-// what was outstanding. `0037` created the tables and seeded a "Standard
-// Onboarding" template; this file is what actually puts tasks on the board.
-//
-// Templates are COPIED into onboarding_tasks at start, never referenced live —
-// editing a template must not rewrite the history of joiners already in flight
-// (the 0037 table comment is explicit about this).
-//
+// Templates are cloned snapshot-by-value into onboarding_tasks upon onboarding initialization
+// to prevent subsequent template modifications from mutating in-flight task instances.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { requireRoles, wroteNothing } from '@/lib/actions/_guard';
@@ -27,7 +19,10 @@ const onboardingRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 const taskStatuses = ['pending', 'done', 'blocked'] as const;
 const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Copy a template's items onto an employee as their checklist. Idempotent in practice: if the employee already has tasks we leave them alone rather than duplicating the list — HR clicking "start onboarding" twice is a mis-click, not a request for eighteen tasks. `templateId` is optional; the newest ACTIVE template is used when omitted, so `createEmployee` can call this with no knowledge of template ids.
+/**
+ * Instantiates onboarding tasks for an employee from the specified (or default active) template.
+ * Idempotent: returns early if onboarding tasks already exist for the employee.
+ */
 export async function startOnboarding(
   employeeId: string,
   templateId?: string,
@@ -71,9 +66,7 @@ export async function startOnboarding(
   if (itemsErr) return { ok: false, error: itemsErr.message };
   if (!items?.length) return { ok: false, error: 'That template has no steps.' };
 
-  // Due by the joining date: everything on this list is meant to be settled by
-  // the time they walk in. A null due_date would also make them invisible to the
-  // 0037 reminder job, which scans on due_date.
+  // Set task due date to employee joining date for deadline tracking and automated reminder sweeps.
   const { data: emp } = await dbc
     .from('employees')
     .select('date_of_joining, full_name')
@@ -95,8 +88,7 @@ export async function startOnboarding(
     return { ok: false, error: 'The checklist was not created — your role may lack permission.' };
   }
 
-  // Tell the joiner what is expected of them (their own steps are read-only for
-  // them, but they should know the list exists).
+  // Notify employee of generated checklist items.
   await notifyEmployee(employeeId, {
     kind: 'system',
     title: 'Your onboarding checklist is ready',
@@ -112,9 +104,7 @@ export async function startOnboarding(
 /**
  * Move a step between pending / done / blocked.
  *
- * Reopening CLEARS done_by and done_at. Leaving them behind would leave a
- * pending task still naming a reviewer and a completion time — the record would
- * claim someone signed off work that is once again outstanding.
+ * Reopening clears done_by and done_at to maintain audit integrity.
  */
 export async function setOnboardingTaskStatus(
   id: string,
@@ -139,8 +129,7 @@ export async function setOnboardingTaskStatus(
   if (error) {
     return { ok: false, error: error.message };
   }
-  // A policy-blocked update matches zero rows and is still reported as
-  // success, so a silent no-op has to be caught here rather than trusted.
+  // Guard against silent no-ops when row does not exist or policy denies update.
   if (wroteNothing(data)) {
     return { ok: false, error: 'That step was not updated — it may have been removed.' };
   }
@@ -164,8 +153,7 @@ export async function addOnboardingTask(input: {
   const title = String(input.title ?? '').trim();
   if (!title) return { ok: false, error: 'Give the step a title.' };
 
-  // The date input posts '' when left empty; storing that would fail the date
-  // cast, and storing it as a real value would be a lie about a deadline.
+  // Empty date strings are normalized to null.
   const dueDate = String(input.dueDate ?? '').trim() || null;
   const assigneeRole = String(input.assigneeRole ?? '').trim() || null;
 

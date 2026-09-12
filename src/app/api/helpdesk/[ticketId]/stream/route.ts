@@ -1,21 +1,10 @@
+// Server-Sent Events (SSE) route for real-time helpdesk ticket comment streaming.
 //
-// Live ticket messages over SSE. Replaces Supabase Realtime's postgres_changes.
+// Selects real-time transport based on database deployment topology:
+// - MongoDB Change Streams with oplog tailing when running against a replica set.
+// - Periodic polling fallback when running against a standalone instance.
 //
-// Two transports, chosen at connect time:
-//
-// CHANGE STREAM on a replica set. mongod pushes each insert as it is
-// committed — the true equivalent of what Realtime did.
-// POLLING on a standalone. Change streams require an oplog, which a
-// standalone does not have, and a chat window that silently never updates is
-// a worse outcome than one that updates a second late. The transport in use
-// is announced in the opening event so it is visible, not guessed at.
-//
-// Access is checked ONCE at subscribe time and the ticket id is then fixed for
-// the life of the stream, so a caller cannot widen what they receive after the
-// check has passed.
-//
-// Runs on Node, not the edge: an SSE stream needs a long-lived process.
-//
+// Verifies caller authorization at connection initialization.
 import { collections } from '@/lib/db/collections';
 import { scoped } from '@/lib/db/repo';
 import { db, supportsTransactions } from '@/lib/db/mongo';

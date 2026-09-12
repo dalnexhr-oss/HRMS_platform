@@ -1,28 +1,14 @@
 'use server';
 
-//
-// User administration — admin/HR create and manage login accounts.
-//
-// Ported from GoTrue's auth.admin.* API to the users collection. The privilege
-// rules below are UNCHANGED and are the important part of this file: with RLS
-// gone, they are the only thing standing between an HR account and a super
-// admin session, so they run before any write, every time.
-//
-// What changed with the port: there is no service-role client to gate on any
-// more. Under Supabase these functions needed a key that bypassed RLS, so
-// "is the privileged client available" was a real precondition. Now every
-// query is equally privileged, which makes the caller's own role check the
-// whole of the defence rather than the outer half of it.
-//
+/**
+ * User administration server actions.
+ * Enforces role-based hierarchy guards before creating, modifying, or revoking accounts.
+ */
 import { revalidatePath } from 'next/cache';
 import { randomUUID } from 'node:crypto';
 import { requireRoles } from '@/lib/actions/_guard';
 import { isEmployeeAreaRole } from '@/lib/auth';
-// validatePassword, not a local minimum: an admin-set password used to be held
-// to 8 characters while every self-service path required 10, so /users could
-// provision a password the same person was then forbidden to choose. It also
-// carries the 200-character CEILING, which nothing here enforced at all —
-// scrypt at N=65536 was being run over an unbounded input on a public endpoint.
+// validatePassword enforces length limits (10 min, 200 max) before hashing.
 import { hashPassword, validatePassword } from '@/lib/auth/password';
 import { createResetToken, resetTokenTtlMinutes } from '@/lib/auth/reset-tokens';
 import { appOrigin, originNotConfigured } from '@/lib/auth/origin';
@@ -82,7 +68,7 @@ export interface ManagedUser {
   employeeName: string | null;
   lastSignInAt: string | null;
   createdAt: string;
-  // No GoTrue equivalent — replaces "banned" and is checked on every request.
+  // When true, login and active sessions are denied.
   disabled: boolean;
 }
 
@@ -93,7 +79,7 @@ function databaseUnavailable(): ActionResult {
   };
 }
 
-// Refuse to let a non-admin act ON an account that outranks them. Without this, an 'hr' user could call setUserPassword('<admin-id>', '…') straight over HTTP — Server Actions are public endpoints, so the UI not showing a button is irrelevant — and sign in as that admin. That is strictly worse than the escalation createUser/updateUserRole already refuse, because it hands over an EXISTING admin session. Every path that mutates or can seize another account must call this.
+// Prevents privilege escalation by disallowing operations against accounts with equal or higher role rank.
 async function assertMayActOnTarget(
   targetUserId: string,
   callerRole: AppRole,
@@ -320,21 +306,12 @@ export async function updateUserRole(
 }
 
 /**
- * Delete a login account.
+ * Deletes a user login account.
  *
- * The EMPLOYEE record is deliberately left alone — attendance, payslips and
- * claims must survive the login being removed; use "Deactivate" on /employees
- * for the person. This only removes their ability to sign in.
- *
- * Postgres cascaded profiles and reset tokens away via ON DELETE CASCADE.
- * MongoDB has no such thing, so the dependent cleanup is explicit below —
- * leaving a live reset token behind would let someone redeem it and recreate
- * access to a deleted account.
- *
- * Guards, in order of how badly they'd hurt:
- *  - you cannot delete yourself (instant self-lockout),
- *  - you cannot delete an account that outranks you (privilege inversion),
- *  - the last admin (or last super admin) cannot be deleted (locks everyone out).
+ * Invariants:
+ * - Does not delete employee records (attendance, payslips, and claims are preserved).
+ * - Explicitly invalidates active password reset tokens to prevent credential reuse.
+ * - Prevents self-deletion, deleting superior roles, or deleting the last admin account.
  */
 export async function deleteUser(userId: string): Promise<ActionResult> {
   const gate = await requireRoles(userAdminRoles, 'Deleting a user');

@@ -1,17 +1,8 @@
+// Pre-insertion field defaults registry.
 //
-// The value each field takes when an insert omits it. Maintained by hand.
-//
-// Postgres applied a column DEFAULT when an INSERT omitted it; MongoDB has no
-// such notion, so every ported insert that relied on one was writing an
-// incomplete document — and where the field is also required, the collection
-// validator rejects the write outright as error 121.
-//
-// This table was first generated from the DDL's DEFAULT clauses; that SQL and
-// its generator are gone, so it is now edited directly. When you add a field
-// that needs a default, add it here too, and give it the BSON type the
-// validator in scripts/schema.generated.mjs declares — money must be
-// Decimal128, not a bare number, or the insert fails validation.
-//
+// Supplies fallback values and dynamic markers (now, today) for omitted document
+// properties prior to insert, ensuring document conformance with BSON collection validators.
+
 import { Decimal128 } from 'mongodb';
 
 // Marker for `now()` — resolved per insert, never at module load.
@@ -23,7 +14,7 @@ const money = (v: string): Decimal128 => Decimal128.fromString(v);
 
 export type DefaultValue = string | number | boolean | Decimal128 | object | symbol;
 
-// collection -> field -> the value Postgres would have supplied.
+// Mapping of collection -> field -> default value or resolver symbol.
 export const columnDefaults: Record<string, Record<string, DefaultValue>> = {
   acknowledgements: {
     signed_at: now,

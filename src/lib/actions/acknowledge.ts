@@ -1,22 +1,13 @@
 'use server';
 
-//
-// In-app e-signature.
-//
-// A signature is only evidence if the signer controls neither WHEN nor FROM
-// WHERE it was recorded. So:
-// `signed_at` is NEVER sent from here — the column default fires
-// server-side, so the stored value is the server's clock and not the
-// caller's. A crafted request cannot backdate a signature even if it
-// bypasses this file entirely.
-// `ip` / `user_agent` are read from the REQUEST headers server-side, never
-// accepted as arguments.
-// The table is append-only: no UPDATE or DELETE policy exists for any role,
-// and staff may READ but never INSERT — a signature HR could forge proves
-// nothing.
-//
-// What the employee supplies is exactly one thing: their typed name.
-//
+/**
+ * In-app document e-signatures.
+ *
+ * Invariants:
+ * - Server-authoritative timestamp: `signed_at` is generated server-side.
+ * - Request metadata: `ip` and `user_agent` are extracted directly from request headers.
+ * - Append-only record: acknowledgements cannot be updated or deleted once committed.
+ */
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/db/server';
@@ -84,18 +75,18 @@ export async function acknowledgeDocument(input: {
       document_kind: kind,
       document_id: documentId,
       signed_name: signedName,
-      // signed_at intentionally OMITTED — see the file header.
+      // Server-generated timestamp applied by database defaults.
       ip,
       user_agent: userAgent,
     })
     .select('id');
 
   if (error) {
-    // The partial unique index: already signed.
+    // Unique constraint: document already signed by this employee.
     if (error.code === '23505') {
       return { ok: false, error: 'You have already signed this document.' };
     }
-    // The ±5-minute window or the employee_id check refused it.
+    // Authorization refusal: employee identity mismatch.
     if (error.code === '42501') {
       return {
         ok: false,

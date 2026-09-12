@@ -1,27 +1,18 @@
+// Aggregation pipelines implementing virtual views for attendance, celebrations,
+// inventory balances, asset metrics, and exit clearance state.
 //
-// The five SQL views, as aggregation pipelines. SERVER ONLY.
-//
-// Each view was declared `security_invoker = on`, meaning it ran as the caller
-// and the base tables' RLS applied through it. The equivalent here is that
-// every pipeline starts from a SCOPED collection, so the caller's policy on the
-// base data still decides which rows reach the aggregation.
-//
-// One behaviour worth stating: `current_date` inside a Postgres view was the
-// SERVER's date. These take the date as an argument, defaulted from the app's
-// IST helper, because the board and the celebrations list are both "today in
-// India" and a server in another timezone would otherwise roll over at the
-// wrong hour.
-//
+// Pipeline collections are scoped to the caller's authorization context unless an
+// explicit system scope is provided. Temporal filters default to Indian Standard Time (IST)
+// to ensure uniform calendar boundaries regardless of server runtime timezone.
+
 import 'server-only';
 import type { Document } from 'mongodb';
 import { collections } from '@/lib/db/collections';
 import { scoped, scopedFor } from '@/lib/db/repo';
 import type { Scope } from '@/lib/db/scope';
-// Views used current_date; this is the app's one definition of it. See the
-// note on the same import in pgcompat.ts.
 import { todayIST } from '@/lib/format';
 
-// The collection handle a view reads through. `security_invoker = on` meant the view ran as whoever queried it, so the default is the signed-in caller's scope. An explicit scope is how the system client reaches a view at all: it has no session, and calling scoped() with none throws NotSignedInError — which pgcompat then reported as an empty result set, so every scheduled or unauthenticated read of a view silently returned nothing.
+// Returns a scoped collection handle. Defaults to active caller session scope.
 async function handle(name: string, scope?: Scope) {
   return scope ? scopedFor(name, scope) : await scoped(name);
 }
@@ -43,10 +34,8 @@ async function todayBoard(scope?: Scope): Promise<Document[]> {
   return employees.aggregate([
     { $match: { status: 'active' } },
     {
-      // The view LEFT JOINed attendance_days on (employee, today). A $lookup
-      // with a pipeline is the same thing, and pins the date inside the join
-      // rather than filtering after it — which would have dropped employees
-      // who have no row for today, i.e. exactly the ones counted as absent.
+      // Correlate attendance records for the target date via pipeline lookup to preserve
+      // employees without an attendance record (counted as absent).
       $lookup: {
         from: collections.attendanceDays,
         let: { eid: '$_id' },
@@ -78,9 +67,7 @@ async function todayBoard(scope?: Scope): Promise<Document[]> {
 
 async function celebrations(scope?: Scope): Promise<Document[]> {
   const date = todayIST();
-  // Dates are 'YYYY-MM-DD' strings, so month-and-day is a suffix match. That is
-  // cheaper and less error-prone than the view's extract(month)/extract(day)
-  // pair, and it cannot be tripped by a timezone.
+  // Match on MM-DD suffix directly against ISO date strings (YYYY-MM-DD).
   const mmdd = date.slice(5);
   const employees = await handle(collections.employees, scope);
 
@@ -111,8 +98,7 @@ async function celebrations(scope?: Scope): Promise<Document[]> {
                  department: e.department, kind: 'birthday', years: 0 });
     }
     const doj = e.date_of_joining as string | undefined;
-    // `and e.date_of_joining < current_date` — someone who joined TODAY is not
-    // celebrating an anniversary, they are starting.
+    // Exclude employees joining today (anniversary requires >= 1 complete year).
     if (typeof doj === 'string' && doj.endsWith(`-${mmdd}`) && doj < date) {
       out.push({ id: e._id, full_name: e.full_name, code: e.code, branch: e.branch,
                  department: e.department, kind: 'anniversary', years: year - Number(doj.slice(0, 4)) });
@@ -259,11 +245,10 @@ export function isView(name: string): boolean {
 }
 
 /**
- * Materialise a view. Throws for an unknown name rather than returning [].
+ * Executes the named aggregation pipeline. Throws if the view name is unrecognized.
  *
- * `scope` overrides whose eyes the view is built through; omit it for the
- * signed-in caller. pgcompat passes systemScope when the query came from the
- * service client, which is the only way a job with no session can read one.
+ * @param name View identifier
+ * @param scope Optional execution authorization scope (defaults to caller's session)
  */
 export async function runView(name: string, scope?: Scope): Promise<Document[]> {
   const view = views[name];

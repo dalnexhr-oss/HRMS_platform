@@ -1,14 +1,7 @@
+// Collection registry and schema document interfaces. SERVER ONLY.
 //
-// Collection registry and document shapes. SERVER ONLY.
-//
-// One place that knows what every collection is called, so a rename is a single
-// edit rather than a grep across 327 call sites. Names match the old Postgres
-// table names exactly — that keeps the port mechanical and makes it obvious
-// which migration defined each one.
-//
-// Only `users` is modelled so far; the rest are listed because the registry is
-// the thing later phases fill in, and an empty gap is easier to see than a
-// missing constant.
+// Centralizes collection name constants and type definitions for entities
+// including identity, org hierarchy, attendance, leave, payroll, and assets.
 //
 import type { Collection, Decimal128, Document } from 'mongodb';
 import { db } from '@/lib/db/mongo';
@@ -16,7 +9,7 @@ import type { AppRole } from '@/types/database';
 // import type { EmploymentType} from '@/types/database';
 export const collections = {
   // --- identity
-  // Supabase kept auth.users (GoTrue) and public.profiles as two tables joined on id. There is no separate auth schema any more, so they are one document: credentials, role and per-tab access together.
+  // Consolidated identity document: authentication credentials, role, and tab access permissions.
   users: 'users',
 
   // --- org
@@ -89,13 +82,13 @@ export const collections = {
 
 export type CollectionName = (typeof collections)[keyof typeof collections];
 
-// The shape every document here shares: a UUID STRING primary key. The driver's default `Document` assumes `_id: ObjectId`, which is wrong for this database — keys were carried over from Postgres unchanged so that every existing foreign-key value stays valid. Use this wherever a collection has no specific interface yet, rather than casting at each call site.
+// Base document interface with UUID string primary key (_id).
 export interface BaseDoc {
   _id: string;
   [key: string]: unknown;
 }
 
-// A signed-in account. Merges what used to be auth.users + public.profiles + public.user_tab_access. `_id` is the same UUID string the Postgres schema used, so every existing foreign key value (employees.corrected_by, activity_log.actor, …) stays valid without rewriting.
+// Authenticated user account document, including credentials, role assignment, and access controls.
 export interface UserDoc {
   _id: string;
 
@@ -113,10 +106,10 @@ export interface UserDoc {
   // Links to the employees collection. Null for staff with no employee record.
   employee_id: string | null;
 
-  // Replaces the GoTrue "ban" flag. Checked on every request, so switching it on locks the account out immediately even though the cookie is still valid.
+  // When true, immediately denies authentication even if JWT session cookie is unexpired.
   disabled: boolean;
 
-  // Bumped to revoke every session this account holds. A JWT cannot be recalled once issued, and these are long-lived, so this counter is what makes sign out, password change and "disable login" actually take effect.
+  // Monotonically incremented to invalidate existing issued sessions upon logout or password reset.
   token_version: number;
 
   // Per-tab access. An absent key means allowed.
@@ -141,7 +134,7 @@ export function toPublicUser(user: UserDoc): PublicUser {
 // Org core
 //
 
-// A calendar day, as "YYYY-MM-DD". NOT a BSON Date. Postgres `date` is a calendar day; BSON Date is a UTC instant. In IST (+05:30) a round trip through Date moves a day boundary, so an attendance row or a joining date lands on the wrong day. Strings sort and range-query correctly and cannot drift.
+// Calendar date represented as ISO-8601 string ("YYYY-MM-DD") to avoid timezone shift on day boundaries.
 export type DateOnly = string;
 
 // A time of day, as "HH:MM". BSON has no time type at all.
@@ -153,18 +146,11 @@ export interface BranchDoc {
   name: string;
   state: string;
   address: string | null;
-  // This branch's OFFICE LOCATION. The geofence classifies a punch as on-site
-  // or remote; it never blocks one (see lib/punch.ts). Null coordinates mean
-  // no office has been set for the branch, and its employees fall back to the
-  // company-wide office_lat / office_lng settings.
-  //
-  // Decimal128, not a JS number: the validator declares both as `decimal`, and
-  // a double is refused as error 121. toCoordinate() in lib/db/money.ts keeps
-  // six places — toMoney's two would put the point about a kilometre out and
-  // make the geofence meaningless.
+  // Office location coordinates for geofence classification. Null values fall back
+  // to global settings. Stored as 6-decimal Decimal128.
   geofence_lat: Decimal128 | null;
   geofence_lng: Decimal128 | null;
-  // Metres, and NOT nullable — the validator requires it. Defaults to 150.
+  // Radius in metres (default: 150).
   geofence_radius_m: number;
   created_at: Date;
 }
@@ -176,7 +162,7 @@ export interface DepartmentDoc {
   created_at: Date;
 }
 
-// Mirrors the employee_status enum. 'on_notice' is a serving-notice employee.
+// Lifecycle status for employee records.
 export type EmployeeStatus = 'active' | 'on_notice' | 'inactive';
 
 export interface EmployeeDoc {
@@ -187,12 +173,12 @@ export interface EmployeeDoc {
 
   branch_id: string;
   department_id: string | null;
-  // Denormalised from branches/departments. Almost every list screen reads a row alongside its branch name, and the old PostgREST queries did that with an embedded select — a join per read. Names change once a year and are read constantly, so they are copied here and refreshed when a branch or department is renamed. This is the single change that removes most of the join work from the port.
+  // Denormalized name from branch/department documents; updated synchronously upon rename.
   branch_name: string | null;
   department_name: string | null;
 
   designation: string | null;
-  // What this person is on the PAYROLL, which is not the same question as what their login can reach (users.role). Payroll runs off this record and an intern can exist here before anyone creates them a login. OPTIONAL because every row written before the field existed has no value. Read it through a `=== 'intern'` test rather than a truthiness check, so a missing value falls to 'employee' — the safe side, since interns are the ones with the different pay rules.
+  // Payroll classification ('employee' | 'intern'). Defaults to 'employee'.
   // employment_type?: EmploymentType;
   gender: string;
   date_of_joining: DateOnly;
@@ -222,7 +208,8 @@ export interface EmployeeDoc {
   emergency_contact_phone: string | null;
   emergency_contact_relation: string | null;
 
-  // Salary, monthly, INR. Decimal128 — never a JS number. gross_monthly must equal basic_da + hra + special_allowance; that was a CHECK constraint (`salary_components_sum`) and is now enforced in the employee actions with lib/db/money.ts.
+  // Monthly salary components in INR, stored as Decimal128.
+  // Invariant: gross_monthly must equal basic_da + hra + special_allowance.
   gross_monthly: Decimal128;
   basic_da: Decimal128;
   hra: Decimal128;
@@ -246,7 +233,7 @@ export async function collection<T extends Document>(
   return (await db()).collection<T>(name);
 }
 
-// Typed handle for the users collection. UNSCOPED — this is the auth layer's own handle, used before a session exists (sign-in must read a user nobody is yet signed in as). Application code that lists or edits accounts goes through lib/db/repo.ts instead.
+// Direct collection handle for user identity queries during unauthenticated sign-in flows.
 export async function usersCollection(): Promise<Collection<UserDoc>> {
   return (await db()).collection<UserDoc>(collections.users);
 }

@@ -73,10 +73,8 @@ function caught(context: string, e: unknown): { ok: false; error: string } {
 // ------------------------------------------------------------ run actions ---
 
 /**
- * Open a fresh payroll run for a month so it can be computed from the app — the
- * onboarding step that previously required a manual SQL INSERT. Per migration
- * 0007 targets are per-employee, so the run's own working_days/target_minutes are
- * left null and populated by compute; status starts 'draft'.
+ * Creates a new payroll run in 'draft' status for the specified period month (YYYY-MM-01).
+ * Working days and target minutes are computed per-employee during the compute stage.
  */
 export async function openRun(periodMonth: string): Promise<{ ok: boolean; error?: string }> {
   const context = 'Start payroll run';
@@ -224,7 +222,7 @@ function money(formData: FormData, key: MoneyField): number | string {
   if (!raw) return 0;
   const n = Number(raw);
   if (!Number.isFinite(n)) return `${moneyLabel[key]} must be a number (got "${raw}").`;
-  // numeric(12,2) — round to paise so Postgres doesn't silently do it for us.
+  // Round to paise (2 decimal places).
   return Math.round(n * 100) / 100;
 }
 
@@ -270,17 +268,7 @@ export async function saveAdjustments(
     const employeeId = payslip.employee_id;
     const runId = payslip.payroll_run_id;
 
-    // Is the run still open? fn_compute_payslip has NO lock guard of its own
-    // (0005 added one only to fn_compute_run), so calling it on a locked run
-    // would rewrite an issued payslip behind the guard's back. Check here.
-    //
-    // Queried separately rather than as a `payroll_runs(status)` embed on the
-    // select above: an embed's shape (object vs single-element array) depends
-    // on how the relationship is declared, and if it came back in an unexpected shape the
-    // status would read `undefined` — which the previous `if (status && …)` form
-    // treated as "not frozen" and wrote anyway. A guard standing in for a
-    // missing database constraint must fail CLOSED, so this reads the column
-    // directly and refuses when it cannot be established.
+    // Fail-closed verification: ensure payroll run is in 'draft' or 'in_review' status before recomputing.
     const { data: run, error: runError } = await dbc
       .from('payroll_runs')
       .select('status')

@@ -1,30 +1,10 @@
-//
-// A PostgREST-shaped query builder backed by MongoDB. SERVER ONLY.
-//
-// WHY THIS EXISTS, and what it is not.
-//
-// The app had ~500 Supabase call sites written in PostgREST's idiom
-// (`.from(t).select(c).eq(a, b).order(d)` returning `{ data, error }`).
-// Hand-rewriting every one of them is not a reliable operation at that volume:
-// the failure mode is a single dropped `.eq()` that silently widens a query,
-// and there is no compiler check that would catch it.
-//
-// So this translates that idiom to MongoDB instead. Crucially it does so
-// THROUGH lib/db/repo.ts, which means every query it runs still has the
-// collection's access policy ANDed into it. The compatibility layer cannot be
-// used to escape scoping — that was the one property worth protecting.
-//
-// This is an adapter, not the destination. Code ported natively (the auth
-// layer, the org core, payroll) uses `scoped()` directly and is easier to read
-// for it. Anything still on this builder can be moved over file by file, and
-// the builder deleted when the last one goes.
-//
-// NOT SUPPORTED, deliberately — each throws rather than silently doing the
-// wrong thing:
-// `.or()` across embedded resources
-// full-text search
-// `.explain()`
-//
+/**
+ * PostgREST-compatible fluent query builder adapter backed by MongoDB. SERVER ONLY.
+ *
+ * Translates PostgREST-style query syntax (`.from().select().eq().order()`) to MongoDB
+ * aggregation pipelines and scoped repository operations (`lib/db/repo.ts`), ensuring
+ * access policies from `policies.ts` are applied to all operations.
+ */
 import 'server-only';
 import type { Document, Filter } from 'mongodb';
 import { NotSignedInError, readFilterFor, scoped, scopedFor, type ScopedCollection } from '@/lib/db/repo';
@@ -33,11 +13,7 @@ import { db } from '@/lib/db/mongo';
 import { columnDefaults, now, today, type DefaultValue } from '@/lib/db/defaults';
 import { isView, runView } from '@/lib/db/views';
 import { relationshipFor } from '@/lib/db/relationships';
-// ONE definition of "today in IST", shared by this file, views.ts, functions.ts
-// and scheduler.ts. It used to be written out in each of them, twice over in
-// two different ways — Intl here, `Date.now() + 5.5h` in the other three — and
-// the cron ledger's run key and the rows a job then wrote were computed by
-// different copies. A date-boundary fix has one place to land now.
+// Canonical definition of today in IST, shared across query builder, views, and scheduler.
 import { todayIST } from '@/lib/format';
 
 export interface PgResult<T> {
@@ -52,9 +28,12 @@ export interface PgError {
   details?: string;
 }
 
-// Postgres SQLSTATEs the app already branches on, so they must survive.
-const duplicateKey = '23505';
-const checkViolation = '23514';
+// Standard error code mappings for database constraint violations.
+export const ERR_DUPLICATE_KEY = '23505';
+export const ERR_CHECK_VIOLATION = '23514';
+
+const duplicateKey = ERR_DUPLICATE_KEY;
+const checkViolation = ERR_CHECK_VIOLATION;
 
 function toPgError(e: unknown): PgError {
   const err = e as { code?: number | string; message?: string; errInfo?: unknown };
@@ -127,7 +106,10 @@ function splitFields(select: string): string[] {
   return parts;
 }
 
-// Parse a PostgREST select list into plain fields plus embedded resources. `'id, name, branches(name), actor:profiles(full_name)'` -> fields ['id','name'], embeds [branches, actor->profiles] NESTING IS THE POINT. The previous implementation matched an embed with `\(([^)]*)\)$`, a character class that cannot contain a closing paren — so `employees(code, full_name, branches(name))` failed to match and fell through to `fields.push(part)`. That produced a projection on a field literally named `employees(code, full_name, branches(name))`, which no document has: no join ran, and the payroll table, the statutory returns and the punch log all rendered blank employee columns with no error anywhere. Here the body is taken by matching the FIRST '(' to the final ')' and parsed recursively, so depth is unlimited. `parentTable` is needed because an embed's join key depends on BOTH sides — see lib/db/relationships.ts.
+/**
+ * Recursively parses a select clause into scalar fields and embedded relations.
+ * Handles nested sub-resources (e.g. `'id, name, branches(name), actor:profiles(full_name)'`).
+ */
 function parseSelect(select: string, parentTable: string): { fields: string[]; embeds: Embed[] } {
   const fields: string[] = [];
   const embeds: Embed[] = [];
@@ -186,7 +168,10 @@ function parseSelect(select: string, parentTable: string): { fields: string[]; e
   return { fields, embeds };
 }
 
-// The $lookup (+ $unwind) stages for one embed, recursing into its own embeds. The sub-pipeline is where nesting is expressed: a nested embed's stages run INSIDE the parent's lookup, so `employees(code, branches(name))` resolves the branch on each joined employee before the employee is projected. `scope` is the caller. It is threaded all the way down because EVERY joined collection needs its own policy applied: repo.aggregate() prepends the filter for the collection the query started from and says in as many words that a $lookup inside the pipeline is not scoped — which left every embedded select reading the joined collection with no rule in front of it. Postgres applied the joined table's RLS through the join; this is that, restored.
+/**
+ * Builds MongoDB `$lookup` and `$unwind` aggregation stages for embedded relations.
+ * Recursively embeds nested sub-pipelines and applies policy filters for each joined collection.
+ */
 function embedStages(embed: Embed, scope: Scope, parent: string): Document[] {
   const sub: Document[] = [];
 
@@ -263,7 +248,7 @@ function collectionFor(table: string): string {
 interface SortKey {
   field: string;
   dir: 1 | -1;
-  /** True ⇒ nulls sort after every value, regardless of direction (Postgres). */
+  /** Whether null values sort after non-null values. */
   nullsLast: boolean;
 }
 
@@ -286,19 +271,8 @@ function nativeSortSpec(keys: SortKey[]): Record<string, 1 | -1> {
 }
 
 /**
- * Aggregation stages that realise Postgres null placement.
- *
- * Each key whose placement Mongo would get wrong gets a computed 0/1 rank —
- * 1 when the field is null OR missing (`$ifNull` folds the two, matching how
- * SQL saw the column) — sorted ahead of the field itself. Ranking is per key
- * and interleaved, so `ORDER BY a NULLS LAST, b` ranks a's nulls without
- * disturbing b. Postgres places nulls absolutely (LAST means last whether the
- * sort is ASC or DESC), which is why the rank's direction depends on
- * `nullsLast` alone, not on `dir`.
- *
- * Returns the stages to run before `$sort`, the `$sort` spec, and the helper
- * field names to strip afterwards. The helpers must not leak: a `(*)` select
- * has no `$project` to drop them, so the caller `$unset`s them instead.
+ * Generates aggregation pipeline stages to enforce explicit null ordering semantics.
+ * Computes an auxiliary rank field for keys where default BSON null ordering differs from requested placement.
  */
 function sortStages(keys: SortKey[]): { pre: Document[]; sort: Document; helpers: string[] } {
   const rank: Document = {};
@@ -370,9 +344,8 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
   // --- shaping -------------------------------------------------------------
 
   /**
-   * Callers may name the row shape: `.select<Row>('a, b')`. The cast is the
-   * same promise PostgREST's client made — the database is not consulted about
-   * whether the shape is right, the caller asserts it.
+   * Sets projection fields and optional count mode.
+   * Type parameter asserts expected return shape without runtime schema validation.
    */
   select<S = Document[]>(
     select = '*',
@@ -426,7 +399,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
   lte(field: string, value: unknown): this { return this.push({ [col(field)]: { $lte: value } }); }
   in(field: string, values: unknown[]): this { return this.push({ [col(field)]: { $in: values } }); }
 
-  /** `.is(f, null)` is the only form PostgREST really uses here. */
+  /** Matches null or boolean values on a field. */
   is(field: string, value: null | boolean): this {
     return this.push({ [col(field)]: value });
   }
@@ -444,14 +417,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
     return this.push({ [col(field)]: { $all: values } });
   }
 
-  /**
-   * `not(f, 'is', null)` is PostgREST for IS NOT NULL.
-   *
-   * It used to build `{f: {$not: {$ne: null}}}` — the double negative cancels,
-   * so it meant IS NULL, the exact opposite. sweep.ts asks for days that HAVE a
-   * punch-in; it was handed the days with none, so the nightly auto-close
-   * selected unclosable rows and reported success having closed nothing.
-   */
+  /** Negated filter operator; handles null checks and sub-document negation. */
   not(field: string, op: string, value: unknown): this {
     if (op === 'is') {
       return this.push({ [col(field)]: { $ne: value === 'null' ? null : value } });
@@ -459,17 +425,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
     return this.push({ [col(field)]: { $not: { [`$${op}`]: value } as object } });
   }
 
-  /**
-   * `or('a.eq.1,b.eq.2')` — the PostgREST string form, including the nested
-   * `and(...)` / `or(...)` groups it allows.
-   *
-   * Splitting on every comma was not good enough. PostgREST nests groups, and
-   * `or('a.lt.X,and(b.is.null,c.lt.X)')` split into three pieces mid-group: the
-   * middle one parsed as the FIELD `and(b`, producing `{'and(b': null}`. A
-   * missing field reads as null in MongoDB, so that clause matched every
-   * document in the collection — and `purgeExpiredNotices()` put it behind a
-   * `.delete()`, so publishing one notice erased all of them.
-   */
+  /** Parses logical OR filter expressions, including nested groups. */
   or(expression: string): this {
     return this.push({ $or: splitTop(expression).map(parseFilterNode) });
   }
@@ -488,31 +444,16 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
   // --- modifiers -----------------------------------------------------------
 
   /**
-   * Postgres semantics, including null placement — which MongoDB's native sort
-   * gets BACKWARDS on both defaults. Postgres puts nulls LAST ascending and
-   * FIRST descending; Mongo treats null/missing as the smallest value, so it
-   * does the exact opposite in both directions.
-   *
-   * That is not a cosmetic difference. The comp-off FIFO
-   * (`order('expires_on', { ascending: true, nullsFirst: false })` in
-   * compoff.ts and attendance.ts) exists to spend the credit that expires
-   * SOONEST; under Mongo's native order the undated, never-expiring credits
-   * sorted first and were consumed while the dated ones quietly lapsed — the
-   * precise harm the ordering is there to prevent, with no error anywhere.
-   *
-   * So each key records where its nulls go (the caller's nullsFirst, else the
-   * Postgres default for its direction), and execution ranks nulls explicitly
-   * whenever Mongo's native placement would disagree — see sortStages(). Keys
-   * are kept as an ordered list: sort priority is call order, exactly as in
-   * PostgREST.
+   * Configures sort direction and null placement semantics for a field.
+   * Interleaves null-ranking stages when native ordering differs from requested placement.
    */
   order(field: string, opts?: { ascending?: boolean; nullsFirst?: boolean }): this {
     const dir: 1 | -1 = opts?.ascending === false ? -1 : 1;
-    // Postgres defaults: ASC ⇒ NULLS LAST, DESC ⇒ NULLS FIRST.
+    // Default null ordering: ASC => NULLS LAST, DESC => NULLS FIRST.
     const nullsFirst = opts?.nullsFirst;
     const nullsLast = nullsFirst === undefined ? dir === 1 : !nullsFirst;
     const f = col(field);
-    // Re-ordering the same field replaces the earlier key, as PostgREST does.
+    // Replace duplicate sort specifications for the same field.
     this.sortKeys = this.sortKeys.filter((k) => k.field !== f);
     this.sortKeys.push({ field: f, dir, nullsLast });
     return this;
@@ -526,7 +467,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
     return this;
   }
 
-  /** Exactly one row; an empty result is an error, as in PostgREST. */
+  /** Exactly one matching document; throws if empty. */
   single<S = Document>(): QueryBuilder<S> {
     this.wantSingle = 'one';
     return this as unknown as QueryBuilder<S>;
@@ -560,7 +501,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
 
   private async run(): Promise<PgResult<T>> {
     try {
-      // Views are read-only, exactly as they were in Postgres.
+      // Views are read-only aggregations.
       if (isView(this.table)) {
         if (this.mode !== 'select') {
           return {
@@ -614,8 +555,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
           const bNull = bv === null || bv === undefined;
           if (aNull || bNull) {
             if (aNull && bNull) continue;
-            // Postgres places nulls absolutely: LAST is last whether the sort
-            // is ascending or descending, so `dir` plays no part here.
+            // Absolute null placement: nullsLast overrides sort direction.
             return aNull ? (nullsLast ? 1 : -1) : nullsLast ? -1 : 1;
           }
           if (av === bv) continue;
@@ -737,9 +677,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
       .map(withId)
       .map((d) => withDefaults(this.table, d));
 
-    // `insert([])` was a no-op success in PostgREST; the driver throws
-    // "Batch cannot be empty". onboarding.ts inserts a template's items without
-    // guarding for a template that has none.
+    // Empty insert array is treated as a no-op returning an empty result.
     if (docs.length === 0) {
       return { data: (this.wantSingle ? null : []) as T, error: null, count: 0 };
     }
@@ -891,13 +829,8 @@ function resolveDefault(value: DefaultValue): unknown {
 }
 
 /**
- * Fill in the column defaults Postgres used to supply.
- *
- * MongoDB has no column defaults, so a ported INSERT that omitted `status`,
- * `created_at` or `updated_at` — every one of them NOT NULL with a DEFAULT in
- * the DDL — wrote an incomplete document and the collection validator rejected
- * it as error 121. Only ABSENT fields are filled: an explicit null the caller
- * passed is a real value and is left alone.
+ * Injects pre-configured column defaults for omitted document properties.
+ * Preserves explicit null values provided by the caller.
  */
 function withDefaults(table: string, doc: Document): Document {
   const defaults = columnDefaults[collectionFor(table)];
@@ -998,8 +931,7 @@ function matches(row: Document, filter: Document): boolean {
 }
 
 /**
- * Split a PostgREST boolean expression on its TOP-LEVEL commas, leaving the
- * commas inside a nested `and(...)` / `or(...)` group alone.
+ * Splits boolean filter expressions on top-level commas while preserving nested groups.
  */
 function splitTop(expression: string): string[] {
   const parts: string[] = [];
@@ -1027,7 +959,7 @@ function parseFilterNode(part: string): Document {
     const clauses = splitTop(inner).map(parseFilterNode);
     if (kind === 'and') return { $and: clauses };
     if (kind === 'or') return { $or: clauses };
-    // PostgREST's negated groups: not.and(...) / not.or(...).
+    // Logical negation groups (e.g., not.and / not.or).
     return { $nor: [kind === 'not.and' ? { $and: clauses } : { $or: clauses }] };
   }
 
@@ -1038,14 +970,7 @@ function parseFilterNode(part: string): Document {
     throw new Error(`pgcompat: cannot parse filter expression '${part}'`);
   }
 
-  // PostgREST negates an operator by putting `not` BEFORE it: the shape is
-  // `field.not.<op>.<value>`, so the real operator is the next segment.
-  //
-  // Splitting blindly made `status.not.eq.pending` parse as op='not' with the
-  // value 'eq.pending', which the clause below turned into
-  // `{status: {$ne: 'eq.pending'}}` — true of every document. The negation was
-  // dropped and the filter widened to the whole collection, which is the one
-  // failure mode the or() docstring says this file exists to prevent.
+  // Negation prefix parsing: `field.not.<op>.<value>`.
   if (op === 'not') {
     const [innerOp, ...innerRest] = rest;
     if (!innerOp) throw new Error(`pgcompat: cannot parse filter expression '${part}'`);
@@ -1117,20 +1042,15 @@ export function pgClient(asSystem = false): PgClient {
 }
 
 /**
- * The system client — what createServiceClient() used to return.
- *
- * Bypasses every collection policy, exactly as the service-role key bypassed
- * RLS. For scheduled jobs and migrations only; never reachable from a request.
+ * System-scoped client bypassing collection-level security policies.
+ * Reserved for scheduled background jobs, maintenance tasks, and automated jobs.
  */
 export function systemPgClient(): PgClient {
   return pgClient(true);
 }
 
 /**
- * Replacements for the plpgsql functions the app called through `.rpc()`.
- *
- * Registered rather than imported directly so a caller that has not been ported
- * yet gets a clear "not implemented" error instead of a silent null.
+ * RPC registry for stored procedure equivalents invoked via `.rpc()`.
  */
 const rpc = new Map<string, (args: Document) => Promise<unknown>>();
 

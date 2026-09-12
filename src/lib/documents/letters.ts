@@ -1,16 +1,10 @@
-//
-// System document generation (PDF). SERVER ONLY.
-//
-// Produces simple, professional single-column letters (relieving / experience /
-// full-&-final statement) as PDF bytes using pdf-lib — a pure-JS library, so no
-// headless browser or native binary is needed. The bytes are then stored in the
-// `generated-documents` bucket (see src/lib/storage.ts uploadFileService) and a
-// signed URL is handed to the employee/HR.
-//
-// This is intentionally layout-light: an A4 page, a heading, dated body
-// paragraphs and a signatory block. Richer templating (letterhead image, tables)
-// can grow here without changing callers.
-//
+/**
+ * System document generation (PDF). SERVER ONLY.
+ *
+ * Generates single-column letter formats (relieving, experience, and full-and-final settlements)
+ * as PDF byte arrays via pdf-lib. Generated documents are stored in the `generated-documents`
+ * GridFS bucket and served via authenticated streaming routes.
+ */
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { logoAspect, logoPngBytes } from '@/lib/brand/logo';
 

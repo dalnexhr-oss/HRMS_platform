@@ -1,22 +1,10 @@
-//
-// Filing an employee document — the parts shared by the two ways in. SERVER ONLY.
-//
-// There are two entry points because they solve different problems:
-//
-//   actions/documents.uploadEmployeeDocument   a Server Action taking FormData.
-//       Used by the staff drawers, where the file is small and the action's
-//       automatic revalidation is exactly what is wanted.
-//
-//   app/api/documents/upload/route.ts          a streaming Route Handler.
-//       Used by the employee's own locker, where a phone camera scan runs to
-//       several megabytes. It writes the body into GridFS AS IT ARRIVES rather
-//       than buffering the whole upload first, and because it is a plain HTTP
-//       request the browser can report progress against it — a Server Action
-//       gives no hook for that, so a large upload looked frozen.
-//
-// NOT a 'use server' module: every export there becomes a public endpoint, and
-// these are internal helpers that already-authenticated callers compose.
-//
+/**
+ * Shared helpers for employee document upload and registration. SERVER ONLY.
+ *
+ * Supports two ingestion flows:
+ * 1. Server Action (`actions/documents.uploadEmployeeDocument`): Small form uploads with page revalidation.
+ * 2. Route Handler (`/api/documents/upload`): Streams large uploads directly to GridFS with progress support.
+ */
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
@@ -26,14 +14,13 @@ import { notifyApprovers } from '@/lib/notify';
 import type { StorageBucket } from '@/lib/storage';
 import type { AppRole } from '@/types/database';
 
-/** Roles that may file against somebody else's record, and verify. */
+/** Roles permitted to file documents for other employees and verify submissions. */
 export const verifyRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
-// Where UPLOADS go. Reads must not assume it — HR-issued letters live in
-// generated-documents and the row's `bucket` column says which is which.
+/** Target storage bucket for uploaded documents. */
 export const uploadBucket: StorageBucket = 'employee-documents';
 
-/** Largest document accepted, in bytes. 10 MB — certificates scan large. */
+/** Maximum permitted document size in bytes (10 MB). */
 export const maxBytes = 10 * 1024 * 1024;
 
 export interface Filer {
@@ -44,11 +31,8 @@ export interface Filer {
 }
 
 /**
- * Which employee this upload may be filed against.
- *
- * A non-staff caller can only ever write to their own id, which is also what
- * keeps the storage path — and therefore the row's path-scoping rule — honest.
- * Both entry points resolve it here so neither can drift from the other.
+ * Resolves and validates the target employee ID for an upload.
+ * Enforces that non-staff callers can only file documents against their own employee record.
  */
 export function resolveTargetEmployee(
   filer: Filer,
@@ -69,10 +53,7 @@ export function resolveTargetEmployee(
 }
 
 /**
- * Write the register row for a file that is already stored, then tell HR.
- *
- * Called only once the bytes are safely in GridFS: a row pointing at a file
- * that never landed is worse than a stored file with no row, which is inert.
+ * Persists document metadata in the register after storage write succeeds and notifies HR.
  */
 export async function recordUploadedDocument(input: {
   filer: Filer;
@@ -85,8 +66,7 @@ export async function recordUploadedDocument(input: {
   const { filer, employeeId, isStaff, category, title, storagePath } = input;
   const dbc = await createClient();
 
-  // A first version: its own group, version 1, current. replaceEmployeeDocument
-  // is what continues a chain — this only ever starts one.
+  // Initialize document chain (version 1, doc_group = id).
   const id = randomUUID();
   const { data, error } = await dbc
     .from('employee_documents')
@@ -101,18 +81,14 @@ export async function recordUploadedDocument(input: {
       doc_group: id,
       version: 1,
       superseded_at: null,
-      // Written out rather than left absent. The insert policy pins both to
-      // null on a new row, and stating them here says at the write site that an
-      // upload is never self-verified.
+      // Unverified by default on creation; verification requires staff review.
       verified_by: null,
       verified_at: null,
     })
     .select('id');
 
   if (error) {
-    // 23514 = the path-scoping check. Should be unreachable given
-    // resolveTargetEmployee, but say something useful rather than leaking a
-    // constraint name.
+    // Storage path constraint violation (must match employee ID prefix).
     if (error.code === '23514') {
       return {
         ok: false,
@@ -125,8 +101,7 @@ export async function recordUploadedDocument(input: {
     return { ok: false, error: 'The document was not filed — your account may not have permission.' };
   }
 
-  // Put it in front of HR only when the employee filed it themselves; a document
-  // HR just uploaded needs no notification back to HR.
+  // Notify approvers only on self-service uploads by employees.
   if (!isStaff) {
     await notifyApprovers(
       {

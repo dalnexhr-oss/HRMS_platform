@@ -32,7 +32,7 @@ export interface LeaveSalaryViewRow {
   remarks: string;
   // Credit-weighted presence per month (index 0 = Jan), from attendance.
   monthlyPresence: number[];
-  // HR-typed denominators from the saved working (0041); null = automatic.
+  // Explicit period denominators from saved working; null = calculated from calendar.
   calendarDaysP1Override: number | null;
   calendarDaysP2Override: number | null;
   // Computed from CURRENT attendance + the inputs above.
@@ -45,7 +45,7 @@ export interface LeaveSalaryViewRow {
 
 export interface LeaveSalaryView {
   year: number;
-  // false when the leave_salary_workings collection does not exist yet.
+  // Indicates availability of saved workings collection.
   migrated: boolean;
   rows: LeaveSalaryViewRow[];
 }

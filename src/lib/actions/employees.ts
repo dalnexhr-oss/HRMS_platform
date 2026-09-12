@@ -354,7 +354,7 @@ async function resolveBranch(
     .select('id, name')
     .single();
   if (error) {
-    // Unique race: someone created it between our lookup and insert — use theirs.
+    // Concurrent creation race: adopt existing branch if created simultaneously.
     if (error.code === '23505') {
       const { data: raced } = await dbc
         .from('branches')
@@ -363,9 +363,6 @@ async function resolveBranch(
         .maybeSingle();
       if (raced) return { ok: true, id: raced.id, name: raced.name };
     }
-    // The 22P02 (invalid enum input) branch is gone with Postgres: an
-    // unknown state now fails the collection validator as 23514, and its
-    // message already says which value was rejected.
     return { ok: false, error: `Could not create the branch: ${error.message}` };
   }
   return { ok: true, id: created!.id, name: created!.name };
@@ -491,6 +488,7 @@ export async function createEmployee(formData: FormData) {
     .select('id');
 
   if (error) {
+    // Unique constraint violation (duplicate employee code or Aadhaar).
     if (error.code === '23505') {
       const dup = /aadhaar/i.test(error.message)
         ? 'That Aadhaar number is already registered to another employee.'
@@ -623,6 +621,7 @@ export async function updateEmployee(formData: FormData) {
     .select('id');
 
   if (error) {
+    // Unique constraint violation (duplicate Aadhaar or employee attribute).
     if (error.code === '23505') {
       const dup = /aadhaar/i.test(error.message)
         ? 'That Aadhaar number is already registered to another employee.'

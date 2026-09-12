@@ -1,16 +1,8 @@
+// Edge middleware request routing and session validation gate.
 //
-// Request gate. Replaces lib/dbc/middleware.ts.
-//
-// Runs on the EDGE runtime, so it can verify the JWT but cannot reach MongoDB.
-// That split is deliberate and unchanged from the Supabase design: middleware
-// does UX routing ("signed in, or go to /login"), and it was never the security
-// boundary. The boundary is now the scoped data layer plus the token_version
-// check in getSession(), both of which run on the server with database access.
-//
-// What that means in practice: a revoked or disabled account still gets past
-// this file, and is then rejected by the layout's getSession() on the very same
-// request. No data is reachable in between.
-//
+// Performs edge-compatible JWT cryptographic verification and UX routing (/login redirects).
+// Server layout components and scoped repository queries enforce final authorization boundaries
+// and token revocation checks (token_version verification against database).
 import { NextResponse, type NextRequest } from 'next/server';
 import { verifySession } from '@/lib/auth/jwt';
 import { sessionCookie } from '@/lib/auth/session-shared';

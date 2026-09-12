@@ -1,11 +1,7 @@
+// Authenticated file streaming endpoint.
 //
-// Serves a stored file. Replaces Supabase's signed-URL origin.
-//
-// The session is checked on EVERY request, which is the whole point: a signed
-// URL carried its own authorisation, so a link copied out of the page stayed
-// good until it expired. This link is inert for anyone not signed in, and
-// ownership is re-verified against the caller's scope inside getObject().
-//
+// Validates session credentials and evaluates bucket/path authorization rules
+// via getObject() per request.
 import { NextResponse } from 'next/server';
 import { getObject, StorageAccessError, type StorageBucket } from '@/lib/db/gridfs';
 
@@ -30,12 +26,7 @@ export async function GET(
     return NextResponse.json({ error: 'Unknown bucket.' }, { status: 404 });
   }
 
-  // NOT decoded again. Next has already percent-decoded the route params, so a
-  // second pass is both wrong and unsafe: objectUrl() encodes a stored
-  // '50%off.pdf' to '50%25off.pdf', Next hands back '50%off.pdf', and
-  // decodeURIComponent on that throws URIError "URI malformed". It threw from
-  // ABOVE the try below, so the route 500'd instead of answering, and any
-  // document whose original filename contained a '%' was simply unopenable.
+  // Next.js decodes route parameters automatically; avoid redundant decodeURIComponent to handle literal '%' characters safely.
   const key = path.join('/');
 
   try {

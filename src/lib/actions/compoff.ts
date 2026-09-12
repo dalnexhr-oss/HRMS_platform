@@ -75,7 +75,7 @@ export async function grantCompOff(employeeId: string, earnedDate: string): Prom
     .select('id');
 
   if (error) {
-    // 23505 = unique_violation: a credit for this day already exists.
+    // Conflict: credit already granted for this date.
     if (error.code === '23505') {
       return { ok: false, error: 'A comp off has already been granted for that day.' };
     }
@@ -136,10 +136,7 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
 
   const dbc = await createClient();
 
-  // FIFO (0036): with no explicit credit chosen, spend the one that expires
-  // SOONEST — oldest expiry first, then oldest earned. Letting the employee
-  // always pick freely means the near-expiry credits quietly lapse while newer
-  // ones get used, which is the whole reason expiry dates exist.
+  // Default to FIFO allocation (earliest expiration, then earliest earned date).
   let compOffId = requestedId;
   if (!compOffId) {
     const { data: oldest, error: fifoErr } = await dbc
@@ -147,7 +144,7 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
       .select('id')
       .eq('employee_id', employeeId)
       .eq('status', 'available')
-      // A credit staff put on hold (0041) must not be picked for the employee.
+      // Exclude credits placed on administrative hold.
       .eq('is_applicable', true)
       // nullsFirst:false so dated credits are consumed before undated ones —
       // an undated credit cannot lapse, so it can safely wait.
@@ -224,9 +221,8 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
 }
 
 /**
- * Staff switch (0041): mark an AVAILABLE credit applicable / not applicable.
- * A not-applicable credit stays on the books and keeps its expiry, but the
- * employee cannot apply against it until it is switched back.
+ * Toggles applicability of an available comp-off credit.
+ * When marked non-applicable, credit remains recorded but cannot be claimed by employee.
  */
 export async function setCompOffApplicability(
   id: string,

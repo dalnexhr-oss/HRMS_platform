@@ -1,11 +1,6 @@
 'use server';
 
-//
-// Password reset and change. Replaces GoTrue's resetPasswordForEmail and
-// updateUser({ password }).
-//
-// Runs on Node: scrypt and the token hash both need node:crypto.
-//
+// Server Actions for password reset requests, token consumption, and password updates.
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth/session';
@@ -35,7 +30,7 @@ export interface PasswordState {
 // Request a reset link
 //
 
-// Always reports the same thing, whether or not the address exists. "No account with that email" is an account-enumeration oracle: it lets anyone test which addresses are registered. The cost is that a typo looks like success, which the copy accounts for by saying "if an account exists". EVERY refusal is therefore decided BEFORE the account is looked up. That ordering is the whole mechanism, and it is easy to undo by accident: the "email is not configured" branch used to sit after the lookup, so in a production deployment with no SMTP a registered address got an error and an unregistered one got `{sent:true}` — a cleaner oracle than the message this function exists to avoid. What remains is timing: an address that exists writes a token and waits on SMTP, so it answers more slowly. Closing that would mean queueing the send, which this deployment has nothing to queue with — an unsent reset email is a worse outcome than a measurable delay. Stated rather than papered over.
+// Initiates password reset flow. Returns uniform success response to prevent account enumeration.
 export async function requestPasswordReset(
   _prev: PasswordState,
   formData: FormData,

@@ -9,6 +9,12 @@
 // worked minutes recomputed. Every sweep writes one activity_log entry so the
 // correction is auditable rather than invisible.
 //
+// This is the MANUAL sweep — the button on /today, run by a staff user against
+// a date they chose. The automatic one is autoPunchOut() in db/scheduler.ts,
+// fired at 00:00 IST by db/midnight.ts and by /api/cron. Do not wire this
+// action into a schedule: it requires a session a timer does not have, and it
+// defaults to *today*, which at midnight is a day with nothing open in it yet.
+//
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/_guard';

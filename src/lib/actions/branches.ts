@@ -1,23 +1,13 @@
 'use server';
 
-//
-// Branch management (Settings screen). Branches are CREATED inline from the
-// employee drawer (resolveBranch in employees.ts); this file is the other half
-// — fixing a branch that was set up wrong (typoed name, wrong state) and
-// removing one created by mistake.
-//
-// TWO THINGS THE PORT CHANGED, both because MongoDB has no foreign keys:
-//
-// 1. Deletion used to be blocked by `employees.branch_id … on delete restrict`
-// — Postgres refused with 23503 and this file translated the error. Nothing
-// refuses now, so the check is explicit and runs BEFORE the delete. Without
-// it, deleting a branch would silently orphan every employee in it.
-//
-// 2. Renaming has to update employees.branch_name, which is denormalised onto
-// each employee so list screens do not join. That copy is the price of the
-// denormalisation, and forgetting it leaves the roster showing a name that
-// no longer exists anywhere.
-//
+/**
+ * Branch management actions (Settings).
+ *
+ * Referential integrity invariants:
+ * - Deletion guard: A branch cannot be deleted if any employees are currently assigned to it.
+ * - Atomic rename synchronization: Renaming a branch propagates the updated `branch_name`
+ *   to all assigned employee documents within a transaction.
+ */
 import { revalidatePath } from 'next/cache';
 import { requireRoles } from '@/lib/actions/_guard';
 import { collections, type BranchDoc, type EmployeeDoc } from '@/lib/db/collections';

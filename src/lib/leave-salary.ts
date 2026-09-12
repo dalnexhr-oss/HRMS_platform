@@ -56,7 +56,7 @@ export interface LeaveSalaryInput {
   incrementMonth: number;
   // presenceByMonth() output — credit-weighted days, index 0 = January.
   monthlyPresence: number[];
-  // HR-entered calendar-day DENOMINATORS: payable = entitled × present ÷ days, and these replace `days`. null/undefined = real calendar arithmetic, the pre-0041 behaviour. The attendance-derived present-day numerator is never overridden.
+  // Optional explicit calendar-day denominators (payable = entitled * present / days). Null/undefined uses calendar day count.
   calendarDaysP1Override?: number | null;
   calendarDaysP2Override?: number | null;
 }
@@ -112,7 +112,7 @@ function periodFigures(
 }
 
 // The whole working for one employee-year. Presence beyond the period counts for nothing; presence rows that don't exist (an employee who joined mid-year has no earlier attendance) self-pro-rate the payout, because the denominator stays the full period while the numerator only holds real days.
-// Replace the calendar-day denominator with an HR-typed one (0041). A zero, negative or non-finite override is ignored rather than dividing by it. Skipped entirely for an empty period (incrementMonth = 1 ⇒ p1 has 0 months) — there is nothing to pro-rate.
+// Applies explicit calendar-day denominator override if valid and positive. Skipped for empty periods.
 function withCalendarOverride(f: PeriodFigures, override: number | null | undefined): PeriodFigures {
   if (override == null || !Number.isFinite(override) || override <= 0) return f;
   if (f.months === 0) return f;

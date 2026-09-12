@@ -1,27 +1,12 @@
-//
-// Scheduled jobs. SERVER ONLY — replaces the seven pg_cron jobs.
-//
-// pg_cron ran inside the database and could call plpgsql directly. There is no
-// in-database scheduler here, so the jobs are plain functions invoked by
-// whatever fires them: a Node timer in a long-lived server, the host's cron, or
-// a platform scheduler hitting /api/cron. The bodies do not care which.
-//
-// THE IDEMPOTENCY LEDGER IS THE IMPORTANT PART. cron_claim(job, key) inserted
-// into a table with `unique (job, run_key)` and returned false on conflict, so
-// a job that had already run for a given day did no work and — crucially —
-// sent no duplicate notification. The same unique index does the same job here.
-//
-// That matters more now than it did: pg_cron fired once because there was one
-// database. An HTTP-triggered scheduler can fire twice (a retry, two instances,
-// a nervous operator refreshing), and without the ledger every retry would
-// re-notify everyone.
-//
-// ONE THING HAD TO BE ADDED. In Postgres the claim and the work were the same
-// transaction, so a job that failed rolled its claim back and ran again the
-// next day. Here they are separate writes to separate collections, so the
-// claim is released explicitly on failure — see claimed() and cronRelease().
-// Without that, one bad night meant the job was skipped for ever.
-//
+/**
+ * Scheduled background tasks and cron job handlers. SERVER ONLY.
+ *
+ * Idempotency & Distributed Locking:
+ * - Uses `cron_run_log` collection with unique `(job, run_key)` constraint as a distributed lock.
+ * - If a job has already executed for a period/key, subsequent concurrent or duplicate runs are skipped.
+ * - If an unexpected error occurs during execution, the claim is explicitly released (`cronRelease`)
+ *   to allow retries.
+ */
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { collections, type BaseDoc } from '@/lib/db/collections';
@@ -64,8 +49,7 @@ export async function cronClaim(job: string, runKey: string, detail?: string): P
     });
     return true;
   } catch (e) {
-    // 11000 is the unique violation — the SQL caught unique_violation and
-    // returned false in exactly the same way.
+    // 11000 = duplicate key violation (job already claimed for this run key).
     if ((e as { code?: number }).code === 11000) return false;
     throw e;
   }
@@ -89,20 +73,8 @@ async function cronRelease(job: string, runKey: string): Promise<void> {
 }
 
 /**
- * Claim the work, do it, and HAND THE CLAIM BACK if it throws.
- *
- * The ledger row has to be written first: it is what stops two schedulers (a
- * retry, two instances, an operator refreshing /api/cron) from both running
- * the job and both notifying everyone. But writing it first also means a job
- * that then fails looks done for ever — the next morning finds the claim and
- * reports "already ran today", so the notices are never purged, the month
- * never closes, the leave year is never provisioned.
- *
- * In Postgres that could not happen: pg_cron called one plpgsql function, so
- * the claim and the work were one transaction and the claim rolled back with
- * the failure. Nothing here is transactional — the claim and the work touch
- * different collections, and a standalone mongod cannot span them anyway — so
- * the rollback is explicit instead.
+ * Executes a job under a distributed lock in the cron run log.
+ * Acquires claim before starting; on unhandled exception, releases the claim to permit retry.
  */
 async function claimed(
   jobName: string,
@@ -213,9 +185,7 @@ export async function expireCompOffs(): Promise<JobResult> {
 /**
  * Notify staff about assets whose warranty expires within 30 days.
  *
- * Claimed per (asset, warranty date) rather than per day, exactly as the SQL
- * was — so an asset is flagged once for a given warranty date, not every
- * morning for a month.
+ * Deduplicated per (asset, warranty date) so each asset is flagged once per expiration cycle.
  */
 export async function warrantyReminders(): Promise<JobResult> {
   const today = todayIST();

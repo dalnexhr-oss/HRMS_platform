@@ -410,10 +410,8 @@ export async function readPunchHistory(): Promise<PunchRecord[]> {
 interface DayEvent {
   kind: string;
   /**
-   * A BSON date on the way in and on the way out. Typed loosely because rows
-   * carried over from Postgres by a data-only dump can still hold the string
-   * form — the collection validator only governs new writes — and every reader
-   * here goes through punchedAt() rather than assuming one or the other.
+   * Timestamp stored as BSON Date (or legacy ISO string representation).
+   * Parsed via punchedAt() for uniform handling.
    */
   punched_at: Date | string;
   within_geofence?: boolean | null;
@@ -503,17 +501,10 @@ export async function recordPunch(
 
   const { error: eventError } = await dbc.from('punch_events').insert({
     employee_id: employeeId,
-    // The Date itself. punch_events.punched_at is `bsonType: "date"`, so an
-    // ISO string was rejected by the collection validator as error 121 — which
-    // pgcompat reports as '23514' — and every punch in and punch out failed
-    // with "new row violates check constraint".
+    // Stored as BSON Date matching collection schema validation.
     punched_at: now,
     kind,
-    // numeric(9,6) columns, i.e. `bsonType: "decimal"` — a JS number is
-    // serialised as a double and rejected by the validator, so a punch that
-    // DID share coordinates failed while one that shared none succeeded.
-    // toCoordinate keeps six places; toMoney's two would put the fix about a
-    // kilometre out and make the geofence meaningless.
+    // Geographic coordinates stored as 6-decimal Decimal128.
     lat: toCoordinate(point?.latitude ?? null),
     lng: toCoordinate(point?.longitude ?? null),
     within_geofence: withinGeofence,

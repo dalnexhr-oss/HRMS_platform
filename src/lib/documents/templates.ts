@@ -1,33 +1,11 @@
+// Document templates for system-generated HR documents and letters.
 //
-// Document templates — the WORDS of every system-generated HR document.
-//
-// Companion to ./letters.ts: that module owns *layout* (A4, wrapping, fonts) and
-// knows nothing about HR; this module owns *content* and knows nothing about
-// PDFs. Callers compose them — `renderLetterPdf(buildRelievingLetter(input))` —
-// so wording can be reviewed and corrected by HR without anyone touching page
-// geometry, and a new letter type is a new pure function here rather than a
-// second renderer.
-//
-// Three rules shape everything below, all of them learned the hard way:
-//
-// 1. NO AMBIENT TIME. Not one `new Date()` / `Date.now()`. Every date is an
-// input, because these documents are regenerated on demand (an employee
-// re-downloads a relieving letter a year later) and the reissued copy MUST be
-// byte-identical to the original. A server-clock date would also silently
-// shift by a day whenever the container runs in UTC and the office is IST.
-//
-// 2. NO RUPEE SIGN IN LETTER TEXT. renderLetterPdf embeds StandardFonts.Helvetica,
-// which is WinAnsi-encoded; U+20B9 (₹) is not in WinAnsi and pdf-lib THROWS on
-// encode rather than dropping the glyph — so a single ₹ in an F&F statement
-// fails the whole download. Money in LetterSpec is therefore "Rs. 1,23,456.00".
-// (src/lib/format.ts `inr()` keeps the ₹ — that output is for the browser.)
-// Amounts also carry 2 decimals here, unlike the rounded UI figures, because a
-// settlement statement is an accounting record and must foot exactly.
-//
-// 3. NO INVENTED FACTS. Relieving/experience letters assert only what the HRMS
-// actually stores: identity, dates, designation. Nothing about performance,
-// conduct, or eligibility for rehire — those are claims the database cannot
-// back and that carry real legal weight for the firm.
+// Invariants:
+// - Deterministic output: Dates are explicitly passed inputs (no ambient clock usage)
+//   to ensure re-issued documents are byte-identical.
+// - Typography: Monetary amounts use ASCII "Rs." with 2 decimal places to guarantee
+//   compatibility with WinAnsi-encoded standard PDF fonts (e.g. Helvetica).
+// - Factual claims: Statements reflect verified database records (identity, tenure, designation).
 //
 import type { LetterSpec } from './letters';
 // One escaper for every HTML email body in the app, next to sendEmail().
@@ -63,7 +41,7 @@ interface DateParts {
   d: number;
 }
 
-// Split a 'YYYY-MM-DD' string into calendar parts, or null when unparseable. Deliberately string-based rather than `new Date(iso)`: a date can arrive as a bare '2026-07-27' or as '2026-07-27T00:00:00+00:00', and Date would re-interpret that in the server's zone and hand back the previous day for any negative-offset host. Matching the leading Y-M-D takes both shapes literally.
+// Parses 'YYYY-MM-DD' string to calendar parts ({ y, m, d }), or null if invalid.
 function parseIsoDate(iso: string | null | undefined): DateParts | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec((iso ?? '').trim());
   if (!m) return null;
@@ -74,7 +52,7 @@ function parseIsoDate(iso: string | null | undefined): DateParts | null {
   return { y, m: mo, d };
 }
 
-// '2026-07-27' -> '27 Jul 2026'. Falls back to the raw input when it does not look like an ISO date, so a bad value shows up in the document as the odd string it is instead of as a plausible-but-wrong date.
+// Formats ISO date to 'D Mon YYYY' (e.g. '27 Jul 2026'). Falls back to trimmed input if unparseable.
 function formatDate(iso: string): string {
   const p = parseIsoDate(iso);
   if (!p) return (iso ?? '').trim();
@@ -83,18 +61,12 @@ function formatDate(iso: string): string {
 
 const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const;
 
-/** Proleptic Gregorian leap rule — the one Postgres `date` also uses. */
+/** Standard Gregorian calendar leap year calculation. */
 function isLeapYear(y: number): boolean {
   return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
 }
 
-/**
- * The calendar day after `p`, computed arithmetically.
- *
- * Deliberately NOT `new Date(...)` + setDate: constructing a Date would drag the
- * host time zone (and, for two-digit years, the 1900-offset legacy rule) into a
- * number that must be identical on every machine that regenerates the letter.
- */
+/** Computes the successive calendar day arithmetically without timezone offset shifts. */
 function nextDay(p: DateParts): DateParts {
   const len = p.m === 2 && isLeapYear(p.y) ? 29 : daysInMonth[p.m - 1];
   if (p.d < len) return { y: p.y, m: p.m, d: p.d + 1 };
@@ -108,15 +80,8 @@ function ordinal(p: DateParts): number {
 }
 
 /**
- * Whole-calendar-month tenure between two ISO dates, e.g. '3 years and 2 months'.
- * Returns null when either date is unparseable or the range is inverted — the
- * caller then simply omits the sentence rather than printing '-1 months'.
- *
- * `toIso` is the LAST WORKING DAY and is therefore INCLUSIVE, so the count runs
- * to the day after it. Without that step someone who joined on 1 Jan and left on
- * 31 Dec gets '11 months' printed directly beneath a line saying they were
- * "employed from 1 Jan 2020 to 31 Dec 2020" — a certificate that contradicts
- * itself in two adjacent sentences, handed to a prospective employer.
+ * Computes calendar tenure between two dates (inclusive of the last working day).
+ * Returns formatted string (e.g. '3 years and 2 months') or null if invalid.
  */
 function formatTenure(fromIso: string, toIso: string): string | null {
   const a = parseIsoDate(fromIso);
@@ -140,17 +105,7 @@ function formatTenure(fromIso: string, toIso: string): string | null {
   return parts.join(' and ');
 }
 
-/**
- * 1234567.5 -> 'Rs. 12,34,567.50'. Indian digit grouping (last three, then
- * pairs) with exactly two decimals.
- *
- * Grouping is done by hand rather than via `toLocaleString('en-IN')` because
- * that depends on the Node build shipping full ICU — a small-icu runtime
- * silently degrades to Western grouping, which would make the same settlement
- * render differently across deploys. See the header for why the prefix is
- * 'Rs. ' and not '₹'. Non-finite input is treated as zero so a null column can
- * never print 'Rs. NaN' on a legal document.
- */
+/** Formats numeric amounts using Indian digit grouping with 'Rs.' prefix and 2 decimal places. */
 function formatMoney(amount: number): string {
   const n = Number.isFinite(amount) ? amount : 0;
   const fixed = Math.abs(n).toFixed(2);
@@ -185,13 +140,8 @@ export interface SeparationLetterInput {
 }
 
 /**
- * Relieving letter: addressed to the employee, confirming that employment ended
- * and that they are released from their duties.
- *
- * Says only what HR records support — dates, code, designation — plus the two
- * clauses the firm needs on the record: surviving obligations, and the fact that
- * settlement of dues is a separate exercise (so this letter is never read as a
- * receipt for money).
+ * Relieving letter confirming separation dates, designation, surviving confidentiality
+ * obligations, and distinct settlement handling.
  */
 export function buildRelievingLetter(input: SeparationLetterInput): LetterSpec {
   const name = clean(input.employeeName);
@@ -228,13 +178,8 @@ export function buildRelievingLetter(input: SeparationLetterInput): LetterSpec {
 }
 
 /**
- * Experience / service certificate: addressed to the world ("To Whomsoever It
- * May Concern") because its whole purpose is to be handed to a third party such
- * as a prospective employer or a bank.
- *
- * That audience is exactly why it stays strictly factual — tenure, code, role.
- * A "performed excellently" line here is an assertion the firm would have to
- * defend, and the HRMS holds no field that substantiates it.
+ * Experience/service certificate addressed to third parties, stating verified dates of employment,
+ * designation, and total tenure.
  */
 export function buildExperienceLetter(input: SeparationLetterInput): LetterSpec {
   const name = clean(input.employeeName);
@@ -301,24 +246,8 @@ export interface FullAndFinalInput {
 }
 
 /**
- * Full & final settlement statement.
- *
- * `netPayable` is printed exactly as supplied and is NOT recomputed from the
- * components. The stored figure is what payroll approved and what the bank
- * transfer will match, so re-deriving it here would only create a way for the
- * PDF to disagree with the money that actually moves. The gross and total-
- * deduction subtotals ARE derived, because they are plain sums of the printed
- * lines and a reader would otherwise have to add the column up by hand.
- *
- * That is also why the net line is labelled plainly and not "(A - B)": HR may
- * round or override the approved figure (see full_and_final.net_payable in
- * 0037), and a label asserting arithmetic the two printed subtotals do not
- * actually produce turns a rounded settlement into an apparent error on a
- * document that is meant to foot exactly.
- *
- * A negative net (recoveries exceeding earnings) is a real outcome, so the
- * closing paragraph switches to "recoverable from you" rather than printing a
- * minus-signed payment.
+ * Generates full & final settlement letter specification.
+ * Preserves the approved netPayable amount verbatim to ensure alignment with financial disbursements.
  */
 export function buildFullAndFinalStatement(input: FullAndFinalInput): LetterSpec {
   const name = clean(input.employeeName);

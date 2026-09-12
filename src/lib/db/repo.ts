@@ -1,24 +1,11 @@
-//
-// The scoped repository. SERVER ONLY.
-//
-// This is the machinery that applies policies.ts. It exists so that "forgot to
-// filter by employee" stops being a mistake anyone can make: a caller cannot
-// obtain a raw collection handle from here, only a wrapper that has already
-// ANDed the policy filter into whatever query it is given.
-//
-// Behaviour on denial mirrors what Postgres did, because the calling code was
-// written against it:
-// READS return nothing. RLS filtered rows out silently; a find over rows
-// you cannot see returned zero, it did not error. Screens already handle
-// an empty list, and erroring instead would turn "you have no claims" into
-// a crash.
-// WRITES throw. RLS raised on an INSERT or UPDATE that violated a policy,
-// and silence here would report success for a write that never happened.
-//
-// The escape hatch is systemCollection(), for scheduled jobs that run with no
-// signed-in user. It is named to be greppable — every call site is a place
-// where the security boundary is deliberately not applied.
-//
+/**
+ * Scoped repository layer. SERVER ONLY.
+ *
+ * Enforces collection access policies (`policies.ts`):
+ * - Reads: Scoped filters hide unauthorized rows (empty result set on unauthorized access).
+ * - Writes: Throws ScopeError if mutation violates permission policies.
+ * - System jobs: Explicit `systemCollection()` bypass for internal scheduled tasks without user context.
+ */
 import 'server-only';
 import type {
   AggregateOptions,
@@ -293,9 +280,8 @@ export function readFilterFor(
 ): Document {
   const policy = policyFor(collection);
   if (!policy) return matchNothing;
-  // Reached through a parent this collection names as a gateway: the parent's
-  // own filter has already decided reachability, exactly as the SQL `exists
-  // (select 1 from <parent> …)` policy did. See CollectionPolicy.readableVia.
+  // Inherits reachability via an authorized parent collection.
+  // See CollectionPolicy.readableVia.
   if (viaParent && policy.readableVia?.includes(viaParent)) return {};
   return policy.read(scope) ?? matchNothing;
 }
@@ -336,12 +322,14 @@ export function scopedFor<T extends Document>(
   return build<T>(name, scope, session);
 }
 
-// UNSCOPED access for scheduled jobs, migrations and maintenance — the equivalent of the old service-role key. Every call site is a place where the security boundary is deliberately not applied, so this name is meant to be greppable in review. It must never produce rows that are then handed back to the caller of a request: use it for work that is the same regardless of who triggered it (the nightly jobs, the expired-notice purge), never to answer "what may this user see". When the answer to that question is expressible but not by a per-collection policy, use afterParentCheck() instead — it says so at the call site.
+// System-scoped access for background jobs, maintenance tasks, and schema routines.
+// Bypasses collection-level security policies; results must not be returned directly to unauthenticated clients.
 export function systemCollection<T extends Document>(name: string): ScopedCollection<T> {
   return build<T>(name, systemScope);
 }
 
-// UNSCOPED access to a child collection whose access rule the CALLER has already applied by resolving the parent. policies.ts decides on one document at a time and cannot join, so a rule of the shape "you may read a comment when you may read its ticket" is not expressible there — the port's first attempt at approximating one on the child's own columns produced a different, wrong rule (an employee stopped seeing the staff replies on their own ticket). The caller instead reads the parents through a scoped handle and then reads children for exactly the parent ids that came back, which is the original rule precisely. Unlike systemCollection(), this IS reachable from a request. That is the point of the separate name: it marks the places where the check exists but lives in the caller, so a reviewer knows to go and look at it.
+// System-scoped access for child entity queries where authorization has already been verified
+// against the parent entity (e.g. ticket comments gated by verified ticket ownership).
 export function afterParentCheck<T extends Document>(name: string): ScopedCollection<T> {
   return build<T>(name, systemScope);
 }

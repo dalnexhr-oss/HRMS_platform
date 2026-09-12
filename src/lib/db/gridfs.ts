@@ -1,27 +1,8 @@
+// File storage implementation backed by GridFS. SERVER ONLY.
 //
-// File storage on GridFS. SERVER ONLY — replaces Supabase Storage.
-//
-// Four buckets became four GridFS bucket names in the same database, so files
-// live in the same backup and the same connection string as everything else.
-// For this application's volumes that is the right trade: no second service to
-// configure, no second set of credentials, no CORS.
-//
-// WHAT REPLACED THE RLS THAT GUARDED THE BUCKETS
-//
-// Supabase enforced ownership on the object KEY — a policy compared
-// `(storage.foldername(name))[1]` to current_employee_id(), so an employee
-// could only touch `<their-id>/…`. Nothing enforces that now, so the same rule
-// is applied here in assertMayRead/assertMayWrite, against the caller's scope.
-//
-// Object keys keep the identical `<employeeId>/<uuid>-<filename>` shape. That
-// is not cosmetic: every existing row that stores a path — employee_documents,
-// reimbursement receipts, notice attachments — keeps working unchanged.
-//
-// THERE ARE NO SIGNED URLS. Supabase minted a URL that carried its own
-// authorisation, which meant a leaked link was a leaked file until it expired.
-// Files are now streamed by a Route Handler that checks the session on every
-// request, so a copied link is worthless to anyone not signed in.
-//
+// Implements segmented buckets with path-based employee access control.
+// Object keys follow the `<employeeId>/<uuid>-<filename>` convention.
+// File streaming route handlers enforce caller session authorization per request.
 import 'server-only';
 import {Readable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
@@ -35,7 +16,7 @@ export type StorageBucket =
   | 'generated-documents'
   | 'notice-attachments';
 
-// Buckets whose objects belong to one employee, keyed by the folder prefix. The rest are company-wide: staff write, everyone signed in may read.
+// Buckets partitioned by employee ID prefix. Unlisted buckets are company-wide (staff write, authenticated read).
 const employeeScoped: ReadonlySet<StorageBucket> = new Set([
   'employee-documents',
   'reimbursement-receipts',
@@ -72,7 +53,7 @@ async function requireScope(): Promise<Scope> {
   return scope;
 }
 
-// The read rule for a stored file, per bucket. Staff read anything. An employee reads only what sits under their own folder, and only in the buckets that are folder-scoped at all.
+// Enforces read authorization: HR/admin can read all buckets; employees can only read within their own path prefix.
 function assertMayRead(scope: Scope, bucket: StorageBucket, path: string): void {
   if (scope.isStaff) return;
   if (!employeeScoped.has(bucket)) return; // company-wide: any signed-in reader
@@ -80,7 +61,7 @@ function assertMayRead(scope: Scope, bucket: StorageBucket, path: string): void 
   if (!owner || owner !== scope.employeeId) throw new StorageAccessError();
 }
 
-// The write rule. Stricter than reading on purpose: generated-documents holds relieving letters and F&F statements, which the employee they concern must never be able to write. They may read their own; only staff and system jobs create them.
+// Enforces upload authorization: privileged buckets (generated-documents, notice-attachments) require HR/admin.
 function assertMayWrite(scope: Scope, bucket: StorageBucket, path: string): void {
   if (scope.isStaff) return;
   if (bucket === 'generated-documents' || bucket === 'notice-attachments') {
@@ -126,17 +107,10 @@ async function findFile(bucket: StorageBucket, path: string): Promise<GridFSFile
 export type StorableBody = ArrayBuffer | Uint8Array | Blob | ReadableStream<Uint8Array>;
 
 /**
- * Store bytes at `path`. The caller must already have built a scoped key.
+ * Streams payload to GridFS at the specified bucket path.
  *
- * A Blob or a stream is piped rather than materialised. The old form called
- * `.arrayBuffer()` and then `Buffer.from()` on the result, so filing a 10 MB
- * document held THREE copies of it at once — the Blob's own bytes, the
- * ArrayBuffer, and the Buffer copy — before the first byte reached mongod.
- * Piping holds one chunk at a time and starts writing immediately, which is
- * also what lets an upload route overlap storing with receiving.
- *
- * `size` is reported from what was actually written, not from what the caller
- * claimed, so a stream whose length is not known up front is still accurate.
+ * Consumes source streams directly chunk-by-chunk to avoid loading large files into memory.
+ * Automatically cleans up partial chunks via stream abort upon pipeline failure.
  */
 export async function putObject(
   bucket: StorageBucket,
@@ -160,14 +134,7 @@ export async function putObject(
         ? Readable.fromWeb(body as Parameters<typeof Readable.fromWeb>[0])
         : Readable.from([Buffer.from(body as ArrayBuffer)]);
 
-  // pipeline, not .pipe(): it propagates an error in EITHER direction and
-  // destroys the other end, so a source that fails midway cannot leave the
-  // GridFS stream hanging open.
-  //
-  // abort() on failure is the other half. Destroying the stream stops it; only
-  // abort() removes the chunks already written, and without it a connection
-  // dropped mid-upload would leave megabytes in <bucket>.chunks that no files
-  // document points at and nothing ever collects.
+  // Pipeline propagates errors bidirectionally; abort() cleans up partial chunks on failure.
   try {
     await pipeline(source, upload);
   } catch (e) {
@@ -218,7 +185,7 @@ export async function statObject(
   return file ? toStored(file) : null;
 }
 
-// Remove every revision at `path`. Best-effort, like the old bucket remove.
+// Deletes all revisions matching the given path.
 export async function deleteObject(
   bucket: StorageBucket,
   path: string,
@@ -233,7 +200,7 @@ export async function deleteObject(
   return files.length > 0;
 }
 
-// The URL that serves a file. Replaces createSignedUrl. It carries no credential and never expires, because it is not the thing being trusted — the route checks the session on every request. A link copied out of the page is inert for anyone else.
+// Generates the relative API route URL for streaming the target file with session authentication.
 export function objectUrl(bucket: StorageBucket, path: string): string {
   return `/api/files/${bucket}/${path.split('/').map(encodeURIComponent).join('/')}`;
 }

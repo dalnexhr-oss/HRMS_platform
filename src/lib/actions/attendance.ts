@@ -27,17 +27,17 @@ export interface CorrectionState {
   warning?: string;
 }
 
-// Roles that may WRITE attendance. Deliberately NOT isStaffRole(): that helper is the READ gate (is_portal()), and the write gate is is_staff(). Checking the read gate here would wave a portal reader through the whole correction drawer only to have the write refused at the last step. Mirrored in src/app/(portal)/register/page.tsx (a 'use server' module may only export async functions, so this cannot be shared from here).
+// Authorized roles permitted to update attendance records.
 const writeRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
-// Statuses an admin may set from the register. 'CO' (comp off) was withheld here while the AttendanceStatus union and attendanceStatusMeta lacked it — a written 'CO' would have rendered as a "P" stamp. Both now carry it (and 0009 makes comp off a real lifecycle), so it is offered. Note the normal path for a comp off is the employee applying against an earned credit; setting it here is the manual override.
+// Statuses available for manual override in the attendance register.
 const allowedStatuses: AttendanceStatus[] = ['P', 'LM', 'HD', 'L', 'WO', 'OH', 'AB', 'S', 'T', 'CO'];
 
 function isAllowedStatus(v: string): v is AttendanceStatus {
   return (allowedStatuses as string[]).includes(v);
 }
 
-// '' | null -> null (blank is legitimate: no punch). 'HH:MM' / 'HH:MM:SS' -> 'HH:MM'. Anything else is a parse FAILURE, not a blank — returning null for garbage would silently record "no punch" for a value the user actually typed. The range check matters too: '99:99' matches the shape but is not a time, and storing it would break every later comparison against it.
+// Parses and validates HH:MM or HH:MM:SS time strings, normalizing to HH:MM format.
 type TimeParse = { ok: true; value: string | null } | { ok: false };
 
 function timeField(v: FormDataEntryValue | null): TimeParse {
@@ -149,11 +149,7 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
     return { ok: false, error: 'That employee no longer exists.' };
   }
 
-  // A locked/paid run means payslips are final; editing the attendance behind
-  // them would silently desync pay from the register. requireOpenPayrollMonth
-  // also honours month_closed_at — the attendance seal the auto-close cron
-  // (0033) stamps. The old inline check here read only `status`, so a sealed
-  // month refused by the BULK path was still editable one cell at a time.
+  // Prevent corrections to months with locked/paid payroll runs or sealed attendance periods.
   const open = await requireOpenPayrollMonth(dbc, workDate);
   if (!open.ok) return open;
 
@@ -180,8 +176,7 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
   if (saveError) {
     return { ok: false, error: `Could not save the correction: ${saveError.message}` };
   }
-  // No error but no row back = the write policy filtered it out. That is a
-  // failure, not a success.
+  // Verify row returned from upsert to confirm authorization policy permitted the mutation.
   if (!saved) {
     return {
       ok: false,
@@ -190,10 +185,8 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
   }
 
   // ------------------------------------------------- comp-off availment ---
-  // A manual 'CO' stamp is an availment too: close the employee's oldest
-  // usable credit so the balance drops, exactly as the approval path does.
-  // Without this, the register override left the credit 'available' forever.
-  // Best-effort: the day is already stamped, so a credit problem is a WARNING.
+  // When manually recording a comp-off ('CO'), deduct oldest available credit (FIFO).
+  // Non-fatal warning if deduction fails so the attendance correction itself is preserved.
   let compOffWarning: string | null = null;
   if (status === 'CO') {
     // Idempotence: re-saving the same day must not spend a second credit.
@@ -215,7 +208,6 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
         .order('earned_date', { ascending: true })
         .limit(1)
         .maybeSingle<{ id: string }>();
-      // expires_on / is_applicable may predate 0036/0041 on this database.
       if (fifo.data?.id) {
         const { error: spendErr } = await dbc
           .from('comp_offs')

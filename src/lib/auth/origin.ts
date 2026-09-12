@@ -31,7 +31,7 @@ export async function appOrigin(): Promise<string | null> {
   const h = await headers();
   const host = h.get('x-forwarded-host') ?? h.get('host') ?? 'localhost:3000';
   const proto = h.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
-  return `${proto}:// ${host}`;
+  return `${proto}://${host}`;
 }
 
 // Shown when APP_URL is missing in production — a deployment fault, not a user one.

@@ -1,17 +1,6 @@
 'use server';
 
-//
-// Paid-leave pool: annual provisioning and audited manual adjustments.
-//
-// Since the leave-salary policy there is ONE pool — PL, 15
-// days a year. The encashment actions that used to live here died with the
-// PL/CL/SL screen; the annual payout is handled by actions/leave-salary.ts.
-// The leave_encashment table itself remains (exit full-and-final reads it).
-//
-// Every write here is staff-gated at the app layer AND by the collection's
-// write policy. The settle routine carries its own authorisation check in the
-// body as well, because it runs with the caller's scope already resolved.
-//
+// Server Actions for paid leave (PL) provisioning and audited manual adjustments.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
@@ -31,7 +20,10 @@ function validYear(y: number): boolean {
   return Number.isInteger(y) && y >= 2000 && y <= 2100;
 }
 
-// Open a leave year: credit each employee still on the roster the annual paid-leave entitlement (15 days since 0038; PL only). Idempotent by construction (the SQL uses `on conflict do nothing`), so re-running for the same year credits nobody twice — it just reports 0 created.
+/**
+ * Provisions annual paid leave (PL) entitlement for active employees.
+ * Idempotent: safe to run multiple times for the same calendar year.
+ */
 export async function provisionLeaveYear(year: number): Promise<ActionResult & { created?: number }> {
   const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Provisioning leave balances');
   if (!gate.ok) return gate;
@@ -39,8 +31,6 @@ export async function provisionLeaveYear(year: number): Promise<ActionResult & {
 
   const dbc = await createClient();
   const { data, error } = await dbc.rpc('fn_provision_leave_balances', { p_year: year });
-  // An rpc with no registered implementation returns a MESSAGE and no code
-  // (pgcompat.rpc), so there is no "function missing" code left to branch on.
   if (error) return { ok: false, error: error.message };
 
   const created = Number(data ?? 0);
@@ -58,13 +48,8 @@ export async function provisionLeaveYear(year: number): Promise<ActionResult & {
 }
 
 /**
- * Manually credit or debit an employee's paid-leave pool, with a mandatory
- * reason. Hardcoded to PL — the only type the app writes since the pool
- * collapsed to one.
- *
- * Writes BOTH the adjustment row (the audit trail) and the balance itself. The
- * balance row is created when absent, so an adjustment against an unprovisioned
- * year still lands somewhere real rather than silently doing nothing.
+ * Applies an audited manual credit or debit to an employee's paid-leave (PL) balance.
+ * Concurrently inserts an audit trail record in leave_balance_adjustments.
  */
 export async function adjustLeaveBalance(input: {
   employeeId: string;
@@ -89,13 +74,9 @@ export async function adjustLeaveBalance(input: {
   const dbc = await createClient();
   const year = Number(input.year);
 
-  // Audit row first: if the balance write then fails, we have a record of the
-  // attempt rather than a silent change with no explanation.
+  // Record audit adjustment entry before balance mutation; written as Decimal128.
   const { data: adj, error: adjErr } = await dbc
     .from('leave_balance_adjustments')
-    // `delta` and `balance` below are `decimal` columns, so they are written
-    // as Decimal128 — a JS number is serialised as a double or an int32 and
-    // rejected by the validator.
     .insert({
       employee_id: input.employeeId,
       year,

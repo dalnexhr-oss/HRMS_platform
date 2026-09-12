@@ -210,6 +210,18 @@ on `job, run_key`), so a retry or a double fire does the work once and sends no
 duplicate notifications. Without `CRON_SECRET` the endpoint refuses rather than
 defaulting to open.
 
+The attendance sweep does not wait to be called. `src/instrumentation.ts` arms
+an in-process timer at boot that runs `attendance-auto-punch-out` at **00:00
+IST** every night, so a stock `next start` closes yesterday's open days with
+nothing external configured. It sweeps once on startup too, so a night the
+server was off is still caught the next time it comes up.
+
+Set `DISABLE_INTERNAL_CRON=1` to turn that off and drive everything from
+`/api/cron` instead. Running both is safe — they compete for the same
+`cron_run_log` claim, and the loser does nothing. That claim IS the
+idempotency guarantee, and it is the unique index that enforces it, so a
+database that never had `npm run db:setup` run against it has no lock at all.
+
 ## Files
 
 Stored in GridFS in the same database, under the original

@@ -93,13 +93,7 @@ export function TicketChatDrawer({
     setBody('');
   }, [ticket?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Subscribe to live inserts for this ticket while the drawer is open.
-  //
-  // Supabase Realtime's postgres_changes became a plain EventSource against
-  // /api/helpdesk/<id>/stream, which tails a MongoDB change stream (or polls,
-  // on a standalone server). EventSource is built into the browser, reconnects
-  // by itself, and needs no client library — the whole subscription is the four
-  // lines below.
+  // Streams real-time comments for the active ticket via Server-Sent Events (SSE).
   useEffect(() => {
     if (!open || !ticket) return;
 

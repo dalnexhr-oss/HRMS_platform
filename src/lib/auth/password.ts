@@ -1,17 +1,7 @@
+// Password hashing and verification via Node.js crypto scrypt. SERVER ONLY (Node runtime).
 //
-// Password hashing. SERVER ONLY, Node runtime only.
-//
-// GoTrue did this for us. It now lives here, using scrypt from node:crypto:
-// memory-hard, in the standard library, and — unlike bcrypt or argon2 — with no
-// native module to compile, which matters on Windows.
-//
-// Node's crypto is NOT available in the edge runtime, so anything importing
-// this file must run on Node. Only the sign-in and password-change paths do;
-// middleware verifies the JWT instead and never touches a hash.
-//
-// Stored format: scrypt$N$r$p$<salt b64>$<hash b64>
-// The parameters travel with the hash so they can be raised later without
-// invalidating every existing password.
+// Storage format: scrypt$N$r$p$<salt_b64>$<hash_b64>
+// Parameterized format allows tuning work factors without invalidating existing hashes.
 //
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
@@ -23,12 +13,7 @@ const scryptAsync = promisify(scrypt) as (
   options: { N: number; r: number; p: number; maxmem: number },
 ) => Promise<Buffer>;
 
-// OWASP's floor for scrypt. N=2^16 costs ~64MB and ~100ms per hash, which is
-// the point — it is the attacker's cost too.
-// Prefixed rather than left as bare n/r/p: verifyPassword destructures its own
-// n, r and p out of the STORED hash, and a bare module-level n would be
-// shadowed by them — silently, and in the one function where using the wrong
-// cost parameters would make every check fail.
+// OWASP recommended work factors for scrypt (N=65536, r=8, p=1).
 const scryptN = 65_536;
 const scryptR = 8;
 const scryptP = 1;

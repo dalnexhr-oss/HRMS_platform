@@ -46,19 +46,20 @@ export { isMongoConfigured };
 
 // ------------------------------------------------------------------ utils
 
-// A BSON Date as the ISO string the view layer expects. Postgres returned timestamptz already serialised; the driver returns a real Date. Every mapper that used to pass a timestamp straight through goes via this, so a Date never reaches a client component (React cannot serialise one across the boundary without turning it back into a string anyway). Calendar days do NOT come through here — they are stored as strings on purpose and are already in the right shape.
+// Normalizes BSON Date or string timestamp to an ISO string for client serialization.
+// Calendar date strings (YYYY-MM-DD) are preserved as-is.
 function iso(value: unknown): string {
   if (value instanceof Date) return value.toISOString();
   return (value as string | null) ?? '';
 }
 
-// The same, but null stays null. Use wherever the target field is nullable — a read_at, a published_at. Flattening those to '' would make "never read" render as an empty date instead of being absent, and `publishedAt != null` checks would start returning true for unpublished rows.
+// Normalizes date values while preserving null/undefined for nullable fields.
 function isoOrNull(value: unknown): string | null {
   if (value === null || value === undefined) return null;
   return iso(value);
 }
 
-// First day of the CURRENT month in IST — the default period everywhere. Evaluated at call time (it is used as a default parameter below), so a long-running server crosses month boundaries correctly. Replaces the prototype-era hardcoded '2026-06-01', which pinned /payroll, /today and /me to June 2026 forever.
+// Returns the first day of the current month in IST ('YYYY-MM-01') as the default accounting period.
 export function currentPeriodMonth(): string {
   return todayISO().slice(0, 8) + '01';
 }
@@ -107,13 +108,7 @@ function clockTime(ts: string): string {
   }).format(new Date(ts));
 }
 
-// `id` is the payslip's own uuid and must stay selected: it keys the adjustments
-// lookup and is the value posted back by saveAdjustments. It was missing here,
-// which left mapPayslip's `?? p.id` fallback permanently undefined.
-// The adjustments embed is selected with `*` on purpose: 0041 adds
-// other_deductions, and naming it here would 42703 the whole payslip query on a
-// database where that migration is still pending. `*` returns whatever columns
-// exist and mapPayslip defaults the rest to 0.
+// Projection fields for payslip queries, embedding related adjustments.
 const payslipFields = `id, payable_days, earned_gross, shortfall_amount, per_day_rate,
   basic_earned, hra_earned, special_earned, pf_employee, pf_employer, esic_employee,
   esic_employer, professional_tax, net_payable, shortfall_minutes, payslip_adjustments(*)`;
@@ -125,11 +120,7 @@ function mapPayslip(p: any): PayslipRow {
     ? p.payslip_adjustments[0]
     : p.payslip_adjustments;
   return {
-    // The payslip uuid — NOT employees.code, which is what `code` below is for.
-    // Handing back the code sent employee codes into `payslip_adjustments.id`
-    // (a uuid column), so the payroll page died on 22P02 as soon as a run had
-    // payslips; it also collided React keys on /me, where every row of one
-    // employee's payslip history shares the same code.
+    // Payslip record UUID (distinguished from employee code for unique React keys and adjustment lookups).
     id: p.id,
     code: p.employees?.code ?? '',
     name: p.employees?.full_name ?? '',
@@ -440,9 +431,7 @@ function mapDocument(r: any): EmployeeDocumentRow {
     verifyRemark: r.verify_remark,
     source: r.bucket === 'generated-documents' ? 'issued' : 'uploaded',
     status: documentStatus(r),
-    // A row written before versioning existed carries none of these fields,
-    // which is exactly "version 1, its own group, current" — so the defaults
-    // here are the backfill, and no data migration is needed.
+    // Unversioned legacy records default to version 1 and active (non-superseded) state.
     version: Number(r.version ?? 1),
     docGroup: r.doc_group ?? r.id,
     supersededAt: isoOrNull(r.superseded_at),
@@ -717,8 +706,7 @@ export async function getExitCases(): Promise<ExitCaseRow[]> {
   const cases = (data ?? []) as any[];
   if (cases.length === 0) return [];
 
-  // The clearance view and the settlement are separate reads: a missing view
-  // (migration not applied) must degrade to zeroes, not break the board.
+  // Query clearance view and settlement records in parallel with graceful fallbacks.
   const [{ data: pending }, { data: fnfs }] = await Promise.all([
     dbc
       .from('v_exit_clearance_pending')
@@ -1405,7 +1393,6 @@ export async function getMyTickets(employeeId: string): Promise<TicketView[]> {
     .select(ticketCols)
     .eq('employee_id', employeeId)
     .order('created_at', { ascending: false });
-  // Migration 0018 (resolution_note) not applied yet → retry without the column.
   if (res.error) fail('getMyTickets: could not load tickets', res.error);
   return (res.data ?? []).map(mapTicket);
 }
@@ -1454,9 +1441,7 @@ export interface EmployeeListRow {
  *  deactivated employees (so the UI can offer a "reactivate"). */
 export async function getEmployees(includeInactive = false): Promise<EmployeeListRow[]> {
   const employees = await scoped<EmployeeDoc>(collections.employees);
-  // No join: branch_name is denormalised onto the employee (see EmployeeDoc).
-  // This used to be an embedded PostgREST select, i.e. a join on every read of
-  // a list that renders constantly.
+  // Reads denormalized branch_name directly without additional collection lookup.
   const rows = await employees.find(includeInactive ? {} : { status: 'active' }, {
     sort: { code: 1 },
   });

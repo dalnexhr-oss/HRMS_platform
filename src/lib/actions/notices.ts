@@ -9,7 +9,7 @@ import { purgeExpiredNotices } from '@/lib/queries';
 import { uploadSharedFile, signedUrl } from '@/lib/storage';
 import { resolveBranchScope } from '@/lib/actions/_branch';
 
-// The duplicate-key code pgcompat reports (it maps MongoDB's 11000 onto it).
+// Duplicate key violation error code (mapped from Mongo 11000).
 const uniqueViolation = '23505';
 
 // Notice attachments are PDFs only, capped like employee documents.
@@ -245,9 +245,8 @@ export async function setNoticePublished(id: string, published: boolean) {
 }
 
 /**
- * Mint a short-lived signed URL for a notice's PDF. Open to every signed-in
- * user — a published notice is company-wide, and the storage read policy
- * (0042) grants the same audience.
+ * Generates an authenticated download URL for a notice PDF attachment.
+ * Accessible to any authenticated user within audience scope.
  */
 export async function getNoticePdfUrl(
   id: string,

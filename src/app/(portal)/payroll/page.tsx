@@ -122,9 +122,7 @@ async function loadAdjustments(payslipIds: string[]): Promise<Record<string, Pay
   if (!isMongoConfigured() || payslipIds.length === 0) return {};
 
   const dbc = await createClient();
-  // `*` on purpose: other_deductions (0041) and bonus (0042) may not exist yet
-  // on this database, and naming them would 42703 the whole page. Missing
-  // columns simply read as 0 below.
+  // Select all adjustment fields; missing values default to 0 during normalization below.
   const { data, error } = await dbc
     .from('payslip_adjustments')
     .select('*')

@@ -34,7 +34,7 @@ export function formatDate(iso: string): string {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-/** '09:20:00' -> '09:20' (trim seconds from a Postgres time). */
+/** Formats time string to 'HH:MM' (e.g. '09:20:00' -> '09:20'). */
 export function trimTime(t: string | null): string | null {
   if (!t) return null;
   return t.slice(0, 5);

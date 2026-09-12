@@ -1,18 +1,9 @@
+// Password-reset token generation and verification. SERVER ONLY.
 //
-// Password-reset tokens. SERVER ONLY.
-//
-// Replaces GoTrue's resetPasswordForEmail / recovery link.
-//
-// Two rules this file exists to enforce:
-// 1. Only a HASH of the token is stored. The raw token exists in the email
-// and nowhere else, so a leaked database dump cannot be used to take over
-// accounts — the same reason passwords are hashed.
-// 2. Expiry is a TTL index, not application logic. Mongo deletes the document
-// itself, so a token cannot outlive its window because someone forgot a
-// `where expires_at > now()` clause.
-//
-// Single use: consuming a token deletes it, so a reset link in a forwarded
-// email or a browser history is spent the moment it is first used.
+// Security Invariants:
+// - Raw tokens are cryptographically random 32-byte buffers delivered solely via email.
+// - Tokens are stored as SHA-256 digests; raw tokens are never persisted.
+// - Tokens are strictly single-use and automatically purged upon consumption or TTL expiration.
 //
 import 'server-only';
 import { createHash, randomBytes } from 'node:crypto';
@@ -34,7 +25,7 @@ interface ResetTokenDoc {
   requested_ip: string | null;
 }
 
-// SHA-256, not scrypt. Deliberate: a reset token is 32 bytes of CSPRNG output, so there is no dictionary to attack and no work factor worth paying. Passwords are different — they are low-entropy and human-chosen, which is why they get scrypt.
+// Computes SHA-256 digest of high-entropy CSPRNG tokens.
 function hashToken(raw: string): string {
   return createHash('sha256').update(raw).digest('hex');
 }

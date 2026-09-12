@@ -1,15 +1,7 @@
+// Database procedural functions callable via the RPC interface. SERVER ONLY.
 //
-// The plpgsql functions the app called through `.rpc()`, in TypeScript.
-// SERVER ONLY.
-//
-// Each one was `security definer`, meaning it ran with the owner's rights and
-// re-checked authorisation in its own body. That structure is preserved: these
-// read through the SYSTEM scope where the SQL bypassed RLS, and each starts
-// with the same explicit gate the function did — because "runs as the owner"
-// with no gate is how an employee bulk-inserts leave balances from a console.
-//
-// Registered with pgcompat rather than imported directly, so a call site for a
-// function nobody has ported yet fails loudly instead of receiving null.
+// Implements privileged domain operations executed with system scope.
+// Each handler enforces explicit role/authorization checks at its entry boundary.
 //
 import 'server-only';
 import { randomUUID } from 'node:crypto';
@@ -23,7 +15,8 @@ import { AppRole } from '@/types/database';
 // definition of that date. See the note on the same import in pgcompat.ts.
 import { todayIST } from '@/lib/format';
 
-// How one of these functions was invoked. THIS REPLACES A PRIVILEGE ESCALATION. The old helper resolved "no session" to systemScope, on the reasoning that `auth.uid() is null` in the SQL meant "invoked by pg_cron". That inference does not survive the port. In Postgres, a null auth.uid() really did mean there was no API request — the only way in was a database connection. Here `currentScope()` returns null for every authentication FAILURE as well: no cookie, a bad signature, an expired token, a bumped token_version, a disabled account. So a revoked or disabled user calling fn_provision_leave_balances was handed the system scope and sailed past the `isStaff` gate below, writing leave balances as the system. The scheduler is now identified by HOW it calls, not by what it lacks: it passes SCHEDULED as a separate argument. registerRpc() forwards only the caller-supplied args object and never this parameter, so the privilege cannot be requested over the wire.
+// Execution context distinguishing internal scheduled jobs from external RPC requests.
+// Wire RPC dispatches cannot supply this parameter, preventing unauthorized privilege escalation.
 export interface Invocation {
   readonly isScheduler: boolean;
 }
@@ -49,7 +42,7 @@ class NotPermitted extends Error {
   }
 }
 
-/** A numeric setting with a default. Replaces fn_setting_numeric(). */
+/** Retrieves a numeric configuration setting with a fallback default. */
 async function settingNumeric(key: string, fallback: number): Promise<number> {
   const settings = scopedFor<BaseDoc & { key: string; value: unknown }>(collections.settings, systemScope);
   const row = await settings.findOne({ key });
@@ -70,12 +63,8 @@ export interface OnLeaveRow {
 }
 
 /**
- * Everyone on approved leave today.
- *
- * SECURITY DEFINER in SQL: any signed-in user may see the list, which is why it
- * reads through the system scope rather than the caller's — an employee could
- * not otherwise see a colleague's leave. Only the names, branch and dates are
- * returned; nothing about the reason or the leave type.
+ * Returns active employees on approved leave today across all branches.
+ * Readable by any authenticated user; omits leave reasons and types for privacy.
  */
 async function onLeaveToday(): Promise<OnLeaveRow[]> {
   const scope = await currentScope();
@@ -105,8 +94,7 @@ async function onLeaveToday(): Promise<OnLeaveRow[]> {
         ],
       },
     },
-    // Inner join: the SQL's `join employees` dropped rows whose employee is
-    // inactive, and so must this.
+    // Exclude records where the employee is inactive.
     { $unwind: '$e' },
     {
       $project: {
@@ -129,14 +117,8 @@ async function onLeaveToday(): Promise<OnLeaveRow[]> {
 // ---------------------------------------------------------------------------
 
 /**
- * Seed a request's approval chain: hr -> admin, as deep as
- * settings.leave_approval_levels says.
- *
- * The gate is "staff, or the owner of this request" — employees do
- * legitimately reach this by filing their own leave, so it cannot simply be
- * staff-only, and it must not be "any signed-in user, any request id" either.
- * Nothing schedules this, so there is no system path: it is only ever reached
- * from a request, and an unauthenticated one is refused.
+ * Seeds sequential approval chain (hr -> admin) for a leave request based on configured approval levels.
+ * Caller must be HR/admin staff or the owner of the target request.
  */
 async function initApprovalSteps(args: { p_request_id?: string }): Promise<number> {
   const requestId = args.p_request_id;
@@ -166,8 +148,7 @@ async function initApprovalSteps(args: { p_request_id?: string }): Promise<numbe
 
   let made = 0;
   for (let n = 1; n <= levels; n++) {
-    // `on conflict (request_id, step_no) do nothing` — re-seeding a chain that
-    // already exists must add nothing rather than duplicating the steps.
+    // Idempotently skip steps that have already been created.
     const existing = await steps.countDocuments({ request_id: requestId, step_no: n });
     if (existing > 0) continue;
     await steps.insertOne({
@@ -187,11 +168,8 @@ async function initApprovalSteps(args: { p_request_id?: string }): Promise<numbe
 // ---------------------------------------------------------------------------
 
 /**
- * Open a leave year: one PL row per employee, annual entitlement plus capped
- * carry-forward from last year.
- *
- * CL and SL are retired — one pool now — and LWP is a request kind, never an
- * entitlement, so neither appears here.
+ * Initializes annual paid leave (PL) balances for eligible employees,
+ * computing annual entitlement plus carry-forward up to the configured cap.
  */
 async function provisionLeaveBalances(
   args: { p_year?: number },
@@ -237,7 +215,7 @@ async function provisionLeaveBalances(
   let created = 0;
   for (const e of staff) {
     const exists = await balances.countDocuments({ employee_id: e._id, year, type: 'PL' });
-    if (exists > 0) continue; // `on conflict ... do nothing`
+    if (exists > 0) continue; // Idempotent skip if balance already exists
 
     const carried = Math.min(Math.max(previous.get(e._id as string) ?? 0, 0), cap);
     await balances.insertOne({
@@ -245,11 +223,7 @@ async function provisionLeaveBalances(
       employee_id: e._id,
       year,
       type: 'PL',
-      // Leave is tracked in half-days, so one decimal place — matching
-      // `round(..., 1)` in the SQL. Stored as Decimal128: the column is
-      // `bsonType: "decimal"`, and a JS number failed the validator on the
-      // first employee, which aborted the whole provisioning run — after the
-      // cron ledger had already claimed the year, so it never retried.
+      // Leave tracked in half-day increments (0.5), stored as Decimal128.
       balance: toDecimal(Math.round((annual + carried) * 10) / 10),
       created_at: new Date(),
       updated_at: new Date(),
@@ -284,9 +258,7 @@ export function registerDbFunctions(): void {
   registered = true;
   registerRpc('fn_on_leave_today', () => onLeaveToday());
   registerRpc('fn_init_approval_steps', (a) => initApprovalSteps(a as { p_request_id?: string }));
-  // One argument only. Passing `(a, b) => …` here, or spreading the payload,
-  // would let a request supply the invocation and grant itself the scheduler's
-  // exemption.
+  // RPC registration exposes only single-argument handlers to prevent caller tampering with invocation context.
   registerRpc('fn_provision_leave_balances', (a) => provisionLeaveBalances(a as { p_year?: number }));
 }
 

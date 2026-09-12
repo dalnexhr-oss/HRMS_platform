@@ -55,15 +55,13 @@ async function logClaimEvent(
     remark: input.remark ?? null,
     metadata: input.metadata ?? {},
   });
-  // Logged, never surfaced: the claim action itself already succeeded and the
-  // audit row is a side-effect. (The 42P01/PGRST205 exemption that used to wrap
-  // this is gone — pgcompat cannot emit either code.)
+  // Audit log write failure is non-blocking (claim action succeeded).
   if (error) {
     console.warn(`[dalnex-hrms] claim event (${input.action}) failed:`, error.message);
   }
 }
 
-/** True when the optional Finance second-approval stage is switched on (0035). */
+/** Indicates whether the optional second-stage Finance approval is enabled. */
 async function financeStageEnabled(
   dbc: Awaited<ReturnType<typeof createClient>>,
 ): Promise<boolean> {
@@ -227,8 +225,7 @@ async function addToPayroll(
     const next = Math.round((current + amount) * 100) / 100;
 
     if (!existing) {
-      // No adjustments row yet — insert it; a 23505 means someone else just
-      // created it, so loop and retry as an update.
+      // Insert initial adjustments; on duplicate key conflict (concurrent insert), retry update.
       const { error: insErr } = await dbc
         .from('payslip_adjustments')
         .insert({ id: payslip.id, reimbursement_bonus: toMoney(next), updated_at: new Date() });
@@ -283,9 +280,7 @@ export async function reviewReimbursement(
 
   const dbc = await createClient();
 
-  // With the optional Finance stage on (0035), a staff approval does NOT credit
-  // payroll — it hands the claim to Finance for the final say. Off, the flow is
-  // unchanged: approve → payroll.
+  // With two-stage review enabled, staff approval routes claim to Finance review.
   const twoStage = decision === 'approved' && (await financeStageEnabled(dbc));
   const nextStatus = decision === 'approved' ? (twoStage ? 'finance_review' : 'approved') : 'rejected';
 
@@ -505,10 +500,7 @@ export async function updateReimbursement(id: string, formData: FormData): Promi
 
   const dbc = await createClient();
 
-  // Edit & resubmit (0035): a REJECTED claim may be corrected and re-filed. The
-  // row must land back in 'pending' with every review stamp cleared, so a
-  // resubmission never carries a stale approval. The write policy enforces the
-  // same rule underneath — this is the friendly half.
+  // Resubmitting a rejected claim resets status to pending and clears review timestamps.
   const { data: before } = await dbc
     .from('reimbursement_claims')
     .select('status')
@@ -628,8 +620,6 @@ export async function markReimbursementPaid(id: string, paymentRef?: string): Pr
     .eq('status', 'approved')
     .select('id, employee_id, amount');
 
-  // Migration 0035 not applied yet — fall back to the status-only write rather
-  // than refusing a legitimate action.
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
     return { ok: false, error: 'Only an approved claim can be marked paid.' };
@@ -659,7 +649,7 @@ export async function markReimbursementPaid(id: string, paymentRef?: string): Pr
   return { ok: true };
 }
 
-// Attach (or replace) a receipt on a claim the employee owns and that is still open. The file goes to the private reimbursement-receipts bucket (0032) under the employee's own folder, which is what limits it to them + staff.
+/** Attaches or replaces a receipt file on an open reimbursement claim owned by the employee. */
 export async function uploadReimbursementReceipt(id: string, formData: FormData): Promise<ActionResult> {
   const db = requireDb('Attaching a receipt');
   if (!db.ok) return db;

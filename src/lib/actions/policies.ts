@@ -6,19 +6,17 @@ import { getSession } from '@/lib/auth';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/_guard';
 import { notifyEveryone } from '@/lib/notify';
 
-// Postgres unique_violation.
+// Duplicate key violation error code (mapped from Mongo 11000).
 const uniqueViolation = '23505';
 
-// Employee acknowledges (marks as read) a company policy.
+/** Records an employee's acknowledgement of a company policy. */
 export async function acknowledgePolicy(policyId: string) {
   const db = requireDb('Marking a policy as read');
   if (!db.ok) return db;
 
   const { profile } = await getSession();
   if (!profile?.employee_id) {
-    // Not a transient failure: the insert rule pins employee_id to the
-    // caller's own, so an account with no linked employee record has no way to
-    // file a receipt at all. Say so rather than failing vaguely.
+    // Cannot file an acknowledgement without a linked employee record.
     return {
       ok: false,
       error: 'Your login is not linked to an employee record, so the receipt could not be filed. Ask HR to link it.',
@@ -26,23 +24,19 @@ export async function acknowledgePolicy(policyId: string) {
   }
 
   const dbc = await createClient();
-  // .select('id') is what makes a silent no-op detectable — without it a write
-  // that inserted nothing is indistinguishable from one that worked. Reading the
-  // row back is permitted: acks_portal_read allows employee_id = current_employee_id().
   const { data, error } = await dbc
     .from('policy_acknowledgements')
     .insert({ policy_id: policyId, employee_id: profile.employee_id })
     .select('id');
 
   if (error) {
-    // A duplicate ack (already read) is a unique-violation — benign. Detect it by
-    // SQL error CODE, not by substring-matching the English word 'duplicate',
-    // which breaks on any wording/locale change.
+    // Duplicate acknowledgement is benign (already marked read).
     if (error.code === uniqueViolation) {
       revalidatePath('/me');
       revalidatePath('/policies');
       return { ok: true };
     }
+    // Access refusal: user cannot record acknowledgement for another employee.
     if (error.code === '42501') {
       return {
         ok: false,
@@ -57,16 +51,13 @@ export async function acknowledgePolicy(policyId: string) {
 
   await clearPolicyNag(dbc, policyId);
 
-  // 'layout' scope, not just '/me': the notification bell is rendered by the
-  // route-group LAYOUT, so revalidating only the page would leave the nag we
-  // just cleared still sitting in the bell until the next full navigation.
   revalidatePath('/', 'layout');
   revalidatePath('/me');
-  revalidatePath('/policies'); // HR's read counts
+  revalidatePath('/policies'); // HR read counts
   return { ok: true };
 }
 
-// Mark the "New policy to read: …" notification read once its policy has been acknowledged, so the bell stops nagging about something already done. notifications (0012) carries no entity_id — only free text — so the one handle on "the nag for THIS policy" is the exact title notifyEveryone wrote (see createPolicy / setPolicyPublished below). Renaming a policy after publishing orphans its nag; that is the cost of not having an entity id, and it fails safe (a stale nag, never a wrongly-cleared one). The notifications policy scopes the UPDATE to the caller's own rows, so this cannot touch anyone else's notifications. Best-effort: a failure here must not fail the acknowledgement itself.
+// Marks associated policy notifications as read once acknowledged (best-effort).
 async function clearPolicyNag(
   dbc: Awaited<ReturnType<typeof createClient>>,
   policyId: string,

@@ -20,8 +20,7 @@ export interface ActionResult {
 }
 
 const requestTypes: readonly RequestType[] = ['leave', 'site_visit', 'outdoor_duty', 'wfh'];
-// One paid-leave pool since the leave-salary policy (0038). CL/SL stay in the
-// enum for historic rows but a new request may no onger carry them.
+// Paid leave pool; CL/SL retained only for historical record compatibility.
 const leaveTypes: readonly LeaveType[] = ['PL', 'LWP', 'CL', 'SL'];
 
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
@@ -194,7 +193,7 @@ async function stampLeaveOnRegister(
     const { error } = await dbc
       .from('attendance_days')
       .insert(toInsert.map((work_date) => ({ employee_id: employeeId, work_date, status: 'L' })));
-    // 23505 = someone stamped the day concurrently — that is fine, not a problem.
+    // Ignore duplicate key conflicts if stamped concurrently.
     if (error && error.code !== '23505') {
       problems.push(`could not add L day(s): ${error.message}`);
     }
@@ -306,7 +305,7 @@ async function decideApprovalStep(
 export async function reviewRequest(
   id: string,
   decision: 'approved' | 'rejected',
-  /** The approver's reason (0041) — stored on the request, shown to the employee. */
+  /** Approver decision reason, stored on request and displayed to employee. */
   remark?: string,
 ): Promise<ActionResult> {
   // Staff-only, DB required. requireStaff also covers the no-database refusal.
@@ -317,14 +316,7 @@ export async function reviewRequest(
 
   const dbc = await createClient();
 
-  // --- approval chain (0036) ------------------------------------------------
-  // A request may carry an ordered chain of approval_steps. Decide the LOWEST
-  // pending step; the request itself only moves when that step is the last one
-  // (or on any rejection, which ends the chain immediately).
-  //
-  // A request with NO steps — anything filed before 0036, or with the levels
-  // setting at 1 and the seed skipped — falls straight through to the original
-  // one-shot path, so in-flight approvals cannot break.
+  // Multi-tier approval chain handling: resolve next pending step or final decision.
   const chain = await decideApprovalStep(dbc, id, decision, gate.profileId, cleanRemark);
   if (!chain.ok) return { ok: false, error: chain.error };
   if (chain.stage === 'intermediate') {
@@ -353,7 +345,6 @@ export async function reviewRequest(
     .eq('id', id)
     .eq('status', 'pending')
     .select('id, type, leave_kind, days, employee_id, start_date, end_date');
-  // review_remark arrives with 0041 — decide without it until it is applied.
   const { data, error } = res;
   if (error) return { ok: false, error: error.message };
 
@@ -509,7 +500,7 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
     return { ok: false, error: 'Pick a request type.' };
   }
 
-  // leave_kind is meaningful only for type='leave' (see the 0001 column comment).
+  // leave_kind is applicable only when type is 'leave'.
   let leaveKind: LeaveType | null = null;
   if (type === 'leave') {
     const raw = String(formData.get('leave_kind') ?? '').trim() as LeaveType;
@@ -550,8 +541,7 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
       error: 'Those dates are all week-offs or holidays, so there is no working day to take leave on.',
     };
   }
-  // requests.days is numeric(4,1) — cap the range rather than let Postgres
-  // reject it with an opaque overflow error.
+  // Validate day count within bounds before persistence.
   if (days > 999) {
     return { ok: false, error: 'That range is too long to submit as a single request.' };
   }
@@ -593,14 +583,10 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
     .select('id');
   if (error) return { ok: false, error: error.message };
 
-  // Seed the approval chain (0036). BEST-EFFORT: with the levels setting at 1 —
-  // or the function absent — this is a no-op and reviewRequest falls back to the
-  // original single-step path, so a failure here never blocks a filed request.
+  // Initialize multi-tier approval chain if configured (best-effort).
   const newId = (inserted?.[0] as { id: string } | undefined)?.id;
   if (newId) {
     const { error: chainErr } = await dbc.rpc('fn_init_approval_steps', { p_request_id: newId });
-    // Logged, never surfaced — see above. (The PGRST202/42883 exemption that
-    // used to wrap this is gone: pgcompat cannot emit either code.)
     if (chainErr) console.warn('[dalnex-hrms] approval chain seed failed:', chainErr.message);
   }
 

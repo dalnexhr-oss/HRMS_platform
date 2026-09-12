@@ -1,10 +1,6 @@
 'use server';
 
-//
-// Sign in and sign out. Replaces the GoTrue calls that lived here.
-//
-// Runs on Node, not the edge: verifying a password needs node:crypto's scrypt.
-//
+// Server Actions for session authentication: sign in, sign out, and active session termination.
 import { redirect } from 'next/navigation';
 import { homeForRole } from '@/lib/auth';
 import { isAuthConfigured } from '@/lib/auth/jwt';
@@ -23,7 +19,7 @@ export interface SignInState {
   error?: string;
 }
 
-// One message for every credential failure — unknown email, wrong password, disabled account. Telling them apart is a free account-enumeration oracle, and none of the three is something the visitor can act on differently.
+// Uniform error message for authentication failures to prevent account enumeration.
 const badCredentials = 'That email and password do not match an account.';
 
 export async function signIn(_prev: SignInState, formData: FormData): Promise<SignInState> {

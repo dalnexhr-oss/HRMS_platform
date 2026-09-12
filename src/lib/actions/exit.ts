@@ -53,7 +53,7 @@ function today(): string {
   return todayIST();
 }
 
-// Open an exit case and put the employee on notice. `employees.status = 'on_notice'` finally uses the enum value that has existed since 0001 and was never written: the roster can now distinguish "leaving" from "gone", and the leave provisioner (0036) deliberately still credits them.
+/** Initiates an exit case and updates employee status to `on_notice`. */
 export async function initiateExit(input: {
   employeeId: string;
   resignationDate: string;
@@ -85,7 +85,7 @@ export async function initiateExit(input: {
     .select('id');
 
   if (error) {
-    // The partial unique index (0037) allows only one non-completed case.
+    // Unique constraint: only one active exit case permitted per employee.
     if (error.code === '23505') {
       return { ok: false, error: 'This employee already has an exit in progress.' };
     }
@@ -203,9 +203,7 @@ const interviewQuestions: readonly string[] = [
 /**
  * Open the interview for a case: write the question set if it is not there yet.
  *
- * Questions are stored as ROWS rather than rendered from a constant so a later
- * edit to the questionnaire cannot retroactively change what a past leaver was
- * actually asked — the 0037 table comment makes the same point.
+ * Questions are stored per-instance as individual rows to preserve the exact questionnaire snapshot.
  */
 export async function ensureExitInterview(exitCaseId: string): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Opening the exit interview');
@@ -316,7 +314,7 @@ export async function addKtItem(input: {
   return { ok: true };
 }
 
-/** Advance a handover item. Status set matches the 0037 CHECK constraint. */
+/** Updates handover item status ('pending' | 'in_progress' | 'done'). */
 export async function setKtStatus(id: string, status: string): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Updating a handover item');
   if (!gate.ok) return gate;
@@ -411,12 +409,7 @@ export async function setExitStage(
 
   const dbc = await createClient();
 
-  // Guard the two transitions that must not be taken on trust. FAIL CLOSED:
-  // the view (0037 §7) emits a row for EVERY exit case, so a missing row means
-  // the case is gone, the policy filtered it, or the read failed — never
-  // "all clear".
-  // The old check only blocked when a row said not-complete, which let an exit
-  // advance past an unreturned laptop whenever the read came back empty.
+  // Fail-closed verification: transition to settlement/completed requires clearance_complete to be explicitly true.
   if (stage === 'settlement' || stage === 'completed') {
     const { data: pending, error: pendingErr } = await dbc
       .from('v_exit_clearance_pending')
@@ -468,9 +461,7 @@ export async function setExitStage(
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) return { ok: false, error: 'That exit case no longer exists.' };
 
-  // THE LAST STEP: only once everything is settled does the login go away.
-  // The exit_auto_deactivate setting (0037) can switch this off for companies
-  // that keep alumni logins alive; anything but an explicit false deactivates.
+  // Deactivate login upon exit completion unless explicitly disabled by settings.
   let warning: string | undefined;
   if (stage === 'completed') {
     const { data: autoSetting } = await dbc
@@ -506,10 +497,8 @@ export async function setExitStage(
 /**
  * Build (or rebuild) the full & final sheet from live data.
  *
- * Every component is DERIVED here rather than typed: approved-but-unpaid
- * reimbursements, approved leave encashment, and a count-based asset recovery
- * placeholder. HR can override the stored numbers afterwards — 0037's column
- * comment is explicit that the sheet must show what was actually paid.
+ * Populates initial settlement figures from outstanding reimbursements, approved leave encashment,
+ * and unreturned asset values. Stored values may be manually adjusted prior to finalizing settlement.
  */
 export async function prepareFullAndFinal(exitCaseId: string): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Preparing the settlement');
@@ -723,9 +712,7 @@ export async function generateExitDocument(
   const up = await uploadFileService('generated-documents', kase.employee_id, filename, bytes, 'application/pdf');
   if (!up.ok) return { ok: false, error: up.error ?? 'The document could not be stored.' };
 
-  // The PDF went to generated-documents, NOT the employee-documents bucket the
-  // register historically assumed. Recording the bucket is what lets
-  // getDocumentUrl sign it against the right one (0039).
+  // Store generated document in `generated-documents` bucket.
   const { data: docRow, error: docErr } = await dbc
     .from('employee_documents')
     .insert({

@@ -52,10 +52,6 @@ export async function updateAvatar(value: string | null): Promise<ActionResult> 
     .eq('id', userId)
     .select('id');
 
-  // The "avatar column is missing" branch is gone with Postgres: `avatar` is a
-  // plain field on the user document, there is no column to be undefined, and
-  // neither the 42703 code nor a "column ... does not exist" message can reach
-  // here from the Mongo driver.
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
     return { ok: false, error: 'Your picture was not saved — your account may lack permission.' };

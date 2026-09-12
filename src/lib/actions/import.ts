@@ -334,9 +334,7 @@ export async function commitImport(formData: FormData): Promise<CommitResult> {
 
     const dbc = await createClient();
 
-    // 3b. Never rewrite a month whose payroll is already locked or paid — the
-    //     payslips are final and 0005 blocks the recompute, so the register and
-    //     pay would silently diverge. Checked once for the sheet's own month.
+    // 3b. Prohibit import for months whose payroll is finalized (locked or paid).
     const monthOpen = await requireOpenPayrollMonth(dbc, reg.periodMonth);
     if (!monthOpen.ok) return { ok: false, error: monthOpen.error };
 

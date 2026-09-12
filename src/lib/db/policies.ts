@@ -1,38 +1,11 @@
-//
-// Access policy per collection — the replacement for 114 RLS policies.
-//
-// This file IS the security boundary. Postgres used to refuse rows that were
-// not yours no matter what the application asked for; nothing in MongoDB does,
-// so the rules moved here and repo.ts applies them to every query it runs.
-//
-// Three deliberate properties:
-//
-// 1. DECLARATIVE. Each entry keeps the shape of the row-level-security policy
-// it replaces: a predicate per collection per operation, never imperative
-// checks scattered through call sites. This file is now the only statement
-// of who can see what — the SQL it was derived from has been deleted — so a
-// change here IS a change to the security model and should be reviewed as
-// one.
-//
-// 2. FAIL CLOSED. `policies` has no default entry. A collection that is not
-// listed is denied to everyone — so a newly ported collection is invisible
-// until someone decides who may read it, rather than world-readable until
-// someone notices.
-//
-// 3. SEPARATE READ, WRITE AND INSERT. Several tables let an employee read
-// their own rows but only modify them in a particular state — a
-// reimbursement claim is editable while pending and frozen once reviewed.
-// A single predicate cannot express that, and collapsing them is how the
-// "edit an approved claim" bug gets written.
-//
-// Returning null from read/write means DENY. Returning {} means no row filter,
-// i.e. the whole collection.
-//
-// NOT HERE: role_tab_access and user_tab_access, whose SQL policies were
-// `auth_role()::text = 'super_admin'`. Both are now embedded in the user
-// document as `tab_access`, so that rule is enforced by the privilege tiers in
-// lib/actions/users.ts rather than by a collection filter.
-//
+/**
+ * Collection access control policies (row/document-level security).
+ *
+ * Core principles:
+ * 1. Declarative: Pre-operation predicates defined per collection (read, write, insert, check).
+ * 2. Fail-closed: Unlisted collections are inaccessible by default (return null / throw ScopeError).
+ * 3. Operation separation: Read, write, and insert permissions are decoupled to enforce state transitions.
+ */
 import 'server-only';
 import type { Document } from 'mongodb';
 import { collections } from '@/lib/db/collections';
@@ -48,9 +21,9 @@ export interface CollectionPolicy {
   write(scope: Scope): ScopeFilter;
   // Whether this caller may insert this document; a string is the refusal.
   insert(scope: Scope, doc: Document): string | null;
-  // SQL's WITH CHECK on an UPDATE: constrains the row the update PRODUCES, where write() constrains which row it may touch. `fields` is the update's $set payload. Returning a string refuses the write. Optional, and deliberately rare. Most tables put every condition in the USING clause, and those belong in write() — requests and reimbursement_claims are that shape, and folding their status into a check here would wrongly let an employee touch a decided row. Only a rule about the RESULT belongs here, and collapsing the two is not a simplification: it is how helpdesk_tickets ended up refusing the one update it was written to allow.
+  // Validates update payload fields ($set) against security constraints.
   check?(scope: Scope, fields: Document): string | null;
-  // Parent collections through which this one may ALSO be read — SQL's `exists (select 1 from <parent> where … = current_employee_id())` shape. A read policy is handed one document and cannot join, which is why several of these had to be narrowed to staff-only during the port. But an EMBEDDED read already carries the join: the parent row was matched by the parent's own policy, and the lookup key is what ties the child to it. So naming the parent here says "reachable through that parent is reachable", which is precisely what the SQL policy said. Applies ONLY to an embed, and only for the named parent. A direct read of this collection still gets read() — narrower than the SQL was, never wider.
+  // Parent collections through which child documents inherit read visibility during embedded queries.
   readableVia?: readonly string[];
 }
 
@@ -91,16 +64,10 @@ const insertStaff = (s: Scope): string | null =>
 const insertSuperAdmin = (s: Scope): string | null =>
   s.isSuperAdmin ? null : 'Only a super admin can create this.';
 
-// Insert allowed for staff, or for an employee filing their OWN row. The employee branch checks the document rather than trusting the caller: a Server Action is a public endpoint, so `employee_id` in the payload is attacker-controlled and has to be compared, not read.
-//
-// `requiredFields` pins the columns a new row must arrive with — the WITH CHECK
-// half of the SQL policy. An ABSENT field counts as null, because that is what
-// Postgres checked: WITH CHECK ran against the row AFTER defaults were applied,
-// so a nullable column the INSERT omitted was null by the time the predicate
-// saw it. Comparing the raw payload instead made `undefined !== null` refuse
-// every such insert — which is exactly what blocked an employee from filing
-// their own document, since uploadEmployeeDocument omits verified_by /
-// verified_at rather than writing them as null.
+/**
+ * Validates insert permissions for staff or the owning employee record.
+ * Asserts document required fields against caller identity.
+ */
 const insertStaffOrOwn =
   (field = 'employee_id', requiredFields: Record<string, unknown> = {}) =>
   (s: Scope, doc: Document): string | null => {
@@ -124,7 +91,7 @@ const ownEmployeeInState =
   };
 
 // ---------------------------------------------------------------------------
-// The map. One entry per collection, mirroring its SQL policies.
+// Collection policy map.
 // ---------------------------------------------------------------------------
 
 const staffManaged: CollectionPolicy = {
@@ -165,9 +132,7 @@ export const policies: Partial<Record<string, CollectionPolicy>> = {
   },
 
   // --- attendance -----------------------------------------------------------
-  // Employees insert their own punches but never rewrite
-  // history: write stays staff-only, matching the absence of an employee
-  // UPDATE/DELETE policy on punch_events in SQL.
+  // Employees insert their own punches; modifications require staff privileges.
   [collections.punchEvents]: {
     read: staffOrOwn(),
     write: staffOnly,
@@ -175,7 +140,7 @@ export const policies: Partial<Record<string, CollectionPolicy>> = {
   },
   [collections.attendanceDays]: {
     read: staffOrOwn(),
-    // 0047 grants employees UPDATE on their own day so a punch-out can close it.
+    // Employees may update their own attendance day (e.g. recording punch-out).
     write: staffOrOwn(),
     insert: insertStaffOrOwn(),
   },
@@ -185,28 +150,13 @@ export const policies: Partial<Record<string, CollectionPolicy>> = {
   // --- leave ----------------------------------------------------------------
   [collections.requests]: {
     read: staffOrOwn(),
-    // `update using (employee_id = current_employee_id() and status = 'pending')`
-    // — once a request is approved or rejected the employee can no longer touch it.
+    // Employees may only modify their own requests while in 'pending' status.
     write: ownEmployeeInState('employee_id', ['pending']),
     insert: insertStaffOrOwn('employee_id', { status: 'pending' }),
   },
   [collections.leaveBalances]: staffManagedEmployeeReadable(),
   [collections.leaveBalanceAdjustments]: staffManagedEmployeeReadable(),
-  // 0009 granted UPDATE to staff only — and the comp-off feature that shipped
-  // afterwards cannot work under that rule. applyCompOff() is an employee
-  // action: it claims a credit ('available' -> 'applied'), links the request id
-  // onto it, and puts it back on failure. Every one of those writes threw
-  // ScopeError for the only people who can perform them, so the Comp off form
-  // on /me answered "You do not have permission to change this" for its own
-  // owner. This widens the SQL deliberately, and narrowly:
-  //
-  //   * only the employee's OWN credits, and only while available or applied —
-  //     a credit already spent ('used') is out of reach in both directions;
-  //   * the result may only be available or applied, so an employee cannot mark
-  //     one used and cannot resurrect one that is;
-  //   * is_applicable and employee_id are staff-only fields. is_applicable is
-  //     the hold switch staff use to take a credit out of play (0041), so an
-  //     employee able to set it could simply switch their own hold off.
+  // Comp-off policies: employees may claim or cancel available credits; only HR can mark used or hold.
   [collections.compOffs]: {
     read: staffOrOwn(),
     write: ownEmployeeInState('employee_id', ['available', 'applied']),
@@ -225,13 +175,7 @@ export const policies: Partial<Record<string, CollectionPolicy>> = {
   [collections.leaveSalaryWorkings]: staffManagedEmployeeReadable(),
 
   // --- payroll --------------------------------------------------------------
-  // 0003 created payroll_runs_read as `using (is_authenticated())` and 0004's
-  // tightening loop deliberately left it out of the `sensitive` list — the row
-  // is a month, a status and some timestamps, with nobody's data on it. The
-  // port narrowed it to staff, which silently emptied the employee's own
-  // `payslips … payroll_runs!inner(period_month)` lookup on /me: an inner join
-  // against a collection they could not read dropped the payslip, so netPay
-  // read as "no payslip yet" every month.
+  // General run metadata readable by authenticated callers for payslip period joins.
   [collections.payrollRuns]: { read: authenticated, write: staffOnly, insert: insertStaff },
   [collections.payslips]: staffManagedEmployeeReadable(),
   [collections.ptSlabs]: { read: staffOnly, write: staffOnly, insert: insertStaff },
@@ -242,15 +186,7 @@ export const policies: Partial<Record<string, CollectionPolicy>> = {
   [collections.assets]: staffManagedEmployeeReadable('assigned_employee_id'),
   [collections.assetAssignments]: staffManagedEmployeeReadable(),
   [collections.assetMaintenance]: staffManaged,
-  // 0028 added items_read_assigned — `exists (select 1 from item_assignments a
-  // where a.item_id = items.id and a.employee_id = current_employee_id())` —
-  // with a comment saying it exists "so the nested item_name/category read on
-  // the employee's dashboard resolves". That is exactly an embed, so it is
-  // declared as one: reachable through the caller's own item_assignments, whose
-  // policy has already limited the parent rows to theirs.
-  //
-  // A DIRECT read stays staff-only. Narrower than the SQL, and the only direct
-  // reader is the staff /items screen.
+  // Items catalog is directly accessible to staff, or embedded via an employee's assigned items.
   [collections.items]: { ...staffManaged, readableVia: [collections.itemAssignments] },
   [collections.itemAssignments]: staffManagedEmployeeReadable(),
 
@@ -290,15 +226,7 @@ export const policies: Partial<Record<string, CollectionPolicy>> = {
     // Only the system raises notifications; nothing user-facing inserts one.
     insert: insertStaff,
   },
-  // 0021: `for update using (employee_id = current_employee_id())
-  // with check (employee_id = current_employee_id() and status = 'open')`.
-  //
-  // The status lives in the CHECK, not the USING — the point of the policy is
-  // that an employee may REOPEN a resolved or closed ticket by following up on
-  // it. Porting the status into write() inverted that: it made the one update
-  // the rule exists to permit the one update it refused, and because
-  // addTicketComment() never inspected the result, the ticket silently stayed
-  // closed with HR never re-alerted.
+  // Employees may view and update their own tickets; status check permits reopening to 'open' status.
   [collections.helpdeskTickets]: {
     read: staffOrOwn(),
     write: staffOrOwn(),
@@ -311,18 +239,7 @@ export const policies: Partial<Record<string, CollectionPolicy>> = {
     },
     insert: insertStaffOrOwn(),
   },
-  // Comments are scoped by their TICKET in SQL — `exists (select 1 from
-  // helpdesk_tickets …)` — and repo.ts cannot express a join. Scoping by
-  // author instead, as this did, is a different rule and got both directions
-  // wrong: it hid the staff replies on an employee's own ticket, and it said
-  // nothing about whether the caller may see the ticket at all.
-  //
-  // The join now lives in the two places that need it, each doing the ticket
-  // check through a SCOPED helpdesk_tickets read before touching this
-  // collection: queries.getTicketComments() for reads and
-  // actions/helpdesk.addTicketComment() for the insert. This filter is what
-  // anything else gets, and it is deliberately staff-only rather than
-  // permissive.
+  // Direct queries are staff-only; employee ticket comment access is validated via parent ticket.
   [collections.helpdeskTicketComments]: {
     read: staffOnly,
     // Editing or deleting a comment is limited to its author either way.
@@ -340,8 +257,7 @@ export const policies: Partial<Record<string, CollectionPolicy>> = {
   // --- reimbursements
   [collections.reimbursementClaims]: {
     read: staffOrOwn(),
-    // `update using (employee_id = … and status in ('pending','rejected'))` —
-    // a rejected claim may be corrected and resubmitted; an approved one may not.
+    // Editable only while pending or rejected (resubmission).
     write: ownEmployeeInState('employee_id', ['pending', 'rejected']),
     insert: insertStaffOrOwn('employee_id', { status: 'pending' }),
   },
@@ -351,31 +267,21 @@ export const policies: Partial<Record<string, CollectionPolicy>> = {
     insert: insertStaff,
   },
 
-  // --- rows scoped through a PARENT
-  // SQL expressed these as `exists (select 1 from <parent> ...)`. A Mongo
-  // filter cannot join, so each is scoped to staff here and the parent check
-  // lives in the action that reads it. Narrower than the SQL was, never wider:
-  // an employee sees these through their exit case's own action, not directly.
+  // --- Parent-scoped child collections: access mediated by parent record check ---
   [collections.approvalSteps]: staffManaged,
   [collections.exitClearanceItems]: staffManaged,
   [collections.exitInterviews]: staffManaged,
   [collections.knowledgeTransferItems]: {
-    // The one exception: `handover_to = current_employee_id()` IS expressible,
-    // and it is the whole point of the screen — the person receiving a handover
-    // must be able to see what they are receiving.
+    // Handover recipient can read assigned transfer items.
     read: (s) => (s.isStaff ? {} : s.employeeId ? { handover_to: s.employeeId } : null),
     write: staffOnly,
     insert: insertStaff,
   },
   [collections.onboardingTemplateItems]: staffManaged,
-  // 0004 gave this the parent-join read `id in (select id from payslips where
-  // employee_id = current_employee_id())`, and mapPayslip embeds it as
-  // `payslip_adjustments(*)` — it is where the bonus and the deduction lines on
-  // an employee's own payslip come from. Staff-only for a direct read.
+  // Payslip adjustments are directly staff-managed, but readable via parent payslip lookup.
   [collections.payslipAdjustments]: { ...staffManaged, readableVia: [collections.payslips] },
 
-  // `insert with check (employee_id = current_employee_id())`,
-  // `select using (is_portal() or employee_id = current_employee_id())`.
+  // Notice read receipts: staff read/manage all, employees record and view their own receipts.
   [collections.noticeReads]: {
     read: staffOrOwn(),
     write: staffOnly,
@@ -383,7 +289,7 @@ export const policies: Partial<Record<string, CollectionPolicy>> = {
   },
 
   // --- system
-  // `all using (auth_role()::text = 'super_admin')`, `select using (is_portal())`.
+  // Global settings: readable by portal users, editable by super_admin.
   [collections.roleTabAccess]: {
     read: (s) => (s.isPortal ? {} : null),
     write: (s) => (s.isSuperAdmin ? {} : null),

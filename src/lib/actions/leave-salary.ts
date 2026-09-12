@@ -63,7 +63,7 @@ export async function saveLeaveSalaryWorking(input: {
   /** 1–12; 4 = the default 1 April increment. */
   incrementMonth: number;
   remarks?: string;
-  /** HR-typed calendar-day denominators (0041). null/undefined = real calendar days. */
+  /** Explicit calendar-day denominators; null/undefined defaults to actual calendar days. */
   calendarDaysP1Override?: number | null;
   calendarDaysP2Override?: number | null;
 }): Promise<ActionResult> {
@@ -196,7 +196,6 @@ export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
     )
     .eq('id', id)
     .maybeSingle<WorkingRead>();
-  // Override columns arrive with 0041 — finalize must still work without them.
   const { data: row, error: readErr } = read;
   if (readErr) return { ok: false, error: readErr.message };
   if (!row) return { ok: false, error: 'That working no longer exists.' };

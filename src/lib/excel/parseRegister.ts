@@ -181,7 +181,7 @@ function toPunchMinutes(v: CellLike, date1904: boolean): number | null {
   return ((mins % minutesPerDay) + minutesPerDay) % minutesPerDay;
 }
 
-// Minutes since midnight -> 'HH:MM' (a Postgres `time` literal).
+// Formats minutes since midnight as 'HH:MM' clock string.
 export function minutesToClock(mins: number | null): string | null {
   if (mins === null) return null;
   const m = ((Math.round(mins) % minutesPerDay) + minutesPerDay) % minutesPerDay;
