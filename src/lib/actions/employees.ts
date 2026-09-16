@@ -1,11 +1,10 @@
 'use server';
 
-// Server Actions for mutating employees. The Add/Edit-employee drawer submits its
-// <form> here. All are staff-only (admin/hr).
+// Staff-only employee actions used by the add/edit drawer.
 import { revalidatePath } from 'next/cache';
 import type { Decimal128 } from 'mongodb';
 import { createClient, createServiceClient, isServiceRoleConfigured } from '@/lib/db/server';
-import { requireStaff, wroteNothing } from '@/lib/actions/_guard';
+import { requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { usersCollection } from '@/lib/db/collections';
 import { formatMoney, fromPaise, toPaise } from '@/lib/db/money';
 import { getEmployeeForEdit, type EmployeeEditRow } from '@/lib/queries';
@@ -18,7 +17,10 @@ import { startOnboarding } from '@/lib/actions/onboarding';
 // Transient failures worth a second try; a missing account is not one.
 const loginUpdateAttempts = 3;
 
-// Enable or disable sign-in for every login account linked to an employee. Reversible by design: it mirrors deactivate/reactivate and leaves the login → employee link intact for when they come back. A real failure to update an existing account IS reported, so the caller never claims to have removed access it could not remove.
+// Enable or disable sign-in for every login account linked to an employee. Reversible by design: it
+// mirrors deactivate/reactivate and leaves the login → employee link intact for when they come
+// back. A real failure to update an existing account IS reported, so the caller never claims to
+// have removed access it could not remove.
 async function setEmployeeLoginAccess(
   employeeId: string,
   enabled: boolean,
@@ -95,10 +97,7 @@ async function setEmployeeLoginAccess(
   } catch (e) {
     return {
       ok: false,
-      error:
-        e instanceof Error
-          ? e.message
-          : 'Could not update login access.',
+      error: e instanceof Error ? e.message : 'Could not update login access.',
     };
   }
 }
@@ -126,9 +125,12 @@ function moneyPaise(v: FormDataEntryValue | null): number | null {
 function parseAadhaar(
   v: FormDataEntryValue | null,
 ): { ok: true; value: string | null } | { ok: false; error: string } {
-  const raw = String(v ?? '').replace(/[\s-]/g, '').trim();
+  const raw = String(v ?? '')
+    .replace(/[\s-]/g, '')
+    .trim();
   if (!raw) return { ok: true, value: null };
-  if (!/^\d{12}$/.test(raw)) return { ok: false, error: 'Aadhaar number must be exactly 12 digits.' };
+  if (!/^\d{12}$/.test(raw))
+    return { ok: false, error: 'Aadhaar number must be exactly 12 digits.' };
   return { ok: true, value: raw };
 }
 
@@ -140,10 +142,17 @@ function parseAadhaar(
 function parseIfsc(
   v: FormDataEntryValue | null,
 ): { ok: true; value: string | null } | { ok: false; error: string } {
-  const raw = String(v ?? '').replace(/\s/g, '').toUpperCase().trim();
+  const raw = String(v ?? '')
+    .replace(/\s/g, '')
+    .toUpperCase()
+    .trim();
   if (!raw) return { ok: true, value: null };
   if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(raw)) {
-    return { ok: false, error: 'IFSC must be 11 characters: 4 letters, a 0, then 6 letters/digits (e.g. HDFC0001234).' };
+    return {
+      ok: false,
+      error:
+        'IFSC must be 11 characters: 4 letters, a 0, then 6 letters/digits (e.g. HDFC0001234).',
+    };
   }
   return { ok: true, value: raw };
 }
@@ -161,31 +170,27 @@ function parseIfsc(
 function parsePan(
   v: FormDataEntryValue | null,
 ): { ok: true; value: string | null } | { ok: false; error: string } {
-  const raw = String(v ?? '').replace(/\s/g, '').toUpperCase().trim();
+  const raw = String(v ?? '')
+    .replace(/\s/g, '')
+    .toUpperCase()
+    .trim();
   if (!raw) return { ok: true, value: null };
   if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(raw)) {
-    return { ok: false, error: 'PAN must be 10 characters: 5 letters, 4 digits, then a letter (e.g. ABCDE1234F).' };
+    return {
+      ok: false,
+      error: 'PAN must be 10 characters: 5 letters, 4 digits, then a letter (e.g. ABCDE1234F).',
+    };
   }
   return { ok: true, value: raw };
 }
 
 /** Bank account number: strip spaces and hyphens; empty -> null. */
 function parseAccountNumber(v: FormDataEntryValue | null): string | null {
-  const raw = String(v ?? '').replace(/[\s-]/g, '').trim();
+  const raw = String(v ?? '')
+    .replace(/[\s-]/g, '')
+    .trim();
   return raw || null;
 }
-
-/**
- * Employment type off the form.
- *
- * Anything that is not the literal 'intern' is an employee. The test is
- * deliberately one-sided: interns are the ones with the different payroll
- * rules, so a renamed option, a stale cached form or a missing field has to
- * fall to 'employee' rather than quietly move somebody onto intern pay.
- */
-// function employmentType(formData: FormData): EmploymentType {
-//   return String(formData.get('employment_type') ?? '') === 'intern' ? 'intern' : 'employee';
-// }
 
 /** A plain optional text field: trimmed, or null when blank. */
 function optionalText(v: FormDataEntryValue | null): string | null {
@@ -196,9 +201,7 @@ function optionalText(v: FormDataEntryValue | null): string | null {
  * Bank details + emergency contact columns, shared by create
  * and update so both stay in lockstep. Validates IFSC; the rest are free text.
  */
-function parseBankAndEmergency(
-  formData: FormData,
-):
+function parseBankAndEmergency(formData: FormData):
   | {
       ok: true;
       fields: {
@@ -227,15 +230,8 @@ function parseBankAndEmergency(
 }
 
 /**
- * Shared salary parse: derives special so the components always total gross.
- *
- * Amounts are computed in PAISE and returned as Decimal128, which is what the
- * employees validator requires. It rejects a write on two counts, and a plain
- * JS number fails both: every component is declared `bsonType: "decimal"`, and
- * a `$expr` re-checks gross == basic_da + hra + special_allowance, which float
- * subtraction cannot be trusted to satisfy once paise are involved. MongoDB
- * reports either as error 121, which pgcompat surfaces as "new row violates
- * check constraint".
+ * Calculate salary components in integer paise and return Decimal128 values. The employee validator
+ * requires decimal fields and checks that components sum exactly to gross.
  */
 function parseSalary(
   formData: FormData,
@@ -246,7 +242,10 @@ function parseSalary(
   const basic = moneyPaise(formData.get('basic_da'));
   const hra = moneyPaise(formData.get('hra'));
   if (gross === null || basic === null || hra === null) {
-    return { ok: false, error: 'Enter the salary amounts as plain numbers, e.g. 30000 or 30000.50.' };
+    return {
+      ok: false,
+      error: 'Enter the salary amounts as plain numbers, e.g. 30000 or 30000.50.',
+    };
   }
   if (gross <= 0) return { ok: false, error: 'Gross monthly must be greater than zero.' };
   if (basic + hra > gross) {
@@ -293,16 +292,8 @@ type DbClient = Awaited<ReturnType<typeof createClient>>;
 const newBranch = '__new__';
 
 /**
- * Resolve the submitted branch to its id AND its canonical name.
- *
- * Pick-or-create, the same shape as resolveDepartmentId — except creation is an
- * explicit option rather than free text, because a branch also needs a state
- * and mistyping a name must not silently spawn a new branch.
- *
- * The name is returned because employees.branch_name is denormalised — see
- * the write sites below — and reading it back from the branch row rather than
- * echoing the form value is what keeps 'pune' from being stored where the
- * branch is really called 'Pune'.
+ * Resolve the selected branch to its ID and canonical stored name. Inline creation requires an
+ * explicit choice and state; cache the resolved name on the employee.
  */
 async function resolveBranch(
   dbc: DbClient,
@@ -312,13 +303,8 @@ async function resolveBranch(
 
   if (selected !== newBranch) {
     if (!selected) return { ok: false, error: 'Pick a branch.' };
-    // ilike, not eq. The value comes from a <select> built out of branches.name
-    // so it normally matches exactly — but an exact match is the one comparison
-    // that fails on a row whose name differs only in case or trailing space,
-    // and a mismatch here is not a harmless miss: the save is refused outright
-    // with "Unknown branch", which reads as the branch not existing. The
-    // canonical name is still taken from the row that comes back, never echoed
-    // from the form, so 'pune' cannot be stored where the branch is 'Pune'.
+    // Match branch names case-insensitively and use the stored canonical name in the employee
+    // record.
     const { data, error } = await dbc
       .from('branches')
       .select('id, name')
@@ -392,20 +378,18 @@ async function resolveDepartment(
 }
 
 /**
- * Give a brand-new (or rehired) employee their paid-leave row for the CURRENT
- * year immediately, instead of waiting for January's cron or someone pressing
- * "Open leave year". BEST-EFFORT like startOnboarding: the RPC is idempotent
- * (`on conflict do nothing`), touches only MISSING rows — nobody is credited
- * twice — and skips joiners dated beyond the year, whom the annual cron will
- * pick up. A failure here must never undo a saved
- * employee; the /leave pool card still shows the gap and its button closes it.
+ * Provision a new or rehired employee's current-year leave balance. The RPC only creates missing
+ * rows and skips later-year joiners. Log failures without undoing the employee save; staff can
+ * provision missing balances from /leave.
  */
 async function provisionCurrentLeaveYear(
   dbc: Awaited<ReturnType<typeof createClient>>,
 ): Promise<void> {
   // Business year in IST, matching the provisioning cron — not the server TZ.
   const year = Number(
-    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric' }).format(new Date()),
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric' }).format(
+      new Date(),
+    ),
   );
   await dbc.rpc('fn_provision_leave_balances', { p_year: year });
 }
@@ -414,7 +398,7 @@ export async function createEmployee(formData: FormData) {
   const gate = await requireStaff('Adding an employee');
   if (!gate.ok) return gate;
 
-  // --- required fields (fail before touching the network) --------------------
+  // required fields (fail before touching the network)
   const code = String(formData.get('code') ?? '').trim();
   const fullName = String(formData.get('full_name') ?? '').trim();
   const dateOfJoining = String(formData.get('date_of_joining') ?? '').trim();
@@ -455,14 +439,8 @@ export async function createEmployee(formData: FormData) {
       full_name: fullName,
       branch_id: branch.id,
       department_id: department?.id ?? null,
-      // DENORMALISED, and written on every create and update.
-      //
-      // The port replaced the branches/departments join with these columns —
-      // views.ts groups the board by branch_name, fn_on_leave_today reads it,
-      // and getEmployees renders `branch_name ?? ''` with no join to fall back
-      // on. Nothing wrote them: only renaming a branch back-filled the column
-      // (actions/branches.ts), so until someone renamed a branch every
-      // employee had null and the whole company grouped under 'Unassigned'.
+      // Write cached branch and department names on every save; roster and attendance queries read
+      // them without joins.
       branch_name: branch.name,
       department_name: department?.name ?? null,
       designation: (formData.get('designation') as string) || null,
@@ -501,7 +479,10 @@ export async function createEmployee(formData: FormData) {
     };
   }
   if (wroteNothing(data)) {
-    return { ok: false, error: 'The employee was not added — your account may not have permission.' };
+    return {
+      ok: false,
+      error: 'The employee was not added — your account may not have permission.',
+    };
   }
 
   // Kick off the onboarding checklist from the newest active template. BEST-EFFORT:
@@ -587,14 +568,7 @@ export async function updateEmployee(formData: FormData) {
       full_name: fullName,
       branch_id: branch.id,
       department_id: department?.id ?? null,
-      // DENORMALISED, and written on every create and update.
-      //
-      // The port replaced the branches/departments join with these columns —
-      // views.ts groups the board by branch_name, fn_on_leave_today reads it,
-      // and getEmployees renders `branch_name ?? ''` with no join to fall back
-      // on. Nothing wrote them: only renaming a branch back-filled the column
-      // (actions/branches.ts), so until someone renamed a branch every
-      // employee had null and the whole company grouped under 'Unassigned'.
+      // Refresh cached branch and department names along with their IDs.
       branch_name: branch.name,
       department_name: department?.name ?? null,
       designation: (formData.get('designation') as string) || null,
@@ -636,7 +610,8 @@ export async function updateEmployee(formData: FormData) {
   if (wroteNothing(data)) {
     return {
       ok: false,
-      error: 'The employee was not updated — they may no longer exist, or your role lacks permission.',
+      error:
+        'The employee was not updated — they may no longer exist, or your role lacks permission.',
     };
   }
 
@@ -660,7 +635,8 @@ export async function deactivateEmployee(code: string) {
   if (wroteNothing(data)) {
     return {
       ok: false,
-      error: 'The employee was not deactivated — they may no longer exist, or your role lacks permission.',
+      error:
+        'The employee was not deactivated — they may no longer exist, or your role lacks permission.',
     };
   }
 
@@ -696,7 +672,8 @@ export async function reactivateEmployee(code: string) {
   if (wroteNothing(data)) {
     return {
       ok: false,
-      error: 'The employee was not reactivated — they may no longer exist, or your role lacks permission.',
+      error:
+        'The employee was not reactivated — they may no longer exist, or your role lacks permission.',
     };
   }
 

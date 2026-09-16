@@ -1,23 +1,42 @@
-//
-// Domain types for the Dalnex HRMS schema — the shapes the UI reads.
-//
-// Hand-written and NOT generated: there is no schema to generate from any more.
-// The document shapes the driver actually reads and writes live in
-// src/lib/db/collections.ts.
-//
-// The two are related but not the same, deliberately. Dates are `string` here
-// because that is what crosses into a client component; collections.ts declares
-// them as the BSON Date they are stored as, and queries.ts converts between the
-// two in one place (see iso()).
-//
+// Client-facing domain types, maintained by hand. Stored BSON document types live in
+// lib/db/collections.ts; queries.ts converts timestamps to strings for the UI.
 
-// 'CO' (comp off) must stay in step with the status enum in the attendance_days
-// validator. It was once missing here, so a comp-off day had no type-level
-// existence and statusMeta fell back to rendering it as 'P'.
+// Keep attendance statuses in sync with the attendance_days validator and display metadata.
 export type AttendanceStatus = 'P' | 'LM' | 'HD' | 'L' | 'WO' | 'OH' | 'AB' | 'S' | 'T' | 'CO';
 export type Gender = 'Male' | 'Female' | 'Other';
 export type EmployeeStatus = 'active' | 'on_notice' | 'inactive';
-export type IndianState = 'Maharashtra' | 'Gujarat' | 'Delhi' | 'Karnataka' | 'Tamil Nadu' | 'West Bengal' | 'Rajasthan' | 'Uttar Pradesh' | 'Bihar' | 'Punjab' | 'Haryana' | 'Kerala' | 'Madhya Pradesh' | 'Chhattisgarh' | 'Odisha' | 'Jharkhand' | 'Assam' | 'Telangana' | 'Andhra Pradesh' | 'Jammu and Kashmir' | 'Uttarakhand' | 'Himachal Pradesh' | 'Tripura' | 'Meghalaya' | 'Manipur' | 'Nagaland' | 'Goa' | 'Arunachal Pradesh' | 'Mizoram' | 'Sikkim' | 'Puducherry';
+export type IndianState =
+  | 'Maharashtra'
+  | 'Gujarat'
+  | 'Delhi'
+  | 'Karnataka'
+  | 'Tamil Nadu'
+  | 'West Bengal'
+  | 'Rajasthan'
+  | 'Uttar Pradesh'
+  | 'Bihar'
+  | 'Punjab'
+  | 'Haryana'
+  | 'Kerala'
+  | 'Madhya Pradesh'
+  | 'Chhattisgarh'
+  | 'Odisha'
+  | 'Jharkhand'
+  | 'Assam'
+  | 'Telangana'
+  | 'Andhra Pradesh'
+  | 'Jammu and Kashmir'
+  | 'Uttarakhand'
+  | 'Himachal Pradesh'
+  | 'Tripura'
+  | 'Meghalaya'
+  | 'Manipur'
+  | 'Nagaland'
+  | 'Goa'
+  | 'Arunachal Pradesh'
+  | 'Mizoram'
+  | 'Sikkim'
+  | 'Puducherry';
 export type RequestType = 'leave' | 'site_visit' | 'outdoor_duty' | 'wfh' | 'comp_off';
 export type RequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
 export type LeaveType = 'PL' | 'CL' | 'SL' | 'LWP';
@@ -29,12 +48,7 @@ export type AppRole = 'super_admin' | 'admin' | 'hr' | 'employee' | 'intern';
 export type ReimbursementPurpose = 'travel' | 'material_purchase' | 'other';
 // 'finance_review' is the optional second (Finance)
 // approval stage that sits between HR approval and the payroll credit.
-export type ReimbursementStatus =
-  | 'pending'
-  | 'finance_review'
-  | 'approved'
-  | 'rejected'
-  | 'paid';
+export type ReimbursementStatus = 'pending' | 'finance_review' | 'approved' | 'rejected' | 'paid';
 export type CompOffStatus = 'available' | 'applied' | 'used' | 'expired';
 
 export interface Branch {

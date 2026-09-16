@@ -15,13 +15,13 @@ import {
 } from '@/lib/queries';
 import type { MarkWatch, RegisterEmployee } from '@/types/domain';
 
-// "Today" is, by definition, never cacheable — a prerendered dashboard would freeze
-// the date at build time.
+// Read the current date on each request, rather than freezing it at build time.
 export const dynamic = 'force-dynamic';
 
 const tz = 'Asia/Kolkata';
 
-// The documented rule: the 3rd late mark in a month becomes an auto half-day. Only used when the `mark_threshold` setting is missing or unreadable.
+// The documented rule: the 3rd late mark in a month becomes an auto half-day. Only used when the
+// `mark_threshold` setting is missing or unreadable.
 const defaultMarkThreshold = 3;
 
 // How many names the marks-watch card lists.
@@ -46,7 +46,9 @@ function monthLabelOf(periodMonth: string): string {
   );
 }
 
-// Settle a query into a value-or-real-error. Each card fails on its own instead of taking the page down, and the failure text is the query's actual message — we do NOT fall back to stand-in data to paper over a broken database.
+// Settle a query into a value-or-real-error. Each card fails on its own instead of taking the page
+// down, and the failure text is the query's actual message — we do NOT fall back to stand-in data
+// to paper over a broken database.
 async function load<T>(promise: Promise<T>): Promise<Loaded<T>> {
   try {
     return { ok: true, data: await promise };
@@ -55,7 +57,9 @@ async function load<T>(promise: Promise<T>): Promise<Loaded<T>> {
   }
 }
 
-// The late-mark threshold from settings. A settings failure must not blank the marks card — the *counts* are the real data, and the threshold has a documented default — so this degrades to defaultMarkThreshold rather than throwing.
+// The late-mark threshold from settings. A settings failure must not blank the marks card — the
+// *counts* are the real data, and the threshold has a documented default — so this degrades to
+// defaultMarkThreshold rather than throwing.
 function markThreshold(settings: Loaded<SettingView[]>): number {
   if (!settings.ok) return defaultMarkThreshold;
   const raw = settings.data.find((s) => s.key === 'mark_threshold')?.value;
@@ -63,7 +67,8 @@ function markThreshold(settings: Loaded<SettingView[]>): number {
   return Number.isInteger(n) && n > 0 ? n : defaultMarkThreshold;
 }
 
-// Real late-mark counts for the period, worst first. Derived from the register's per-employee LM tally (attendance_days.status = 'LM').
+// Real late-mark counts for the period, worst first. Derived from the register's per-employee LM
+// tally (attendance_days.status = 'LM').
 function marksWatchFrom(register: RegisterEmployee[], threshold: number): MarkWatch[] {
   return register
     .filter((e) => e.summary.LM > 0)
@@ -72,7 +77,7 @@ function marksWatchFrom(register: RegisterEmployee[], threshold: number): MarkWa
     .map((e) => ({ employeeId: e.id, name: e.name, marks: e.summary.LM, threshold }));
 }
 
-// Today — the operational dashboard. Same markup as the prototype; live data behind it.
+// Live operational dashboard.
 export default async function TodayPage() {
   const periodMonth = currentPeriodMonth();
   const [board, punchLog, celebrations, activity, run, register, settings, compOffs] =

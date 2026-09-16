@@ -1,11 +1,7 @@
 'use client';
 
-// Employee attendance clock — the punch in / punch out card on /me.
-//
-// The quick toggle in the top bar (PunchToggle) is the control most punches go
-// through; this card is the full read — today's total, the last punch and where
-// it was taken, and the trail underneath. Both share usePunchClock, so pressing
-// either one redraws the other.
+// Attendance details for /me. Share usePunchClock with the topbar toggle so both controls refresh
+// after a punch.
 import { useToast } from '@/components/ui/Toast';
 import { PunchHistory } from './PunchHistory';
 import { GeoChip } from './GeoChip';
@@ -86,15 +82,15 @@ export function Punch({ id }: { id?: string }) {
           </p>
         ) : state?.requireLocation && (permission === 'prompt' || permission === 'unsupported') ? (
           <p className="punch-alert is-info">
-            Your browser will ask for your location when you punch. It is required, and it
-            is only used to mark the punch as at-office or off-site — never to track you.
+            Your browser will ask for your location when you punch. It is required, and it is only
+            used to mark the punch as at-office or off-site — never to track you.
           </p>
         ) : null}
 
         {state && !state.geofenceConfigured ? (
           <p className="punch-note muted">
-            No office location is configured yet, so punches are recorded but not marked
-            at-office or off-site. An admin can set one under Settings.
+            No office location is configured yet, so punches are recorded but not marked at-office
+            or off-site. An admin can set one under Settings.
           </p>
         ) : null}
       </div>

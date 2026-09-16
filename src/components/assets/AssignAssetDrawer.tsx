@@ -1,8 +1,7 @@
 'use client';
 
-// Per-asset drawer: assign/reassign/return, plus the transfer history, a
-// maintenance log, and a scannable QR label. Opens when `asset` is non-null.
-// The current holder is read off the asset row; history/maintenance load on open.
+// Load assignment and maintenance history when an asset is opened. The asset row supplies its
+// current holder.
 import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
@@ -184,16 +183,23 @@ export function AssignAssetDrawer({
                 <>
                   <div className="fold">Return</div>
                   {rowError && <div className="login-error">{rowError}</div>}
-                  <button type="button" className="btn quiet" onClick={onUnassign} disabled={pending}>
+                  <button
+                    type="button"
+                    className="btn quiet"
+                    onClick={onUnassign}
+                    disabled={pending}
+                  >
                     {pending ? '…' : 'Unassign (mark returned)'}
                   </button>
                 </>
               )}
 
-              {/* --- transfer history --- */}
+              {/* transfer history */}
               <div className="fold">Transfer history</div>
               {history.length === 0 ? (
-                <p className="muted" style={{ fontSize: 13 }}>No transfers recorded yet.</p>
+                <p className="muted" style={{ fontSize: 13 }}>
+                  No transfers recorded yet.
+                </p>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
                   <table>
@@ -209,7 +215,9 @@ export function AssignAssetDrawer({
                         <tr key={h.id}>
                           <td>
                             {h.person_name ?? '—'}{' '}
-                            <span className="mono muted" style={{ fontSize: 11 }}>{h.employee_code ?? ''}</span>
+                            <span className="mono muted" style={{ fontSize: 11 }}>
+                              {h.employee_code ?? ''}
+                            </span>
                           </td>
                           <td className="mono">{h.assigned_date}</td>
                           <td>{h.returned ? `Returned ${h.returned_date ?? ''}` : 'Held'}</td>
@@ -220,7 +228,7 @@ export function AssignAssetDrawer({
                 </div>
               )}
 
-              {/* --- maintenance --- */}
+              {/* maintenance */}
               <div className="fold">Maintenance</div>
               <form key={maintKey} action={maintAction} style={{ display: 'contents' }}>
                 <input type="hidden" name="asset_id" value={asset.id} />
@@ -300,14 +308,23 @@ export function AssignAssetDrawer({
                 </div>
               )}
 
-              {/* --- QR label --- */}
+              {/* QR label */}
               <div className="fold">Asset label</div>
               <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-                <div style={{ background: '#fff', padding: 8, borderRadius: 8, border: '1px solid var(--line-2)' }}>
+                <div
+                  style={{
+                    background: '#fff',
+                    padding: 8,
+                    borderRadius: 8,
+                    border: '1px solid var(--line-2)',
+                  }}
+                >
                   <QRCodeSVG value={qrValue} size={96} />
                 </div>
                 <div style={{ fontSize: 12 }} className="muted">
-                  <div><b>{asset.desktop_name}</b></div>
+                  <div>
+                    <b>{asset.desktop_name}</b>
+                  </div>
                   {asset.serial_no && <div className="mono">SN {asset.serial_no}</div>}
                   <div>Scan to look up this asset.</div>
                 </div>

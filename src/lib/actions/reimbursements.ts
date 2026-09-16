@@ -1,22 +1,13 @@
 'use server';
 
-//
-// Reimbursement claims: employee submits, staff approves.
-//
-// Travel claims derive their amount from kms × the settings-driven ₹/km rate.
-// That multiplication is redone on the SERVER — the browser's live preview is a
-// convenience, never the authority, so a tampered amount can't be approved.
-//
-// On approval the amount is added to the employee's payslip
-// reimbursement_bonus adjustment for the claim's month and the payslip is
-// recomputed, so an approved claim is paid with salary.
-//
+// Recalculate travel claims on the server using distance × the configured rate. Approval adds the
+// claim to the month's payslip adjustment and recomputes pay.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { getReimbursementRate, getReimbursementEvents } from '@/lib/queries';
 import { uploadFile, signedUrl, resolveUploadType } from '@/lib/storage';
-import { requireDb, requireRoles, requireStaff, wroteNothing } from '@/lib/actions/_guard';
+import { requireDb, requireRoles, requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { toDecimal, toMoney } from '@/lib/db/money';
 import { notifyApprovers, notifyEmployee } from '@/lib/notify';
 import type { ReimbursementPurpose } from '@/types/database';
@@ -24,14 +15,17 @@ import type { ReimbursementPurpose } from '@/types/database';
 export interface ActionResult {
   ok: boolean;
   error?: string;
-  // The action SUCCEEDED but a side-effect needs attention (payroll run locked, payslip missing, …). ok stays true — see requests.ts.
+  // The action SUCCEEDED but a side-effect needs attention (payroll run locked, payslip missing,
+  // …). ok stays true — see requests.ts.
   warning?: string;
 }
 
 const purposes: readonly ReimbursementPurpose[] = ['travel', 'material_purchase', 'other'];
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
-// Append one row to the claim's timeline. BEST-EFFORT, exactly like notify.ts: the business write is already committed and there is no transaction across the two, so a failed event must never turn a successful approval into an error. It is logged instead.
+// Append one row to the claim's timeline. BEST-EFFORT, exactly like notify.ts: the business write
+// is already committed and there is no transaction across the two, so a failed event must never
+// turn a successful approval into an error. It is logged instead.
 async function logClaimEvent(
   dbc: Awaited<ReturnType<typeof createClient>>,
   claimId: string,
@@ -75,14 +69,16 @@ async function financeStageEnabled(
 
 /** Parse '1,234.50' / '₹1,234.50' -> 1234.5; null when unparseable. */
 function money(v: FormDataEntryValue | null): number | null {
-  const raw = String(v ?? '').trim().replace(/[,\s₹]/g, '');
+  const raw = String(v ?? '')
+    .trim()
+    .replace(/[,\s₹]/g, '');
   if (!raw) return null;
   const n = Number(raw);
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
 }
 
 export async function createReimbursement(formData: FormData): Promise<ActionResult> {
-  // --- validate before touching auth or the network --------------------------
+  // validate before touching auth or the network
   const description = String(formData.get('description') ?? '').trim();
   const purpose = String(formData.get('purpose') ?? '').trim() as ReimbursementPurpose;
   const claimDate = String(formData.get('claim_date') ?? '').trim();
@@ -120,7 +116,8 @@ export async function createReimbursement(formData: FormData): Promise<ActionRes
   if (!employeeId) {
     return {
       ok: false,
-      error: 'Your login is not linked to an employee record, so a claim cannot be filed. Ask HR to link it.',
+      error:
+        'Your login is not linked to an employee record, so a claim cannot be filed. Ask HR to link it.',
     };
   }
 
@@ -241,9 +238,10 @@ async function addToPayroll(
       .update({ reimbursement_bonus: toMoney(next), updated_at: new Date() })
       .eq('id', payslip.id);
     // Null needs `is`, a number needs `eq` — the query builder distinguishes them.
-    const { data: casRows, error: upErr } = await (existing.reimbursement_bonus == null
-      ? casQuery.is('reimbursement_bonus', null)
-      : casQuery.eq('reimbursement_bonus', existing.reimbursement_bonus)
+    const { data: casRows, error: upErr } = await (
+      existing.reimbursement_bonus == null
+        ? casQuery.is('reimbursement_bonus', null)
+        : casQuery.eq('reimbursement_bonus', existing.reimbursement_bonus)
     ).select('id');
     if (upErr) return `Approved, but the payslip adjustment failed: ${upErr.message}`;
     applied = !!casRows && casRows.length > 0;
@@ -282,7 +280,8 @@ export async function reviewReimbursement(
 
   // With two-stage review enabled, staff approval routes claim to Finance review.
   const twoStage = decision === 'approved' && (await financeStageEnabled(dbc));
-  const nextStatus = decision === 'approved' ? (twoStage ? 'finance_review' : 'approved') : 'rejected';
+  const nextStatus =
+    decision === 'approved' ? (twoStage ? 'finance_review' : 'approved') : 'rejected';
 
   const patch: Record<string, unknown> = {
     status: nextStatus,
@@ -326,7 +325,10 @@ export async function reviewReimbursement(
     if (corrected !== finalAmount) {
       finalAmount = corrected;
       // amount is a `decimal` column — Decimal128, never a JS number.
-      await dbc.from('reimbursement_claims').update({ amount: toMoney(corrected) }).eq('id', id);
+      await dbc
+        .from('reimbursement_claims')
+        .update({ amount: toMoney(corrected) })
+        .eq('id', id);
     }
   }
 
@@ -400,7 +402,10 @@ export async function financeReviewReimbursement(
   decision: 'approved' | 'rejected',
   remark?: string,
 ): Promise<ActionResult> {
-  const gate = await requireRoles(['super_admin', 'admin'], `Finance-${decision === 'approved' ? 'approving' : 'rejecting'} a claim`);
+  const gate = await requireRoles(
+    ['super_admin', 'admin'],
+    `Finance-${decision === 'approved' ? 'approving' : 'rejecting'} a claim`,
+  );
   if (!gate.ok) return gate;
 
   const cleanRemark = (remark ?? '').trim();
@@ -455,7 +460,12 @@ export async function financeReviewReimbursement(
   });
 
   if (decision === 'approved') {
-    const warning = await addToPayroll(dbc, row.employee_id, String(row.claim_date).slice(0, 10), amount);
+    const warning = await addToPayroll(
+      dbc,
+      row.employee_id,
+      String(row.claim_date).slice(0, 10),
+      amount,
+    );
     if (warning) return { ok: true, warning };
   }
 
@@ -546,7 +556,7 @@ export async function updateReimbursement(id: string, formData: FormData): Promi
   await logClaimEvent(dbc, id, {
     action: wasRejected ? 'resubmitted' : 'edited',
     fromStatus: before?.status ?? null,
-    toStatus: wasRejected ? 'pending' : before?.status ?? null,
+    toStatus: wasRejected ? 'pending' : (before?.status ?? null),
     actorId: profile?.id ?? null,
     actorName: profile?.full_name ?? null,
     metadata: { amount, purpose },
@@ -600,7 +610,10 @@ export async function deleteReimbursement(id: string): Promise<ActionResult> {
  * paid it, WHEN, and the payment reference — 'paid' with no such record was
  * unverifiable.
  */
-export async function markReimbursementPaid(id: string, paymentRef?: string): Promise<ActionResult> {
+export async function markReimbursementPaid(
+  id: string,
+  paymentRef?: string,
+): Promise<ActionResult> {
   const gate = await requireStaff('Marking a claim paid');
   if (!gate.ok) return gate;
 
@@ -650,12 +663,16 @@ export async function markReimbursementPaid(id: string, paymentRef?: string): Pr
 }
 
 /** Attaches or replaces a receipt file on an open reimbursement claim owned by the employee. */
-export async function uploadReimbursementReceipt(id: string, formData: FormData): Promise<ActionResult> {
+export async function uploadReimbursementReceipt(
+  id: string,
+  formData: FormData,
+): Promise<ActionResult> {
   const db = requireDb('Attaching a receipt');
   if (!db.ok) return db;
 
   const file = formData.get('receipt');
-  if (!(file instanceof File) || file.size === 0) return { ok: false, error: 'Choose a receipt file.' };
+  if (!(file instanceof File) || file.size === 0)
+    return { ok: false, error: 'Choose a receipt file.' };
   if (file.size > 5 * 1024 * 1024) return { ok: false, error: 'Receipts must be 5 MB or smaller.' };
   const fileType = resolveUploadType(file.name, 'receipt');
   if (!fileType.ok) return fileType;
@@ -680,7 +697,8 @@ export async function uploadReimbursementReceipt(id: string, formData: FormData)
   if (claim.status !== 'pending') {
     return {
       ok: false,
-      error: 'Receipts can only be attached while a claim is pending. Edit the claim to resubmit it first.',
+      error:
+        'Receipts can only be attached while a claim is pending. Edit the claim to resubmit it first.',
     };
   }
 
@@ -701,7 +719,10 @@ export async function uploadReimbursementReceipt(id: string, formData: FormData)
     .select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
-    return { ok: false, error: 'The receipt was not attached — the claim may already have been reviewed.' };
+    return {
+      ok: false,
+      error: 'The receipt was not attached — the claim may already have been reviewed.',
+    };
   }
 
   await logClaimEvent(dbc, id, {
@@ -717,7 +738,9 @@ export async function uploadReimbursementReceipt(id: string, formData: FormData)
 }
 
 // Resolve a claim receipt's file URL. The row read scopes it to owner or staff.
-export async function getReceiptUrl(claimId: string): Promise<{ ok: boolean; url?: string; error?: string }> {
+export async function getReceiptUrl(
+  claimId: string,
+): Promise<{ ok: boolean; url?: string; error?: string }> {
   const db = requireDb('Opening a receipt');
   if (!db.ok) return db;
 

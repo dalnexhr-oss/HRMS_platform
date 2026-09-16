@@ -1,8 +1,6 @@
 'use client';
 
-// Slide-in drawer for adding OR editing an IT asset. Create mode submits to
-// createAsset; when an `asset` is passed it prefills and submits to updateAsset
-// (keyed by the hidden id). Mirrors AddEmployeeDrawer.
+// Add or edit an asset. Passing an asset pre-fills the form and submits its ID to updateAsset.
 import { useActionState, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createAsset, updateAsset } from '@/lib/actions/assets';
@@ -43,7 +41,10 @@ export function AddAssetDrawer({
   return (
     <>
       <div className={`overlay${open ? ' on' : ''}`} onClick={onClose} />
-      <aside className={`drawer${open ? ' on' : ''}`} aria-label={editing ? 'Edit asset' : 'Add asset'}>
+      <aside
+        className={`drawer${open ? ' on' : ''}`}
+        aria-label={editing ? 'Edit asset' : 'Add asset'}
+      >
         <form key={asset?.id ?? 'new'} action={formAction} style={{ display: 'contents' }}>
           {editing && <input type="hidden" name="id" value={asset!.id} />}
           <div className="dhd">
@@ -54,7 +55,12 @@ export function AddAssetDrawer({
             </button>
           </div>
           <div className="dbd">
-            <Field name="desktop_name" label="Desktop name" placeholder="e.g. DALNEX-PC-07" defaultValue={asset?.desktop_name} />
+            <Field
+              name="desktop_name"
+              label="Desktop name"
+              placeholder="e.g. DALNEX-PC-07"
+              defaultValue={asset?.desktop_name}
+            />
             <div className="f-row">
               <div className="f">
                 <label>Category</label>
@@ -73,27 +79,79 @@ export function AddAssetDrawer({
                   <option value="Networking" />
                 </datalist>
               </div>
-              <Field name="brand" label="Brand" placeholder="e.g. Dell" defaultValue={asset?.brand ?? undefined} />
+              <Field
+                name="brand"
+                label="Brand"
+                placeholder="e.g. Dell"
+                defaultValue={asset?.brand ?? undefined}
+              />
             </div>
-            <Field name="model_no" label="Model no." mono defaultValue={asset?.model_no ?? undefined} />
+            <Field
+              name="model_no"
+              label="Model no."
+              mono
+              defaultValue={asset?.model_no ?? undefined}
+            />
             <div className="f-row">
-              <Field name="serial_no" label="Serial no." mono defaultValue={asset?.serial_no ?? undefined} />
-              <Field name="device_id" label="Device ID" mono defaultValue={asset?.device_id ?? undefined} />
+              <Field
+                name="serial_no"
+                label="Serial no."
+                mono
+                defaultValue={asset?.serial_no ?? undefined}
+              />
+              <Field
+                name="device_id"
+                label="Device ID"
+                mono
+                defaultValue={asset?.device_id ?? undefined}
+              />
             </div>
-            <Field name="product_id" label="Product ID" mono defaultValue={asset?.product_id ?? undefined} />
+            <Field
+              name="product_id"
+              label="Product ID"
+              mono
+              defaultValue={asset?.product_id ?? undefined}
+            />
 
             <PurchaseAndWarranty asset={asset} />
 
             <div className="fold">Specifications</div>
             <div className="f-row">
-              <Field name="processor" label="Processor" placeholder="e.g. Intel i5-1235U" defaultValue={asset?.processor ?? undefined} />
-              <Field name="ram" label="RAM" placeholder="e.g. 16 GB" mono defaultValue={asset?.ram ?? undefined} />
+              <Field
+                name="processor"
+                label="Processor"
+                placeholder="e.g. Intel i5-1235U"
+                defaultValue={asset?.processor ?? undefined}
+              />
+              <Field
+                name="ram"
+                label="RAM"
+                placeholder="e.g. 16 GB"
+                mono
+                defaultValue={asset?.ram ?? undefined}
+              />
             </div>
             <div className="f-row">
-              <Field name="graphics_card" label="Graphics card" placeholder="e.g. Intel Iris Xe" defaultValue={asset?.graphics_card ?? undefined} />
-              <Field name="storage" label="Storage" placeholder="e.g. 512 GB SSD" mono defaultValue={asset?.storage ?? undefined} />
+              <Field
+                name="graphics_card"
+                label="Graphics card"
+                placeholder="e.g. Intel Iris Xe"
+                defaultValue={asset?.graphics_card ?? undefined}
+              />
+              <Field
+                name="storage"
+                label="Storage"
+                placeholder="e.g. 512 GB SSD"
+                mono
+                defaultValue={asset?.storage ?? undefined}
+              />
             </div>
-            <Field name="antivirus" label="Antivirus" placeholder="e.g. Quick Heal (valid to …)" defaultValue={asset?.antivirus ?? undefined} />
+            <Field
+              name="antivirus"
+              label="Antivirus"
+              placeholder="e.g. Quick Heal (valid to …)"
+              defaultValue={asset?.antivirus ?? undefined}
+            />
 
             {state.error && <div className="login-error">{state.error}</div>}
           </div>
@@ -112,17 +170,9 @@ export function AddAssetDrawer({
 }
 
 /**
- * The purchase and warranty dates, which only make sense relative to each other.
- *
- * Purchase is the one date here that looks BACKWARDS: an asset bought five
- * years ago is ordinary, so there is no floor on it — only a ceiling of today,
- * because a machine cannot have been bought tomorrow. Warranty cover and its
- * renewal then run FORWARD from that purchase, so the purchase date is their
- * floor, and the renewal cannot fall before the cover it renews.
- *
- * Lives inside the keyed <form> so its state resets with every open, the same
- * arrangement AddEmployeeDrawer uses for BranchPicker. Held as state rather
- * than left uncontrolled because each bound is read off the field above it.
+ * Purchase dates may be in the past, but not after today. Warranty and renewal dates must follow
+ * the purchase, and renewal must follow the current cover. Keep this state inside the keyed form so
+ * opening another asset resets the bounds.
  */
 function PurchaseAndWarranty({ asset }: { asset: AssetRow | null }) {
   const today = todayIST();

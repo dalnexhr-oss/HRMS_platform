@@ -6,7 +6,8 @@ import { branchColorAt } from '@/lib/constants';
 import type { ActivityRow, PayrollRunView } from '@/lib/queries';
 import type { Celebration, MarkWatch, PunchLogRow, TodayKpis } from '@/types/domain';
 
-// Every section loads independently, so one broken query does not blank the whole dashboard. A failure carries the REAL error message to the screen — we never swap in stand-in data to hide it. `ok` is a literal discriminant on purpose: `error: string | null` would not narrow `.data` for TypeScript, and it mirrors the { ok, error } shape server actions use.
+// Load sections independently and preserve each query's error. The ok discriminant lets TypeScript
+// narrow successful data.
 export type Loaded<T> = { ok: true; data: T } | { ok: false; error: string };
 
 export interface TodayBoardProps {
@@ -139,9 +140,7 @@ export function TodayBoard({
           <div className="val" style={{ color: 'var(--ab)' }}>
             {kpis ? kpis.absent : '—'}
           </div>
-          <div className="note">
-            {kpis ? 'No punch, no approved leave' : 'Unavailable'}
-          </div>
+          <div className="note">{kpis ? 'No punch, no approved leave' : 'Unavailable'}</div>
         </div>
 
         <div className="card kpi">
@@ -171,10 +170,7 @@ export function TodayBoard({
                 {branches.map((b, i) => (
                   <div className="row" key={b.branch}>
                     <span>
-                      <span
-                        className="dot"
-                        style={{ background: branchColorAt(i) }}
-                      />
+                      <span className="dot" style={{ background: branchColorAt(i) }} />
                       {b.branch}
                     </span>
                     <span>{b.count}</span>
@@ -217,7 +213,9 @@ export function TodayBoard({
             <ExportButton
               rows={punchLog.ok ? punchLog.data : []}
               date={today}
-              disabledReason={punchLog.ok ? null : 'The punch log failed to load — nothing to export.'}
+              disabledReason={
+                punchLog.ok ? null : 'The punch log failed to load — nothing to export.'
+              }
             />
           </div>
           {!punchLog.ok ? (

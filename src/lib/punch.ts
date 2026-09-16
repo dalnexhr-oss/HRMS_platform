@@ -1,24 +1,8 @@
+// Record immutable punch_events and rebuild the day's attendance_days summary after each punch so
+// multiple work sessions are included.
 //
-// Live punch in / punch out — server side.
-//
-// Two tables are involved and they play different roles:
-// punch_events the immutable trail. Every tap lands here, with whatever
-// coordinates the browser was willing to give us.
-// attendance_days the ONE resolved row per employee per day that the register
-// and payroll read. It is never written incrementally — it is
-// recomputed from the day's events after every punch, so a day
-// with four punches (in, lunch out, back in, out) totals
-// correctly instead of losing the first session.
-//
-// Location is recorded and classified, never enforced: a punch is accepted with
-// no coordinates at all (permission denied, no GPS, desktop browser). What the
-// geofence decides is only whether the punch is stamped as at-office or
-// off-site, for HR to review.
-//
-// The office it is measured against is the employee's OWN BRANCH (set per
-// branch on /settings), falling back to the company-wide office_lat/office_lng
-// settings for a branch nobody has located yet. See readPunchPolicy().
-//
+// Location classifies punches for HR review. Use the employee's branch geofence, falling back to
+// company settings when the branch has no location.
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { toCoordinate } from '@/lib/db/money';
@@ -68,7 +52,7 @@ export interface PunchRecord {
   lng: number | null;
 }
 
-// ------------------------------------------------------------ time helpers --
+// time helpers --
 
 // Today's date and wall-clock time in the business timezone, not the server's.
 function localParts(date = new Date()): { date: string; time: string } {
@@ -96,18 +80,9 @@ function toMinutes(value: string): number {
 }
 
 /**
- * A safe UTC floor for "events on this local day".
- *
- * punched_at is an instant, so a bare `>= '2026-08-24T00:00:00'` is read as
- * UTC — which in IST (UTC+5:30) is 05:30 local, silently dropping every punch
- * made in the small hours. Going a full day back is offset-agnostic and cheap;
- * the exact local-day filter is then applied in JS with localParts(). Widening
- * the query is safe, narrowing it is not.
- *
- * A Date, NOT an ISO string. The column is a BSON date, and MongoDB orders
- * values within a type — a string bound against a date column is not "before
- * everything", it matches NOTHING, which would have turned every one of these
- * reads into an empty day.
+ * Query from the preceding UTC day, then apply the exact business-day filter with localParts().
+ * This includes early IST punches. Return a Date because punched_at is stored as BSON date, not a
+ * string.
  */
 export function dayFloorUtc(date: string): Date {
   const floor = new Date(`${date}T00:00:00Z`);
@@ -115,27 +90,21 @@ export function dayFloorUtc(date: string): Date {
   return floor;
 }
 
-// -------------------------------------------------------------- geofencing --
+// geofencing --
 
 /**
  * Great-circle distance in metres. The haversine formula rather than a flat
  * approximation — at a 50m radius the difference is immaterial, but this stays
  * correct if the radius is ever widened to cover a campus.
  */
-export function distanceMetres(
-  aLat: number,
-  aLng: number,
-  bLat: number,
-  bLng: number,
-): number {
+export function distanceMetres(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const earthRadiusM = 6_371_000;
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const dLat = toRad(bLat - aLat);
   const dLng = toRad(bLng - aLng);
   const lat1 = toRad(aLat);
   const lat2 = toRad(bLat);
-  const h =
-    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return 2 * earthRadiusM * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
@@ -184,18 +153,8 @@ function booleanSetting(value: unknown, fallback: boolean): boolean {
 }
 
 /**
- * This employee's BRANCH office, or null when their branch has no point set.
- *
- * The branch is the right place to measure from: a firm with a Pune and a
- * Vadodara office cannot share one point — every punch taken at the second
- * office is hundreds of kilometres outside the first, so a single company-wide
- * point stamps a whole branch as permanently off-site. Set per branch on
- * /settings (actions/branches.updateBranchLocation).
- *
- * Best-effort by design. Anything that goes wrong here — no employee record, no
- * branch, a read that fails — returns null and lets the caller fall back to the
- * company-wide setting, because the alternative is refusing to classify a punch
- * over a configuration detail.
+ * Read the employee's branch geofence. Missing configuration or lookup failures return null so the
+ * caller can use the company-wide fallback.
  */
 async function readBranchGeofence(employeeId: string): Promise<OfficeGeofence | null> {
   try {
@@ -232,15 +191,8 @@ async function readBranchGeofence(employeeId: string): Promise<OfficeGeofence | 
 }
 
 /**
- * Office point + enforcement policy.
- *
- * `employeeId` selects WHOSE office to measure against: their branch's, falling
- * back to the company-wide office_lat / office_lng for a branch that has not
- * been located yet. Omit it and only the company-wide point is consulted —
- * which is all a caller with no employee in hand can ask for.
- *
- * requireLocation is company-wide either way: whether a punch must SHARE a
- * location at all is a policy about the act, not about where the office is.
+ * Resolve the branch geofence when employeeId is supplied, otherwise use the company location.
+ * requireLocation is a company-wide policy in either case.
  */
 export async function readPunchPolicy(employeeId?: string | null): Promise<PunchPolicy> {
   const dbc = await createClient();
@@ -279,7 +231,9 @@ export async function readPunchPolicy(employeeId?: string | null): Promise<Punch
 }
 
 /** The office point that applies to one employee, or null when none is set. */
-export async function readOfficeGeofence(employeeId?: string | null): Promise<OfficeGeofence | null> {
+export async function readOfficeGeofence(
+  employeeId?: string | null,
+): Promise<OfficeGeofence | null> {
   return (await readPunchPolicy(employeeId)).office;
 }
 
@@ -303,7 +257,7 @@ function classify(coords: PunchCoords | null, office: OfficeGeofence | null): bo
   return metres <= office.radiusM + slack;
 }
 
-// ----------------------------------------------------------------- context --
+// context --
 
 async function employeeContext() {
   const { profile } = await getSession();
@@ -336,7 +290,7 @@ function validCoords(coords: PunchCoords | null): PunchCoords | null {
   return coords;
 }
 
-// ------------------------------------------------------------------ reads --
+// reads --
 
 export async function readPunchStatus(): Promise<PunchStatus> {
   const { employeeId } = await employeeContext();
@@ -356,9 +310,7 @@ export async function readPunchStatus(): Promise<PunchStatus> {
 
   // Filter in the business timezone: the >= bound above is a coarse cut in UTC,
   // which for IST (UTC+5:30) can drag in the tail of the previous local day.
-  const todays = (events.data ?? []).filter(
-    (event) => localParts(punchedAt(event)).date === today,
-  );
+  const todays = (events.data ?? []).filter((event) => localParts(punchedAt(event)).date === today);
   const last = todays[todays.length - 1] ?? null;
 
   return {
@@ -397,7 +349,7 @@ export async function readPunchHistory(): Promise<PunchRecord[]> {
   }));
 }
 
-// ------------------------------------------------------------------ write --
+// write --
 
 /**
  * One punch row.
@@ -419,13 +371,7 @@ interface DayEvent {
   lng?: number | null;
 }
 
-/**
- * The instant a punch row holds, whichever of the two forms it is stored in.
- *
- * Exported because tv.ts reads the same column and used to coerce it its own
- * way; one definition means the board and the employee's own screen cannot
- * disagree about when a punch happened.
- */
+/** Normalize either stored timestamp form for both punch processing and the TV board. */
 export function punchInstant(value: Date | string): Date {
   return value instanceof Date ? value : new Date(value);
 }
@@ -473,7 +419,7 @@ export async function recordPunch(
   const now = new Date();
   const { date } = localParts(now);
 
-  // --- reject only genuine sequence errors, never a location ---------------
+  // reject only genuine sequence errors, never a location
   const { data: priorRaw, error: priorError } = await dbc
     .from('punch_events')
     .select<DayEvent[]>('kind, punched_at')
@@ -482,9 +428,7 @@ export async function recordPunch(
     .order('punched_at', { ascending: true });
   if (priorError) throw new Error(priorError.message);
 
-  const prior = (priorRaw ?? []).filter(
-    (event) => localParts(punchedAt(event)).date === date,
-  );
+  const prior = (priorRaw ?? []).filter((event) => localParts(punchedAt(event)).date === date);
   const openNow = prior.length > 0 && prior[prior.length - 1].kind === 'in';
 
   if (kind === 'in' && openNow) throw new Error('You are already punched in.');
@@ -512,10 +456,7 @@ export async function recordPunch(
   });
   if (eventError) throw new Error(eventError.message);
 
-  const workedMinutes = await resolveDay(employeeId, date, [
-    ...prior,
-    { kind, punched_at: now },
-  ]);
+  const workedMinutes = await resolveDay(employeeId, date, [...prior, { kind, punched_at: now }]);
 
   return { kind, punchedAt: now.toISOString(), withinGeofence, workedMinutes };
 }
@@ -535,13 +476,8 @@ async function resolveDay(
 ): Promise<number> {
   const dbc = await createClient();
 
-  // 'HH:MM', not localParts()'s 'HH:MM:SS'. attendance_days.punch_in/out are
-  // validated against ^[0-9]{2}:[0-9]{2}$ — the shape every other writer uses
-  // (the correction form, the nightly sweep, the register import) — and a
-  // value with seconds is refused as error 121. This was masked for as long as
-  // the upsert failed earlier for a different reason (see repo.upsertFilter);
-  // once that was fixed, every employee punch would have failed here instead.
-  // Seconds are not lost to the arithmetic: toMinutes() never read them.
+  // Store punch times as HH:MM to match the attendance validator. Worked-minute calculations
+  // already ignore seconds.
   const times = events.map((event) => ({
     kind: event.kind,
     clock: localParts(punchedAt(event)).time.slice(0, 5),

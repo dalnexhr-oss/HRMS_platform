@@ -1,34 +1,22 @@
-//
-// Data access layer. These run in Server Components.
-//
-// THE ONE RULE — read before editing:
-// When a query fails, the error is THROWN, not swallowed. A broken database
-// must never be indistinguishable from a working one.
-//
-// const { data, error } = await ...;
-// if (error) fail('context', error); // surface it
-// return map(data);
-//
-// A legitimately empty result (no payroll run for the month yet) returns an
-// empty array — that is an empty state, not an error.
-//
+// Server-side data queries. Throw database failures through fail() so callers can distinguish
+// errors from legitimately empty results.
 import type { TabAccess } from '@/lib/access';
 import { createClient } from '@/lib/db/server';
 import { minutesToHHMM, trimTime } from '@/lib/format';
 import { isMongoConfigured } from '@/lib/db/mongo';
-import {
-  defaultWeekOffPolicy,
-  policyFromSettings,
-  type WeekOffPolicy,
-} from '@/lib/week-off';
+import { defaultWeekOffPolicy, policyFromSettings, type WeekOffPolicy } from '@/lib/week-off';
 import { presentCredit } from '@/lib/leave-salary';
 import type { TopbarStats } from '@/lib/constants';
 import { requiredDocumentCategories } from '@/lib/constants';
 import type {
-  RegisterEmployee, PayslipRow, DayCell, TodayKpis, Celebration, PunchLogRow,
+  RegisterEmployee,
+  PayslipRow,
+  DayCell,
+  TodayKpis,
+  Celebration,
+  PunchLogRow,
 } from '@/types/domain';
-import type { Policy, LeaveType, RequestType,  } from '@/types/database';
-// import type { EmploymentType } from '@/types/database';
+import type { Policy, LeaveType, RequestType } from '@/types/database';
 import {
   collections,
   type BranchDoc,
@@ -44,7 +32,7 @@ import { deleteExpiredNotices } from '@/lib/db/scheduler';
 // The implementation lives in @/lib/db/mongo (single source of truth).
 export { isMongoConfigured };
 
-// ------------------------------------------------------------------ utils
+// utils
 
 // Normalizes BSON Date or string timestamp to an ISO string for client serialization.
 // Calendar date strings (YYYY-MM-DD) are preserved as-is.
@@ -104,7 +92,10 @@ function hoursMinutes(min: number): string {
 /** timestamptz -> '11:00 PM' in the business timezone. */
 function clockTime(ts: string): string {
   return new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true,
+    timeZone: 'Asia/Kolkata',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
   }).format(new Date(ts));
 }
 
@@ -150,7 +141,7 @@ function mapPayslip(p: any): PayslipRow {
   };
 }
 
-// --------------------------------------------------------------- register ---
+// register
 export async function getRegister(
   periodMonth: string = currentPeriodMonth(),
   branch?: string | null,
@@ -230,7 +221,11 @@ export async function getRegister(
       gender: e.gender,
       doj: e.date_of_joining,
       summary: {
-        P: count('P'), LM: count('LM'), HD: count('HD'), L: count('L'), WO: count('WO'),
+        P: count('P'),
+        LM: count('LM'),
+        HD: count('HD'),
+        L: count('L'),
+        WO: count('WO'),
         working,
         payable: working + count('L'),
       },
@@ -241,7 +236,7 @@ export async function getRegister(
   });
 }
 
-// ----------------------------------------------- register reconciliation ---
+// register reconciliation
 export interface LeaveRegisterMismatch {
   employeeId: string;
   code: string;
@@ -254,7 +249,12 @@ export interface LeaveRegisterMismatch {
 }
 
 /** Expand an inclusive ISO date span into 'YYYY-MM-DD' strings, clamped to a window. */
-function isoDaysInRange(start: string, end: string, clampStart: string, clampEnd: string): string[] {
+function isoDaysInRange(
+  start: string,
+  end: string,
+  clampStart: string,
+  clampEnd: string,
+): string[] {
   const from = start < clampStart ? clampStart : start;
   const to = end > clampEnd ? clampEnd : end;
   const out: string[] = [];
@@ -268,14 +268,8 @@ function isoDaysInRange(start: string, end: string, clampStart: string, clampEnd
 }
 
 /**
- * Approved leave that the monthly register does not reflect.
- *
- * Approving a leave request (reviewRequest) only draws down leave_balances — it
- * never stamps attendance_days 'L'. So an approved leave and the register can
- * silently diverge: the employee is on sanctioned leave but the register shows
- * them Absent (or has no row). This surfaces exactly those days for review,
- * without mutating anything. Days already covered on the register (L / WO / OH /
- * CO / a present-style code) are NOT flagged — only genuine gaps ('AB' or no row).
+ * Find approved leave days still missing from the register or marked AB. Preserve existing leave,
+ * off-day, and presence stamps. This query reports gaps without changing attendance.
  */
 export async function getLeaveRegisterMismatches(
   periodMonth: string = currentPeriodMonth(),
@@ -287,7 +281,9 @@ export async function getLeaveRegisterMismatches(
   // Approved leave requests overlapping the month.
   const { data: reqs, error: reqErr } = await dbc
     .from('requests')
-    .select('employee_id, leave_kind, start_date, end_date, employees(code, full_name, branch_id, branches(name))')
+    .select(
+      'employee_id, leave_kind, start_date, end_date, employees(code, full_name, branch_id, branches(name))',
+    )
     .eq('type', 'leave')
     .eq('status', 'approved')
     .lte('start_date', end)
@@ -331,7 +327,7 @@ export async function getLeaveRegisterMismatches(
   return out;
 }
 
-// --------------------------------------------------------- e-signatures ---
+// e-signatures
 export interface AcknowledgementRow {
   id: string;
   documentKind: string;
@@ -366,7 +362,7 @@ export async function getMyAcknowledgements(employeeId: string): Promise<Acknowl
   }));
 }
 
-// -------------------------------------------------------------- documents ---
+// documents
 
 /**
  * Where a document's file came from.
@@ -549,7 +545,9 @@ export function documentStats(
   register: EmployeeDocumentRow[],
   activeEmployeeIds: string[],
 ): DocumentStats {
-  let awaiting = 0, returned = 0, issued = 0;
+  let awaiting = 0,
+    returned = 0,
+    issued = 0;
   const heldByEmployee = new Map<string, Set<string>>();
 
   for (const d of register) {
@@ -565,7 +563,8 @@ export function documentStats(
     }
   }
 
-  let missing = 0, employeesMissing = 0;
+  let missing = 0,
+    employeesMissing = 0;
   for (const id of activeEmployeeIds) {
     const held = heldByEmployee.get(id);
     const gaps = requiredDocumentCategories.filter((c) => !held?.has(c)).length;
@@ -576,7 +575,7 @@ export function documentStats(
   return { total: register.length, awaiting, returned, issued, missing, employeesMissing };
 }
 
-// ------------------------------------------------------------- onboarding ---
+// onboarding
 export interface OnboardingTaskRow {
   id: string;
   employeeId: string;
@@ -671,7 +670,7 @@ export async function getOnboardingTemplates(): Promise<OnboardingTemplateRow[]>
   }));
 }
 
-// ------------------------------------------------------------------ exits ---
+// exits
 export interface ExitCaseRow {
   id: string;
   employeeId: string;
@@ -710,7 +709,9 @@ export async function getExitCases(): Promise<ExitCaseRow[]> {
   const [{ data: pending }, { data: fnfs }] = await Promise.all([
     dbc
       .from('v_exit_clearance_pending')
-      .select('exit_case_id, assets_outstanding, items_outstanding, clearance_items_open, clearance_complete'),
+      .select(
+        'exit_case_id, assets_outstanding, items_outstanding, clearance_items_open, clearance_complete',
+      ),
     dbc.from('full_and_final').select('exit_case_id, status, net_payable'),
   ]);
   const byCase = new Map((pending ?? []).map((p: any) => [p.exit_case_id, p]));
@@ -745,14 +746,7 @@ export interface ExitInterviewRow {
   submittedAt: string | null;
 }
 
-/**
- * One exit case's interview.
- *
- * Ordered by created_at because the questions were inserted as rows in
- * questionnaire order (0037 stores them per-case so editing the questionnaire
- * never rewrites what a past leaver was asked) — that insert order IS the
- * intended sequence.
- */
+/** Read interview answers in insertion order. Each exit stores its own questionnaire snapshot. */
 export async function getExitInterview(exitCaseId: string): Promise<ExitInterviewRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -822,7 +816,7 @@ export async function getClearanceItems(exitCaseId: string): Promise<ClearanceIt
   return (data ?? []) as unknown as ClearanceItemRow[];
 }
 
-// ----------------------------------------------------------- leave salary ---
+// leave salary
 // The /leave page model: one paid-leave pool of 15 days plus
 // an annual leave-salary working per employee. The old encashment/adjustment
 // list queries died with the PL/CL/SL screen; the tables themselves remain.
@@ -985,9 +979,7 @@ export async function getLeaveSalaryRoster(year: number): Promise<LeaveSalaryEmp
  * ordered by the unique key — without an ORDER BY, .range() may repeat and
  * omit rows between pages, silently corrupting the presence sums.
  */
-export async function getLeaveSalaryPresence(
-  year: number,
-): Promise<Record<string, number[]>> {
+export async function getLeaveSalaryPresence(year: number): Promise<Record<string, number[]>> {
   const dbc = await createClient();
   const pageSize = 1000;
   const byEmployee: Record<string, number[]> = {};
@@ -1016,7 +1008,7 @@ export async function getLeaveSalaryPresence(
   return byEmployee;
 }
 
-// ------------------------------------------------------- attendance audit ---
+// attendance audit
 export interface AuditEntry {
   id: string;
   eventType: string;
@@ -1038,14 +1030,8 @@ export async function getAttendanceAudit(limit = 200): Promise<AuditEntry[]> {
   );
   if (rows.length === 0) return [];
 
-  // The names are RESOLVED here, not read off the row.
-  //
-  // The port planned to denormalise actor_name / employee_code / employee_name
-  // at write time and declared them on the collection, but no insert ever wrote
-  // them — so both columns on the audit screen were blank. Back-filling the
-  // writers would still leave every existing entry blank, whereas this restores
-  // exactly what the old SQL join showed. Two batched lookups for the whole
-  // page, not the per-row join the comment worried about.
+  // Resolve actor and employee names in batched lookups so older audit entries without cached names
+  // remain readable.
   const actorIds = [...new Set(rows.map((r) => r.actor_id).filter(Boolean))] as string[];
   const employeeIds = [...new Set(rows.map((r) => r.employee_id).filter(Boolean))] as string[];
 
@@ -1077,15 +1063,15 @@ export async function getAttendanceAudit(limit = 200): Promise<AuditEntry[]> {
       message: r.message as string,
       // A row written before this, or by a deleted account, still falls back to
       // whatever was denormalised at the time rather than showing nothing.
-      actor: actorById.get(r.actor_id as string) ?? ((r.actor_name as string | null) ?? null),
-      employeeCode: employee?.code ?? ((r.employee_code as string | null) ?? null),
-      employeeName: employee?.name ?? ((r.employee_name as string | null) ?? null),
+      actor: actorById.get(r.actor_id as string) ?? (r.actor_name as string | null) ?? null,
+      employeeCode: employee?.code ?? (r.employee_code as string | null) ?? null,
+      employeeName: employee?.name ?? (r.employee_name as string | null) ?? null,
       occurredAt: iso(r.occurred_at),
     };
   });
 }
 
-// --------------------------------------------------------------- payroll ---
+// payroll
 export async function getPayslips(
   periodMonth: string = currentPeriodMonth(),
 ): Promise<PayslipRow[]> {
@@ -1106,15 +1092,17 @@ export async function getPayslips(
     .eq('payroll_run_id', run.id);
   if (error) fail('getPayslips: could not load payslips', error);
 
-  return (data ?? [])
-    .map(mapPayslip)
-    // The select filters by run.id rather than joining payroll_runs, so stamp the
-    // known period month here so each row is labelled by month.
-    .map((r) => ({ ...r, periodMonth: start }))
-    .sort((a, b) => a.code.localeCompare(b.code));
+  return (
+    (data ?? [])
+      .map(mapPayslip)
+      // The select filters by run.id rather than joining payroll_runs, so stamp the
+      // known period month here so each row is labelled by month.
+      .map((r) => ({ ...r, periodMonth: start }))
+      .sort((a, b) => a.code.localeCompare(b.code))
+  );
 }
 
-// ------------------------------------------------------------ payroll runs ---
+// payroll runs
 export interface PayrollRunView {
   id: string;
   periodMonth: string;
@@ -1156,7 +1144,7 @@ export async function getPayrollRun(periodMonth: string): Promise<PayrollRunView
   return row ? mapRun(row) : null;
 }
 
-// --------------------------------------------------------------- branches ---
+// branches
 export interface BranchRow {
   id: string;
   name: string;
@@ -1211,7 +1199,7 @@ function numberOrNull(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-// ------------------------------------------------------------ today board ---
+// today board
 /** Today's headcount / attendance KPIs, aggregated from v_today_board. */
 export async function getTodayBoard(): Promise<TodayKpis> {
   const dbc = await createClient();
@@ -1237,19 +1225,24 @@ export async function getTodayBoard(): Promise<TodayKpis> {
   };
 }
 
-// ---------------------------------------------------------- punch log ---
+// punch log
 /** Today's punch log, earliest punch first. */
 export async function getPunchLogToday(): Promise<PunchLogRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('attendance_days')
-    .select('status, punch_in, punch_out, worked_minutes, employees(code, full_name, branches(name))')
+    .select(
+      'status, punch_in, punch_out, worked_minutes, employees(code, full_name, branches(name))',
+    )
     .eq('work_date', todayISO());
-  if (error) fail('getPunchLogToday: could not load today\'s attendance', error);
+  if (error) fail("getPunchLogToday: could not load today's attendance", error);
 
   const nowMinutes = (() => {
     const parts = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false,
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
     }).format(new Date());
     const [h, m] = parts.split(':');
     return Number(h) * 60 + Number(m);
@@ -1281,7 +1274,7 @@ export async function getPunchLogToday(): Promise<PunchLogRow[]> {
     .sort((a, b) => (a.in ?? '99:99').localeCompare(b.in ?? '99:99'));
 }
 
-// ------------------------------------------------------------ celebrations ---
+// celebrations
 /** Today's birthdays and work anniversaries, from v_celebrations. */
 export async function getCelebrationsToday(): Promise<Celebration[]> {
   const dbc = await createClient();
@@ -1300,7 +1293,7 @@ export async function getCelebrationsToday(): Promise<Celebration[]> {
   }));
 }
 
-// --------------------------------------------------------------- activity ---
+// activity
 export interface ActivityRow {
   id: string;
   when: string;
@@ -1321,7 +1314,7 @@ export async function getActivityFeed(limit = 20): Promise<ActivityRow[]> {
   }));
 }
 
-// ------------------------------------------------- employee self-service ---
+// employee self-service
 
 /** One employee's day strip for a month. */
 export async function getMyAttendance(
@@ -1384,7 +1377,8 @@ export async function getMyRequests(employeeId: string): Promise<RequestView[]> 
 }
 
 /** One employee's helpdesk tickets, newest first. */
-const ticketCols = 'id, subject, body, category, status, created_at, resolution_note, employees(code, full_name)';
+const ticketCols =
+  'id, subject, body, category, status, created_at, resolution_note, employees(code, full_name)';
 
 export async function getMyTickets(employeeId: string): Promise<TicketView[]> {
   const dbc = await createClient();
@@ -1397,7 +1391,7 @@ export async function getMyTickets(employeeId: string): Promise<TicketView[]> {
   return (res.data ?? []).map(mapTicket);
 }
 
-// --------------------------------------------------------- leave balances ---
+// leave balances
 export interface LeaveBalanceRow {
   type: LeaveType;
   balance: number;
@@ -1418,7 +1412,7 @@ export async function getLeaveBalances(employeeId: string): Promise<LeaveBalance
   return rows.map((b) => ({ type: b.type as LeaveType, balance: toNumber(b.balance) }));
 }
 
-// ------------------------------------------------------- employee code map ---
+// employee code map
 /** employees.code -> employees.id, for the Excel importer. */
 export async function getEmployeeCodeMap(): Promise<Record<string, string>> {
   const employees = await scoped<EmployeeDoc>(collections.employees);
@@ -1426,13 +1420,19 @@ export async function getEmployeeCodeMap(): Promise<Record<string, string>> {
   return Object.fromEntries(rows.map((e) => [e.code, e._id]));
 }
 
-// ------------------------------------------------------------- employees ---
+// employees
 export interface EmployeeListRow {
-  code: string; name: string; branch: string; gender: string;
+  code: string;
+  name: string;
+  branch: string;
+  gender: string;
   // uan was declared non-nullable, but employees.pf_uan is nullable and the old
   // mapper returned null through an `any`. Corrected rather than coerced: the
   // register shows a blank UAN column for employees who have none.
-  doj: string; gross: number; uan: string | null; esic_no: string | null;
+  doj: string;
+  gross: number;
+  uan: string | null;
+  esic_no: string | null;
   active: boolean;
   // employmentType: EmploymentType;
 }
@@ -1462,7 +1462,7 @@ export async function getEmployees(includeInactive = false): Promise<EmployeeLis
   }));
 }
 
-// -------------------------------------------------------- notifications ---
+// notifications
 export interface NotificationRow {
   id: string;
   kind: string;
@@ -1474,20 +1474,8 @@ export interface NotificationRow {
 }
 
 /**
- * The signed-in user's notifications, newest first. policies.ts restricts this
- * to `recipient_id` = the caller, so no caller-supplied id is needed or accepted.
- *
- * ONLY a missing session is absorbed, and only because of an ordering problem
- * in the layouts: both await this in the same Promise.all as getSession(), so a
- * NotSignedInError out of here rejected the batch before the
- * `if (!profile) redirect('/login')` underneath it could run — a revoked or
- * disabled account, which auth/middleware.ts documents as being caught by
- * exactly that redirect, got the error boundary instead of the login screen.
- *
- * Every other failure is rethrown. A catch-all here is worse than the crash it
- * prevents: a dropped connection or a mis-declared policy would render as "you
- * have no notifications" on every page, with nothing in the logs to say the
- * bell had stopped working.
+ * Read the caller's notifications through recipient-scoped policies. Absorb only missing-session
+ * errors so layouts can finish their login redirect; propagate other failures.
  */
 export async function getMyNotifications(limit = 20): Promise<NotificationRow[]> {
   try {
@@ -1519,7 +1507,7 @@ export async function getUnreadNotificationCount(): Promise<number> {
   }
 }
 
-// ------------------------------------------------------- week-off policy ---
+// week-off policy
 /**
  * The scheduled week-off rule (settings-driven). Falls back to
  * the documented default — Sundays off, Saturdays off except the 2nd and 4th —
@@ -1538,7 +1526,7 @@ export async function getWeekOffPolicy(): Promise<WeekOffPolicy> {
   return policyFromSettings(byKey.get('week_off_weekdays'), byKey.get('working_saturdays'));
 }
 
-// -------------------------------------------------- employee pick options ---
+// employee pick options
 export interface EmployeeOption {
   id: string;
   code: string;
@@ -1555,7 +1543,7 @@ export async function getEmployeeOptions(): Promise<EmployeeOption[]> {
   return rows.map((e) => ({ id: e._id, code: e.code, name: e.full_name }));
 }
 
-// --------------------------------------------------------- reimbursements ---
+// reimbursements
 export interface ReimbursementView {
   id: string;
   employeeId: string;
@@ -1683,7 +1671,7 @@ export async function getReimbursementRate(): Promise<number> {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
-// ------------------------------------------------------------- comp offs ---
+// comp offs
 export interface CompOffRow {
   id: string;
   employeeId: string;
@@ -1811,8 +1799,7 @@ export interface EmployeeEditRow {
 
 export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow | null> {
   const dbc = await createClient();
-  const fullCols =
-    `code, full_name, employment_type, designation, gender, date_of_joining, date_of_birth, whatsapp,
+  const fullCols = `code, full_name, employment_type, designation, gender, date_of_joining, date_of_birth, whatsapp,
      mobile_official, mobile_personal, email_official, email_personal, aadhaar,
      pan, pf_uan, esic_number,
      bank_name, bank_account_number, bank_ifsc,
@@ -1861,16 +1848,13 @@ export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow 
 /** Distinct department names — suggestions for the Add/Edit Employee combobox. */
 export async function getDepartments(): Promise<string[]> {
   const departments = await scoped<DepartmentDoc>(collections.departments);
-  const rows = await departments.find(
-    {},
-    { projection: { name: 1 }, sort: { name: 1 } },
-  );
+  const rows = await departments.find({}, { projection: { name: 1 }, sort: { name: 1 } });
   // The same department name can exist under several branches, so the list is
   // deduplicated — callers want the set of names, not the rows.
   return Array.from(new Set(rows.map((d) => d.name)));
 }
 
-// ----------------------------------------------------------------- items ---
+// items
 /** One inventory item with derived quantities from v_items. */
 export interface ItemRow {
   id: string;
@@ -1933,7 +1917,7 @@ export async function getItemAssignments(itemId: string): Promise<ItemAssignment
   return (data ?? []) as unknown as ItemAssignmentRow[];
 }
 
-// ---------------------------------------------------------------- assets ---
+// assets
 /** One row of the IT asset register. Admin/HR only. */
 export interface AssetRow {
   id: string;
@@ -1959,8 +1943,7 @@ export interface AssetRow {
   assigned_date: string | null;
 }
 
-const assetCols =
-  `id, purchase_date, purchase_cost, desktop_name, asset_category, brand, serial_no, model_no,
+const assetCols = `id, purchase_date, purchase_cost, desktop_name, asset_category, brand, serial_no, model_no,
    warranty_upto, warranty_renew, product_id, device_id, processor, ram, graphics_card, storage,
    antivirus, assigned_employee_id, assigned_person_name, assigned_employee_code, assigned_date`;
 
@@ -2025,7 +2008,9 @@ export async function getAssetAssignments(assetId: string): Promise<AssetAssignm
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('asset_assignments')
-    .select('id, asset_id, person_name, employee_code, assigned_date, assigned_by, returned, returned_date, remarks')
+    .select(
+      'id, asset_id, person_name, employee_code, assigned_date, assigned_by, returned, returned_date, remarks',
+    )
     .eq('asset_id', assetId)
     .order('assigned_date', { ascending: false });
   if (error) {
@@ -2057,10 +2042,13 @@ export async function getAssetMaintenance(assetId: string): Promise<AssetMainten
   if (error) {
     fail('getAssetMaintenance: could not load maintenance', error);
   }
-  return (data ?? []).map((r: any) => ({ ...r, cost: r.cost == null ? null : Number(r.cost) })) as AssetMaintenanceRow[];
+  return (data ?? []).map((r: any) => ({
+    ...r,
+    cost: r.cost == null ? null : Number(r.cost),
+  })) as AssetMaintenanceRow[];
 }
 
-// ------------------------------------------------- employee assets / items ---
+// employee assets / items
 /** An asset currently assigned to the signed-in employee. */
 export interface MyAssetRow {
   id: string;
@@ -2101,7 +2089,9 @@ export async function getMyItems(employeeId: string): Promise<MyItemRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('item_assignments')
-    .select('id, quantity, assigned_date, returned, returned_date, items(item_name, category, unit)')
+    .select(
+      'id, quantity, assigned_date, returned, returned_date, items(item_name, category, unit)',
+    )
     .eq('employee_id', employeeId)
     .order('assigned_date', { ascending: false });
   if (error) {
@@ -2119,7 +2109,7 @@ export async function getMyItems(employeeId: string): Promise<MyItemRow[]> {
   }));
 }
 
-// ---------------------------------------------------- employee overview ---
+// employee overview
 export interface EmployeeOverview {
   name: string;
   code: string;
@@ -2147,9 +2137,17 @@ export async function getEmployeeOverview(
   // No linked employee record is a real state (e.g. a staff login), not an error.
   if (!employeeId) {
     return {
-      name: fallbackName ?? '', code: '', branch: '',
-      present: 0, halfDays: 0, leaves: 0, workedHours: '00:00', netPay: null,
-      pendingHours: '00:00', pendingMinutes: 0, targetHours: '00:00',
+      name: fallbackName ?? '',
+      code: '',
+      branch: '',
+      present: 0,
+      halfDays: 0,
+      leaves: 0,
+      workedHours: '00:00',
+      netPay: null,
+      pendingHours: '00:00',
+      pendingMinutes: 0,
+      targetHours: '00:00',
     };
   }
 
@@ -2214,7 +2212,9 @@ export async function getEmployeeOverview(
     name: (emp as any).full_name,
     code: (emp as any).code,
     branch: (emp as any).branches?.name ?? '',
-    present: count('P'), halfDays: count('HD'), leaves: count('L'),
+    present: count('P'),
+    halfDays: count('HD'),
+    leaves: count('L'),
     workedHours: minutesToHHMM(workedMin),
     netPay: slip ? Number((slip as any).net_payable) : null,
     pendingHours: minutesToHHMM(pendingMin),
@@ -2223,7 +2223,7 @@ export async function getEmployeeOverview(
   };
 }
 
-// -------------------------------------------------------------- policies ---
+// policies
 export interface PolicyView {
   id: string;
   title: string;
@@ -2292,7 +2292,7 @@ export async function getAllPolicies(): Promise<Policy[]> {
   return rows.map((r) => ({ ...r, id: r._id })) as unknown as Policy[];
 }
 
-// --------------------------------------------------------------- holidays ---
+// holidays
 export interface HolidayView {
   id: string;
   date: string;
@@ -2313,7 +2313,7 @@ export async function getHolidays(): Promise<HolidayView[]> {
   }));
 }
 
-// ---------------------------------------------------------------- notices ---
+// notices
 export interface NoticeView {
   id: string;
   title: string;
@@ -2357,15 +2357,8 @@ export async function getReadNoticeIds(employeeId: string | null): Promise<strin
 }
 
 /**
- * Best-effort sweep of expired notices, run whenever staff publish one, so the
- * table stays clean on a deployment with nothing scheduling the nightly job.
- * Employees never see expired notices regardless (the dashboard filters them
- * out). Errors are swallowed: this is opportunistic cleanup, and a hiccup here
- * must never break the page that triggered it.
- *
- * The retention rule itself lives in ONE place — db/scheduler.ts — because it
- * used to live in two, with a different window in each. See
- * noticeRetentionDays.
+ * Run best-effort notice cleanup when staff publish. Use the scheduler's retention implementation
+ * and keep cleanup failures from blocking the publish flow.
  */
 export async function purgeExpiredNotices(): Promise<void> {
   try {
@@ -2375,7 +2368,7 @@ export async function purgeExpiredNotices(): Promise<void> {
   }
 }
 
-// --------------------------------------------------------------- helpdesk ---
+// helpdesk
 export interface TicketView {
   id: string;
   subject: string;
@@ -2416,7 +2409,7 @@ export async function getTickets(): Promise<TicketView[]> {
     .sort((a, b) => (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1));
 }
 
-// --------------------------------------------------- helpdesk thread ---
+// helpdesk thread
 export interface TicketComment {
   id: string;
   ticketId: string;
@@ -2457,23 +2450,10 @@ export async function getTicketComments(
 ): Promise<Record<string, TicketComment[]>> {
   if (ticketIds.length === 0) return {};
 
-  // THE PARENT-TICKET CHECK, which is what decides who may read a comment.
-  //
-  // The SQL policy was `exists (select 1 from helpdesk_tickets t where
-  // t.id = ticket_id and (is_portal() or t.employee_id = current_employee_id()))`.
-  // A Mongo filter cannot join, and the port replaced that join with a filter
-  // on the comment's own author_id — which is a different rule with two
-  // failures: an employee could no longer read the STAFF replies on their own
-  // ticket (the drawer showed only their own messages after a reload), and the
-  // rule said nothing about whether they may see the ticket at all.
-  //
-  // So the join is done here instead: narrow the ids to the tickets this
-  // caller can actually see, then read the comments for exactly those.
+  // Filter by tickets the caller can access before reading comments. Scoping comments by author
+  // would hide staff replies and would not establish ticket access.
   const tickets = await scoped<{ _id: string }>(collections.helpdeskTickets);
-  const visible = await tickets.find(
-    { _id: { $in: ticketIds } },
-    { projection: { _id: 1 } },
-  );
+  const visible = await tickets.find({ _id: { $in: ticketIds } }, { projection: { _id: 1 } });
   const allowed = visible.map((t) => String(t._id));
   if (allowed.length === 0) return {};
 
@@ -2483,10 +2463,7 @@ export async function getTicketComments(
   const comments = afterParentCheck<{ _id: string; ticket_id: string; created_at: Date }>(
     collections.helpdeskTicketComments,
   );
-  const rows = await comments.find(
-    { ticket_id: { $in: allowed } },
-    { sort: { created_at: 1 } },
-  );
+  const rows = await comments.find({ ticket_id: { $in: allowed } }, { sort: { created_at: 1 } });
 
   const byTicket: Record<string, TicketComment[]> = {};
   for (const row of rows) {
@@ -2496,7 +2473,7 @@ export async function getTicketComments(
   return byTicket;
 }
 
-// --------------------------------------------------------------- settings
+// settings
 export interface SettingView {
   key: string;
   value: unknown;
@@ -2505,7 +2482,7 @@ export interface SettingView {
 }
 
 // App settings.
-// ------------------------------------------------------------- topbar
+// topbar
 // '23:00' (or a JSON-quoted "23:00") -> '11:00 PM'. Null when unparseable.
 function prettyClock(value: unknown): string | null {
   if (typeof value !== 'string') return null;
@@ -2519,17 +2496,8 @@ function prettyClock(value: unknown): string | null {
 }
 
 /**
- * Live figures for the topbar's page subtitles (see pageHeader in constants).
- *
- * DELIBERATE EXCEPTION to the throw-on-error rule at the top of this file, for
- * the same reason as getWeekOffPolicy/getReimbursementRate: a subtitle is
- * decoration. This runs in the (portal) layout, so throwing here would take down
- * EVERY staff page over a cosmetic count. Each lookup degrades to null and
- * pageHeader() then falls back to a plain description instead of a wrong number.
- *
- * Cost: five count/single-row lookups issued in parallel (~one round trip), paid
- * once per full page load — layouts are preserved across client-side navigation
- * and re-run on router.refresh(), which the mutating screens already call.
+ * Load topbar counts in parallel. Individual failures return null so pageHeader can use static
+ * subtitles without failing the portal layout.
  */
 export async function getTopbarStats(): Promise<TopbarStats> {
   const now = new Date();
@@ -2571,10 +2539,10 @@ export async function getTopbarStats(): Promise<TopbarStats> {
 
     return {
       ...base,
-      activeEmployees: employees.error ? null : employees.count ?? null,
+      activeEmployees: employees.error ? null : (employees.count ?? null),
       branches: branches.error ? [] : (branches.data ?? []).map((b: any) => b.name as string),
-      pendingApprovals: approvals.error ? null : approvals.count ?? null,
-      runStatus: run.error ? null : run.data?.status ?? null,
+      pendingApprovals: approvals.error ? null : (approvals.count ?? null),
+      runStatus: run.error ? null : (run.data?.status ?? null),
       nightSweep: sweep.error ? null : prettyClock(sweep.data?.value),
     };
   } catch {
@@ -2597,7 +2565,7 @@ export async function getSettings(): Promise<SettingView[]> {
   }));
 }
 
-// --------------------------------------------------------------- requests ---
+// requests
 export interface RequestView {
   id: string;
   employeeName: string;
@@ -2655,7 +2623,7 @@ export async function getRequests(): Promise<RequestView[]> {
     .sort((a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1));
 }
 
-// ---------------------------------------------------------- on leave today ---
+// on leave today
 export interface OnLeaveTodayRow {
   employeeId: string;
   name: string;
@@ -2672,7 +2640,7 @@ export interface OnLeaveTodayRow {
 export async function getOnLeaveToday(): Promise<OnLeaveTodayRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc.rpc('fn_on_leave_today');
-  // An unregistered rpc comes back with a MESSAGE and no code (pgcompat.rpc),
+  // An unregistered rpc comes back with a MESSAGE and no code (postgrest-compat.rpc),
   // so there is no "function not installed" code to branch on any more — and
   // fn_on_leave_today is registered by db/server.ts regardless.
   if (error) fail('getOnLeaveToday: could not load who is on leave', error);
@@ -2685,18 +2653,10 @@ export async function getOnLeaveToday(): Promise<OnLeaveTodayRow[]> {
   }));
 }
 
-
-// ------------------------------------------------------- user tab access ---
+// user tab access
 /**
- * Which tabs the SIGNED-IN account may open.
- *
- * Only explicit decisions are stored, so a missing entry means "allowed"; see
- * lib/access.ts for the rule that consumes it. The read is scoped to the
- * caller's own account, so it stays a single indexed lookup per portal request.
- *
- * Degrades to an empty map when 0045 has not been applied, which reproduces the
- * behaviour before this feature existed (every tab allowed) rather than locking
- * anyone out of a database that simply has not caught up yet.
+ * Read the signed-in account's tab-access map. Missing entries mean allowed within the static role
+ * gate; a missing map behaves as an empty map.
  */
 export async function getMyTabAccess(userId: string | null): Promise<TabAccess> {
   if (!userId) return {};

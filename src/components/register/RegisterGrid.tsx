@@ -1,11 +1,15 @@
 'use client';
 
-import { useActionState, useEffect, useRef, useState, useTransition ,useCallback } from 'react';
+import { useActionState, useEffect, useRef, useState, useTransition, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Stamp } from '@/components/ui/Stamp';
 import { dow } from '@/lib/constants';
-import { correctAttendance, correctAttendanceBulk, type CorrectionState } from '@/lib/actions/attendance';
-import { grantCompOff } from '@/lib/actions/compoff';
+import {
+  correctAttendance,
+  correctAttendanceBulk,
+  type CorrectionState,
+} from '@/lib/actions/attendance';
+import { grantCompOff } from '@/lib/actions/comp-off';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import type { DayCell, RegisterEmployee } from '@/types/domain';
@@ -13,7 +17,8 @@ import type { DayCell, RegisterEmployee } from '@/types/domain';
 // Statuses that mean the day was scheduled off — mirrors offDayStatuses.
 const offDayStatuses = new Set(['WO', 'OH']);
 
-// A comp off is owed when a day off carries real work. "Day off" is either stamp-based (WO/OH) or schedule-based (`scheduledOff` — a Sunday or a 1st/3rd/5th Saturday). The schedule arm matters: an employee who works a non-working Saturday is often stamped plain 'P', so a stamp-only check would miss exactly the case this feature exists for.
+// Comp-off eligibility includes both WO/OH stamps and scheduled days off. An employee can be
+// stamped P after working a scheduled day off.
 export function isCompOffEligible(cell: DayCell | undefined, scheduledOff = false): boolean {
   if (!cell) return false;
   if (!offDayStatuses.has(cell.status) && !scheduledOff) return false;
@@ -87,16 +92,13 @@ export function RegisterGrid({
   const openSeq = useRef(0);
   const wo = new Set(weekOffs);
 
-  // --- bulk correction: select many cells, apply one status + reason at once ---
+  // bulk correction: select many cells, apply one status + reason at once
   const [bulkMode, setBulkMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [applying, startApply] = useTransition();
   const { confirm, confirmDialog } = useConfirm();
   const { toast, toastNode } = useToast();
-  const onWarning = useCallback(
-  (w: string) => toast(w, 'info'),
-  [toast]
-);
+  const onWarning = useCallback((w: string) => toast(w, 'info'), [toast]);
 
   function toggleSelect(employeeId: string, day: number) {
     const key = `${employeeId}|${dateFor(periodMonth, day)}`;
@@ -152,13 +154,8 @@ export function RegisterGrid({
               const i = k.indexOf('|');
               return { employeeId: k.slice(0, i), workDate: k.slice(i + 1) };
             });
-            // The confirm MUST stay outside the transition. This whole handler
-            // used to run inside BulkBar's startTransition, which deadlocked the
-            // button: confirm() shows its dialog via a state update, React defers
-            // state updates made inside a pending async transition until the
-            // action finishes — and the action was awaiting the dialog. Result:
-            // no dialog, "Applying…" forever. Same split as SettingsScreen's
-            // remove(): dialog first, then only the server call in a transition.
+            // Show confirmation before starting the transition. Awaiting a dialog state update
+            // inside the same async transition can leave both waiting indefinitely.
             const ok = await confirm({
               title: 'Apply bulk correction',
               message: `Set ${targets.length} day(s) to “${status}”? Each is stamped as a correction against your name and written to the audit log.`,
@@ -220,23 +217,36 @@ export function RegisterGrid({
               <div key={e.id} className={`rrow${isOpen ? ' open' : ''}`}>
                 <div className="emp-cell">
                   <div>
-                    <span className="nm">{e.name}</span>{' '}
-                    <span className="meta">· {e.code}</span>
+                    <span className="nm">{e.name}</span> <span className="meta">· {e.code}</span>
                   </div>
                   <div className="meta">
                     {e.branch} · {e.gender}
                   </div>
                   <div className="sums">
-                    <span>P <b>{e.summary.P}</b></span>
-                    <span>LM <b>{e.summary.LM}</b></span>
-                    <span>HD <b>{e.summary.HD}</b></span>
-                    <span>L <b>{e.summary.L}</b></span>
-                    <span>WO <b>{e.summary.WO}</b></span>
+                    <span>
+                      P <b>{e.summary.P}</b>
+                    </span>
+                    <span>
+                      LM <b>{e.summary.LM}</b>
+                    </span>
+                    <span>
+                      HD <b>{e.summary.HD}</b>
+                    </span>
+                    <span>
+                      L <b>{e.summary.L}</b>
+                    </span>
+                    <span>
+                      WO <b>{e.summary.WO}</b>
+                    </span>
                   </div>
                   <div className="sums">
-                    <span>Working <b>{e.summary.working}</b></span>
+                    <span>
+                      Working <b>{e.summary.working}</b>
+                    </span>
                     {/* if late mark is more than 3 times, than it is counted as a half day */}
-                    <span>payable <b>{e.summary.working + e.summary.WO + e.summary.HD  - e.summary.L}</b></span>
+                    <span>
+                      payable <b>{e.summary.working + e.summary.WO + e.summary.HD - e.summary.L}</b>
+                    </span>
                   </div>
                   <div className={`hrsbar${short ? ' short' : ''}`}>
                     <i style={{ width: `${pct}%` }} />
@@ -308,13 +318,19 @@ export function RegisterGrid({
                             ? {
                                 cursor: 'pointer',
                                 ...(isSelected
-                                  ? { outline: '2px solid var(--brand)', outlineOffset: -2, background: 'var(--p-bg)' }
+                                  ? {
+                                      outline: '2px solid var(--brand)',
+                                      outlineOffset: -2,
+                                      background: 'var(--p-bg)',
+                                    }
                                   : {}),
                               }
                             : undefined
                         }
                       >
-                        <div style={{ display: 'grid', placeItems: 'center', position: 'relative' }}>
+                        <div
+                          style={{ display: 'grid', placeItems: 'center', position: 'relative' }}
+                        >
                           {coEligible && (
                             <span
                               aria-label={coGranted ? 'Comp off granted' : 'Comp off applicable'}
@@ -351,7 +367,7 @@ export function RegisterGrid({
           })}
         </div>
       </div>
-      
+
       {canCorrect && (
         <>
           <div
@@ -367,7 +383,7 @@ export function RegisterGrid({
                 key={`${target.employeeId}-${target.workDate}-${target.seq}`}
                 target={target}
                 onClose={() => setDrawerOpen(false)}
-                onWarning ={onWarning}
+                onWarning={onWarning}
               />
             )}
           </aside>
@@ -543,12 +559,15 @@ function CompOffPanel({ target }: { target: Target }) {
         ⚡ Comp off applicable
       </div>
       <p className="muted" style={{ fontSize: 12, margin: '0 0 10px' }}>
-        {target.employeeName} worked on {target.cell?.status === 'OH' ? 'a holiday' : 'a week-off'} (
-        <span className="mono">{target.workDate}</span>
+        {target.employeeName} worked on {target.cell?.status === 'OH' ? 'a holiday' : 'a week-off'}{' '}
+        (<span className="mono">{target.workDate}</span>
         {target.cell?.in ? (
           <>
             {' '}
-            · <span className="mono">{target.cell.in}–{target.cell.out}</span>
+            ·{' '}
+            <span className="mono">
+              {target.cell.in}–{target.cell.out}
+            </span>
           </>
         ) : null}
         ). Granting a comp off credits them one day, which they can then apply for from their
@@ -556,7 +575,10 @@ function CompOffPanel({ target }: { target: Target }) {
       </p>
 
       {granted ? (
-        <span className="pill" style={{ borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' }}>
+        <span
+          className="pill"
+          style={{ borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' }}
+        >
           ✓ Comp off granted
         </span>
       ) : (
@@ -565,7 +587,11 @@ function CompOffPanel({ target }: { target: Target }) {
         </button>
       )}
 
-      {error && <div className="login-error" style={{ marginTop: 8 }}>{error}</div>}
+      {error && (
+        <div className="login-error" style={{ marginTop: 8 }}>
+          {error}
+        </div>
+      )}
     </div>
   );
 }
@@ -644,12 +670,19 @@ function BulkBar({
         type="button"
         className="btn primary"
         disabled={!canApply}
-        title={count === 0 ? 'Select at least one cell' : !reason.trim() ? 'Enter a reason' : undefined}
+        title={
+          count === 0 ? 'Select at least one cell' : !reason.trim() ? 'Enter a reason' : undefined
+        }
         onClick={() => onApply(status, reason.trim())}
       >
         {pending ? 'Applying…' : `Apply to ${count}`}
       </button>
-      <button type="button" className="btn quiet" onClick={onClear} disabled={pending || count === 0}>
+      <button
+        type="button"
+        className="btn quiet"
+        onClick={onClear}
+        disabled={pending || count === 0}
+      >
         Clear
       </button>
       <button type="button" className="btn quiet" onClick={onExit} disabled={pending}>

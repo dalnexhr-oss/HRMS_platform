@@ -1,7 +1,5 @@
-// Shown while a portal screen's server data loads.
-// Pure CSS animation — stays a server component, no "use client" needed.
-// All classes are prefixed `plx-` and styles ship in this file, so nothing
-// in your global CSS changes. Inherits your `wrap` / `card` / `muted` look.
+// Portal loading skeleton. CSS animations keep this a Server Component; plx-prefixed styles are
+// local to this layout.
 export default function PortalLoading() {
   const stats = [0, 1, 2];
   const rows = [0, 1, 2, 3, 4];
@@ -56,7 +54,9 @@ export default function PortalLoading() {
 
           {/* Keeps the original mono "Loading…" voice, now with a pulse */}
           <p className="plx-status muted" aria-hidden="true">
-            Loading portal<span>.</span><span>.</span><span>.</span>
+            Loading portal<span>.</span>
+            <span>.</span>
+            <span>.</span>
           </p>
         </div>
       </div>

@@ -1,15 +1,7 @@
 'use client';
 
-// One clock, two controls.
-//
-// The punch toggle lives in the top bar and the full attendance-clock card
-// lives on /me, so a punch made from either one has to redraw the other —
-// otherwise the card keeps offering "Punch in" seconds after the top bar has
-// already recorded it, and the second tap is rejected as an out-of-sequence
-// punch.
-//
-// The event carries which control raised it so a listener can ignore its own
-// announcement: the control that punched already reloaded itself.
+// Keep the topbar punch toggle and /me attendance card in sync. Include the source control so it
+// can ignore its own refresh event.
 
 const eventName = 'hrms:punch-changed';
 

@@ -1,15 +1,5 @@
-//
-// The user's avatar. One component for every surface (topbar, employee bar, the
-// /me hero, the account page) so the picture can never drift between them.
-//
-// The stored value is resolved in this order:
-// 'data:image/…' → the uploaded, client-resized photo
-// 'preset:<id>' → one of the bundled shadcn avatar images (public/avatars/)
-// anything else → the name's initials on the brand-coloured chip
-//
-// No 'use client': this renders only markup (no hooks), so it is safe to use
-// from Server Components. The interactive picker is <AvatarMenu>.
-//
+// Shared avatar renderer. Resolve uploaded data URLs, then preset IDs, then initials. This
+// component has no hooks; AvatarMenu handles editing.
 import { isAvatarPresetId, avatarPresetSrc } from '@/lib/avatar-presets';
 
 export function initials(name: string | null | undefined): string {

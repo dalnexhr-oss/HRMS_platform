@@ -1,9 +1,6 @@
-// Data access client factory. SERVER ONLY.
-//
-// Provides scoped client instances for authenticated user requests (subject to collection policies)
-// and system-scoped instances for privileged asynchronous batch jobs (night sweep, payroll compute).
+// Create policy-scoped clients for requests and system clients for internal jobs.
 import 'server-only';
-import { pgClient, systemPgClient, type PgClient } from '@/lib/db/pgcompat';
+import { pgClient, systemPgClient, type PgClient } from '@/lib/db/postgrest-compat';
 import { isMongoConfigured } from '@/lib/db/mongo';
 import { registerDbFunctions } from '@/lib/db/functions';
 import { registerPayrollFunctions } from '@/lib/db/payroll';

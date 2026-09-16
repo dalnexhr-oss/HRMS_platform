@@ -86,18 +86,11 @@ export type LocationFailure =
   | 'unsupported';
 
 export type LocationResult =
-  | { ok: true; coords: PunchCoords }
-  | { ok: false; reason: LocationFailure };
+  { ok: true; coords: PunchCoords } | { ok: false; reason: LocationFailure };
 
 /**
- * Whether this browser will even show a prompt, WITHOUT triggering one.
- *
- * The Permissions API is what makes "location is blocked" visible up front. A
- * browser that has already been told no fires the error callback instantly and
- * silently, so without this check the UI cannot tell "blocked" from "the user
- * has not been asked yet" — which is exactly how a blocked punch looked like a
- * working one. Safari only shipped geolocation in permissions.query() late, so
- * an unsupported query degrades to 'prompt' and we find out on the attempt.
+ * Read geolocation permission without prompting. If the browser does not support this query, return
+ * prompt and let the location request determine the result.
  */
 export async function locationPermission(): Promise<PermissionState | 'unsupported'> {
   if (typeof navigator === 'undefined' || !navigator.geolocation) return 'unsupported';
@@ -110,11 +103,7 @@ export async function locationPermission(): Promise<PermissionState | 'unsupport
   }
 }
 
-/**
- * Ask for a fix, reporting WHY it failed rather than collapsing everything to
- * null. Must be called from a user gesture: browsers only raise the permission
- * prompt in response to one.
- */
+/** Request location from a user gesture and preserve the failure reason for the UI. */
 export function requestCoords(timeoutMs = 10_000): Promise<LocationResult> {
   if (typeof navigator === 'undefined' || !navigator.geolocation) {
     return Promise.resolve({ ok: false, reason: 'unsupported' });
@@ -139,8 +128,7 @@ export function requestCoords(timeoutMs = 10_000): Promise<LocationResult> {
               : 'unavailable';
         resolve({ ok: false, reason });
       },
-      // maximumAge:0 — a punch must reflect where the person is NOW, not a
-      // cached fix from when they were somewhere else.
+      // Require a fresh location fix for each punch.
       { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 0 },
     );
   });

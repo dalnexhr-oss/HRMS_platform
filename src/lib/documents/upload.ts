@@ -1,15 +1,12 @@
 /**
- * Shared helpers for employee document upload and registration. SERVER ONLY.
- *
- * Supports two ingestion flows:
- * 1. Server Action (`actions/documents.uploadEmployeeDocument`): Small form uploads with page revalidation.
- * 2. Route Handler (`/api/documents/upload`): Streams large uploads directly to GridFS with progress support.
+ * Shared upload validation and registration for form-based Server Actions and the streaming
+ * document route.
  */
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
-import { wroteNothing } from '@/lib/actions/_guard';
+import { wroteNothing } from '@/lib/actions/guards';
 import { notifyApprovers } from '@/lib/notify';
 import type { StorageBucket } from '@/lib/storage';
 import type { AppRole } from '@/types/database';
@@ -98,7 +95,10 @@ export async function recordUploadedDocument(input: {
     return { ok: false, error: error.message };
   }
   if (wroteNothing(data)) {
-    return { ok: false, error: 'The document was not filed — your account may not have permission.' };
+    return {
+      ok: false,
+      error: 'The document was not filed — your account may not have permission.',
+    };
   }
 
   // Notify approvers only on self-service uploads by employees.

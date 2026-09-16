@@ -1,12 +1,9 @@
 'use server';
 
-/**
- * User administration server actions.
- * Enforces role-based hierarchy guards before creating, modifying, or revoking accounts.
- */
+/** Check role hierarchy before creating, changing, or revoking user accounts. */
 import { revalidatePath } from 'next/cache';
 import { randomUUID } from 'node:crypto';
-import { requireRoles } from '@/lib/actions/_guard';
+import { requireRoles } from '@/lib/actions/guards';
 import { isEmployeeAreaRole } from '@/lib/auth';
 // validatePassword enforces length limits (10 min, 200 max) before hashing.
 import { hashPassword, validatePassword } from '@/lib/auth/password';
@@ -29,7 +26,8 @@ const userAdminRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 // module may only export async functions, so the UI keeps its own display list.
 const assignableRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr', 'employee', 'intern'];
 
-// User administration is TIERED, and every rule below derives from this one map. A caller may only grant a role, or act on an account holding a role, at or below their own tier. The escalation this closes is not theoretical: before it, updateUserRole checked only for the literal 'admin', so an HR account could set anyone's role — including its own — to 'super_admin' and take the top tier in a single request. Server Actions are public endpoints, so the UI never offering the option was no defence.
+// A caller may grant roles and manage accounts only at or below their own tier. Enforce this on
+// every administration action.
 const roleTier: Record<AppRole, number> = {
   super_admin: 3,
   admin: 2,
@@ -40,7 +38,7 @@ const roleTier: Record<AppRole, number> = {
 };
 
 function tierOf(role: AppRole | null | undefined): number {
-  return role ? roleTier[role] ?? 0 : 0;
+  return role ? (roleTier[role] ?? 0) : 0;
 }
 
 // Role name as it reads in a refusal message.
@@ -51,7 +49,6 @@ const tierLabel: Record<AppRole, string> = {
   employee: 'employee',
   intern: 'intern',
 };
-
 
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -176,7 +173,9 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
   if (!gate.ok) return gate;
   if (!isMongoConfigured()) return databaseUnavailable();
 
-  const email = String(formData.get('email') ?? '').trim().toLowerCase();
+  const email = String(formData.get('email') ?? '')
+    .trim()
+    .toLowerCase();
   const password = String(formData.get('password') ?? '');
   const fullName = String(formData.get('full_name') ?? '').trim();
   const role = String(formData.get('role') ?? '').trim() as AppRole;
@@ -261,7 +260,10 @@ export async function updateUserRole(
   // No granting a role above your own tier. The absence of this check is what let
   // an HR account promote itself to super_admin.
   if (tierOf(role) > tierOf(gate.role)) {
-    return { ok: false, error: `Only a ${tierLabel[role]} account can grant the ${tierLabel[role]} role.` };
+    return {
+      ok: false,
+      error: `Only a ${tierLabel[role]} account can grant the ${tierLabel[role]} role.`,
+    };
   }
   if (isEmployeeAreaRole(role) && !employeeId) {
     return { ok: false, error: 'Pick which employee this login belongs to.' };

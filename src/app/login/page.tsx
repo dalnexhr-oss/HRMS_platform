@@ -5,9 +5,8 @@ import { safeRedirectPath } from '@/lib/auth/redirect';
 
 export const metadata: Metadata = { title: 'Sign in — Dalnex HRMS' };
 
-// Middleware and the reset flow redirect back here with ?error=... when sign-in
-// fails, so the real reason is shown instead of a blank login card. ?next= is
-// the path the visitor was trying to reach before the gate stepped in.
+// Show sign-in errors from middleware or password reset. The next parameter preserves the requested
+// destination.
 export default async function LoginPage({
   searchParams,
 }: {
@@ -15,10 +14,7 @@ export default async function LoginPage({
 }) {
   const { error, next } = await searchParams;
   const initialError = Array.isArray(error) ? error[0] : error;
-  // Validated HERE as well as in signIn(). The action is the security boundary
-  // — it is a public endpoint and re-checks whatever it is posted — but a
-  // hostile ?next= should never be rendered into the form in the first place,
-  // where it would sit in the DOM of a page on the real domain.
+  // Validate next before placing it in the form. signIn validates it again at the action boundary.
   const nextPath = safeRedirectPath(Array.isArray(next) ? next[0] : next) ?? undefined;
 
   return (

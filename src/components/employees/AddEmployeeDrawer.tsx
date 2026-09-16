@@ -1,13 +1,12 @@
 'use client';
 
-// Slide-in drawer for adding OR editing an employee. In create mode it submits to
-// createEmployee; when an `employee` is passed it prefills the fields and submits
-// to updateEmployee (keyed by the immutable original code). On success it closes.
+// Add or edit an employee. Updates use the immutable original employee code; successful submissions
+// close the drawer.
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createEmployee, updateEmployee } from '@/lib/actions/employees';
 import { States } from '@/lib/constants';
-// import { EMPLOYMENT_TYPES, EMPLOYMENT_TYPE_LABEL } from '@/types/app';
+
 import type { EmployeeEditRow, BranchRow } from '@/lib/queries';
 
 export function AddEmployeeDrawer({
@@ -24,9 +23,13 @@ export function AddEmployeeDrawer({
   employee?: EmployeeEditRow | null;
   // Existing department names, shown as combobox suggestions (pick or type new).
   departments?: string[];
-  // Real branches from the DB. Previously this list was hardcoded to Pune and Vadodara, so the form could offer a branch that no longer existed in the table — updateEmployee then failed its name lookup, and the save was lost.
+  // Real branches from the DB. Previously this list was hardcoded to Pune and Vadodara, so the form
+  // could offer a branch that no longer existed in the table — updateEmployee then failed its name
+  // lookup, and the save was lost.
   branches?: BranchRow[];
-  // Bumped by the parent on every open. Part of the form key, so each open remounts from freshly loaded values — and, crucially, CLOSING never changes the key. Re-keying on close remounted the form mid-animation and visibly reset every field on a record the user had just saved.
+  // Bumped by the parent on every open. Part of the form key, so each open remounts from freshly
+  // loaded values — and, crucially, CLOSING never changes the key. Re-keying on close remounted the
+  // form mid-animation and visibly reset every field on a record the user had just saved.
   formSeq?: number;
 }) {
   const router = useRouter();
@@ -38,13 +41,8 @@ export function AddEmployeeDrawer({
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
-  // The branch list is data, not a constant, and the employee's OWN branch is
-  // folded in whether or not the query returned it. A <select> whose value
-  // matches no <option> shows the first one instead, so a branches read that
-  // came back short used to put a Vadodara employee in front of an editor
-  // reading "Pune" — and saving that screen moved them there. Keeping their
-  // stored branch in the list means an edit can only ever change the branch
-  // because somebody picked a different one.
+  // Include the employee's stored branch even if the options query omits it. Otherwise the select
+  // can display and submit a different branch without an explicit choice.
   const branchOptions = branches.map((b) => ({
     value: b.name,
     label: b.state ? `${b.name} (${b.state})` : b.name,
@@ -77,7 +75,10 @@ export function AddEmployeeDrawer({
   return (
     <>
       <div className={`overlay${open ? ' on' : ''}`} onClick={onClose} />
-      <aside className={`drawer${open ? ' on' : ''}`} aria-label={editing ? 'Edit employee' : 'Add employee'}>
+      <aside
+        className={`drawer${open ? ' on' : ''}`}
+        aria-label={editing ? 'Edit employee' : 'Add employee'}
+      >
         {/* key remounts the form on each open — switching between add and a
             specific employee, and reopening the same employee — so the
             prefilled defaults refresh instead of sticking. */}
@@ -96,7 +97,12 @@ export function AddEmployeeDrawer({
           </div>
           <div className="dbd">
             <div className="f-row">
-              <Field name="full_name" label="Full name" placeholder="e.g. Rohan Kulkarni" defaultValue={employee?.full_name} />
+              <Field
+                name="full_name"
+                label="Full name"
+                placeholder="e.g. Rohan Kulkarni"
+                defaultValue={employee?.full_name}
+              />
               <Field
                 name="code"
                 label="Employee code"
@@ -135,57 +141,170 @@ export function AddEmployeeDrawer({
               options={EMPLOYMENT_TYPES.map((t) => ({ value: t, label: EMPLOYMENT_TYPE_LABEL[t] }))}
             /> */}
             <div className="f-row">
-              <Field name="date_of_joining" label="Date of joining" type="date" defaultValue={employee?.date_of_joining ?? '2026-08-01'} />
-              <Field name="date_of_birth" label="Date of birth" type="date" defaultValue={employee?.date_of_birth ?? undefined} />
+              <Field
+                name="date_of_joining"
+                label="Date of joining"
+                type="date"
+                defaultValue={employee?.date_of_joining ?? '2026-08-01'}
+              />
+              <Field
+                name="date_of_birth"
+                label="Date of birth"
+                type="date"
+                defaultValue={employee?.date_of_birth ?? undefined}
+              />
             </div>
-            <Field name="whatsapp" label="WhatsApp number" placeholder="+91" mono defaultValue={employee?.whatsapp ?? undefined} />
+            <Field
+              name="whatsapp"
+              label="WhatsApp number"
+              placeholder="+91"
+              mono
+              defaultValue={employee?.whatsapp ?? undefined}
+            />
 
             <div className="fold">Contact</div>
             <div className="f-row">
-              <Field name="mobile_official" label="Mobile (official)" placeholder="+91" mono defaultValue={employee?.mobile_official ?? undefined} />
-              <Field name="mobile_personal" label="Mobile (personal)" placeholder="+91" mono defaultValue={employee?.mobile_personal ?? undefined} />
+              <Field
+                name="mobile_official"
+                label="Mobile (official)"
+                placeholder="+91"
+                mono
+                defaultValue={employee?.mobile_official ?? undefined}
+              />
+              <Field
+                name="mobile_personal"
+                label="Mobile (personal)"
+                placeholder="+91"
+                mono
+                defaultValue={employee?.mobile_personal ?? undefined}
+              />
             </div>
             <div className="f-row">
-              <Field name="email_official" label="Email (official)" type="email" placeholder="name@dalnex.com" mono defaultValue={employee?.email_official ?? undefined} />
-              <Field name="email_personal" label="Email (personal)" type="email" placeholder="name@gmail.com" mono defaultValue={employee?.email_personal ?? undefined} />
+              <Field
+                name="email_official"
+                label="Email (official)"
+                type="email"
+                placeholder="name@dalnex.com"
+                mono
+                defaultValue={employee?.email_official ?? undefined}
+              />
+              <Field
+                name="email_personal"
+                label="Email (personal)"
+                type="email"
+                placeholder="name@gmail.com"
+                mono
+                defaultValue={employee?.email_personal ?? undefined}
+              />
             </div>
 
             <div className="fold">Statutory</div>
             <div className="f-row">
-              <Field name="pan" label="PAN" placeholder="ABCDE1234F" mono defaultValue={employee?.pan ?? undefined} />
-              <Field name="aadhaar" label="Aadhaar number" placeholder="1234 5678 9012" mono defaultValue={employee?.aadhaar ?? undefined} />
+              <Field
+                name="pan"
+                label="PAN"
+                placeholder="ABCDE1234F"
+                mono
+                defaultValue={employee?.pan ?? undefined}
+              />
+              <Field
+                name="aadhaar"
+                label="Aadhaar number"
+                placeholder="1234 5678 9012"
+                mono
+                defaultValue={employee?.aadhaar ?? undefined}
+              />
             </div>
             <div className="f-row">
-              <Field name="pf_uan" label="PF UAN" mono defaultValue={employee?.pf_uan ?? undefined} />
-              <Field name="esic_number" label="ESIC number" mono defaultValue={employee?.esic_number ?? undefined} />
+              <Field
+                name="pf_uan"
+                label="PF UAN"
+                mono
+                defaultValue={employee?.pf_uan ?? undefined}
+              />
+              <Field
+                name="esic_number"
+                label="ESIC number"
+                mono
+                defaultValue={employee?.esic_number ?? undefined}
+              />
             </div>
 
             <div className="fold">Bank details</div>
-            <Field name="bank_name" label="Bank name" placeholder="e.g. HDFC Bank" defaultValue={employee?.bank_name ?? undefined} />
+            <Field
+              name="bank_name"
+              label="Bank name"
+              placeholder="e.g. HDFC Bank"
+              defaultValue={employee?.bank_name ?? undefined}
+            />
             <div className="f-row">
-              <Field name="bank_account_number" label="Account number" placeholder="50100123456789" mono defaultValue={employee?.bank_account_number ?? undefined} />
-              <Field name="bank_ifsc" label="IFSC code" placeholder="HDFC0001234" mono defaultValue={employee?.bank_ifsc ?? undefined} />
+              <Field
+                name="bank_account_number"
+                label="Account number"
+                placeholder="50100123456789"
+                mono
+                defaultValue={employee?.bank_account_number ?? undefined}
+              />
+              <Field
+                name="bank_ifsc"
+                label="IFSC code"
+                placeholder="HDFC0001234"
+                mono
+                defaultValue={employee?.bank_ifsc ?? undefined}
+              />
             </div>
 
             <div className="fold">Emergency contact</div>
             <div className="f-row">
-              <Field name="emergency_contact_name" label="Contact name" placeholder="e.g. Meera Kulkarni" defaultValue={employee?.emergency_contact_name ?? undefined} />
-              <Field name="emergency_contact_relation" label="Relationship" placeholder="e.g. Spouse" defaultValue={employee?.emergency_contact_relation ?? undefined} />
+              <Field
+                name="emergency_contact_name"
+                label="Contact name"
+                placeholder="e.g. Meera Kulkarni"
+                defaultValue={employee?.emergency_contact_name ?? undefined}
+              />
+              <Field
+                name="emergency_contact_relation"
+                label="Relationship"
+                placeholder="e.g. Spouse"
+                defaultValue={employee?.emergency_contact_relation ?? undefined}
+              />
             </div>
-            <Field name="emergency_contact_phone" label="Emergency phone" placeholder="+91" mono defaultValue={employee?.emergency_contact_phone ?? undefined} />
+            <Field
+              name="emergency_contact_phone"
+              label="Emergency phone"
+              placeholder="+91"
+              mono
+              defaultValue={employee?.emergency_contact_phone ?? undefined}
+            />
 
             <div className="fold">Salary structure</div>
             <div className="f-row">
-              <Field name="gross_monthly" label="Gross / month (₹)" defaultValue={fmt(employee?.gross_monthly, '30,000')} mono />
-              <Field name="basic_da" label="Basic + DA (₹)" defaultValue={fmt(employee?.basic_da, '15,000')} mono />
+              <Field
+                name="gross_monthly"
+                label="Gross / month (₹)"
+                defaultValue={fmt(employee?.gross_monthly, '30,000')}
+                mono
+              />
+              <Field
+                name="basic_da"
+                label="Basic + DA (₹)"
+                defaultValue={fmt(employee?.basic_da, '15,000')}
+                mono
+              />
             </div>
             <div className="f-row">
               <Field name="hra" label="HRA (₹)" defaultValue={fmt(employee?.hra, '9,000')} mono />
-              <Field name="special_allowance" label="Special allowance (₹)" defaultValue={fmt(employee?.special_allowance, '6,000')} mono readOnly />
+              <Field
+                name="special_allowance"
+                label="Special allowance (₹)"
+                defaultValue={fmt(employee?.special_allowance, '6,000')}
+                mono
+                readOnly
+              />
             </div>
             <div className="hint">
-              Special allowance is derived as gross − (Basic + DA) − HRA so the components always sum
-              to gross (a database rule). PT applies by branch state.
+              Special allowance is derived as gross − (Basic + DA) − HRA so the components always
+              sum to gross (a database rule). PT applies by branch state.
             </div>
             {error && (
               <div className="login-error" role="alert">
@@ -216,20 +335,9 @@ function fmt(n: number | undefined, fallback: string): string {
 const newBranch = '__new__';
 
 /**
- * Branch + gender row, plus the fields for creating a branch inline when
- * "+ Add new branch…" is picked. Unlike departments (a free-text combobox),
- * creating a branch is an explicit choice: it also needs a STATE, because
- * professional tax slabs are defined per state — and a typo must not be able
- * to silently spawn a branch.
- *
- * Lives INSIDE the keyed <form>, so its selection state resets on every open.
- *
- * A NEW employee starts on the placeholder, not on the first branch in the
- * list. Pre-selecting one meant the alphabetically-first branch (Pune) was
- * submitted by default on every new record where nobody touched the field —
- * a branch decides professional tax, the holiday calendar and which board the
- * person appears on, so it is not a field to fill in on the user's behalf.
- * Editing still opens on the employee's own branch.
+ * Branch selection and inline creation. Creating a branch requires an explicit choice and a state
+ * for tax rules. New employees start without a selection; edits use the stored branch. The keyed
+ * form resets local state on open.
  */
 function BranchPicker({
   options,

@@ -1,13 +1,7 @@
 'use client';
 
-// One drawer, two jobs: file a NEW document against an employee, or REPLACE an
-// existing one with a newer file.
-//
-// They share a form because they are the same act from the user's side — "this
-// is the current version of X" — and differ only in what the server does with
-// the row. Replace deliberately does NOT offer employee or category: a
-// replacement is the same document for the same person, and letting either
-// change would break the meaning of the version chain behind it.
+// Upload a new document or replace an existing version. Replacements keep the same employee and
+// category to preserve the version chain.
 import { useActionState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { uploadEmployeeDocument, replaceEmployeeDocument } from '@/lib/actions/documents';
@@ -17,8 +11,7 @@ import type { EmployeeDocumentRow, EmployeeOption } from '@/lib/queries';
 type State = { ok?: boolean; error?: string };
 
 export type DrawerTarget =
-  | { mode: 'upload'; employeeId?: string }
-  | { mode: 'replace'; document: EmployeeDocumentRow };
+  { mode: 'upload'; employeeId?: string } | { mode: 'replace'; document: EmployeeDocumentRow };
 
 export function UploadDocumentDrawer({
   target,
@@ -35,7 +28,9 @@ export function UploadDocumentDrawer({
 
   const [state, formAction, pending] = useActionState<State, FormData>(
     async (_prev, formData) =>
-      replacing ? replaceEmployeeDocument(replacing.id, formData) : uploadEmployeeDocument(formData),
+      replacing
+        ? replaceEmployeeDocument(replacing.id, formData)
+        : uploadEmployeeDocument(formData),
     {},
   );
 
@@ -60,7 +55,9 @@ export function UploadDocumentDrawer({
         {/* Remounts per target, so switching from one row's Replace to
             another's does not keep the first one's field values. */}
         <form
-          key={replacing?.id ?? (target?.mode === 'upload' ? target.employeeId ?? 'new' : 'closed')}
+          key={
+            replacing?.id ?? (target?.mode === 'upload' ? (target.employeeId ?? 'new') : 'closed')
+          }
           action={formAction}
           style={{ display: 'contents' }}
         >
@@ -101,7 +98,7 @@ export function UploadDocumentDrawer({
                     id="doc-employee"
                     name="employee_id"
                     required
-                    defaultValue={target?.mode === 'upload' ? target.employeeId ?? '' : ''}
+                    defaultValue={target?.mode === 'upload' ? (target.employeeId ?? '') : ''}
                   >
                     <option value="">Choose an employee…</option>
                     {employees.map((e) => (
@@ -130,7 +127,7 @@ export function UploadDocumentDrawer({
               <input
                 id="doc-title"
                 name="title"
-                placeholder={replacing ? replacing.title ?? 'Same as before' : 'e.g. PAN card'}
+                placeholder={replacing ? (replacing.title ?? 'Same as before') : 'e.g. PAN card'}
                 defaultValue={replacing?.title ?? ''}
               />
             </div>
@@ -138,7 +135,9 @@ export function UploadDocumentDrawer({
             <div className="f">
               <label htmlFor="doc-file">File</label>
               <input id="doc-file" type="file" name="file" required />
-              <span className="muted" style={{ fontSize: 11 }}>PDF or image, up to 10 MB.</span>
+              <span className="muted" style={{ fontSize: 11 }}>
+                PDF or image, up to 10 MB.
+              </span>
             </div>
 
             {replacing && (

@@ -1,7 +1,4 @@
-// MongoDB connection pooling and transaction lifecycle management. SERVER ONLY.
-//
-// Maintains a singleton MongoClient across Next.js development hot-reloads via globalThis.
-// Production instances reuse the initialized connection pool across invocations.
+// Reuse a MongoClient connection pool across requests and development hot reloads.
 import { MongoClient, type Db, type ClientSession } from 'mongodb';
 
 const uri = process.env.MONGO_URI ?? process.env.MONGODB_URI;
@@ -34,7 +31,8 @@ function connect(): Promise<MongoClient> {
   }).connect();
 }
 
-// Returns the shared MongoClient instance. Rejections are evicted immediately to avoid caching transient connection failures across hot reloads.
+// Returns the shared MongoClient instance. Rejections are evicted immediately to avoid caching
+// transient connection failures across hot reloads.
 export function client(): Promise<MongoClient> {
   if (globalForMongo.__dalnexMongo) return globalForMongo.__dalnexMongo;
   const pending = connect().catch((err) => {
@@ -52,7 +50,8 @@ export async function db(): Promise<Db> {
   return (await client()).db();
 }
 
-// Checks whether the deployment topology supports multi-document transactions (replica set or mongos). Cached after initial probe.
+// Checks whether the deployment topology supports multi-document transactions (replica set or
+// mongos). Cached after initial probe.
 export async function supportsTransactions(): Promise<boolean> {
   if (globalForMongo.__dalnexTxnSupport !== undefined) {
     return globalForMongo.__dalnexTxnSupport;
@@ -84,7 +83,7 @@ export async function withTransaction<T>(
           '        Convert it to a single-node replica set:\n' +
           '          1. add  replication:\\n  replSetName: rs0  to mongod.cfg\n' +
           '          2. restart mongod\n' +
-          "          3. mongosh --port 27018 --eval \"rs.initiate()\"\n" +
+          '          3. mongosh --port 27018 --eval "rs.initiate()"\n' +
           '        Then add ?replicaSet=rs0&directConnection=true to MONGO_URI.\n',
       );
     }

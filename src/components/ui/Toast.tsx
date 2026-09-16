@@ -1,9 +1,7 @@
 'use client';
 
-// Lightweight, self-contained toast — a styled replacement for alert(). Use the
-// useToast() hook: `const { toast, toastNode } = useToast()`, call
-// `toast('Saved', 'success')`, and render {toastNode} once in the component.
-// Toasts auto-dismiss; click to dismiss early.
+// Use useToast() to show messages and render toastNode once. Toasts dismiss automatically or when
+// clicked.
 import { useCallback, useEffect, useState } from 'react';
 
 export type ToastKind = 'info' | 'error' | 'success';
@@ -23,7 +21,11 @@ function ToastRow({ toast, onDone }: { toast: ToastItem; onDone: () => void }) {
     return () => clearTimeout(t);
   }, [onDone]);
   return (
-    <div className={`toast${toast.kind !== 'info' ? ` ${toast.kind}` : ''}`} role="status" onClick={onDone}>
+    <div
+      className={`toast${toast.kind !== 'info' ? ` ${toast.kind}` : ''}`}
+      role="status"
+      onClick={onDone}
+    >
       {toast.message}
     </div>
   );

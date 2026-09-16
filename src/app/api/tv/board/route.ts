@@ -4,8 +4,7 @@ import { canAccessTab } from '@/lib/access';
 import { getMyTabAccess } from '@/lib/queries';
 import { readBoard } from '@/lib/tv';
 
-// The board is the whole floor's live whereabouts — staff only, and never
-// cached: a prerendered board would freeze the day it was built.
+// Require staff access and fetch fresh attendance data for every board request.
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
@@ -14,8 +13,7 @@ export async function GET() {
     if (!isStaffRole(profile?.role)) {
       return NextResponse.json({ error: 'Not authorised.' }, { status: 403 });
     }
-    // Same gate as the page: revoking the tab has to close the data behind it,
-    // not just the link to it.
+    // Apply the page's tab-access gate to its data endpoint too.
     const access = await getMyTabAccess(profile?.id ?? null);
     if (!canAccessTab(profile?.role, 'tv', access)) {
       return NextResponse.json({ error: 'Not authorised.' }, { status: 403 });

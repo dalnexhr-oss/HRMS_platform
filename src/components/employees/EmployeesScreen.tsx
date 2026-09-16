@@ -6,7 +6,11 @@ import { inr } from '@/lib/format';
 import { AddEmployeeDrawer } from './AddEmployeeDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
-import { fetchEmployeeForEdit, deactivateEmployee, reactivateEmployee } from '@/lib/actions/employees';
+import {
+  fetchEmployeeForEdit,
+  deactivateEmployee,
+  reactivateEmployee,
+} from '@/lib/actions/employees';
 import { branchColorAt } from '@/lib/constants';
 import type { EmployeeListRow, EmployeeEditRow, BranchRow } from '@/lib/queries';
 
@@ -124,7 +128,14 @@ export function EmployeesScreen({
     <div className="wrap">
       <div className="emp-top">
         <div className="search">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
             <circle cx="11" cy="11" r="7" />
             <path d="M21 21l-4.3-4.3" />
           </svg>
@@ -138,7 +149,15 @@ export function EmployeesScreen({
           {activeCount} active{inactiveCount ? ` · ${inactiveCount} inactive` : ''}
         </span>
         {inactiveCount > 0 && (
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--ink-2)' }}>
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 13,
+              color: 'var(--ink-2)',
+            }}
+          >
             <input
               type="checkbox"
               checked={showInactive}
@@ -199,12 +218,19 @@ export function EmployeesScreen({
                     {e.active ? (
                       <span
                         className="pill"
-                        style={{ borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' }}
+                        style={{
+                          borderColor: 'var(--p-line)',
+                          color: 'var(--p)',
+                          background: 'var(--p-bg)',
+                        }}
                       >
                         Active
                       </span>
                     ) : (
-                      <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-3)' }}>
+                      <span
+                        className="pill"
+                        style={{ borderColor: 'var(--line-2)', color: 'var(--ink-3)' }}
+                      >
                         Inactive
                       </span>
                     )}
@@ -254,13 +280,10 @@ export function EmployeesScreen({
           </table>
         </div>
       </div>
-      {/* onClose deliberately does NOT clear `editing`. The drawer's form is
-          keyed on `employee?.code ?? 'new'` plus formSeq, so nulling it here
-          would swap the key mid-close and remount the form — every
-          uncontrolled field snapping back to its blank default while the
-          drawer is still animating out, which read as a just-saved employee
-          visibly reverting. openAdd() clears it instead, which is the one
-          place a blank form is actually wanted. */}
+      {/*
+       * Keep editing set while the drawer closes. Clearing it changes the form key and briefly resets
+       * visible fields; openAdd clears it before the next blank form.
+       */}
       <AddEmployeeDrawer
         open={drawer}
         employee={editing}

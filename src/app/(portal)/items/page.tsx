@@ -4,8 +4,7 @@ import { getItems, getEmployeeOptions } from '@/lib/queries';
 import { getSession } from '@/lib/auth';
 import type { AppRole } from '@/types/database';
 
-// Item Management is admin/HR only. Anyone else is bounced (the nav link is also
-// hidden for them via TabRoleAuthorized).
+// Match the item actions and navigation role gate.
 const itemAdminRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 export default async function ItemsPage() {

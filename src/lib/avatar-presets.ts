@@ -1,12 +1,5 @@
-//
-// The built-in avatar choices — 50 illustrated "notionists" faces (monochrome
-// ink on a light-grey circle, matching the shadcn/ui avatar look), bundled into
-// public/avatars/ (01.png … 50.png) so they load locally with no network/CORS
-// dependency. Kept in a plain, JSX-free module so it can be imported both by the
-// <Avatar> component (which draws them) and by the updateAvatar server action
-// (which validates against them). A 'use server' file cannot itself export a
-// const, so the list has to live outside it.
-//
+// Bundled avatar IDs shared by rendering and server validation. Keep this list outside use-server
+// modules, which may only export async functions.
 
 // '01' … '50'.
 export const avatarPresetId: readonly string[] = Array.from({ length: 50 }, (_, i) =>

@@ -1,13 +1,9 @@
+// Rename a navigation key in users.tab_access.
 //
-// Rename a nav slug inside users.tab_access.
+// Usage: node --env-file=.env.local scripts/rename-tab-slug.mjs <from> <to>
 //
-// node --env-file=.env.local scripts/rename-tab-slug.mjs <from> <to>
-//
-// The per-user tab-access map is keyed by nav slug (see lib/access.ts), so
-// renaming a route without moving these keys silently resets everyone's setting
-// for that tab back to the default. Idempotent: a user already carrying the new
-// key is left alone, and a user with neither is untouched.
-//
+// Only users with the source key are updated. MongoDB $rename replaces the destination value if
+// that key already exists.
 import { MongoClient } from 'mongodb';
 
 const [from, to] = process.argv.slice(2);

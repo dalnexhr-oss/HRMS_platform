@@ -1,12 +1,11 @@
 'use client';
 
-// Comp-off credits earned by working a week-off or holiday, plus the form to
-// apply for a day off against one. Applying raises a request that HR approves;
-// on approval the taken day is stamped CO and the credit is marked used.
+// Apply for a day off using a comp-off credit. HR approval stamps the day CO and marks the credit
+// used.
 import { useActionState, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate, todayIST } from '@/lib/format';
-import { applyCompOff } from '@/lib/actions/compoff';
+import { applyCompOff } from '@/lib/actions/comp-off';
 import type { CompOffRow } from '@/lib/queries';
 
 const statusLabel: Record<CompOffRow['status'], string> = {
@@ -22,8 +21,10 @@ function pillStyle(c: CompOffRow): React.CSSProperties {
   if (c.status === 'available' && !c.isApplicable) {
     return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
   }
-  if (c.status === 'available') return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
-  if (c.status === 'applied') return { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' };
+  if (c.status === 'available')
+    return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
+  if (c.status === 'applied')
+    return { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' };
   return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
 }
 
@@ -106,7 +107,11 @@ function ApplyForm({ available }: { available: CompOffRow[] }) {
       <div className="f-row">
         <div className="f">
           <label>Use the comp off earned on</label>
-          <select name="comp_off_id" value={compOffId} onChange={(e) => setCompOffId(e.target.value)}>
+          <select
+            name="comp_off_id"
+            value={compOffId}
+            onChange={(e) => setCompOffId(e.target.value)}
+          >
             <option value="">Earliest to expire (recommended)</option>
             {available.map((c) => (
               <option key={c.id} value={c.id}>

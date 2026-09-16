@@ -1,18 +1,14 @@
 'use server';
 
 /**
- * In-app document e-signatures.
- *
- * Invariants:
- * - Server-authoritative timestamp: `signed_at` is generated server-side.
- * - Request metadata: `ip` and `user_agent` are extracted directly from request headers.
- * - Append-only record: acknowledgements cannot be updated or deleted once committed.
+ * Append-only document signatures. Read the timestamp, IP, and user agent on the server; clients
+ * provide only the signature content.
  */
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
-import { requireDb, wroteNothing } from '@/lib/actions/_guard';
+import { requireDb, wroteNothing } from '@/lib/actions/guards';
 
 export interface ActionResult {
   ok: boolean;
@@ -23,7 +19,10 @@ export interface ActionResult {
 const kinds = ['policy', 'offer_letter', 'handbook', 'asset_declaration', 'fnf'] as const;
 const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Record the signed-in employee's acknowledgement of a document. `documentId` is optional — some acknowledgements (a handbook with no row of its own) are free-standing. The unique index only applies when it is present, so a genuinely re-issued document gets a new id and can be signed again.
+// Record the signed-in employee's acknowledgement of a document. `documentId` is optional — some
+// acknowledgements (a handbook with no row of its own) are free-standing. The unique index only
+// applies when it is present, so a genuinely re-issued document gets a new id and can be signed
+// again.
 export async function acknowledgeDocument(input: {
   kind: string;
   documentId?: string | null;
@@ -52,7 +51,8 @@ export async function acknowledgeDocument(input: {
   if (!employeeId) {
     return {
       ok: false,
-      error: 'Your login is not linked to an employee record, so it cannot carry a signature. Ask HR to link it.',
+      error:
+        'Your login is not linked to an employee record, so it cannot carry a signature. Ask HR to link it.',
     };
   }
 
@@ -90,7 +90,8 @@ export async function acknowledgeDocument(input: {
     if (error.code === '42501') {
       return {
         ok: false,
-        error: 'The signature was refused. Reload the page and try again — your session clock may be out of step.',
+        error:
+          'The signature was refused. Reload the page and try again — your session clock may be out of step.',
       };
     }
     return { ok: false, error: error.message };

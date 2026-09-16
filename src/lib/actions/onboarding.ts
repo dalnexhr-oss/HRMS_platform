@@ -1,12 +1,10 @@
 'use server';
 
-// Server Actions for onboarding checklist lifecycle and task assignment.
-//
-// Templates are cloned snapshot-by-value into onboarding_tasks upon onboarding initialization
-// to prevent subsequent template modifications from mutating in-flight task instances.
+// Create onboarding tasks from a template snapshot so later template edits do not change active
+// checklists.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
-import { requireRoles, wroteNothing } from '@/lib/actions/_guard';
+import { requireRoles, wroteNothing } from '@/lib/actions/guards';
 import { notifyEmployee } from '@/lib/notify';
 import type { AppRole } from '@/types/database';
 
@@ -149,7 +147,8 @@ export async function addOnboardingTask(input: {
   const gate = await requireRoles(onboardingRoles, 'Adding an onboarding step');
   if (!gate.ok) return gate;
 
-  if (!uuidRe.test(String(input.employeeId ?? ''))) return { ok: false, error: 'Pick an employee.' };
+  if (!uuidRe.test(String(input.employeeId ?? '')))
+    return { ok: false, error: 'Pick an employee.' };
   const title = String(input.title ?? '').trim();
   if (!title) return { ok: false, error: 'Give the step a title.' };
 
@@ -187,11 +186,7 @@ export async function deleteOnboardingTask(id: string): Promise<ActionResult> {
   if (!uuidRe.test(String(id ?? ''))) return { ok: false, error: 'Unknown onboarding step.' };
 
   const dbc = await createClient();
-  const { data, error } = await dbc
-    .from('onboarding_tasks')
-    .delete()
-    .eq('id', id)
-    .select('id');
+  const { data, error } = await dbc.from('onboarding_tasks').delete().eq('id', id).select('id');
   if (error) {
     return { ok: false, error: error.message };
   }

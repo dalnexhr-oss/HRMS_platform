@@ -1,9 +1,5 @@
-// Presentational types for the TV attendance board.
-//
-// Kept free of any server import on purpose: the board's client components pull
-// these in, and reaching into @/lib/tv (which builds a server database client)
-// would drag server-only code toward the browser bundle. @/lib/tv imports FROM
-// here, never the other way round.
+// Client-safe types for the TV attendance board. Server queries depend on these types without
+// exposing database imports to components.
 
 // Where an employee stands right now.
 export type Presence =

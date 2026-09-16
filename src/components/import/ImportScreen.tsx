@@ -8,7 +8,7 @@ import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { monthLabelUTC, monthOptionsAround } from '@/lib/format';
 import type { AppRole } from '@/types/database';
 
-// Staff roles allowed to import — and so to download the blank template. Mirrors importRoles in actions/import.ts (commitImport).
+// Match commitImport's staff roles for importing and downloading templates.
 const importRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 // How far the "Other month" list reaches: next month down to 12 months back.
@@ -41,9 +41,7 @@ export function ImportScreen({
   const monthChoices = monthOptionsAround(currentMonth, monthsBack, monthsAhead);
   // Pre-select the PREVIOUS month: catching up on a month that has ended is the
   // reason to reach for this control at all.
-  const [otherMonth, setOtherMonth] = useState(
-    () => monthOptionsAround(currentMonth, 1, 0)[1],
-  );
+  const [otherMonth, setOtherMonth] = useState(() => monthOptionsAround(currentMonth, 1, 0)[1]);
   const templateMonth = monthMode === 'current' ? currentMonth : otherMonth;
 
   const [file, setFile] = useState<File | null>(null);
@@ -110,8 +108,8 @@ export function ImportScreen({
           <div className="bd">
             <p className="muted" style={{ margin: 0 }}>
               Importing the register needs an admin or HR account
-              {role ? ` — yours is “${role}”.` : '.'} You can still upload a file to preview what
-              it contains; the import button is disabled.
+              {role ? ` — yours is “${role}”.` : '.'} You can still upload a file to preview what it
+              contains; the import button is disabled.
             </p>
           </div>
         </div>
@@ -185,7 +183,8 @@ export function ImportScreen({
                 </fieldset>
                 <p className="hint" style={{ marginTop: 0, marginBottom: 14 }}>
                   New to this? <b>Download template</b> Gives you a blank register in the exact
-                  upload format. It arrives already stamped with the month you selected above, so you can fill it in and upload it straight away.
+                  upload format. It arrives already stamped with the month you selected above, so
+                  you can fill it in and upload it straight away.
                 </p>
               </>
             )}
@@ -369,7 +368,10 @@ export function ImportScreen({
                   </div>
                   <div className="card kpi">
                     <div className="lab">Skipped</div>
-                    <div className="val" style={{ color: result.skipped ? 'var(--ab)' : undefined }}>
+                    <div
+                      className="val"
+                      style={{ color: result.skipped ? 'var(--ab)' : undefined }}
+                    >
                       {result.skipped}
                     </div>
                     <div className="note">Unmatched or unreadable</div>

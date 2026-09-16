@@ -1,29 +1,24 @@
-// Collection registry and schema document interfaces. SERVER ONLY.
-//
-// Centralizes collection name constants and type definitions for entities
-// including identity, org hierarchy, attendance, leave, payroll, and assets.
-//
+// MongoDB collection names and stored document types.
 import type { Collection, Decimal128, Document } from 'mongodb';
 import { db } from '@/lib/db/mongo';
 import type { AppRole } from '@/types/database';
-// import type { EmploymentType} from '@/types/database';
+
 export const collections = {
-  // --- identity
-  // Consolidated identity document: authentication credentials, role, and tab access permissions.
+  // Identity: credentials, role, and tab access share the user document.
   users: 'users',
 
-  // --- org
+  // org
   branches: 'branches',
   departments: 'departments',
   employees: 'employees',
 
-  // --- attendance
+  // attendance
   punchEvents: 'punch_events',
   attendanceDays: 'attendance_days',
   lateMarks: 'late_marks',
   holidays: 'holidays',
 
-  // --- leave
+  // leave
   requests: 'requests',
   approvalSteps: 'approval_steps',
   leaveBalances: 'leave_balances',
@@ -32,20 +27,20 @@ export const collections = {
   leaveEncashment: 'leave_encashment',
   leaveSalaryWorkings: 'leave_salary_workings',
 
-  // --- payroll
+  // payroll
   payrollRuns: 'payroll_runs',
   payslips: 'payslips',
   payslipAdjustments: 'payslip_adjustments',
   ptSlabs: 'pt_slabs',
 
-  // --- assets and items
+  // assets and items
   assets: 'assets',
   assetAssignments: 'asset_assignments',
   assetMaintenance: 'asset_maintenance',
   items: 'items',
   itemAssignments: 'item_assignments',
 
-  // --- documents and comms
+  // documents and comms
   employeeDocuments: 'employee_documents',
   notices: 'notices',
   noticeReads: 'notice_reads',
@@ -56,7 +51,7 @@ export const collections = {
   helpdeskTickets: 'helpdesk_tickets',
   helpdeskTicketComments: 'helpdesk_ticket_comments',
 
-  // --- lifecycle
+  // lifecycle
   onboardingTemplates: 'onboarding_templates',
   onboardingTemplateItems: 'onboarding_template_items',
   onboardingTasks: 'onboarding_tasks',
@@ -66,11 +61,11 @@ export const collections = {
   knowledgeTransferItems: 'knowledge_transfer_items',
   fullAndFinal: 'full_and_final',
 
-  // --- reimbursements
+  // reimbursements
   reimbursementClaims: 'reimbursement_claims',
   reimbursementEvents: 'reimbursement_events',
 
-  // --- system
+  // system
   settings: 'settings',
   activityLog: 'activity_log',
   cronRunLog: 'cron_run_log',
@@ -130,9 +125,7 @@ export function toPublicUser(user: UserDoc): PublicUser {
   return rest;
 }
 
-//
 // Org core
-//
 
 // Calendar date represented as ISO-8601 string ("YYYY-MM-DD") to avoid timezone shift on day boundaries.
 export type DateOnly = string;
@@ -227,9 +220,7 @@ export interface EmployeeDoc {
 }
 
 // Typed handle for an arbitrary collection.
-export async function collection<T extends Document>(
-  name: CollectionName,
-): Promise<Collection<T>> {
+export async function collection<T extends Document>(name: CollectionName): Promise<Collection<T>> {
   return (await db()).collection<T>(name);
 }
 

@@ -1,16 +1,9 @@
-// Payslip computation and payroll run state transitions. SERVER ONLY.
+// Compute payslips in integer paise and store monetary results as Decimal128. Use
+// half-away-from-zero rounding for earnings and deductions; floor hours shortfall deductions to
+// whole rupees.
 //
-// Financial Arithmetic Invariants:
-// - All monetary calculations are performed in integer paise (see lib/db/money.ts)
-//   and converted to Decimal128 solely at the persistence boundary to eliminate IEEE-754 precision drift.
-// - Symmetric half-away-from-zero rounding is applied to deductions and earnings.
-// - Working hours shortfall deduction is floored to whole rupees matching statutory registers.
-//
-// Day Computation Formulas:
-// - Working days = P + CO + OH + T + S + LM + 0.5 * HD
-// - Payable days = Working days + WO (week-offs are paid)
-// - Unpaid leave (L) is excluded from payable days.
-//
+// Working days = P + CO + OH + T + S + LM + 0.5 × HD.
+// Payable days = working days + WO; unpaid leave is excluded.
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import type { ClientSession } from 'mongodb';
@@ -19,14 +12,17 @@ import { scopedFor } from '@/lib/db/repo';
 import { systemScope } from '@/lib/db/scope';
 import { withTransaction } from '@/lib/db/mongo';
 import { addPaise, fromPaise, roundToRupee, scalePaise, subPaise, toPaise } from '@/lib/db/money';
-import { registerRpc } from '@/lib/db/pgcompat';
+import { registerRpc } from '@/lib/db/postgrest-compat';
 
 // Statuses counted as a full working day.
 const fullDay = ['P', 'CO', 'OH', 'T', 'S', 'LM'];
 
 // Retrieves a numeric configuration setting with a fallback default.
 async function settingNumeric(key: string, fallback: number): Promise<number> {
-  const settings = scopedFor<BaseDoc & { key: string; value: unknown }>(collections.settings, systemScope);
+  const settings = scopedFor<BaseDoc & { key: string; value: unknown }>(
+    collections.settings,
+    systemScope,
+  );
   const row = await settings.findOne({ key });
   const n = Number(row?.value ?? fallback);
   return Number.isFinite(n) ? n : fallback;
@@ -111,15 +107,15 @@ export async function computePayslip(
   const branch = await branches.findOne({ _id: e.branch_id as string });
   const state = (branch?.state as string | null) ?? null;
 
-  const periodMonth = run.period_month as string;          // 'YYYY-MM-01'
+  const periodMonth = run.period_month as string; // 'YYYY-MM-01'
   const month = Number(periodMonth.slice(5, 7));
   const dim = daysInMonth(periodMonth);
 
   const esicCapPaise = toPaise(await settingNumeric('esic_gross_cap', 21000));
   let fullDayMin = await settingNumeric('full_day_minutes', 555);
-  if (fullDayMin <= 0) fullDayMin = 555;                    // 9h15m
+  if (fullDayMin <= 0) fullDayMin = 555; // 9h15m
 
-  // --- attendance for the month -------------------------------------------
+  // attendance for the month
   // Calendar days are strings, so a month is a prefix — no date arithmetic and
   // no timezone to get wrong.
   const prefix = periodMonth.slice(0, 7);
@@ -144,7 +140,7 @@ export async function computePayslip(
   // Per-EMPLOYEE target: the days they were actually scheduled to work.
   const targetMinutes = Math.round(workingDays * fullDayMin);
 
-  // --- earnings, pro-rated on days in month --------------------------------
+  // earnings, pro-rated on days in month
   const grossPaise = toPaise(e.gross_monthly as never);
   const perDayRate = scalePaise(e.gross_monthly as never, 1 / dim);
   const basicEarned = scalePaise(e.basic_da as never, payableDays / dim);
@@ -152,16 +148,16 @@ export async function computePayslip(
   const specialEarned = scalePaise(e.special_allowance as never, payableDays / dim);
   const earnedGross = basicEarned + hraEarned + specialEarned;
 
-  // --- shortfall ------------------------------------------------------------
+  // shortfall
   let shortfallMinutes = 0;
   let shortfallAmount = 0;
   if (targetMinutes > 0 && workedMinutes < targetMinutes) {
     shortfallMinutes = targetMinutes - workedMinutes;
     // Floor shortfall deduction to whole rupees (100 paise) per payroll specification.
-    shortfallAmount = Math.floor((perDayRate / fullDayMin) * shortfallMinutes / 100) * 100;
+    shortfallAmount = Math.floor(((perDayRate / fullDayMin) * shortfallMinutes) / 100) * 100;
   }
 
-  // --- statutory deductions -------------------------------------------------
+  // statutory deductions
   // PF and ESIC round half away from zero to whole rupees (100 paise multiples).
   const toRupee = roundToRupee;
 
@@ -175,7 +171,7 @@ export async function computePayslip(
 
   const pt = await professionalTax(state, grossPaise, e.gender as string, month);
 
-  // --- adjustments ----------------------------------------------------------
+  // adjustments
   const payslips = scopedFor<BaseDoc>(collections.payslips, systemScope, session);
   const adjustments = scopedFor<BaseDoc>(collections.payslipAdjustments, systemScope, session);
 
@@ -279,10 +275,8 @@ export async function computePayslip(
   return result;
 }
 
-// ---------------------------------------------------------------------------
 // Run lifecycle state machine: compute -> lock -> mark-paid.
 // Mutations on locked or paid runs throw to protect finalized financial records.
-// ---------------------------------------------------------------------------
 
 type RunStatus = 'draft' | 'in_review' | 'locked' | 'paid';
 
@@ -356,10 +350,7 @@ export async function lockRun(runId: string): Promise<void> {
       { payroll_run_id: runId },
       { $set: { status: 'generated', updated_at: now } },
     );
-    await runs(session).updateOne(
-      { _id: runId },
-      { $set: { status: 'locked', locked_at: now } },
-    );
+    await runs(session).updateOne({ _id: runId }, { $set: { status: 'locked', locked_at: now } });
   });
 }
 

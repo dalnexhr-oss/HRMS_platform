@@ -1,8 +1,5 @@
-// Declarative foreign key relationship registry for aggregation lookups. SERVER ONLY.
-//
-// Defines explicit join criteria (local/foreign keys and cardinality) per parent-child
-// pair instead of relying on heuristics, ensuring strict resolution of non-standard
-// foreign keys (e.g. handover_to, 1:1 shared primary keys, and parent-referenced collections).
+// Explicit lookup relationships, including nonstandard foreign keys and shared primary keys. Avoid
+// inferring joins from field names.
 
 import 'server-only';
 
@@ -26,7 +23,7 @@ const toOne = (table: string, localField: string): Relationship => ({
 
 // Registry indexed by parent collection, then by embed alias in the selection projection.
 export const relationships: Record<string, Record<string, Relationship>> = {
-  // --- employees and the things hanging off them
+  // employees and the things hanging off them
   // employees.branch_id -> branches.id, employees.department_id -> departments.id
   employees: {
     branches: toOne('branches', 'branch_id'),
@@ -47,7 +44,7 @@ export const relationships: Record<string, Record<string, Relationship>> = {
   // Foreign key references the recipient of the handover.
   knowledge_transfer_items: { employees: toOne('employees', 'handover_to') },
 
-  // --- payroll
+  // payroll
   payslips: {
     employees: toOne('employees', 'employee_id'),
     payroll_runs: toOne('payroll_runs', 'payroll_run_id'),
@@ -60,7 +57,7 @@ export const relationships: Record<string, Record<string, Relationship>> = {
     },
   },
 
-  // --- items and assets
+  // items and assets
   item_assignments: {
     items: toOne('items', 'item_id'),
     employees: toOne('employees', 'employee_id'),
@@ -70,7 +67,7 @@ export const relationships: Record<string, Record<string, Relationship>> = {
     employees: toOne('employees', 'employee_id'),
   },
 
-  // --- reverse joins: the CHILD holds the key
+  // reverse joins: the CHILD holds the key
   onboarding_templates: {
     onboarding_template_items: {
       table: 'onboarding_template_items',

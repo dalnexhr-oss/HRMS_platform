@@ -118,7 +118,7 @@ export function HelpdeskScreen({
 
       <TicketChatDrawer
         ticket={chat}
-        initialComments={chat ? comments[chat.id] ?? [] : []}
+        initialComments={chat ? (comments[chat.id] ?? []) : []}
         selfId={selfId}
         isStaff
         open={chat !== null}

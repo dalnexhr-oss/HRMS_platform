@@ -1,7 +1,7 @@
 import type { AttendanceStatus } from '@/types/database';
 
-// Status stamp metadata: [short label, css class, human label].
-// Ported from attendanceStatusMeta in the prototype. 'S'/'T' reuse the outdoor-duty style.
+// Status metadata: short label, CSS class, and display label. Site and travel share the
+// outdoor-duty style.
 export const attendanceStatusMeta: Record<string, [string, string, string]> = {
   P: ['P', 'st-P', 'Present'],
   LM: ['LM', 'st-LM', 'Late mark'],
@@ -12,10 +12,7 @@ export const attendanceStatusMeta: Record<string, [string, string, string]> = {
   AB: ['A', 'st-AB', 'Absent'],
   S: ['S', 'st-OD', 'Site'],
   T: ['T', 'st-OD', 'Travel'],
-  // Comp off. Reuses the holiday stamp style — a taken comp off
-  // is a paid day off — rather than adding a class, so globals.css stays as
-  // ported. Without this entry statusMeta() fell back to 'P' and a CO day
-  // rendered as Present.
+  // A taken comp off is paid time off, so it shares the holiday stamp style.
   CO: ['CO', 'st-OH', 'Comp off'],
 };
 
@@ -36,7 +33,9 @@ export const registerLegend: [AttendanceStatus, string][] = [
 
 export const dow = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
-// Categorical palette for branch identity — the split bar and legend on /today and the branch chips on /employees. 20 fixed slots assigned by the branch's position in the (alphabetical) branch list, so a branch keeps its colour across both screens. The ORDER is deliberate, not cosmetic: it interleaves warm/cool hues so adjacent slots (which sit next to each other in the split bar) stay apart under colour-vision deficiency. Validated with the dataviz palette checker against the white card surface: lightness band, chroma floor and 3:1 contrast all pass; the one warn-band CVD pair (slots 6–7, mint↔red, deutan ΔE 6.2) is covered by secondary encoding — every legend row carries the branch name, and the split bar keeps 2px surface gaps between segments. Slot 1 stays in the Dalnex brand family. Don't re-order casually; re-run the validator if you do.
+// Assign branch colors by alphabetical index, shared by the dashboard and employee list. The
+// 20-slot order alternates hues for adjacent segments. Keep text labels and segment gaps as
+// additional cues; check contrast and color-vision distinguishability before changing the palette.
 export const branchPalette = [
   '#2A78D6', // 1 blue
   '#06809C', // 2 teal
@@ -65,9 +64,9 @@ export function branchColorAt(i: number): string {
   return branchPalette[i % branchPalette.length];
 }
 
-// Document types offered when an employee files paperwork. Free text in the DB; this just keeps the drop-down tidy. It lives here rather than beside the upload action because that module is `'use server'`, and Next allows only async function exports from one — a plain const there fails the build.
+// Keep upload categories client-safe. A use-server module cannot export plain constants.
 export const documentCategories = [
-  // --- onboarding
+  // onboarding
   'offer_letter',
   'contract',
   'joining_form',
@@ -77,16 +76,18 @@ export const documentCategories = [
   'bank',
   'nda',
   'onboarding_other',
-  // --- exit
+  // exit
   'resignation',
   'clearance',
-  // --- anything else
+  // anything else
   'other',
 ] as const;
 
 export type DocumentCategory = (typeof documentCategories)[number];
 
-// Categories the system ISSUES rather than accepts. generateExitDocument writes these into employee_documents itself, against the `generated-documents` bucket and already stamped verified — an HR-issued letter is authoritative the moment it is produced. They appear in the register alongside uploads but are never offered in an upload form, and nothing may replace one: reissuing means generating it again from /exits. NOTE the overlap: 'experience' is BOTH an uploadable category (the certificate from a previous employer) and the letter this company issues on exit. The category alone cannot tell them apart — the BUCKET can, which is why the register carries `source` and labels an issued row accordingly.
+// System-issued documents are verified when generated and cannot be replaced through upload forms.
+// Reissue them from /exits. The experience category is shared with uploads, so use the
+// bucket/source to distinguish an issued letter from an uploaded certificate.
 export const generatedDocumentCategories = ['relieving', 'experience', 'settlement'] as const;
 
 // Display names for every category, uploaded or issued.
@@ -109,14 +110,19 @@ export const documentCategoryLabels: Record<string, string> = {
   settlement: 'Full & final statement',
 };
 
-// The label to show for a row, given where its file came from. Only 'experience' needs the distinction — see the note on generatedDocumentCategories — but routing every row through one function means a future overlap is handled in one place rather than at each table.
+// The label to show for a row, given where its file came from. Only 'experience' needs the
+// distinction — see the note on generatedDocumentCategories — but routing every row through one
+// function means a future overlap is handled in one place rather than at each table.
 export function documentCategoryLabel(category: string | null, issued = false): string {
   if (!category) return '—';
   if (issued && category === 'experience') return 'Experience letter';
   return documentCategoryLabels[category] ?? category;
 }
 
-// What every employee is expected to have on file. Drives the "missing" count on /documents and the gaps listed in an employee's drill-down. Deliberately short: it is the joining paperwork the company cannot operate without, not everything it might ever want. A category outside this list is welcome on file but never reported as missing.
+// What every employee is expected to have on file. Drives the "missing" count on /documents and the
+// gaps listed in an employee's drill-down. Deliberately short: it is the joining paperwork the
+// company cannot operate without, not everything it might ever want. A category outside this list
+// is welcome on file but never reported as missing.
 export const requiredDocumentCategories: readonly string[] = [
   'offer_letter',
   'contract',
@@ -124,7 +130,8 @@ export const requiredDocumentCategories: readonly string[] = [
   'bank',
 ];
 
-// Every Indian state and union territory a branch may be registered in. Must stay in lockstep with the `indian_state` — the branch form offers these and resolveBranch validates against them, but the database enum has the final word. Note on payroll: professional tax comes from pt_slabs, which only seeds Maharashtra and Gujarat. fn_professional_tax returns 0 when a state has no slab rows, so a branch in any other state computes PT as nil until its slabs are added.
+// Keep branch states in sync with the schema enum. Professional Tax is zero for states without
+// configured pt_slabs.
 export const States = [
   // States (28)
   'Andhra Pradesh',
@@ -167,11 +174,9 @@ export const States = [
   'Puducherry',
 ] as const;
 
-//
-// Portal navigation model
-//
+// Portal navigation.
 
-// Sidebar section headers. Declared as constants rather than typed inline on each row: a free-typed `group: 'Operations'` next to `group: 'Operate'` is how Import ended up alone under its own header, and the compiler could not see it. With NavItem['group'] bound to this object, the same slip is a build error. Each name states a domain ('Attendance', 'Company') rather than a frequency or a shrug — the old 'More' told the reader nothing, so every item under it had to be re-read on each visit.
+// Shared sidebar groups keep navigation labels and grouping consistent.
 export const groups = {
   ATTENDANCE: 'Attendance',
   WORKFORCE: 'Workforce',
@@ -183,7 +188,7 @@ export const groups = {
 
 export type NavGroup = (typeof groups)[keyof typeof groups];
 
-// Header order in the sidebar. The renderer walks this list, not NAV, and skips any group whose visible items come to zero — otherwise a role that cannot see Users, Import or Settings still gets a bare 'Admin' heading.
+// Render groups in this order and skip groups with no visible tabs.
 export const groupOrder: NavGroup[] = [
   groups.ATTENDANCE,
   groups.WORKFORCE,
@@ -199,7 +204,8 @@ export interface NavItem {
   group: NavGroup;
 }
 
-// Every sidebar row, in render order within its group. `users` and `import` were previously injected by Sidebar.tsx and absent from this list. That split is what let their group names drift, and why 'import' had no TabTitles row and no role gate. They are declared here now; Sidebar.tsx must no longer add them itself. 'My account' is deliberately absent — a personal profile is not navigation, and gating it alongside Users would have hidden it from the people who need it most. It belongs in the avatar menu beside Sign out.
+// Sidebar rows in group order. Keep Users and Import here so titles and access rules use the same
+// slugs. Personal account settings belong in the profile menu.
 export const navItems: NavItem[] = [
   { slug: 'today', label: 'Today', group: groups.ATTENDANCE },
   { slug: 'register', label: 'Monthly register', group: groups.ATTENDANCE },
@@ -212,7 +218,7 @@ export const navItems: NavItem[] = [
   { slug: 'documents', label: 'Documents', group: groups.WORKFORCE },
   { slug: 'exits', label: 'Exits', group: groups.WORKFORCE },
 
-  { slug: 'leaveManagment', label: 'Leave Management', group: groups.HR },
+  { slug: 'leave-management', label: 'Leave Management', group: groups.HR },
   { slug: 'leave', label: 'Leave salary', group: groups.HR },
   { slug: 'payroll', label: 'Payroll', group: groups.HR },
   { slug: 'reimbursements', label: 'Reimbursements', group: groups.HR },
@@ -230,13 +236,13 @@ export const navItems: NavItem[] = [
   { slug: 'settings', label: 'Settings', group: groups.ADMIN },
 ];
 
-// Nav items only some roles may see. The page itself re-checks and redirects — this just avoids showing a link that would bounce. 'import' and 'settings' are new entries: both were reachable by every role because Sidebar.tsx injected Import outside this map, and Settings was simply never listed. A plain employee could open 'Rules & thresholds'.
-export const TabRoleAuthorized: Record<string, readonly string[]> = {
+// Hide tabs unavailable to the role. Pages and actions enforce their own authorization checks.
+export const tabRoleAccess: Record<string, readonly string[]> = {
   audit: ['super_admin', 'admin', 'hr'],
   onboarding: ['super_admin', 'admin', 'hr'],
   documents: ['super_admin', 'admin', 'hr'],
   exits: ['super_admin', 'admin', 'hr'],
-  leaveManagment: ['super_admin', 'admin', 'hr'],
+  'leave-management': ['super_admin', 'admin', 'hr'],
   leave: ['super_admin', 'admin', 'hr'],
   assets: ['super_admin', 'admin', 'hr'],
   items: ['super_admin', 'admin', 'hr'],
@@ -246,16 +252,13 @@ export const TabRoleAuthorized: Record<string, readonly string[]> = {
   settings: ['super_admin', 'admin', 'hr'],
 };
 
-// Page titles + FALLBACK subtitles keyed by slug. These are deliberately plain
-// descriptions: anything carrying a live figure (today's date, the current
-// period, head-counts, pending queues) is filled in by pageHeader() from real
-// data, so a stale number is never invented here. The prototype's hardcoded
-// "Wednesday, 8 July 2026", "45 active" and "2 pending" used to live in this map.
-export const TabTitles: Record<string, [string, string]> = {
+// Static titles and fallback subtitles by slug. pageHeader supplies dates and counts from live
+// data.
+export const tabTitles: Record<string, [string, string]> = {
   today: ['Today', 'Live attendance · IST'],
   register: ['Monthly register', 'Attendance by month'],
   audit: ['Attendance audit', 'Who edited attendance & why'],
-  leaveManagment: ['Leave Management', 'Manage employee leave requests'],
+  'leave-management': ['Leave Management', 'Manage employee leave requests'],
   leave: ['Leave salary', '15-day paid leave & annual payout'],
   exits: ['Exits', 'Clearance, settlement & documents'],
   onboarding: ['Onboarding', 'Joiner checklists by owner'],
@@ -276,7 +279,10 @@ export const TabTitles: Record<string, [string, string]> = {
   account: ['My account', 'Your profile & password'],
 };
 
-// Live figures behind the topbar subtitles, resolved by the portal layout (see getTopbarStats). Date labels are pre-formatted on the SERVER so the client cannot hydrate a different day. The interface lives here rather than in queries.ts so the client-side Topbar can import it without dragging a server-only module into the browser bundle.
+// Live figures behind the topbar subtitles, resolved by the portal layout (see getTopbarStats).
+// Date labels are pre-formatted on the SERVER so the client cannot hydrate a different day. The
+// interface lives here rather than in queries.ts so the client-side Topbar can import it without
+// dragging a server-only module into the browser bundle.
 export interface TopbarStats {
   // e.g. 'Saturday, 25 July 2026' — today in the business timezone.
   todayLabel: string;
@@ -303,9 +309,11 @@ const runStatusLabel: Record<string, string> = {
   paid: 'paid',
 };
 
-// Title + subtitle for a page. Falls back to the static TabTitles row whenever the figure behind a subtitle is unavailable, so a failed count degrades to a plain description rather than to a wrong number.
+// Title + subtitle for a page. Falls back to the static tabTitles row whenever the figure behind a
+// subtitle is unavailable, so a failed count degrades to a plain description rather than to a wrong
+// number.
 export function pageHeader(slug: string, stats?: TopbarStats | null): [string, string] {
-  const [title, fallback] = TabTitles[slug] ?? ['', ''];
+  const [title, fallback] = tabTitles[slug] ?? ['', ''];
   if (!stats) return [title, fallback];
 
   switch (slug) {
@@ -319,7 +327,7 @@ export function pageHeader(slug: string, stats?: TopbarStats | null): [string, s
     }
 
     case 'payroll': {
-      const status = stats.runStatus ? runStatusLabel[stats.runStatus] ?? stats.runStatus : null;
+      const status = stats.runStatus ? (runStatusLabel[stats.runStatus] ?? stats.runStatus) : null;
       return [title, `${stats.periodLabel} · ${status ?? 'no run yet'}`];
     }
 
@@ -345,16 +353,7 @@ export function pageHeader(slug: string, stats?: TopbarStats | null): [string, s
   }
 }
 /**
- * How long a notice is kept before it is DELETED.
- *
- * Deletion, not hiding: deleteExpiredNotices() in db/scheduler.ts measures this
- * many days back from today (IST) and removes every notice published — or, for
- * a draft, created — before that cutoff. Notices carry no expiry column and
- * nothing filters them at render time; the row is simply gone.
- *
- * ONE number, because there used to be two. The nightly job defaulted to 90
- * days while the purge that runs whenever staff publish used 30, and since the
- * 30-day sweep always ran first, everything older was already gone by the time
- * the 90-day job looked. Both callers now default to this constant.
+ * Notice retention in days, shared by scheduled and on-publish cleanup. Delete notices older than
+ * the IST cutoff, measured from published_at or created_at for drafts.
  */
 export const noticeRetentionDays = 30;

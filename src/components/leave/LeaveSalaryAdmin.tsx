@@ -1,23 +1,12 @@
 'use client';
 
-//
-// The leave-salary working screen (replaces the PL/CL/SL balances admin).
-//
-// One row per employee, mirroring the owner's Excel: HR types the before/after
-// salaries, presence comes from the register, and the payable amounts follow
-// the formula — (salary/2) × months/12 × present/calendar — live while a row
-// is a draft, frozen once it is finalized. The paid-leave pool (15 days/yr)
-// keeps a compact card below: approvals still deduct from it, so HR still
-// needs the provision button and an audited correction path.
-//
+// Leave-salary workings by employee. Drafts recalculate from salaries and register attendance;
+// finalized rows use saved figures. The paid-leave pool below supports annual provisioning and
+// audited adjustments.
 import { useMemo, useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { inr } from '@/lib/format';
-import {
-  computeLeaveSalary,
-  effectiveFigures,
-  type LeaveSalaryResult,
-} from '@/lib/leave-salary';
+import { computeLeaveSalary, effectiveFigures, type LeaveSalaryResult } from '@/lib/leave-salary';
 import type { LeaveSalaryViewRow } from '@/lib/leave-salary-view';
 import {
   saveLeaveSalaryWorking,
@@ -31,8 +20,18 @@ import { useToast } from '@/components/ui/Toast';
 import type { LeaveBalanceAdminRow } from '@/lib/queries';
 
 const monthNames = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 const statusColor: Record<string, string> = {
@@ -94,10 +93,7 @@ export function LeaveSalaryAdmin({
     });
   }
 
-  const grandTotal = rows.reduce(
-    (a, r) => a + effectiveFigures(r.working, r.live).total,
-    0,
-  );
+  const grandTotal = rows.reduce((a, r) => a + effectiveFigures(r.working, r.live).total, 0);
 
   return (
     <div className="wrap grid">
@@ -112,10 +108,18 @@ export function LeaveSalaryAdmin({
           </span>
           <span style={{ flex: 1 }} />
           {/* Year switcher: the working is strictly per calendar year. */}
-          <button className="btn quiet" disabled={pending} onClick={() => router.push(`/leave?y=${year - 1}`)}>
+          <button
+            className="btn quiet"
+            disabled={pending}
+            onClick={() => router.push(`/leave?y=${year - 1}`)}
+          >
             ← {year - 1}
           </button>
-          <button className="btn quiet" disabled={pending} onClick={() => router.push(`/leave?y=${year + 1}`)}>
+          <button
+            className="btn quiet"
+            disabled={pending}
+            onClick={() => router.push(`/leave?y=${year + 1}`)}
+          >
             {year + 1} →
           </button>
           {exportSlot}
@@ -124,16 +128,18 @@ export function LeaveSalaryAdmin({
         {!migrated && (
           <div className="bd">
             <p className="muted" style={{ margin: 0 }}>
-              Leave salary is not set up on this database yet — run{' '}
-              <b>npm run db:setup</b> to create the collections. The figures below are
-              computed live and correct, but nothing can be saved until then.
+              Leave salary is not set up on this database yet — run <b>npm run db:setup</b> to
+              create the collections. The figures below are computed live and correct, but nothing
+              can be saved until then.
             </p>
           </div>
         )}
 
         {rows.length === 0 ? (
           <div className="bd">
-            <p className="muted" style={{ margin: 0 }}>No employees on the roster for {year}.</p>
+            <p className="muted" style={{ margin: 0 }}>
+              No employees on the roster for {year}.
+            </p>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -220,9 +226,14 @@ export function LeaveSalaryAdmin({
                   <tr key={b.employeeId}>
                     <td>
                       <b>{b.name}</b>{' '}
-                      <span className="mono muted" style={{ fontSize: 11 }}>{b.code}</span>
+                      <span className="mono muted" style={{ fontSize: 11 }}>
+                        {b.code}
+                      </span>
                     </td>
-                    <td className="right mono" style={{ color: b.balance < 0 ? 'var(--ab)' : undefined }}>
+                    <td
+                      className="right mono"
+                      style={{ color: b.balance < 0 ? 'var(--ab)' : undefined }}
+                    >
                       {b.balance}
                     </td>
                     <td>
@@ -250,7 +261,7 @@ export function LeaveSalaryAdmin({
   );
 }
 
-// ------------------------------------------------------------- working row ---
+// working row
 
 function WorkingRow({
   year,
@@ -287,8 +298,10 @@ function WorkingRow({
   const salaryBefore = Number(before);
   const salaryAfter = Number(after);
   const valid =
-    Number.isFinite(salaryBefore) && salaryBefore >= 0 &&
-    Number.isFinite(salaryAfter) && salaryAfter >= 0;
+    Number.isFinite(salaryBefore) &&
+    salaryBefore >= 0 &&
+    Number.isFinite(salaryAfter) &&
+    salaryAfter >= 0;
 
   const overrideOf = (raw: string): number | null => {
     const s = raw.trim();
@@ -332,9 +345,13 @@ function WorkingRow({
       <tr style={{ cursor: 'pointer' }} onClick={() => setOpen((o) => !o)}>
         <td>
           <b>{row.name}</b>{' '}
-          <span className="mono muted" style={{ fontSize: 11 }}>{row.code}</span>
+          <span className="mono muted" style={{ fontSize: 11 }}>
+            {row.code}
+          </span>
           {!row.onRoster && (
-            <div className="muted" style={{ fontSize: 11 }}>no longer on the roster</div>
+            <div className="muted" style={{ fontSize: 11 }}>
+              no longer on the roster
+            </div>
           )}
           {row.drift && (
             <div style={{ fontSize: 11, color: 'var(--lm)' }}>
@@ -378,7 +395,9 @@ function WorkingRow({
               aria-label={`${row.name}: month the increment takes effect`}
             >
               {monthNames.map((m, ix) => (
-                <option key={m} value={ix + 1}>{m}</option>
+                <option key={m} value={ix + 1}>
+                  {m}
+                </option>
               ))}
             </select>
           )}
@@ -429,9 +448,14 @@ function WorkingRow({
         </td>
         <td className="right mono">{inr(fig.amountP1)}</td>
         <td className="right mono">{inr(fig.amountP2)}</td>
-        <td className="right mono" style={{ fontWeight: 700 }}>{inr(fig.total)}</td>
+        <td className="right mono" style={{ fontWeight: 700 }}>
+          {inr(fig.total)}
+        </td>
         <td>
-          <span className="pill" style={{ borderColor: 'var(--line-2)', color: statusColor[status ?? 'draft'] }}>
+          <span
+            className="pill"
+            style={{ borderColor: 'var(--line-2)', color: statusColor[status ?? 'draft'] }}
+          >
             {status ?? 'unsaved'}
           </span>
         </td>
@@ -442,10 +466,13 @@ function WorkingRow({
                 className="btn quiet"
                 disabled={pending || !migrated || !valid || !dirty}
                 title={
-                  !migrated ? 'Run npm run db:setup first'
-                  : !valid ? 'Enter both salaries'
-                  : !dirty ? 'Nothing changed'
-                  : undefined
+                  !migrated
+                    ? 'Run npm run db:setup first'
+                    : !valid
+                      ? 'Enter both salaries'
+                      : !dirty
+                        ? 'Nothing changed'
+                        : undefined
                 }
                 onClick={() =>
                   onAction(
@@ -471,7 +498,9 @@ function WorkingRow({
               <button
                 className="btn quiet"
                 disabled={pending}
-                onClick={() => onAction(() => finalizeLeaveSalary(row.working!.id), 'Working finalized.')}
+                onClick={() =>
+                  onAction(() => finalizeLeaveSalary(row.working!.id), 'Working finalized.')
+                }
               >
                 Finalize
               </button>
@@ -481,7 +510,12 @@ function WorkingRow({
                 <button
                   className="btn quiet"
                   disabled={pending}
-                  onClick={() => onAction(() => reopenLeaveSalary(row.working!.id), 'Working reopened for editing.')}
+                  onClick={() =>
+                    onAction(
+                      () => reopenLeaveSalary(row.working!.id),
+                      'Working reopened for editing.',
+                    )
+                  }
                 >
                   Reopen
                 </button>
@@ -490,7 +524,10 @@ function WorkingRow({
                   disabled={pending}
                   onClick={async () => {
                     if (!(await onConfirmPaid(row.name, fig.total))) return;
-                    onAction(() => markLeaveSalaryPaid(row.working!.id), 'Leave salary marked paid.');
+                    onAction(
+                      () => markLeaveSalaryPaid(row.working!.id),
+                      'Leave salary marked paid.',
+                    );
                   }}
                 >
                   Mark paid
@@ -558,27 +595,51 @@ function Breakdown({
   const p2Range = `${monthNames[incMonth - 1].slice(0, 3)} – Dec`;
 
   return (
-    <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', padding: '10px 4px', fontSize: 12.5 }}>
+    <div
+      style={{
+        display: 'grid',
+        gap: 14,
+        gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+        padding: '10px 4px',
+        fontSize: 12.5,
+      }}
+    >
       <div>
-        <div style={{ fontWeight: 700, marginBottom: 6 }}>Before increment · {p1Range} {year}</div>
+        <div style={{ fontWeight: 700, marginBottom: 6 }}>
+          Before increment · {p1Range} {year}
+        </div>
         {line('Monthly salary', inr(salaryBefore))}
         {line('Leave salary (½ month)', inr(salaryBefore / 2))}
-        {line(`Entitled for ${monthsP1} month${monthsP1 === 1 ? '' : 's'}`, inr(entitled(salaryBefore, monthsP1)))}
+        {line(
+          `Entitled for ${monthsP1} month${monthsP1 === 1 ? '' : 's'}`,
+          inr(entitled(salaryBefore, monthsP1)),
+        )}
         {line('Days present / calendar', `${fig.presentP1} / ${fig.calendarDaysP1}`)}
         {line('Payable', inr(fig.amountP1))}
       </div>
       <div>
-        <div style={{ fontWeight: 700, marginBottom: 6 }}>After increment · {p2Range} {year}</div>
+        <div style={{ fontWeight: 700, marginBottom: 6 }}>
+          After increment · {p2Range} {year}
+        </div>
         {line('Monthly salary', inr(salaryAfter))}
         {line('Leave salary (½ month)', inr(salaryAfter / 2))}
-        {line(`Entitled for ${monthsP2} month${monthsP2 === 1 ? '' : 's'}`, inr(entitled(salaryAfter, monthsP2)))}
+        {line(
+          `Entitled for ${monthsP2} month${monthsP2 === 1 ? '' : 's'}`,
+          inr(entitled(salaryAfter, monthsP2)),
+        )}
         {line('Days present / calendar', `${fig.presentP2} / ${fig.calendarDaysP2}`)}
         {line('Payable', inr(fig.amountP2))}
       </div>
       <div>
         <div style={{ fontWeight: 700, marginBottom: 6 }}>Total · {inr(fig.total)}</div>
         {locked ? (
-          remarks ? <p style={{ margin: 0 }}>{remarks}</p> : <p className="muted" style={{ margin: 0 }}>No remarks.</p>
+          remarks ? (
+            <p style={{ margin: 0 }}>{remarks}</p>
+          ) : (
+            <p className="muted" style={{ margin: 0 }}>
+              No remarks.
+            </p>
+          )
         ) : (
           <textarea
             value={remarks}
@@ -594,7 +655,7 @@ function Breakdown({
   );
 }
 
-// ---------------------------------------------------------------- pool card ---
+// pool card
 
 /** Inline paid-leave credit/debit. A reason is mandatory — the audit row requires it. */
 function AdjustForm({

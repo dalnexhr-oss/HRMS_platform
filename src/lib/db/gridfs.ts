@@ -1,22 +1,17 @@
-// File storage implementation backed by GridFS. SERVER ONLY.
-//
-// Implements segmented buckets with path-based employee access control.
-// Object keys follow the `<employeeId>/<uuid>-<filename>` convention.
-// File streaming route handlers enforce caller session authorization per request.
+// GridFS storage with employee-scoped paths: <employeeId>/<uuid>-<filename>. File routes recheck
+// session and path access for each request.
 import 'server-only';
-import {Readable} from 'node:stream';
-import {pipeline} from 'node:stream/promises';
-import {GridFSBucket, ObjectId, type GridFSFile} from 'mongodb';
-import {db} from '@/lib/db/mongo';
-import {currentScope, type Scope} from '@/lib/db/scope';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { GridFSBucket, ObjectId, type GridFSFile } from 'mongodb';
+import { db } from '@/lib/db/mongo';
+import { currentScope, type Scope } from '@/lib/db/scope';
 
 export type StorageBucket =
-  | 'employee-documents'
-  | 'reimbursement-receipts'
-  | 'generated-documents'
-  | 'notice-attachments';
+  'employee-documents' | 'reimbursement-receipts' | 'generated-documents' | 'notice-attachments';
 
-// Buckets partitioned by employee ID prefix. Unlisted buckets are company-wide (staff write, authenticated read).
+// Buckets partitioned by employee ID prefix. Unlisted buckets are company-wide (staff write,
+// authenticated read).
 const employeeScoped: ReadonlySet<StorageBucket> = new Set([
   'employee-documents',
   'reimbursement-receipts',
@@ -53,7 +48,8 @@ async function requireScope(): Promise<Scope> {
   return scope;
 }
 
-// Enforces read authorization: HR/admin can read all buckets; employees can only read within their own path prefix.
+// Enforces read authorization: HR/admin can read all buckets; employees can only read within their
+// own path prefix.
 function assertMayRead(scope: Scope, bucket: StorageBucket, path: string): void {
   if (scope.isStaff) return;
   if (!employeeScoped.has(bucket)) return; // company-wide: any signed-in reader
@@ -61,7 +57,8 @@ function assertMayRead(scope: Scope, bucket: StorageBucket, path: string): void 
   if (!owner || owner !== scope.employeeId) throw new StorageAccessError();
 }
 
-// Enforces upload authorization: privileged buckets (generated-documents, notice-attachments) require HR/admin.
+// Enforces upload authorization: privileged buckets (generated-documents, notice-attachments)
+// require HR/admin.
 function assertMayWrite(scope: Scope, bucket: StorageBucket, path: string): void {
   if (scope.isStaff) return;
   if (bucket === 'generated-documents' || bucket === 'notice-attachments') {

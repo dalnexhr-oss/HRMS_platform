@@ -1,10 +1,7 @@
 'use client';
 
-// Request a password-reset email.
-//
-// The response is deliberately identical whether or not the address exists —
-// see requestPasswordReset() for why. That means this component never shows a
-// "no such account" state, because the server never reports one.
+// Show the same reset response for existing and unknown addresses to avoid exposing which accounts
+// exist.
 import { useActionState } from 'react';
 import Link from 'next/link';
 import { requestPasswordReset, type PasswordState } from '@/lib/actions/password';
@@ -19,8 +16,8 @@ export function ResetRequestForm() {
     return (
       <div>
         <div className="hint">
-          ✓&nbsp; If an account exists for that address, a password-reset link is on its
-          way. It expires in an hour and can be used once.
+          ✓&nbsp; If an account exists for that address, a password-reset link is on its way. It
+          expires in an hour and can be used once.
         </div>
 
         {/* Only ever set in development, when there is no SMTP server to send through and the link would otherwise be unreachable. */}

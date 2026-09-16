@@ -5,8 +5,7 @@ import { getEmployeeOptions } from '@/lib/queries';
 import { getSession } from '@/lib/auth';
 import type { AppRole } from '@/types/database';
 
-// User administration is admin/HR only. Anyone else is bounced rather than shown
-// a screen whose every control would be refused.
+// Match the user administration actions' staff role gate.
 const userAdminRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 export default async function UsersPage() {

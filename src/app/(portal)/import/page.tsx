@@ -3,7 +3,7 @@ import { getSession } from '@/lib/auth';
 import { currentPeriodMonth } from '@/lib/queries';
 import type { AppRole } from '@/types/database';
 
-// Roles allowed to import. Mirrors importRoles in '@/lib/actions/import', which in turn mirrors is_staff() as of   super_admin, admin, hr. This is a UI affordance only: it decides whether the button is offered. commitImport re-checks the role server-side, and the attendance_days write policy checks it a third time, so hiding it here is convenience, not security.
+// Match commitImport's staff role gate. The action and collection policy also enforce access.
 const importRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 export default async function ImportPage() {
@@ -14,10 +14,7 @@ export default async function ImportPage() {
     <ImportScreen
       canImport={!!role && importRoles.includes(role)}
       role={role}
-      // Resolved on the SERVER: currentPeriodMonth() reads the clock in IST, the
-      // business timezone every other monthly view uses. Recomputing it in the
-      // browser would give a user abroad a different "current month" than the
-      // register and payroll pages show.
+      // Resolve the current payroll month in IST on the server so it matches the register.
       currentMonth={currentPeriodMonth()}
     />
   );

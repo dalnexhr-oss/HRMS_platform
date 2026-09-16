@@ -1,22 +1,17 @@
-// Database procedural functions callable via the RPC interface. SERVER ONLY.
-//
-// Implements privileged domain operations executed with system scope.
-// Each handler enforces explicit role/authorization checks at its entry boundary.
-//
+// RPC handlers for privileged domain operations. Each handler checks authorization before using
+// system scope.
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { collections, type BaseDoc } from '@/lib/db/collections';
 import { scopedFor } from '@/lib/db/repo';
-import { registerRpc } from '@/lib/db/pgcompat';
+import { registerRpc } from '@/lib/db/postgrest-compat';
 import { currentScope, systemScope, type Scope } from '@/lib/db/scope';
 import { toDecimal } from '@/lib/db/money';
 import { AppRole } from '@/types/database';
-// The SQL used `now() at time zone 'Asia/Kolkata'`; this is the app's one
-// definition of that date. See the note on the same import in pgcompat.ts.
+// Use the shared IST business date for database operations.
 import { todayIST } from '@/lib/format';
 
-// Execution context distinguishing internal scheduled jobs from external RPC requests.
-// Wire RPC dispatches cannot supply this parameter, preventing unauthorized privilege escalation.
+// Only internal jobs may set this context; RPC dispatch never accepts it from clients.
 export interface Invocation {
   readonly isScheduler: boolean;
 }
@@ -44,15 +39,16 @@ class NotPermitted extends Error {
 
 /** Retrieves a numeric configuration setting with a fallback default. */
 async function settingNumeric(key: string, fallback: number): Promise<number> {
-  const settings = scopedFor<BaseDoc & { key: string; value: unknown }>(collections.settings, systemScope);
+  const settings = scopedFor<BaseDoc & { key: string; value: unknown }>(
+    collections.settings,
+    systemScope,
+  );
   const row = await settings.findOne({ key });
   const n = Number(row?.value ?? fallback);
   return Number.isFinite(n) ? n : fallback;
 }
 
-// ---------------------------------------------------------------------------
 // fn_on_leave_today
-// ---------------------------------------------------------------------------
 
 export interface OnLeaveRow {
   employee_id: string;
@@ -112,9 +108,7 @@ async function onLeaveToday(): Promise<OnLeaveRow[]> {
   return rows;
 }
 
-// ---------------------------------------------------------------------------
 // fn_init_approval_steps
-// ---------------------------------------------------------------------------
 
 /**
  * Seeds sequential approval chain (hr -> admin) for a leave request based on configured approval levels.
@@ -163,9 +157,7 @@ async function initApprovalSteps(args: { p_request_id?: string }): Promise<numbe
   return made;
 }
 
-// ---------------------------------------------------------------------------
 // fn_provision_leave_balances
-// ---------------------------------------------------------------------------
 
 /**
  * Initializes annual paid leave (PL) balances for eligible employees,
@@ -248,8 +240,6 @@ async function provisionLeaveBalances(
   return created;
 }
 
-// ---------------------------------------------------------------------------
-
 let registered = false;
 
 /** Wire the TypeScript implementations into the `.rpc()` surface. Idempotent. */
@@ -258,8 +248,11 @@ export function registerDbFunctions(): void {
   registered = true;
   registerRpc('fn_on_leave_today', () => onLeaveToday());
   registerRpc('fn_init_approval_steps', (a) => initApprovalSteps(a as { p_request_id?: string }));
-  // RPC registration exposes only single-argument handlers to prevent caller tampering with invocation context.
-  registerRpc('fn_provision_leave_balances', (a) => provisionLeaveBalances(a as { p_year?: number }));
+  // RPC registration exposes only single-argument handlers to prevent caller tampering with
+  // invocation context.
+  registerRpc('fn_provision_leave_balances', (a) =>
+    provisionLeaveBalances(a as { p_year?: number }),
+  );
 }
 
 export { onLeaveToday, initApprovalSteps, provisionLeaveBalances };

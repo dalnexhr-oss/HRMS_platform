@@ -5,8 +5,7 @@ import { getOnboardingBoard, getOnboardingTemplates, getEmployeeOptions } from '
 import { getSession } from '@/lib/auth';
 import type { AppRole } from '@/types/database';
 
-// Onboarding is super-admin/admin/HR only, matching the onboarding policies and
-// the actions' own requireRoles gate.
+// Match the onboarding actions and collection policies.
 const onboardingRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 export default async function OnboardingPage() {
@@ -23,10 +22,13 @@ export default async function OnboardingPage() {
   return (
     <>
       <OnboardingScreen tasks={tasks} templates={templates} employees={employees} />
-      {/* The verification queue used to render here as well. It moved to /documents, which is now the single place employee paperwork is worked on — a joiner's documents are the same documents as everyone else's, and two queues meant two places to remember to look. This page is the joiner CHECKLIST; the link is the seam between them. */}
+      {/* Document verification lives at /documents; this page manages onboarding checklists. */}
       <div className="wrap">
         <div className="card">
-          <div className="bd" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div
+            className="bd"
+            style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}
+          >
             <div>
               <b>Documents</b>
               <div className="muted" style={{ fontSize: 12 }}>

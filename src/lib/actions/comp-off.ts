@@ -1,22 +1,13 @@
 'use server';
 
-//
-// Comp-off lifecycle.
-//
-// EARNED staff grant a credit from the register when an employee worked an
-// off day (a WO/OH-stamped day carrying punches).
-// APPLIED the employee applies for a day off against an available credit;
-// this raises a normal request(type='comp_off') so it lands in the
-// staff approvals queue.
-// USED on approval the taken day is stamped 'CO' in attendance_days and
-// the credit is closed with its used_date. See reviewRequest().
-//
+// Comp-off lifecycle: staff grant credit for work on a day off; employees apply against available
+// credit; approval stamps the taken day CO and marks the credit used.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { getWeekOffPolicy } from '@/lib/queries';
 import { isScheduledWeekOff } from '@/lib/week-off';
-import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/_guard';
+import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { toDecimal } from '@/lib/db/money';
 import { notifyApprovers, notifyEmployee } from '@/lib/notify';
 import { todayIST } from '@/lib/format';
@@ -35,7 +26,8 @@ const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 // the module enters a client bundle. The constant is only used inside this file.
 const offDayStatuses = ['WO', 'OH'] as const;
 
-// Grant a comp-off credit for an off day the employee worked. The unique (employee_id, earned_date) constraint makes a double-grant a no-op error rather than a duplicate credit.
+// Grant a comp-off credit for an off day the employee worked. The unique (employee_id, earned_date)
+// constraint makes a double-grant a no-op error rather than a duplicate credit.
 export async function grantCompOff(employeeId: string, earnedDate: string): Promise<ActionResult> {
   const gate = await requireStaff('Granting a comp off');
   if (!gate.ok) return gate;
@@ -131,7 +123,10 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
   const { profile } = await getSession();
   const employeeId = profile?.employee_id ?? null;
   if (!employeeId) {
-    return { ok: false, error: 'Your login is not linked to an employee record. Ask HR to link it.' };
+    return {
+      ok: false,
+      error: 'Your login is not linked to an employee record. Ask HR to link it.',
+    };
   }
 
   const dbc = await createClient();
@@ -245,7 +240,8 @@ export async function setCompOffApplicability(
   if (wroteNothing(data)) {
     return {
       ok: false,
-      error: 'Only an available credit can be switched — this one is already applied for, used or expired.',
+      error:
+        'Only an available credit can be switched — this one is already applied for, used or expired.',
     };
   }
 

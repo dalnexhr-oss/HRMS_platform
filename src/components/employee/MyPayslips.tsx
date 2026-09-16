@@ -32,9 +32,11 @@ function downloadPayslip(p: PayslipRow, onBlocked: () => void) {
   if (!printPayslip(p)) onBlocked();
 }
 
-const popupBlocked = 'Your browser blocked the payslip window. Allow pop-ups for this site and try again.';
+const popupBlocked =
+  'Your browser blocked the payslip window. Allow pop-ups for this site and try again.';
 
-// The payslip table is a single card, so it can be embedded in the employee dashboard or on its own page. The id prop is used to anchor the card from the nav link on the employee dashboard.
+// The payslip table is a single card, so it can be embedded in the employee dashboard or on its own
+// page. The id prop is used to anchor the card from the nav link on the employee dashboard.
 export function MyPayslips({ payslips, id }: { payslips: PayslipRow[]; id?: string }) {
   const [open, setOpen] = useState<number | null>(null);
 
@@ -74,7 +76,9 @@ export function MyPayslips({ payslips, id }: { payslips: PayslipRow[]; id?: stri
                     onClick={() => setOpen((o) => (o === ix ? null : ix))}
                   >
                     <td>
-                      <b>{monthLabel(p.periodMonth) ?? (ix === 0 ? 'Latest' : `Earlier · ${ix + 1}`)}</b>{' '}
+                      <b>
+                        {monthLabel(p.periodMonth) ?? (ix === 0 ? 'Latest' : `Earlier · ${ix + 1}`)}
+                      </b>{' '}
                       <span className="mono muted">{p.code}</span>
                     </td>
                     <td className="right mono">{p.payableDays}</td>
@@ -129,9 +133,18 @@ function PayslipBreakdown({ p }: { p: PayslipRow }) {
               label={`Professional tax · ${p.state}`}
               value={p.professionalTax ? '-' + inr(p.professionalTax) : '—'}
             />
-            <Kv label="Advance recovery" value={p.advanceRecovery ? '-' + inr(p.advanceRecovery) : '—'} />
-            <Kv label="Other deductions" value={p.otherDeductions ? '-' + inr(p.otherDeductions) : '—'} />
-            <Kv label="Late marks / Loss & damage" value={p.lossDamage ? '-' + inr(p.lossDamage) : '—'} />
+            <Kv
+              label="Advance recovery"
+              value={p.advanceRecovery ? '-' + inr(p.advanceRecovery) : '—'}
+            />
+            <Kv
+              label="Other deductions"
+              value={p.otherDeductions ? '-' + inr(p.otherDeductions) : '—'}
+            />
+            <Kv
+              label="Late marks / Loss & damage"
+              value={p.lossDamage ? '-' + inr(p.lossDamage) : '—'}
+            />
             {p.lastMonthBalance !== 0 && (
               <Kv
                 label="Last month balance (±)"
@@ -142,7 +155,10 @@ function PayslipBreakdown({ p }: { p: PayslipRow }) {
             {p.reimbursementBonus !== 0 && (
               <Kv label="Reimbursement" value={'+' + inr(p.reimbursementBonus)} />
             )}
-            <Kv label="Total deductions" value={totalDeductions(p) ? '-' + inr(totalDeductions(p)) : '—'} />
+            <Kv
+              label="Total deductions"
+              value={totalDeductions(p) ? '-' + inr(totalDeductions(p)) : '—'}
+            />
             <Kv label="Net payable" value={inr(p.netPayable)} total />
           </div>
           {/* .exp-grid is a three-column grid (see PayrollTable); the staff-only

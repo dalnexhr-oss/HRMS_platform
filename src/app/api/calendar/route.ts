@@ -1,22 +1,9 @@
+// Export the signed-in employee's approved leave, comp-off credits, and company holidays as an ICS
+// calendar.
 //
-// Personal calendar feed (.ics) — subscribe to your own HR calendar.
-//
-// Returns the signed-in employee's approved leave, their comp-off credits and
-// the company holiday list as a single RFC 5545 VCALENDAR, so it can be opened
-// once as a download OR subscribed to in Google/Outlook/Apple Calendar and kept
-// in sync automatically.
-//
-// AUTH: this deliberately uses the normal cookie session (the same client every
-// page uses), NOT a long-lived feed token. A token in a webcal:// URL is a
-// bearer credential that leaks through calendar-app logs and sync services and
-// never expires — for a first cut, a signed-in fetch is the safer trade. The
-// practical consequence is that desktop calendar apps which do not carry the
-// session cookie will not auto-refresh; "Download .ics" always works.
-//
-// The collection policies do the real scoping: `requests` and `comp_offs` are
-// already restricted to the caller, so this route cannot return another
-// employee's leave even if the employee id were tampered with.
-//
+// The route uses the normal cookie session. Calendar clients without that cookie cannot refresh the
+// feed; authenticated downloads still work. Collection policies restrict employee records to the
+// caller.
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
@@ -36,7 +23,7 @@ export async function GET(): Promise<Response> {
   const dbc = await createClient();
   const events: CalendarEvent[] = [];
 
-  // --- company holidays (everyone sees these)
+  // company holidays (everyone sees these)
   try {
     for (const h of await getHolidays()) {
       events.push({
@@ -53,7 +40,7 @@ export async function GET(): Promise<Response> {
   }
 
   if (employeeId) {
-    // --- approved leave / duty ---------------------------------------------
+    // approved leave / duty
     const { data: reqs } = await dbc
       .from('requests')
       .select('id, type, leave_kind, start_date, end_date, status')
@@ -72,7 +59,7 @@ export async function GET(): Promise<Response> {
       });
     }
 
-    // --- comp-off credits still available ----------------------------------
+    // comp-off credits still available
     const { data: credits } = await dbc
       .from('comp_offs')
       .select('id, earned_date, status')

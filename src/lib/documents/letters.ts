@@ -1,9 +1,6 @@
 /**
- * System document generation (PDF). SERVER ONLY.
- *
- * Generates single-column letter formats (relieving, experience, and full-and-final settlements)
- * as PDF byte arrays via pdf-lib. Generated documents are stored in the `generated-documents`
- * GridFS bucket and served via authenticated streaming routes.
+ * Build HR letter PDFs with pdf-lib. Generated files are stored in the generated-documents bucket
+ * and served through authenticated routes.
  */
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { logoAspect, logoPngBytes } from '@/lib/brand/logo';

@@ -1,11 +1,7 @@
 'use client';
 
-// Reusable e-signature control: type your name, sign once, see the record.
-//
-// This is a step ABOVE the existing "mark as read" receipt — a signature carries
-// a typed name plus a server-stamped time and IP, and cannot be edited or
-// removed by anyone. The component never sends a
-// timestamp; the database clock supplies it.
+// Capture an immutable typed-name signature. The server supplies the timestamp and request
+// metadata.
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { acknowledgeDocument } from '@/lib/actions/acknowledge';

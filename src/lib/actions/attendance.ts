@@ -1,29 +1,20 @@
 'use server';
 
-//
-// Server Action for manual attendance corrections.
-//
-// The register footer promises: "Any manual correction asks for a reason and is
-// written to the audit log." This file is what makes that sentence true — it
-// upserts attendance_days (stamping is_corrected / correction_reason /
-// corrected_by) and then writes an activity_log entry describing who changed
-// what and why.
-//
-// House rule, deliberately honoured here: we never return { ok: true } for a
-// write that did not write. A missing database is NOT a licence to fake a save.
-//
+// Save manual attendance corrections with the reason and actor, then record the change in
+// activity_log. Failed writes must return an error.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { isMongoConfigured } from '@/lib/queries';
 import { getSession } from '@/lib/auth';
 import { hhmmToMinutes } from '@/lib/format';
-import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/_guard';
+import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/guards';
 import type { AppRole, AttendanceStatus } from '@/types/database';
 
 export interface CorrectionState {
   ok?: boolean;
   error?: string;
-  // The write SUCCEEDED but a follow-up needs attention (e.g. the audit-log entry failed). ok stays true — see requests.ts.
+  // The write SUCCEEDED but a follow-up needs attention (e.g. the audit-log entry failed). ok stays
+  // true — see requests.ts.
   warning?: string;
 }
 
@@ -31,7 +22,18 @@ export interface CorrectionState {
 const writeRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 // Statuses available for manual override in the attendance register.
-const allowedStatuses: AttendanceStatus[] = ['P', 'LM', 'HD', 'L', 'WO', 'OH', 'AB', 'S', 'T', 'CO'];
+const allowedStatuses: AttendanceStatus[] = [
+  'P',
+  'LM',
+  'HD',
+  'L',
+  'WO',
+  'OH',
+  'AB',
+  'S',
+  'T',
+  'CO',
+];
 
 function isAllowedStatus(v: string): v is AttendanceStatus {
   return (allowedStatuses as string[]).includes(v);
@@ -63,7 +65,7 @@ const dateRe = /^\d{4}-\d{2}-\d{2}$/;
  * friendly rejection, not the security boundary.
  */
 export async function correctAttendance(formData: FormData): Promise<CorrectionState> {
-  // ---------------------------------------------------------------- inputs ---
+  // inputs
   const employeeId = str(formData.get('employee_id'));
   const workDate = str(formData.get('work_date'));
   const status = str(formData.get('status'));
@@ -85,7 +87,8 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
   if (!punchIn !== !punchOut) {
     return {
       ok: false,
-      error: 'Enter both punch in and punch out, or leave both blank — a single punch would record zero hours.',
+      error:
+        'Enter both punch in and punch out, or leave both blank — a single punch would record zero hours.',
     };
   }
   if (!uuidRe.test(employeeId)) {
@@ -120,7 +123,7 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
     };
   }
 
-  // ------------------------------------------------------------ authorise ---
+  // authorise
   const session = await getSession();
   if (!session.profile) {
     return { ok: false, error: 'Your session has expired. Sign in again to make corrections.' };
@@ -153,7 +156,7 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
   const open = await requireOpenPayrollMonth(dbc, workDate);
   if (!open.ok) return open;
 
-  // --------------------------------------------------------------- write ---
+  // write
   const { data: saved, error: saveError } = await dbc
     .from('attendance_days')
     .upsert(
@@ -180,11 +183,12 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
   if (!saved) {
     return {
       ok: false,
-      error: 'The correction was not saved — your role may not have permission to write attendance.',
+      error:
+        'The correction was not saved — your role may not have permission to write attendance.',
     };
   }
 
-  // ------------------------------------------------- comp-off availment ---
+  // comp-off availment
   // When manually recording a comp-off ('CO'), deduct oldest available credit (FIFO).
   // Non-fatal warning if deduction fails so the attendance correction itself is preserved.
   let compOffWarning: string | null = null;
@@ -224,7 +228,7 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
     }
   }
 
-  // ----------------------------------------------------------- audit log ---
+  // audit log
   const punchText = punchIn && punchOut ? `${punchIn}–${punchOut}` : 'no punches';
   const actor = session.profile.full_name ?? session.email ?? 'A staff user';
   const { error: logError } = await dbc.from('activity_log').insert({
@@ -264,14 +268,9 @@ export interface BulkTarget {
 }
 
 /**
- * Apply ONE status to MANY employee/day cells in a single reasoned correction.
- *
- * Mirrors correctAttendance's guarantees at scale: staff-only, reason required,
- * every closed/locked month refused (the WHOLE batch, not silently partial —
- * mixed success is worse than an honest refusal), each row stamped is_corrected
- * with the reason, and ONE audit-log summary row for the batch. Punches are
- * cleared: a bulk status set ("mark these days L") is a day-status change, not a
- * punch edit, so worked_minutes goes to 0.
+ * Apply one attendance status to a batch with a required reason and one audit summary. Reject the
+ * whole batch if any month is closed. Clear punches and worked minutes because this changes day
+ * status, not punch times.
  */
 export async function correctAttendanceBulk(input: {
   targets: BulkTarget[];
@@ -283,9 +282,11 @@ export async function correctAttendanceBulk(input: {
   const targets = Array.isArray(input.targets) ? input.targets : [];
 
   if (!reason) return { ok: false, error: 'A correction reason is required.' };
-  if (!isAllowedStatus(status)) return { ok: false, error: `Invalid status: ${status || '(missing)'}` };
+  if (!isAllowedStatus(status))
+    return { ok: false, error: `Invalid status: ${status || '(missing)'}` };
   if (targets.length === 0) return { ok: false, error: 'Select at least one day to correct.' };
-  if (targets.length > 2000) return { ok: false, error: 'Too many cells at once — narrow the selection.' };
+  if (targets.length > 2000)
+    return { ok: false, error: 'Too many cells at once — narrow the selection.' };
 
   for (const t of targets) {
     if (!uuidRe.test(t.employeeId) || !dateRe.test(t.workDate)) {
@@ -298,9 +299,7 @@ export async function correctAttendanceBulk(input: {
 
   const dbc = await createClient();
 
-  // Refuse the whole batch if ANY touched month is locked/paid/closed. One
-  // check per MONTH, not per date — a 31-day sweep used to issue 31 identical
-  // payroll_runs queries before writing a single row.
+  // Reject the batch if any affected month is closed. Query each month once.
   const months = [...new Set(targets.map((t) => t.workDate.slice(0, 7)))];
   for (const month of months) {
     const open = await requireOpenPayrollMonth(dbc, `${month}-01`);
@@ -323,9 +322,13 @@ export async function correctAttendanceBulk(input: {
     .from('attendance_days')
     .upsert(rows, { onConflict: 'employee_id,work_date' })
     .select('id');
-  if (saveError) return { ok: false, error: `Could not save the corrections: ${saveError.message}` };
+  if (saveError)
+    return { ok: false, error: `Could not save the corrections: ${saveError.message}` };
   if (!saved || saved.length === 0) {
-    return { ok: false, error: 'No rows were written — your role may not have permission to write attendance.' };
+    return {
+      ok: false,
+      error: 'No rows were written — your role may not have permission to write attendance.',
+    };
   }
 
   const { profile } = await getSession();
@@ -339,7 +342,10 @@ export async function correctAttendanceBulk(input: {
   });
   revalidatePath('/register');
   if (logError) {
-    return { ok: true, warning: `Corrections saved, but the audit-log entry failed: ${logError.message}` };
+    return {
+      ok: true,
+      warning: `Corrections saved, but the audit-log entry failed: ${logError.message}`,
+    };
   }
   return { ok: true };
 }

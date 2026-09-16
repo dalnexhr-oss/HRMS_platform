@@ -1,16 +1,7 @@
 'use client';
 
-// The employee attendance clock, minus its chrome.
-//
-// Two controls drive the same clock — the compact toggle in the top bar and the
-// full card further down /me — and both have to apply identical rules about
-// location, sequence errors and re-syncing after a rejected punch. Keeping that
-// in one hook is the only way the two cannot disagree.
-//
-// Location is requested but never required here. If the browser denies it, has
-// no GPS, or takes too long, the punch still goes through; it is simply
-// recorded without an at-office / off-site stamp. Whether a location-less punch
-// is refused at all is the server's call (PunchStatusResponse.requireLocation).
+// Shared punch state, location handling, and error recovery for both attendance controls. Location
+// failures are allowed unless the server's requireLocation policy requires coordinates.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -40,7 +31,8 @@ export function clock(value: string | null): string {
     : new Intl.DateTimeFormat('en-IN', timeFmt).format(date);
 }
 
-// The duration is always rounded down to the nearest minute, so a punch that is 1h 59m 59s long is reported as 1h 59m. The server does the same rounding, so the two numbers always match.
+// The duration is always rounded down to the nearest minute, so a punch that is 1h 59m 59s long is
+// reported as 1h 59m. The server does the same rounding, so the two numbers always match.
 
 export function duration(minutes: number): string {
   const safe = Math.max(0, Math.floor(minutes));
@@ -49,10 +41,8 @@ export function duration(minutes: number): string {
 }
 
 /**
- * What to tell someone when the location attempt fails. Each case has a
- * different remedy, so they get different words — "denied" is the only one they
- * have to go and fix in browser settings, and it is the one that used to be
- * silently swallowed.
+ * Return a location error with the appropriate recovery action. Denied permission requires a change
+ * in browser settings.
  */
 export const failureText: Record<LocationFailure, string> = {
   denied:

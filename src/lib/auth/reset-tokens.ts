@@ -1,10 +1,5 @@
-// Password-reset token generation and verification. SERVER ONLY.
-//
-// Security Invariants:
-// - Raw tokens are cryptographically random 32-byte buffers delivered solely via email.
-// - Tokens are stored as SHA-256 digests; raw tokens are never persisted.
-// - Tokens are strictly single-use and automatically purged upon consumption or TTL expiration.
-//
+// Generate single-use password-reset tokens. Email the random 32-byte token and store only its
+// SHA-256 digest. Delete consumed tokens and expire unused ones.
 import 'server-only';
 import { createHash, randomBytes } from 'node:crypto';
 import { db } from '@/lib/db/mongo';
@@ -34,7 +29,9 @@ async function tokens() {
   return (await db()).collection<ResetTokenDoc>(resetTokensCollection);
 }
 
-// Issue a reset token for a user and return the RAW value to put in the link. Any token the user already held is discarded first, so requesting a second link invalidates the first — otherwise every request would widen the window of live tokens.
+// Issue a reset token for a user and return the RAW value to put in the link. Any token the user
+// already held is discarded first, so requesting a second link invalidates the first — otherwise
+// every request would widen the window of live tokens.
 export async function createResetToken(
   userId: string,
   requestedIp: string | null = null,
@@ -55,7 +52,10 @@ export async function createResetToken(
   return raw;
 }
 
-// Redeem a token, returning the user id it belongs to, or null. The delete is the validation: findOneAndDelete is atomic, so two requests racing on the same link cannot both succeed. `expires_at` is still checked in the filter because the TTL monitor only runs about once a minute — the index is the cleanup, this is the guarantee.
+// Redeem a token, returning the user id it belongs to, or null. The delete is the validation:
+// findOneAndDelete is atomic, so two requests racing on the same link cannot both succeed.
+// `expires_at` is still checked in the filter because the TTL monitor only runs about once a minute
+// — the index is the cleanup, this is the guarantee.
 export async function consumeResetToken(raw: string): Promise<string | null> {
   if (!raw) return null;
   const collection = await tokens();

@@ -22,7 +22,10 @@ import type { RegisterEmployee } from '@/types/domain';
 
 const monthRe = /^\d{4}-(0[1-9]|1[0-2])$/;
 
-// Roles offered the correction UI — must match writeRoles in src/lib/actions/attendance.ts, which in turn matches is_staff() behind the attendance_days write policy. NOT isStaffRole(): that is the portal READ set, so using it here would open the drawer for someone whose save is then refused.
+// Roles offered the correction UI — must match writeRoles in src/lib/actions/attendance.ts, which
+// in turn matches is_staff() behind the attendance_days write policy. NOT isStaffRole(): that is
+// the portal READ set, so using it here would open the drawer for someone whose save is then
+// refused.
 const correctionRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 // '?m=2026-05' -> '2026-05-01'. Anything unparseable falls back to the current month (IST).
@@ -122,7 +125,7 @@ export default async function RegisterPage({
 
   // Preserve the current month when switching branch, and vice-versa.
   const withParams = (mm: string, bb: string | null): Route =>
-    (`/register?m=${mm}${bb ? `&b=${encodeURIComponent(bb)}` : ''}` as Route);
+    `/register?m=${mm}${bb ? `&b=${encodeURIComponent(bb)}` : ''}` as Route;
 
   return (
     <div className="wrap">
@@ -173,7 +176,9 @@ export default async function RegisterPage({
         {run && (run.workingDays != null || run.targetMinutes != null) && (
           <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
             {run.workingDays ?? '—'} working days · target{' '}
-            <b className="mono">&nbsp;{run.targetMinutes != null ? minutesToHHMM(run.targetMinutes) : '—'}</b>
+            <b className="mono">
+              &nbsp;{run.targetMinutes != null ? minutesToHHMM(run.targetMinutes) : '—'}
+            </b>
           </span>
         )}
 
@@ -216,14 +221,16 @@ export default async function RegisterPage({
             <div className="card" style={{ marginBottom: 12, borderColor: 'var(--lm-line)' }}>
               <div className="hd">
                 <h3>Approved leave not on the register</h3>
-                <span className="folio">{mismatches.length} day{mismatches.length === 1 ? '' : 's'}</span>
+                <span className="folio">
+                  {mismatches.length} day{mismatches.length === 1 ? '' : 's'}
+                </span>
               </div>
               <div className="bd">
                 <p className="muted" style={{ marginTop: 0, fontSize: 12 }}>
                   These employees have an <b>approved</b> leave request for these days, but the
                   register shows them absent (or has no row). Approving leave draws down the balance
-                  but does not stamp the register — mark the day <b>L</b> here so pay and the register
-                  agree.
+                  but does not stamp the register — mark the day <b>L</b> here so pay and the
+                  register agree.
                 </p>
                 <div style={{ overflowX: 'auto' }}>
                   <table>
@@ -240,12 +247,17 @@ export default async function RegisterPage({
                         <tr key={`${mm.employeeId}|${mm.date}`}>
                           <td>
                             <b>{mm.name}</b>{' '}
-                            <span className="mono muted" style={{ fontSize: 11 }}>{mm.code}</span>
+                            <span className="mono muted" style={{ fontSize: 11 }}>
+                              {mm.code}
+                            </span>
                           </td>
                           <td className="mono">{formatDate(mm.date)}</td>
                           <td>{mm.leaveKind ?? 'Leave'}</td>
                           <td>
-                            <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--hd)' }}>
+                            <span
+                              className="pill"
+                              style={{ borderColor: 'var(--line-2)', color: 'var(--hd)' }}
+                            >
                               {mm.registerStatus ?? 'no entry'}
                             </span>
                           </td>
@@ -266,8 +278,6 @@ export default async function RegisterPage({
             canCorrect={canCorrect}
             compOffKeys={compOffKeys}
           />
-
-          
         </>
       )}
     </div>

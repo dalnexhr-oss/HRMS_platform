@@ -30,8 +30,8 @@ export function SettingsScreen({
         <div className="bd">
           <p className="muted" style={{ marginTop: 0, marginBottom: 16 }}>
             New branches are created from the employee form (&ldquo;+ Add new branch&rdquo;). Fix a
-            name or state here, or remove a branch added by mistake — a branch with employees
-            cannot be deleted.
+            name or state here, or remove a branch added by mistake — a branch with employees cannot
+            be deleted.
           </p>
           {branches.length === 0 && <p className="empty">No branches yet.</p>}
           <div style={{ display: 'grid', gap: 12 }}>
@@ -52,9 +52,9 @@ export function SettingsScreen({
         </div>
         <div className="bd">
           <p className="muted" style={{ marginTop: 0, marginBottom: 16 }}>
-            Where each branch physically is. A punch is compared against its own branch&rsquo;s point
-            and stamped <b>at office</b> or <b>off-site</b> — location is recorded, but not enforced
-            so a punch is still accepted from anywhere. 
+            Where each branch physically is. A punch is compared against its own branch&rsquo;s
+            point and stamped <b>at office</b> or <b>off-site</b> — location is recorded, but not
+            enforced so a punch is still accepted from anywhere.
           </p>
           {branches.length === 0 && <p className="empty">No branches yet.</p>}
           <div style={{ display: 'grid', gap: 12 }}>
@@ -93,7 +93,12 @@ function BranchManageRow({
 }: {
   branch: BranchRow;
   toast: (message: string, kind?: ToastKind) => void;
-  confirm: (opts: { title?: string; message: string; confirmLabel?: string; danger?: boolean }) => Promise<boolean>;
+  confirm: (opts: {
+    title?: string;
+    message: string;
+    confirmLabel?: string;
+    danger?: boolean;
+  }) => Promise<boolean>;
 }) {
   const router = useRouter();
   const [name, setName] = useState(branch.name);
@@ -164,9 +169,7 @@ function BranchManageRow({
         aria-label="Branch state"
       >
         {/* A stored state missing from the list (pre-0040 data oddity) stays selectable. */}
-        {!(States as readonly string[]).includes(state) && (
-          <option value={state}>{state}</option>
-        )}
+        {!(States as readonly string[]).includes(state) && <option value={state}>{state}</option>}
         {States.map((s) => (
           <option key={s} value={s}>
             {s}
@@ -184,19 +187,8 @@ function BranchManageRow({
 }
 
 /**
- * One branch's office location: postal address, the geofence point, and its
- * radius.
- *
- * Per branch rather than per company, because that is what the data has always
- * been — branches.geofence_lat / geofence_lng / geofence_radius_m — and a firm
- * with a Pune and a Vadodara office cannot share one point: every punch taken
- * at the second office lands hundreds of kilometres outside the first and is
- * stamped off-site. The company-wide office_lat / office_lng settings stay as
- * the fallback for a branch that has not been located yet.
- *
- * Latitude and longitude are one field as far as saving is concerned — see
- * updateBranchLocation — so the form submits them together and the action
- * refuses a half-filled pair.
+ * Edit the branch's office address and geofence. Submit latitude and longitude together; clearing
+ * both restores the company-wide location fallback.
  */
 function BranchLocationRow({
   branch,
@@ -415,7 +407,13 @@ function parseBack(
   }
 }
 
-function SettingRow({ setting, toast }: { setting: SettingView; toast: (message: string, kind?: ToastKind) => void }) {
+function SettingRow({
+  setting,
+  toast,
+}: {
+  setting: SettingView;
+  toast: (message: string, kind?: ToastKind) => void;
+}) {
   const kind = knownKinds[setting.key] ?? kindOf(setting.value);
   const [value, setValue] = useState(displayValue(setting.value, kind));
   const [pending, startTransition] = useTransition();
@@ -492,7 +490,10 @@ function SettingRow({ setting, toast }: { setting: SettingView; toast: (message:
               setValue(e.target.value);
               setSaved(false);
             }}
-            style={{ width: kind === 'number-list' || kind === 'json' ? 160 : 110, textAlign: 'right' }}
+            style={{
+              width: kind === 'number-list' || kind === 'json' ? 160 : 110,
+              textAlign: 'right',
+            }}
             aria-label={setting.label ?? setting.key}
           />
         )}

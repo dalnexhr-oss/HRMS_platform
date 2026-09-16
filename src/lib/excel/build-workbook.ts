@@ -1,25 +1,12 @@
+// Server-side Excel builders. Actions return workbook bytes as base64. Register exports preserve
+// the layout expected by parse-register.ts.
 //
-// Server-only .xlsx builders (exceljs write path). SERVER ONLY — never import
-// into a client component; exceljs pulls in Node APIs. Server Actions call these
-// and hand the bytes to the browser as base64 (see actions/export.ts).
-//
-// The register export reproduces the COMPANY'S OWN register layout (the one
-// parseRegister.ts reads), so an exported file can be re-imported unchanged:
-// B1 year · B2 month · row 3 weekday names · row 4 day numbers + summary
-// headers · row 5 'Empl. ID' · rows 6+ employee blocks with STRIDE 4:
-// k+0 A=Empl. ID, B=Name, day cols = status, then counts / working / payable
-// k+1 B='In' day cols = punch-in
-// k+2 B='Out' day cols = punch-out
-// k+3 B='Total Hrs Completed' day cols = hours worked
-//
+// B1: year; B2: month; row 3: weekdays; row 4: day numbers and summaries; row 5: employee ID
+// header. Employee blocks start at row 6 with four rows: status, punch-in, punch-out, and worked
+// hours.
 import ExcelJS from 'exceljs';
 import { minutesToHHMM } from '@/lib/format';
-import {
-  statusFill,
-  headerFill,
-  timeFormat,
-  clockToExcelTime,
-} from '@/lib/excel/registerStyle';
+import { statusFill, headerFill, timeFormat, clockToExcelTime } from '@/lib/excel/register-style';
 import { writeBrandHeader, writeBrandOverlay } from '@/lib/excel/brand';
 // Pure module — same label the Today board's <Stamp> renders.
 import { statusMeta } from '@/lib/constants';
@@ -71,8 +58,8 @@ function safeText(v: unknown): string {
   return /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
 }
 
-// ---------------------------------------------------------------- geometry
-// Mirrors parseRegister.ts so the two stay in lockstep.
+// geometry
+// Mirrors parse-register.ts so the two stay in lockstep.
 const rowYear = 1;
 const rowMonth = 2;
 const rowWeekdays = 3;
@@ -110,7 +97,7 @@ function countStatuses(days: DayCell[]): Record<string, number> {
   return counts;
 }
 
-// ------------------------------------------------- register (reference form) ---
+// register (reference form)
 
 function writeReferenceSheet(
   ws: ExcelJS.Worksheet,
@@ -326,7 +313,7 @@ export function writeDailyPunchSheet(
 
 /**
  * Float the logo over the reference sheet WITHOUT moving anything. The layout
- * is parsed back by parseRegister.ts (B1 year, B2 month, row 4 day numbers,
+ * is parsed back by parse-register.ts (B1 year, B2 month, row 4 day numbers,
  * blocks from row 6), so no row may be inserted and no cell written. A floating
  * drawing lives in the sheet's drawing part, not sheetData, and row heights are
  * cosmetic — the parser reads neither.
@@ -359,10 +346,10 @@ export async function registerWorkbook(
   return toBytes(wb);
 }
 
-// ------------------------------------------- register IMPORT template ---
+// register IMPORT template
 // A blank version of the register above, for HR/Admin to fill in and upload
 // back through the Import tab. It is built by the SAME writeReferenceSheet() the
-// register export uses — the one parseRegister.ts round-trips against — so the
+// register export uses — the one parse-register.ts round-trips against — so the
 // template's structure can never drift from what the importer expects. It is a
 // run of empty employee blocks (labelled In/Out/Total rows) ready to complete.
 
@@ -416,7 +403,9 @@ export async function registerImportTemplateWorkbook(
   wb.creator = 'Dalnex HRMS';
 
   const days = daysOfMonth(periodMonth);
-  const employees: RegisterEmployee[] = Array.from({ length: blankBlocks }, (_, i) => blankBlock(i));
+  const employees: RegisterEmployee[] = Array.from({ length: blankBlocks }, (_, i) =>
+    blankBlock(i),
+  );
 
   const ref = wb.addWorksheet('Register');
   writeReferenceSheet(ref, employees, days, periodMonth);
@@ -442,18 +431,39 @@ function writeTemplateGuideSheet(
 
   const lines: [string, string][] = [
     ['', ''],
-    ['Before you start', 'Fill in the "Register" sheet, then upload it in the Import tab. A preview shows exactly what will be written before anything is saved.'],
+    [
+      'Before you start',
+      'Fill in the "Register" sheet, then upload it in the Import tab. A preview shows exactly what will be written before anything is saved.',
+    ],
     ['', ''],
-    ['Month (cell B2)', `Set to the month you are importing. This template is set to ${monthTitle(periodMonth)}. Cell B1 holds the year.`],
-    ['Day columns (row 4)', 'One column per day of the month (1..31), already laid out. Do not add or remove day columns.'],
-    ['Empl. ID (column A)', 'A whole number that maps to the employee code: 1 → DN001, 47 → DN047, and so on. Put it on the FIRST row of each 4-row block.'],
+    [
+      'Month (cell B2)',
+      `Set to the month you are importing. This template is set to ${monthTitle(periodMonth)}. Cell B1 holds the year.`,
+    ],
+    [
+      'Day columns (row 4)',
+      'One column per day of the month (1..31), already laid out. Do not add or remove day columns.',
+    ],
+    [
+      'Empl. ID (column A)',
+      'A whole number that maps to the employee code: 1 → DN001, 47 → DN047, and so on. Put it on the FIRST row of each 4-row block.',
+    ],
     ['Name (column B)', 'For your reference only — matching is by Empl. ID, not name.'],
     ['', ''],
-    ['Each employee = 4 rows', 'Row 1: day status codes (see legend below). Row 2 (In): punch-in time. Row 3 (Out): punch-out time. Row 4 (Total Hrs Completed): hours worked.'],
+    [
+      'Each employee = 4 rows',
+      'Row 1: day status codes (see legend below). Row 2 (In): punch-in time. Row 3 (Out): punch-out time. Row 4 (Total Hrs Completed): hours worked.',
+    ],
     ['Time format', 'Use 24-hour h:mm, e.g. 09:30 or 18:45. Leave blank if there was no punch.'],
-    ['Blank days', 'Leave the status cell empty for days you are not recording — they are simply skipped.'],
+    [
+      'Blank days',
+      'Leave the status cell empty for days you are not recording — they are simply skipped.',
+    ],
     ['', ''],
-    ['If something is wrong', 'The preview lists the affected Empl. ID / row and the reason (unknown status code, unmatched Empl. ID, missing In/Out, …). Fix the sheet and re-upload — nothing is saved until you confirm.'],
+    [
+      'If something is wrong',
+      'The preview lists the affected Empl. ID / row and the reason (unknown status code, unmatched Empl. ID, missing In/Out, …). Fix the sheet and re-upload — nothing is saved until you confirm.',
+    ],
     ['', ''],
     ['Status codes', 'Enter these codes in the status row (row 1 of each block):'],
   ];
@@ -471,11 +481,14 @@ function writeTemplateGuideSheet(
   }
 }
 
-// ------------------------------------------------- attendance template ---
+// attendance template
 
 /** Sanitise a string into a valid Excel sheet name (≤31 chars, no []:*?/\). */
 function safeSheetName(name: string, fallback: string): string {
-  const cleaned = name.replace(/[[\]:*?/\\]/g, ' ').trim().slice(0, 31);
+  const cleaned = name
+    .replace(/[[\]:*?/\\]/g, ' ')
+    .trim()
+    .slice(0, 31);
   return cleaned || fallback;
 }
 
@@ -557,7 +570,7 @@ export async function attendanceTemplateWorkbook(
   return toBytes(wb);
 }
 
-// ----------------------------------------------------------- reimbursements ---
+// reimbursements
 
 const purposeLabel: Record<string, string> = {
   travel: 'Travel',
@@ -566,9 +579,7 @@ const purposeLabel: Record<string, string> = {
 };
 
 /** The claim sheet, column-for-column as the business records it. */
-export async function reimbursementsWorkbook(
-  claims: ReimbursementView[],
-): Promise<Uint8Array> {
+export async function reimbursementsWorkbook(claims: ReimbursementView[]): Promise<Uint8Array> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Dalnex HRMS';
   const ws = wb.addWorksheet('Reimbursement claims');
@@ -637,7 +648,7 @@ export async function reimbursementsWorkbook(
   return toBytes(wb);
 }
 
-// ------------------------------------------------------------------ payroll ---
+// payroll
 
 export async function payrollWorkbook(
   payslips: PayslipRow[],
@@ -723,9 +734,22 @@ export async function payrollWorkbook(
   return toBytes(wb);
 }
 
-// ------------------------------------------------------------- leave salary ---
+// leave salary
 
-const monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const monthShort = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
 
 /**
  * The annual leave-salary working, one row per employee — the owner's sheet
@@ -807,7 +831,15 @@ export async function leaveSalaryWorkbook(
   totals.font = { bold: true };
 
   // Money columns; presence keeps one decimal for half-days.
-  for (const key of ['salaryBefore', 'salaryAfter', 'entitledP1', 'payableP1', 'entitledP2', 'payableP2', 'total']) {
+  for (const key of [
+    'salaryBefore',
+    'salaryAfter',
+    'entitledP1',
+    'payableP1',
+    'entitledP2',
+    'payableP2',
+    'total',
+  ]) {
     ws.getColumn(key).numFmt = '#,##0.00';
   }
   for (const key of ['presentP1', 'presentP2']) ws.getColumn(key).numFmt = '#,##0.0';
@@ -815,7 +847,7 @@ export async function leaveSalaryWorkbook(
   return toBytes(wb);
 }
 
-// ---------------------------------------------------------------- punch log ---
+// punch log
 
 /**
  * The Today board's punch log — same columns the on-screen table (and the old

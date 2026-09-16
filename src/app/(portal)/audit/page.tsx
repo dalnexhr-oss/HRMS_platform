@@ -38,7 +38,9 @@ export default async function AuditPage() {
       <div className="card">
         <div className="hd">
           <h3>Attendance audit</h3>
-          <span className="folio">{entries.length} recent event{entries.length === 1 ? '' : 's'}</span>
+          <span className="folio">
+            {entries.length} recent event{entries.length === 1 ? '' : 's'}
+          </span>
         </div>
         {loadError ? (
           <div className="bd">
@@ -46,7 +48,9 @@ export default async function AuditPage() {
           </div>
         ) : entries.length === 0 ? (
           <div className="bd">
-            <p className="muted" style={{ margin: 0 }}>No attendance edits recorded yet.</p>
+            <p className="muted" style={{ margin: 0 }}>
+              No attendance edits recorded yet.
+            </p>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -63,9 +67,14 @@ export default async function AuditPage() {
               <tbody>
                 {entries.map((e) => (
                   <tr key={e.id}>
-                    <td className="mono muted" style={{ whiteSpace: 'nowrap' }}>{stampTime(e.occurredAt)}</td>
+                    <td className="mono muted" style={{ whiteSpace: 'nowrap' }}>
+                      {stampTime(e.occurredAt)}
+                    </td>
                     <td>
-                      <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
+                      <span
+                        className="pill"
+                        style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}
+                      >
                         {eventLabel[e.eventType] ?? e.eventType}
                       </span>
                     </td>
@@ -74,7 +83,9 @@ export default async function AuditPage() {
                       {e.employeeName ? (
                         <>
                           {e.employeeName}{' '}
-                          <span className="mono muted" style={{ fontSize: 11 }}>{e.employeeCode}</span>
+                          <span className="mono muted" style={{ fontSize: 11 }}>
+                            {e.employeeCode}
+                          </span>
                         </>
                       ) : (
                         <span className="muted">—</span>

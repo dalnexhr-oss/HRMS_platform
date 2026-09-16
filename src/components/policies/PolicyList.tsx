@@ -6,17 +6,14 @@ import { acknowledgePolicy } from '@/lib/actions/policies';
 import { formatDate } from '@/lib/format';
 import type { PolicyView } from '@/lib/queries';
 
-// Employee-facing list of company policies. "Mark as read" is the only act: it
-// records a receipt in policy_acknowledgements (0004) and flips the row to
-// "✓ Read".
-//
-// A typed-name e-signature panel used to sit beside it. It was removed on
-// purpose — two controls on one row left the employee guessing which one
-// actually discharged the policy. SignPanel itself is untouched and still
-// available for documents that genuinely need signing.
+// Record company policy read receipts. Signing documents is handled separately by SignPanel.
 export function PolicyList({ policies }: { policies: PolicyView[] }) {
   if (!policies.length) {
-    return <div className="empty"><p>No policies published yet.</p></div>;
+    return (
+      <div className="empty">
+        <p>No policies published yet.</p>
+      </div>
+    );
   }
   return (
     <div>
@@ -32,13 +29,8 @@ function PolicyRow({ policy }: { policy: PolicyView }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  // NO local "acked" state, deliberately. The badge is driven purely by what the
-  // server returned. An optimistic tick here is worse than useless: it flips the
-  // row green whether or not the receipt actually landed, and because the rows
-  // are keyed by id React preserves that local value across the refresh — so a
-  // write that never persisted still looked successful until a hard reload.
-  // router.refresh() runs inside the transition, so the button stays "Saving…"
-  // until the fresh server value arrives and the row flips on its own.
+  // Use the server receipt as the source of truth. Keep refresh inside the transition so the saving
+  // state lasts until the persisted acknowledgement arrives.
   const acked = policy.acknowledged;
 
   const onAck = () => {
@@ -72,7 +64,11 @@ function PolicyRow({ policy }: { policy: PolicyView }) {
         )}
       </div>
       <p className="body">{policy.body}</p>
-      {error && <div className="login-error" role="alert">{error}</div>}
+      {error && (
+        <div className="login-error" role="alert">
+          {error}
+        </div>
+      )}
     </div>
   );
 }

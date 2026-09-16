@@ -1,35 +1,9 @@
+// Build all-day ICS events from HRMS records using RFC 5545 formatting. Callers supply the
+// timestamp so identical inputs produce identical output.
 //
-// Generate RFC 5545 .ics calendar files (OUTBOUND).
-//
-// This is the mirror of `holidays/googleCalendar.ts`, which PARSES an inbound
-// Google holiday feed. Here we go the other way: turn HRMS rows (holidays,
-// approved leave, WFH days) into a calendar file employees can subscribe to or
-// import into Google Calendar / Outlook / Apple Calendar.
-//
-// Why hand-roll instead of pulling an ics library:
-// 1. We emit a tiny, fixed subset — all-day VEVENTs with UID/SUMMARY/
-// DESCRIPTION. Every npm option ships timezone databases and RRULE engines
-// we will never touch, for a format that is ~40 lines of string building.
-// 2. Calendar clients are unforgiving about the two things that actually
-// matter — CRLF line endings and 75-OCTET line folding — and both are
-// easier to get right (and to unit test) in code we own than to debug
-// through a dependency.
-// 3. It stays pure. No fetch, no database, no next/*. That means an API route,
-// a server action, a cron job or a test can all import it, and the same
-// inputs always produce byte-identical output (callers pass `timestamp`).
-//
-// The two rules that break real calendars if you get them wrong:
-// DTEND IS EXCLUSIVE for DATE values. A one-day holiday on 2026-08-15 has
-// DTEND;VALUE=DATE:20260816. Emitting 20260815 makes Google silently drop
-// the event or render a zero-length blip; emitting the inclusive end of a
-// multi-day range paints one day short. See buildEvent() below.
-// Folding is counted in OCTETS, not JS characters. "Diwali — दीपावली" is
-// far more bytes than `String.length` suggests, and folding on character
-// count produces lines over 75 octets that strict parsers reject. Worse,
-// naively slicing a JS string can cut a surrogate pair in half.
-//
-// SAFE ANYWHERE (pure string functions, no I/O, no server-only imports).
-//
+// DATE end values are exclusive: a one-day event ends on the following date. Fold lines at 75 UTF-8
+// octets, preserving code points, and use CRLF line endings. These helpers have no I/O or server
+// dependencies.
 
 // RFC 5545 §3.1: content lines are delimited by CRLF, never a bare LF.
 const crlf = '\r\n';
@@ -50,22 +24,30 @@ export interface CalendarEvent {
   uid: string;
   // First day, 'YYYY-MM-DD'.
   start: string;
-  // INCLUSIVE last day, 'YYYY-MM-DD'. Omit for a single-day event. This is the human meaning of "leave until the 20th"; the +1 conversion to RFC 5545's exclusive DTEND happens inside buildIcs so callers never have to think about it.
+  // INCLUSIVE last day, 'YYYY-MM-DD'. Omit for a single-day event. This is the human meaning of
+  // "leave until the 20th"; the +1 conversion to RFC 5545's exclusive DTEND happens inside buildIcs
+  // so callers never have to think about it.
   end?: string | null;
   summary: string;
   description?: string | null;
-  // Defaults to true. Our event model carries dates only — no clock time — so all-day is the correct and normal shape for holidays, leave and WFH. Passing false emits a *floating* midnight-to-midnight DATE-TIME instead (no TZID, so each client renders it in its own local time), which is occasionally what an importer expects.
+  // Defaults to true. Our event model carries dates only — no clock time — so all-day is the
+  // correct and normal shape for holidays, leave and WFH. Passing false emits a *floating*
+  // midnight-to-midnight DATE-TIME instead (no TZID, so each client renders it in its own local
+  // time), which is occasionally what an importer expects.
   allDay?: boolean;
 }
 
 export interface BuildIcsOptions {
   // Shown as the calendar's name in most clients via X-WR-CALNAME.
   calName?: string;
-  // DTSTAMP for every VEVENT, as 'YYYYMMDDTHHMMSSZ' or any ISO-8601 string. Callers should pass this: it is the only non-deterministic input, so supplying it makes the output byte-stable and therefore testable (and lets an HTTP handler reuse one timestamp across a whole export).
+  // DTSTAMP for every VEVENT, as 'YYYYMMDDTHHMMSSZ' or any ISO-8601 string. Callers should pass
+  // this: it is the only non-deterministic input, so supplying it makes the output byte-stable and
+  // therefore testable (and lets an HTTP handler reuse one timestamp across a whole export).
   timestamp?: string;
 }
 
-// UTF-8 byte length of a string. `for…of` iterates by code point, so an astral character (emoji, some Indic conjuncts) is measured once as 4 octets rather than twice as a surrogate.
+// UTF-8 byte length of a string. `for…of` iterates by code point, so an astral character (emoji,
+// some Indic conjuncts) is measured once as 4 octets rather than twice as a surrogate.
 function octetLength(text: string): number {
   let n = 0;
   for (const ch of text) {
@@ -75,7 +57,10 @@ function octetLength(text: string): number {
   return n;
 }
 
-// Split a line into the smallest units a fold may not break apart: one code point, or a backslash escape kept with the character it escapes. Unfolding formally happens before unescaping, so splitting `\,` across a fold is legal — but enough clients mis-handle it that keeping escape pairs atomic is free insurance. Grouping never costs more than one extra octet.
+// Split a line into the smallest units a fold may not break apart: one code point, or a backslash
+// escape kept with the character it escapes. Unfolding formally happens before unescaping, so
+// splitting `\,` across a fold is legal — but enough clients mis-handle it that keeping escape
+// pairs atomic is free insurance. Grouping never costs more than one extra octet.
 function tokenize(line: string): string[] {
   const chars = Array.from(line);
   const tokens: string[] = [];
@@ -90,18 +75,15 @@ function tokenize(line: string): string[] {
   return tokens;
 }
 
-// Throw a readable error rather than emitting a calendar with a broken date. The shape check alone is not enough: '2026-02-30' and '2026-13-01' both match the regex, and Date.UTC would silently roll them forward into March / next January — so the file would look valid while every subscriber saw the wrong day. The round-trip below rejects them at the source instead. It also rejects years under 100, where Date.UTC's legacy two-digit-year rule maps 0026 to 1926 and would corrupt addDays() the same way.
+// Round-trip parsed dates to reject impossible days and months that Date.UTC would normalize.
+// Reject years below 100 to avoid its legacy two-digit-year conversion.
 function assertIsoDate(value: string, field: string): void {
   if (!isoDate.test(value)) {
     throw new Error(`Calendar ${field} must be 'YYYY-MM-DD', got '${value}'.`);
   }
   const [y, m, d] = value.split('-').map(Number);
   const probe = new Date(Date.UTC(y, m - 1, d));
-  if (
-    probe.getUTCFullYear() !== y ||
-    probe.getUTCMonth() !== m - 1 ||
-    probe.getUTCDate() !== d
-  ) {
+  if (probe.getUTCFullYear() !== y || probe.getUTCMonth() !== m - 1 || probe.getUTCDate() !== d) {
     throw new Error(`Calendar ${field} is not a real date: '${value}'.`);
   }
 }
@@ -116,18 +98,8 @@ function formatIcsStamp(d: Date): string {
 }
 
 /**
- * Normalise a DTSTAMP into RFC 5545 UTC form 'YYYYMMDDTHHMMSSZ'.
- *
- * Accepts what is already in that form, otherwise parses an ISO-8601 string
- * (the usual `new Date().toISOString()`) and formats it from UTC fields. With
- * no input it reads the clock — the single impure path in this module, which is
- * exactly why callers pass `opts.timestamp` when they want reproducible bytes.
- *
- * Formatting goes through explicit getUTC* fields rather than re-feeding
- * `toISOString()` back into this function: that recursion never terminates,
- * because the ISO string never matches the compact form it is being tested
- * against, and every caller that did the documented thing (pass an ISO
- * timestamp) blew the stack instead of exporting a calendar.
+ * Format DTSTAMP as YYYYMMDDTHHMMSSZ. Accept compact UTC or ISO timestamps; use the current clock
+ * only when omitted. Callers should pass a timestamp for reproducible output.
  */
 function toIcsStamp(value?: string): string {
   if (value === undefined) return formatIcsStamp(new Date());
@@ -145,15 +117,8 @@ function toIcsStamp(value?: string): string {
 }
 
 /**
- * Escape the RFC 5545 TEXT specials. Inverse of `unescapeText` in
- * holidays/googleCalendar.ts.
- *
- * Backslash MUST be escaped first, otherwise the backslashes this function
- * introduces for `,` and `;` would themselves be doubled on a second pass.
- * All newline flavours collapse to the literal two-character sequence `\n`,
- * because a raw newline inside a value would be read as a new content line.
- * Colons and quotes are NOT escaped in TEXT values — doing so leaks visible
- * backslashes into event titles in Outlook.
+ * Escape backslashes before commas and semicolons, and encode newlines as literal \n. Leave colons
+ * and quotes unchanged in ICS TEXT values.
  */
 export function escapeIcsText(v: string): string {
   return v
@@ -229,17 +194,8 @@ function textLine(name: string, value: string): string {
 }
 
 /**
- * Render one VEVENT.
- *
- * THE OFF-BY-ONE: RFC 5545 §3.8.2.2 makes DTEND *non-inclusive* — it is the
- * first instant NOT in the event. Our CalendarEvent.end is the inclusive last
- * working day people actually mean, so DTEND is always `end + 1 day`:
- *
- *   single day  2026-08-15            -> DTSTART 20260815, DTEND 20260816
- *   range       2026-08-15..2026-08-17 -> DTSTART 20260815, DTEND 20260818
- *
- * Passing the inclusive end straight through is the classic bug: Google shows
- * the leave ending a day early, and a one-day event collapses to nothing.
+ * Convert the inclusive event end to ICS's exclusive DTEND by adding one day. A holiday on August
+ * 15 ends on August 16; leave through August 17 ends on August 18.
  */
 function buildEvent(ev: CalendarEvent, stamp: string): string[] {
   // UID is REQUIRED and must actually carry a value — a bare `UID:` line makes
@@ -288,26 +244,12 @@ function buildEvent(ev: CalendarEvent, stamp: string): string[] {
 }
 
 /**
- * Build a complete VCALENDAR document from HRMS events.
+ * Build a VCALENDAR with CRLF endings, including the final line. Serve as text/calendar;
+ * charset=utf-8. Omit METHOD so clients treat this as a calendar feed rather than a meeting
+ * invitation. Empty event lists are valid.
  *
- * The result uses CRLF throughout and ends with a trailing CRLF — some parsers
- * (notably older Outlook) drop the final END:VCALENDAR without it. Serve it as
- * `text/calendar; charset=utf-8`.
- *
- * There is deliberately no METHOD property. METHOD belongs to iTIP (RFC 5546):
- * §3.7.2 says that if METHOD is present the Content-Type MUST carry a matching
- * `method=` parameter, and a PUBLISH message MUST also carry an ORGANIZER.
- * A subscribable holiday/leave feed is neither of those things, and Outlook
- * treats a METHOD-bearing file as a meeting message — which is what actually
- * produces the stray Accept/Decline buttons on a public holiday.
- *
- * An empty `events` array yields a valid, empty calendar rather than throwing:
- * "this employee has no upcoming leave" is a normal state for a subscription
- * feed, and returning an error there would break the client's polling.
- *
- * @param events  Events to emit, one VEVENT each. UIDs should be stable.
- * @param opts.calName    Calendar display name (X-WR-CALNAME). Default 'Dalnex HRMS'.
- * @param opts.timestamp  DTSTAMP for every event; pass it for deterministic output.
+ * @param events Events with stable UIDs.
+ * @param opts Calendar name and optional timestamp; pass the timestamp for deterministic output.
  */
 export function buildIcs(events: CalendarEvent[], opts: BuildIcsOptions = {}): string {
   const stamp = toIcsStamp(opts.timestamp);

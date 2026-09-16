@@ -4,12 +4,7 @@
 import { redirect } from 'next/navigation';
 import { homeForRole } from '@/lib/auth';
 import { isAuthConfigured } from '@/lib/auth/jwt';
-import {
-  createSession,
-  destroySession,
-  getSession,
-  revokeAllSessions,
-} from '@/lib/auth/session';
+import { createSession, destroySession, getSession, revokeAllSessions } from '@/lib/auth/session';
 import { verifyPassword } from '@/lib/auth/password';
 import { safeRedirectPath } from '@/lib/auth/redirect';
 import { usersCollection } from '@/lib/db/collections';
@@ -23,7 +18,9 @@ export interface SignInState {
 const badCredentials = 'That email and password do not match an account.';
 
 export async function signIn(_prev: SignInState, formData: FormData): Promise<SignInState> {
-  const email = String(formData.get('email') ?? '').trim().toLowerCase();
+  const email = String(formData.get('email') ?? '')
+    .trim()
+    .toLowerCase();
   const password = String(formData.get('password') ?? '');
   const next = String(formData.get('next') ?? '');
 
@@ -38,10 +35,7 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
   const users = await usersCollection();
   // Collation must match the unique index, or a user who registered as
   // Rahul@x.com cannot sign in as rahul@x.com.
-  const user = await users.findOne(
-    { email },
-    { collation: { locale: 'en', strength: 2 } },
-  );
+  const user = await users.findOne({ email }, { collation: { locale: 'en', strength: 2 } });
 
   // Verify against a dummy hash when the user is absent so the response time
   // does not reveal whether the address exists.
@@ -62,7 +56,9 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
   redirect((safeNext ?? homeForRole(user.role)) as Parameters<typeof redirect>[0]);
 }
 
-// Sign out everywhere, not just here. Clearing the cookie only affects this browser, and the token stays valid for the rest of its year. Bumping token_version is what actually revokes it, so a copy taken from a shared machine stops working too.
+// Sign out everywhere, not just here. Clearing the cookie only affects this browser, and the token
+// stays valid for the rest of its year. Bumping token_version is what actually revokes it, so a
+// copy taken from a shared machine stops working too.
 export async function signOut() {
   const { userId } = await getSession();
   if (userId) await revokeAllSessions(userId);

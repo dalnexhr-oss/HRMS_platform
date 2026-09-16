@@ -1,13 +1,5 @@
-// Financial representation and exact currency arithmetic.
-//
-// Invariants:
-// - Monetary values are stored as BSON Decimal128 and computed as integer paise.
-//   Floating-point arithmetic (number) is prohibited for financial calculation to avoid
-//   IEEE-754 precision drift.
-// - Decimal representation is parsed and scaled to integer paise up to INR 10^10 (10^12 paise),
-//   well within JS Number.MAX_SAFE_INTEGER (2^53 - 1).
-// - Rounding occurs once at the final calculation boundary.
-//
+// Store money as Decimal128 and calculate in integer paise to avoid floating-point drift. Round at
+// the calculation boundary; keep values within Number.MAX_SAFE_INTEGER.
 import { Decimal128 } from 'mongodb';
 
 export type MoneyInput = Decimal128 | number | string | null | undefined;
@@ -87,9 +79,7 @@ export function formatMoney(value: MoneyInput, withSymbol = true): string {
   return formatted;
 }
 
-// ---------------------------------------------------------------------------
 // Arithmetic. All of it in paise, so all of it exact.
-// ---------------------------------------------------------------------------
 
 export function addPaise(...values: MoneyInput[]): number {
   return values.reduce<number>((sum, v) => sum + toPaise(v), 0);

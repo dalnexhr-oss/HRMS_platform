@@ -1,20 +1,15 @@
 'use client';
 
-// The TV attendance board.
-//
-// Runs unattended on a wall screen, so it is built to survive: the board is
-// seeded with server-rendered data and then polls, a failed poll keeps the last
-// good board on screen rather than blanking it, and a stale board says so
-// instead of quietly lying. Polling (not a websocket) because a TV left up for
-// weeks needs a transport that heals itself without anyone in the room.
+// Seed the TV board with server data and poll for updates. Keep the last successful result during
+// failures and label it stale when polling falls behind.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Brand } from '@/components/ui/Brand';
-import type { BoardData, Presence } from '@/lib/types/employee';
+import type { BoardData, Presence } from '@/types/tv';
 import { EmployeeCard } from './EmployeeCard';
 
 const pollMs = 30_000;
-// Past this without a successful poll, the board admits it is stale.
+// Mark the board stale after this long without a successful poll.
 const staleMs = 3 * pollMs;
 
 const bands: { key: Presence; label: string }[] = [

@@ -1,16 +1,7 @@
-//
-// Shared attendance rules. SERVER ONLY (reads the settings table).
-//
-// Auto punch-out: when an employee punches in but never punches out, the day is
-// closed at a configured time (default 18:00) rather than left open — an open
-// day otherwise reads as zero worked minutes and silently inflates the payroll
-// hours-shortfall deduction. Applied in BOTH directions:
-// the register import (uploaded sheets with a blank Out cell), and
-// the night sweep (live punches left open).
-//
+// Shared auto punch-out rules for register imports and attendance sweeps. Read the configured
+// closing time so missing punch-outs do not leave worked minutes at zero.
 import { createClient } from '@/lib/db/server';
 import { isMongoConfigured } from '@/lib/db/mongo';
-
 
 export const defaultPunchOutMin = 18 * 60;
 
@@ -32,18 +23,8 @@ export function minutesToClock(mins: number): string {
 }
 
 /**
- * A stored `auto_punch_out_time` setting as minutes since midnight.
- *
- * Pure, and the ONE place the fallback lives. db/scheduler.ts had its own copy
- * of this decision that defaulted to '19:00' instead: on a deployment where the
- * settings row was never seeded, a day closed by the manual sweep got 18:00 and
- * the same day closed by /api/cron got 19:00 — sixty phantom worked minutes on
- * the register and in the payslip, depending on which path happened to fire.
- *
- * A setting can be stored either bare ('18:00') or JSON-quoted ('"18:00"'), so
- * one layer of quotes is stripped. Anything else — a number, an object, a
- * malformed string — falls back rather than becoming NaN, which would otherwise
- * be written straight into worked_minutes.
+ * Parse auto_punch_out_time as minutes since midnight. Accept bare or JSON-quoted time strings; use
+ * the shared fallback for missing or malformed settings.
  */
 export function autoPunchOutMinutesFrom(value: unknown): number {
   const raw = typeof value === 'string' ? value.trim().replace(/^"(.*)"$/, '$1') : value;

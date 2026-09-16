@@ -1,5 +1,4 @@
-// Read-only card: inventory items issued to the signed-in employee. Issued and
-// returned by HR on the Item Management tab; this just surfaces the log.
+// Show inventory issued to the employee. HR manages issues and returns.
 import { formatDate } from '@/lib/format';
 import type { MyItemRow } from '@/lib/queries';
 

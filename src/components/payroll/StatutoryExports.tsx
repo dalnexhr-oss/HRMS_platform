@@ -1,8 +1,6 @@
 'use client';
 
-// Statutory filing downloads for the payroll month: PF ECR (text), ESIC (.xlsx),
-// Professional Tax (.xlsx). Each button calls its bound Server Action (staff-gated,
-// real DB only). Rendered on /payroll.
+// Staff-only payroll downloads for PF, ESIC, and Professional Tax.
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { exportPfEcr, exportEsic, exportPt } from '@/lib/actions/export';
 

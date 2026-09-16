@@ -1,13 +1,5 @@
-//
-// The week-off schedule — which calendar days are scheduled off.
-//
-// Dalnex works the **2nd and 4th Saturday** of each month; the 1st, 3rd and 5th
-// Saturdays are week-offs, and every Sunday is off. Both halves are settings
-// so the rule can change without a code deploy.
-//
-// This module is the single implementation. It is PURE — no database, no React —
-// so the register, the comp-off check and any future scheduler all agree.
-//
+// Shared week-off rules. Defaults work the second and fourth Saturdays; other Saturdays and all
+// Sundays are off. Settings can override both parts of the schedule.
 
 export interface WeekOffPolicy {
   // Weekdays always off, JS getUTCDay(): 0=Sunday … 6=Saturday.
@@ -31,7 +23,8 @@ function numberList(value: unknown): number[] | null {
   return out.length === value.length ? out : null;
 }
 
-// Build a policy from raw settings values, falling back per-field so one bad setting can't silently disable the whole schedule.
+// Build a policy from raw settings values, falling back per-field so one bad setting can't silently
+// disable the whole schedule.
 export function policyFromSettings(
   weekOffWeekdays: unknown,
   workingSaturdays: unknown,
@@ -82,22 +75,9 @@ export function isScheduledWeekOff(
 }
 
 /**
- * Count the leave days in an inclusive span, honouring the sandwich policy.
- *
- * WITHOUT the policy (the default), a week-off or holiday inside the span is not
- * leave: Friday + Monday off across a weekend costs 2 days.
- *
- * WITH the policy on, non-working days that fall BETWEEN two leave days are
- * bridged and counted: the same Friday–Monday costs 4. That is the point of the
- * rule — otherwise an employee splits leave around every weekend and the bridged
- * days are free, which is a real cost leak.
- *
- * Both modes only ever count days INSIDE the span, and a leading/trailing
- * non-working day is never charged (taking "leave" on a Sunday costs nothing),
- * because bridging requires a leave day on both sides.
- *
- * `holidays` is a set of 'YYYY-MM-DD' strings. Pure function — the caller loads
- * the policy and holiday list.
+ * Count leave within an inclusive span. Normally skip holidays and week-offs. With sandwich policy
+ * enabled, count non-working days only when leave days bracket them inside the span. Never charge
+ * leading or trailing days off. holidays contains YYYY-MM-DD strings.
  */
 export function countLeaveDays(
   startISO: string,

@@ -1,15 +1,6 @@
-// The at-office / off-site stamp on a punch.
-//
-// When the punch carries coordinates the chip becomes a link to that exact spot
-// on Google Maps. That matters most for an off-site punch: "off-site" on its
-// own is an accusation with no evidence, and the person who made it — or the HR
-// user reading it back — needs to be able to see *where* in one tap.
-//
-// three states, all meaningful:
-// true inside the office geofence
-// false outside it
-// null not classified — no coordinates, or no office configured. Rendering
-// nothing is correct here; a null must never read as "off-site".
+// Show the punch's geofence result and link available coordinates to Google Maps. true means
+// inside, false means outside, and null means unclassified. Do not label an unclassified punch as
+// off-site.
 
 // A Google Maps pin at the punch's coordinates, in whichever app the device has.
 export function mapsUrl(lat: number, lng: number): string {

@@ -5,8 +5,8 @@ import { createClient } from '@/lib/db/server';
 import { isMongoConfigured, getWeekOffPolicy, getHolidays } from '@/lib/queries';
 import { countLeaveDays, isScheduledWeekOff } from '@/lib/week-off';
 import { getSession } from '@/lib/auth';
-import { requireStaff } from '@/lib/actions/_guard';
-import { releaseCompOff, settleApprovedCompOff } from '@/lib/compoff-settle';
+import { requireStaff } from '@/lib/actions/guards';
+import { releaseCompOff, settleApprovedCompOff } from '@/lib/comp-off-settle';
 import { toDecimal } from '@/lib/db/money';
 import { notifyApprovers, notifyEmployee } from '@/lib/notify';
 import { todayIST } from '@/lib/format';
@@ -15,7 +15,8 @@ import type { LeaveType, RequestType } from '@/types/database';
 export interface ActionResult {
   ok: boolean;
   error?: string;
-  // The decision SUCCEEDED but a side-effect needs attention (balance not found, register not stamped, …). Callers must treat ok:true+warning as a success with a message — the old shape returned ok:false for these, which made screens render a completed approval as if it had failed.
+  // The decision saved, but a follow-up operation failed. Treat ok: true with a warning as a
+  // successful decision requiring attention.
   warning?: string;
 }
 
@@ -42,19 +43,15 @@ function inclusiveDays(start: Date, end: Date): number {
 }
 
 /**
- * How many days a LEAVE request actually costs.
- *
- * A raw calendar span over-charges (a Fri–Mon leave is 2 working days, not 4)
- * and, with the sandwich policy on, under-charges the bridged weekend. Both are
- * decided by `countLeaveDays`; this just loads the policy + holidays it needs.
- *
- * Non-leave request types (site visit, outdoor duty, WFH) keep the plain calendar
- * span — they are not drawn from a balance, so bridging would be meaningless.
- *
- * Falls back to the calendar span if the settings/holidays reads fail: a request
- * that cannot be filed at all is worse than one costed slightly generously.
+ * Load holiday and week-off rules for countLeaveDays. Other request types use the calendar span. If
+ * policy reads fail, leave requests also fall back to the calendar span.
  */
-async function leaveDayCount(startISO: string, endISO: string, start: Date, end: Date): Promise<number> {
+async function leaveDayCount(
+  startISO: string,
+  endISO: string,
+  start: Date,
+  end: Date,
+): Promise<number> {
   try {
     const [policy, holidays, sandwich] = await Promise.all([
       getWeekOffPolicy(),
@@ -92,7 +89,7 @@ async function getSandwichPolicy(): Promise<boolean> {
 function revalidateRequestViews(): void {
   revalidatePath('/me');
   revalidatePath('/approvals');
-  revalidatePath('/leaveManagment');
+  revalidatePath('/leave-management');
 }
 
 /** Every 'YYYY-MM-DD' in an inclusive span (small spans only — capped upstream). */
@@ -109,18 +106,9 @@ function enumerateDays(startISO: string, endISO: string): string[] {
 }
 
 /**
- * Stamp an approved leave onto the register as 'L'.
- *
- * Fills ONLY genuine gaps — days with no attendance row, or rows marked 'AB' —
- * exactly the days getLeaveRegisterMismatches flags. A day the register already
- * covers (WO/OH/CO/L) or shows real presence (P/HD/LM/S/T) is never overwritten:
- * an approved leave must not erase evidence that someone actually worked.
- * Scheduled week-offs and holidays inside the span are skipped when they have
- * no row, so a Sunday never becomes 'L'.
- *
- * Locked/paid months are refused day-by-day (the leave may straddle a month
- * boundary); refused days come back as a warning, never an error — the approval
- * itself already stands.
+ * Stamp approved leave only where attendance is missing or AB. Preserve recorded presence and
+ * existing off-day stamps, and skip unrecorded holidays and week-offs. Return locked-month skips as
+ * warnings because the approval has already saved.
  */
 async function stampLeaveOnRegister(
   dbc: Awaited<ReturnType<typeof createClient>>,
@@ -312,7 +300,10 @@ export async function reviewRequest(
   const gate = await requireStaff(`Marking a request ${decision}`);
   if (!gate.ok) return gate;
 
-  const cleanRemark = String(remark ?? '').trim().slice(0, 500) || null;
+  const cleanRemark =
+    String(remark ?? '')
+      .trim()
+      .slice(0, 500) || null;
 
   const dbc = await createClient();
 
@@ -441,8 +432,7 @@ export async function reviewRequest(
     }
   }
 
-  // Stamp the register so the approved leave and the attendance sheet cannot
-  // silently diverge (the /register mismatch card exists because they used to).
+  // Update attendance after approval so the register reflects the leave.
   if (reviewed.type === 'leave' && decision === 'approved') {
     const stampWarning = await stampLeaveOnRegister(
       dbc,
@@ -494,7 +484,7 @@ export async function reviewRequest(
  * own rather than trusting the payload.
  */
 export async function createRequest(formData: FormData): Promise<ActionResult> {
-  // --- validate the form before touching auth or the network -----------------
+  // validate the form before touching auth or the network
   const type = String(formData.get('type') ?? '').trim() as RequestType;
   if (!requestTypes.includes(type)) {
     return { ok: false, error: 'Pick a request type.' };
@@ -533,12 +523,15 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
   // Leave is costed against the week-off/holiday calendar (and the sandwich
   // policy); other request types keep the plain calendar span.
   const days =
-    type === 'leave' ? await leaveDayCount(startRaw, endRaw, start, end) : inclusiveDays(start, end);
+    type === 'leave'
+      ? await leaveDayCount(startRaw, endRaw, start, end)
+      : inclusiveDays(start, end);
 
   if (type === 'leave' && days <= 0) {
     return {
       ok: false,
-      error: 'Those dates are all week-offs or holidays, so there is no working day to take leave on.',
+      error:
+        'Those dates are all week-offs or holidays, so there is no working day to take leave on.',
     };
   }
   // Validate day count within bounds before persistence.
@@ -548,11 +541,12 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
 
   const reason = String(formData.get('reason') ?? '').trim() || null;
 
-  // --- a write with no database is a failure, not a success ------------------
+  // a write with no database is a failure, not a success
   if (!isMongoConfigured()) {
     return {
       ok: false,
-      error: 'The database is not configured, so this request cannot be saved. Nothing was submitted.',
+      error:
+        'The database is not configured, so this request cannot be saved. Nothing was submitted.',
     };
   }
 
@@ -561,7 +555,8 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
   if (!employeeId) {
     return {
       ok: false,
-      error: 'Your login is not linked to an employee record, so requests cannot be filed. Ask HR to link it.',
+      error:
+        'Your login is not linked to an employee record, so requests cannot be filed. Ask HR to link it.',
     };
   }
 

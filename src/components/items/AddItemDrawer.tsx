@@ -1,7 +1,6 @@
 'use client';
 
-// Add / edit an inventory item. Create submits to createItem; with an `item`
-// passed it prefills and submits to updateItem (keyed by hidden id).
+// Add an inventory item or edit the supplied item by ID.
 import { useActionState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createItem, updateItem } from '@/lib/actions/items';
@@ -44,7 +43,10 @@ export function AddItemDrawer({
   return (
     <>
       <div className={`overlay${open ? ' on' : ''}`} onClick={onClose} />
-      <aside className={`drawer${open ? ' on' : ''}`} aria-label={editing ? 'Edit material / tool' : 'Add material / tool'}>
+      <aside
+        className={`drawer${open ? ' on' : ''}`}
+        aria-label={editing ? 'Edit material / tool' : 'Add material / tool'}
+      >
         <form key={item?.id ?? 'new'} action={formAction} style={{ display: 'contents' }}>
           {editing && <input type="hidden" name="id" value={item!.id} />}
           <div className="dhd">
@@ -56,19 +58,56 @@ export function AddItemDrawer({
           </div>
           <div className="dbd">
             <div className="f-row">
-              <Field name="item_name" label="Name" placeholder="e.g. Wireless mouse" defaultValue={item?.item_name} />
-              <Field name="item_code" label="Material / Tool ID" mono placeholder="e.g. ITM-001" defaultValue={item?.item_code ?? undefined} />
+              <Field
+                name="item_name"
+                label="Name"
+                placeholder="e.g. Wireless mouse"
+                defaultValue={item?.item_name}
+              />
+              <Field
+                name="item_code"
+                label="Material / Tool ID"
+                mono
+                placeholder="e.g. ITM-001"
+                defaultValue={item?.item_code ?? undefined}
+              />
             </div>
             <div className="f-row">
-              <Field name="category" label="Category" placeholder="e.g. Peripherals" defaultValue={item?.category ?? undefined} />
-              <Field name="brand" label="Brand" placeholder="e.g. Logitech" defaultValue={item?.brand ?? undefined} />
+              <Field
+                name="category"
+                label="Category"
+                placeholder="e.g. Peripherals"
+                defaultValue={item?.category ?? undefined}
+              />
+              <Field
+                name="brand"
+                label="Brand"
+                placeholder="e.g. Logitech"
+                defaultValue={item?.brand ?? undefined}
+              />
             </div>
-            <Field name="size_spec" label="Size / specification" placeholder="e.g. M-size / 2.4GHz" defaultValue={item?.size_spec ?? undefined} />
+            <Field
+              name="size_spec"
+              label="Size / specification"
+              placeholder="e.g. M-size / 2.4GHz"
+              defaultValue={item?.size_spec ?? undefined}
+            />
 
             <div className="fold">Stock</div>
             <div className="f-row">
-              <Field name="total_quantity" label="Total quantity" type="number" defaultValue={item ? String(item.total_quantity) : '0'} mono />
-              <Field name="unit" label="Unit" placeholder="e.g. pcs" defaultValue={item?.unit ?? undefined} />
+              <Field
+                name="total_quantity"
+                label="Total quantity"
+                type="number"
+                defaultValue={item ? String(item.total_quantity) : '0'}
+                mono
+              />
+              <Field
+                name="unit"
+                label="Unit"
+                placeholder="e.g. pcs"
+                defaultValue={item?.unit ?? undefined}
+              />
             </div>
             <div className="f-row">
               <SelectField
@@ -91,8 +130,8 @@ export function AddItemDrawer({
 
             {editing && (
               <div className="hint">
-                Assigned {item!.quantity_assigned} · Remaining {item!.quantity_remaining}. Quantities are managed
-                through the Assign action, not here.
+                Assigned {item!.quantity_assigned} · Remaining {item!.quantity_remaining}.
+                Quantities are managed through the Assign action, not here.
               </div>
             )}
 
@@ -130,7 +169,13 @@ function Field({
   return (
     <div className="f">
       <label>{label}</label>
-      <input name={name} className={mono ? 'mono' : undefined} placeholder={placeholder} defaultValue={defaultValue} type={type} />
+      <input
+        name={name}
+        className={mono ? 'mono' : undefined}
+        placeholder={placeholder}
+        defaultValue={defaultValue}
+        type={type}
+      />
     </div>
   );
 }

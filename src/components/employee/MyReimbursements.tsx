@@ -1,10 +1,7 @@
 'use client';
 
-// Employee expense claims: file a new claim, edit or withdraw a still-pending
-// one, and track your own.
-// For a TRAVEL claim the amount is derived live as km × rate. That preview is a
-// convenience only — the server recomputes it on create AND at approval, so the
-// approved amount is never whatever the browser posted.
+// Employee expense claims. Travel previews use distance × rate; the server recalculates the amount
+// on submission and approval.
 import { useActionState, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { inr, formatDate } from '@/lib/format';
@@ -39,7 +36,8 @@ const statusLabel: Record<ReimbursementView['status'], string> = {
 function statusPillStyle(status: ReimbursementView['status']): React.CSSProperties {
   if (status === 'pending' || status === 'finance_review')
     return { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' };
-  if (status === 'approved') return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
+  if (status === 'approved')
+    return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
   if (status === 'rejected') return { borderColor: 'var(--line-2)', color: 'var(--hd)' };
   return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
 }
@@ -244,7 +242,9 @@ function ClaimForm({
   const editing = claim !== null;
   const [purpose, setPurpose] = useState<ReimbursementPurpose>(claim?.purpose ?? 'travel');
   const [kms, setKms] = useState(claim?.kms != null ? String(claim.kms) : '');
-  const [amount, setAmount] = useState(claim && claim.purpose !== 'travel' ? String(claim.amount) : '');
+  const [amount, setAmount] = useState(
+    claim && claim.purpose !== 'travel' ? String(claim.amount) : '',
+  );
 
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
     async (_prev, formData) => {
@@ -305,11 +305,19 @@ function ClaimForm({
       <div className="f-row">
         <div className="f">
           <label>Source / Medium</label>
-          <input name="source_medium" placeholder="e.g. Own car, Ola, Vendor" defaultValue={claim?.sourceMedium ?? ''} />
+          <input
+            name="source_medium"
+            placeholder="e.g. Own car, Ola, Vendor"
+            defaultValue={claim?.sourceMedium ?? ''}
+          />
         </div>
         <div className="f">
           <label>Mode of payment</label>
-          <input name="mode_of_payment" placeholder="e.g. Cash, UPI, Card" defaultValue={claim?.modeOfPayment ?? ''} />
+          <input
+            name="mode_of_payment"
+            placeholder="e.g. Cash, UPI, Card"
+            defaultValue={claim?.modeOfPayment ?? ''}
+          />
         </div>
       </div>
 
@@ -329,7 +337,12 @@ function ClaimForm({
           </div>
           <div className="f">
             <label>Amount (₹{ratePerKm}/km)</label>
-            <input className="mono" value={derived ? derived.toFixed(2) : ''} readOnly placeholder="—" />
+            <input
+              className="mono"
+              value={derived ? derived.toFixed(2) : ''}
+              readOnly
+              placeholder="—"
+            />
           </div>
         </div>
       ) : (
@@ -376,7 +389,11 @@ function ClaimForm({
       {editing && (
         <div className="f">
           <label>Receipt</label>
-          <ReceiptUpload claimId={claim!.id} hasReceipt={claim!.receiptPath != null} toast={toast} />
+          <ReceiptUpload
+            claimId={claim!.id}
+            hasReceipt={claim!.receiptPath != null}
+            toast={toast}
+          />
         </div>
       )}
 
@@ -397,7 +414,9 @@ function ClaimForm({
   );
 }
 
-// Attach (or replace) a receipt on an existing claim. Uploads straight to the private reimbursement-receipts bucket via the server action, which puts it in the employee's own folder, which is what limits it to them + staff.
+// Attach (or replace) a receipt on an existing claim. Uploads straight to the private
+// reimbursement-receipts bucket via the server action, which puts it in the employee's own folder,
+// which is what limits it to them + staff.
 function ReceiptUpload({
   claimId,
   hasReceipt,
@@ -433,7 +452,11 @@ function ReceiptUpload({
         }}
       />
       <span className="hint">
-        {busy ? 'Uploading…' : hasReceipt ? 'A receipt is attached — choosing a file replaces it.' : 'JPG/PNG/PDF, up to 5 MB.'}
+        {busy
+          ? 'Uploading…'
+          : hasReceipt
+            ? 'A receipt is attached — choosing a file replaces it.'
+            : 'JPG/PNG/PDF, up to 5 MB.'}
       </span>
     </>
   );

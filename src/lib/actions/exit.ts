@@ -1,23 +1,11 @@
 'use server';
 
-//
-// Employee exit workflow.
-//
-// Before this, "offboarding" was one button that flipped employees.status to
-// inactive and banned the login. Everything a real exit needs — getting the
-// laptop back, settling the last reimbursements, the relieving letter — happened
-// in someone's head.
-//
-// The stage machine is initiated → clearance → settlement → completed, and the
-// ORDER matters for one specific reason: the login ban comes LAST. Banning early
-// locks the leaver out of the self-service pages they still need (exit
-// interview, knowledge transfer, their own payslips), which is exactly the
-// mistake the old single button made.
-//
+// Exit stages: initiated → clearance → settlement → completed. Disable the login only at completion
+// so the employee retains access during clearance and settlement.
 import { revalidatePath } from 'next/cache';
 import { toMoney } from '@/lib/db/money';
 import { createClient } from '@/lib/db/server';
-import { requireRoles, wroteNothing } from '@/lib/actions/_guard';
+import { requireRoles, wroteNothing } from '@/lib/actions/guards';
 import {
   getClearanceItems as readClearanceItems,
   getExitInterview as readExitInterview,
@@ -63,9 +51,12 @@ export async function initiateExit(input: {
   const gate = await requireRoles(exitRoles, 'Starting an exit');
   if (!gate.ok) return gate;
 
-  if (!uuidRe.test(String(input.employeeId ?? ''))) return { ok: false, error: 'Pick an employee.' };
-  if (!isoDate.test(input.resignationDate)) return { ok: false, error: 'Enter the resignation date.' };
-  if (!isoDate.test(input.lastWorkingDay)) return { ok: false, error: 'Enter the last working day.' };
+  if (!uuidRe.test(String(input.employeeId ?? '')))
+    return { ok: false, error: 'Pick an employee.' };
+  if (!isoDate.test(input.resignationDate))
+    return { ok: false, error: 'Enter the resignation date.' };
+  if (!isoDate.test(input.lastWorkingDay))
+    return { ok: false, error: 'Enter the last working day.' };
   if (input.lastWorkingDay < input.resignationDate) {
     return { ok: false, error: 'The last working day cannot be before the resignation date.' };
   }
@@ -91,14 +82,17 @@ export async function initiateExit(input: {
     }
     return { ok: false, error: error.message };
   }
-  if (wroteNothing(data)) return { ok: false, error: 'The exit was not started — your role may lack permission.' };
+  if (wroteNothing(data))
+    return { ok: false, error: 'The exit was not started — your role may lack permission.' };
 
   // Mirror the dates onto the employee and mark them on notice. The login stays
   // ACTIVE — see the file header. A failure here is a WARNING, not a rollback:
   // the case exists, but the roster would silently keep showing "active", so it
   // must never be swallowed.
   const noticeDays = Math.round(
-    (Date.parse(`${input.lastWorkingDay}T00:00:00Z`) - Date.parse(`${input.resignationDate}T00:00:00Z`)) / 86_400_000,
+    (Date.parse(`${input.lastWorkingDay}T00:00:00Z`) -
+      Date.parse(`${input.resignationDate}T00:00:00Z`)) /
+      86_400_000,
   );
   const { data: mirrored, error: mirrorErr } = await dbc
     .from('employees')
@@ -187,7 +181,7 @@ export async function fetchClearanceItems(exitCaseId: string) {
   return readClearanceItems(exitCaseId);
 }
 
-// ------------------------------------------------------- exit interview ---
+// exit interview
 
 /** The standard exit-interview questionnaire, seeded on first open. */
 const interviewQuestions: readonly string[] = [
@@ -242,7 +236,9 @@ export async function saveExitInterview(
   const gate = await requireRoles(exitRoles, 'Saving the exit interview');
   if (!gate.ok) return gate;
 
-  const clean = (Array.isArray(answers) ? answers : []).filter((a) => uuidRe.test(String(a?.id ?? '')));
+  const clean = (Array.isArray(answers) ? answers : []).filter((a) =>
+    uuidRe.test(String(a?.id ?? '')),
+  );
   if (clean.length === 0) return { ok: false, error: 'Nothing to save.' };
 
   const dbc = await createClient();
@@ -277,7 +273,7 @@ export async function fetchExitInterview(exitCaseId: string): Promise<ExitInterv
   return readExitInterview(exitCaseId);
 }
 
-// ---------------------------------------------------- knowledge transfer ---
+// knowledge transfer
 
 /** Add a handover item, optionally naming who is taking it over. */
 export async function addKtItem(input: {
@@ -290,7 +286,8 @@ export async function addKtItem(input: {
   if (!gate.ok) return gate;
 
   const task = String(input.task ?? '').trim();
-  if (!uuidRe.test(String(input.exitCaseId ?? ''))) return { ok: false, error: 'Unknown exit case.' };
+  if (!uuidRe.test(String(input.exitCaseId ?? '')))
+    return { ok: false, error: 'Unknown exit case.' };
   if (!task) return { ok: false, error: 'Describe what needs handing over.' };
 
   const handoverTo = input.handoverTo && uuidRe.test(input.handoverTo) ? input.handoverTo : null;
@@ -308,7 +305,8 @@ export async function addKtItem(input: {
   if (error) {
     return { ok: false, error: error.message };
   }
-  if (wroteNothing(data)) return { ok: false, error: 'The item was not added — your role may lack permission.' };
+  if (wroteNothing(data))
+    return { ok: false, error: 'The item was not added — your role may lack permission.' };
 
   revalidatePath('/exits');
   return { ok: true };
@@ -372,7 +370,8 @@ export async function refreshExitClearance(exitCaseId: string): Promise<ActionRe
   if (!kase) return { ok: false, error: 'That exit case no longer exists.' };
 
   const seedProblem = await seedClearance(dbc, kase.id, kase.employee_id);
-  if (seedProblem) return { ok: false, error: `Clearance could not be refreshed — ${seedProblem}.` };
+  if (seedProblem)
+    return { ok: false, error: `Clearance could not be refreshed — ${seedProblem}.` };
   revalidatePath('/exits');
   return { ok: true };
 }
@@ -409,7 +408,8 @@ export async function setExitStage(
 
   const dbc = await createClient();
 
-  // Fail-closed verification: transition to settlement/completed requires clearance_complete to be explicitly true.
+  // Fail-closed verification: transition to settlement/completed requires clearance_complete to be
+  // explicitly true.
   if (stage === 'settlement' || stage === 'completed') {
     const { data: pending, error: pendingErr } = await dbc
       .from('v_exit_clearance_pending')
@@ -449,7 +449,10 @@ export async function setExitStage(
       .eq('exit_case_id', exitCaseId)
       .maybeSingle<{ status: string }>();
     if (!fnf || fnf.status !== 'paid') {
-      return { ok: false, error: 'The full & final settlement must be paid before the exit can be completed.' };
+      return {
+        ok: false,
+        error: 'The full & final settlement must be paid before the exit can be completed.',
+      };
     }
   }
 
@@ -528,7 +531,10 @@ export async function prepareFullAndFinal(exitCaseId: string): Promise<ActionRes
     .select('amount, status')
     .eq('employee_id', kase.employee_id)
     .in('status', ['approved', 'paid']);
-  const leaveEncashment = (enc ?? []).reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0);
+  const leaveEncashment = (enc ?? []).reduce(
+    (sum: number, e: any) => sum + (Number(e.amount) || 0),
+    0,
+  );
 
   const round2 = (n: number) => Math.round(n * 100) / 100;
   const netPayable = round2(pendingReimbursements + leaveEncashment);
@@ -653,7 +659,9 @@ export async function generateExitDocument(
   const dbc = await createClient();
   const { data: kase } = await dbc
     .from('exit_cases')
-    .select('id, employee_id, last_working_day, employees(code, full_name, date_of_joining, designation)')
+    .select(
+      'id, employee_id, last_working_day, employees(code, full_name, date_of_joining, designation)',
+    )
     .eq('id', exitCaseId)
     .maybeSingle<any>();
   if (!kase) return { ok: false, error: 'That exit case no longer exists.' };
@@ -669,7 +677,10 @@ export async function generateExitDocument(
     issuedOn,
   };
   if (!base.employeeName || !base.dateOfJoining || !base.lastWorkingDay) {
-    return { ok: false, error: 'The employee record is missing a joining date or last working day.' };
+    return {
+      ok: false,
+      error: 'The employee record is missing a joining date or last working day.',
+    };
   }
 
   let spec;
@@ -683,10 +694,13 @@ export async function generateExitDocument(
   } else {
     const { data: fnf } = await dbc
       .from('full_and_final')
-      .select('salary_payable, leave_encashment, pending_reimbursements, asset_recovery, other_deductions, net_payable')
+      .select(
+        'salary_payable, leave_encashment, pending_reimbursements, asset_recovery, other_deductions, net_payable',
+      )
       .eq('exit_case_id', exitCaseId)
       .maybeSingle<any>();
-    if (!fnf) return { ok: false, error: 'Prepare the settlement before generating its statement.' };
+    if (!fnf)
+      return { ok: false, error: 'Prepare the settlement before generating its statement.' };
     spec = buildFullAndFinalStatement({
       employeeName: base.employeeName,
       employeeCode: base.employeeCode,
@@ -706,10 +720,19 @@ export async function generateExitDocument(
   try {
     bytes = await renderLetterPdf(spec);
   } catch (e) {
-    return { ok: false, error: `The document could not be rendered: ${e instanceof Error ? e.message : String(e)}` };
+    return {
+      ok: false,
+      error: `The document could not be rendered: ${e instanceof Error ? e.message : String(e)}`,
+    };
   }
 
-  const up = await uploadFileService('generated-documents', kase.employee_id, filename, bytes, 'application/pdf');
+  const up = await uploadFileService(
+    'generated-documents',
+    kase.employee_id,
+    filename,
+    bytes,
+    'application/pdf',
+  );
   if (!up.ok) return { ok: false, error: up.error ?? 'The document could not be stored.' };
 
   // Store generated document in `generated-documents` bucket.

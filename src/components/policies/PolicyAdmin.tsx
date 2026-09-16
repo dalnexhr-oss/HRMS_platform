@@ -1,7 +1,12 @@
 'use client';
 
 import { useActionState, useState, useTransition } from 'react';
-import { createPolicy, updatePolicy, deletePolicy, setPolicyPublished } from '@/lib/actions/policies';
+import {
+  createPolicy,
+  updatePolicy,
+  deletePolicy,
+  setPolicyPublished,
+} from '@/lib/actions/policies';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast, type ToastKind } from '@/components/ui/Toast';
 import { formatDate } from '@/lib/format';
@@ -33,7 +38,9 @@ export function PolicyAdmin({
           <span className="folio">{policies.length} total</span>
         </div>
         <div className="bd">
-          {policies.length === 0 && <p className="muted">No policies yet — create one on the right.</p>}
+          {policies.length === 0 && (
+            <p className="muted">No policies yet — create one on the right.</p>
+          )}
           {policies.map((p) => (
             <PolicyItem
               key={p.id}
@@ -53,7 +60,12 @@ export function PolicyAdmin({
           <h3>{editing ? 'Edit policy' : 'New policy'}</h3>
         </div>
         <div className="bd">
-          <PolicyForm key={editing?.id ?? 'new'} editing={editing} onDone={() => setEditing(null)} toast={toast} />
+          <PolicyForm
+            key={editing?.id ?? 'new'}
+            editing={editing}
+            onDone={() => setEditing(null)}
+            toast={toast}
+          />
         </div>
       </div>
     </div>
@@ -72,7 +84,12 @@ function PolicyItem({
   ackCount: number;
   headcount: number;
   onEdit: () => void;
-  confirm: (opts: { title?: string; message: string; confirmLabel?: string; danger?: boolean }) => Promise<boolean>;
+  confirm: (opts: {
+    title?: string;
+    message: string;
+    confirmLabel?: string;
+    danger?: boolean;
+  }) => Promise<boolean>;
   toast: (message: string, kind?: ToastKind) => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -174,16 +191,29 @@ function PolicyForm({
     <form action={action}>
       <div className="f">
         <label>Title</label>
-        <input name="title" placeholder="e.g. Remote Work Policy" required defaultValue={editing?.title} />
+        <input
+          name="title"
+          placeholder="e.g. Remote Work Policy"
+          required
+          defaultValue={editing?.title}
+        />
       </div>
       <div className="f-row">
         <div className="f">
           <label>Category</label>
-          <input name="category" placeholder="HR / Leave / Payroll…" defaultValue={editing?.category ?? ''} />
+          <input
+            name="category"
+            placeholder="HR / Leave / Payroll…"
+            defaultValue={editing?.category ?? ''}
+          />
         </div>
         <div className="f">
           <label>Version</label>
-          <input name="version" className="mono" defaultValue={editing ? String(editing.version) : '1'} />
+          <input
+            name="version"
+            className="mono"
+            defaultValue={editing ? String(editing.version) : '1'}
+          />
         </div>
       </div>
       <div className="f">
@@ -209,7 +239,9 @@ function PolicyForm({
         />
       </div>
       {!editing && (
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 14 }}>
+        <label
+          style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 14 }}
+        >
           <input type="checkbox" name="published" defaultChecked /> Publish immediately
         </label>
       )}

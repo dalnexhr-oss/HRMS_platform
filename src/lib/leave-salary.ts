@@ -1,27 +1,17 @@
+// Shared leave-salary calculation for client previews, server snapshots, and exports. Split the
+// year at the appraisal month and prorate half a month's salary by months and attendance.
 //
-// Leave-salary computation — the owner's Excel, as one pure module.
+// Payable per period = (salary / 2) × (months / 12) × (present / calendar days).
 //
-// Policy: 15 days of paid leave a year is worth half a month's gross. The year
-// splits at the appraisal (increment effective a month boundary, normally
-// 1 April), each period is entitled to (salary/2) × months/12, and the payable
-// amount scales by how much of the period the employee was actually present:
-//
-// payable_p = (salary_p / 2) × (months_p / 12) × (present_p / calendar_p)
-//
-// Worked sample from the sheet (year 2025, increment April) — the by-inspection
-// test for this module, since the repo has no test runner:
-// salaryBefore 25000, salaryAfter 30000
-// present 86 / 90 (Jan–Mar) → entitled 3125.00, payable 2986.11
-// present 258.5 / 275 (Apr–Dec) → entitled 11250.00, payable 10575.00
-// total 13561.11
-//
-// No server imports: the client table uses it for live preview, the server
-// actions for the authoritative snapshot, the export for the sheet — one
-// formula, three call sites, zero drift.
-//
+// Example for 2025 with an April increment:
+// - Before: salary 25,000; 86/90 days; entitlement 3,125; payable 2,986.11.
+// - After: salary 30,000; 258.5/275 days; entitlement 11,250; payable 10,575.
+// - Total: 13,561.11.
 import type { AttendanceStatus } from '@/types/database';
 
-// Presence credit per attendance status. Week-offs, holidays and comp-offs COUNT as present — the sheet's 344.5-of-365 sample year is impossible otherwise. Only Absent and Leave reduce the payout; a half day is half.
+// Presence credit per attendance status. Week-offs, holidays and comp-offs COUNT as present — the
+// sheet's 344.5-of-365 sample year is impossible otherwise. Only Absent and Leave reduce the
+// payout; a half day is half.
 export const presentCredit: Record<AttendanceStatus, number> = {
   P: 1,
   LM: 1,
@@ -35,7 +25,10 @@ export const presentCredit: Record<AttendanceStatus, number> = {
   AB: 0,
 };
 
-// Credit-weighted presence per calendar month (index 0 = January) from raw attendance rows. Rows outside the intended year, with unknown statuses, or with malformed dates contribute nothing rather than throwing — attendance is imported from spreadsheets and this must not die on one bad row.
+// Credit-weighted presence per calendar month (index 0 = January) from raw attendance rows. Rows
+// outside the intended year, with unknown statuses, or with malformed dates contribute nothing
+// rather than throwing — attendance is imported from spreadsheets and this must not die on one bad
+// row.
 export function presenceByMonth(rows: { workDate: string; status: string }[]): number[] {
   const months = new Array(12).fill(0);
   for (const row of rows) {
@@ -56,7 +49,8 @@ export interface LeaveSalaryInput {
   incrementMonth: number;
   // presenceByMonth() output — credit-weighted days, index 0 = January.
   monthlyPresence: number[];
-  // Optional explicit calendar-day denominators (payable = entitled * present / days). Null/undefined uses calendar day count.
+  // Optional explicit calendar-day denominators (payable = entitled * present / days).
+  // Null/undefined uses calendar day count.
   calendarDaysP1Override?: number | null;
   calendarDaysP2Override?: number | null;
 }
@@ -111,9 +105,15 @@ function periodFigures(
   return { months, calendarDays: days, presentDays: present, entitled, payable };
 }
 
-// The whole working for one employee-year. Presence beyond the period counts for nothing; presence rows that don't exist (an employee who joined mid-year has no earlier attendance) self-pro-rate the payout, because the denominator stays the full period while the numerator only holds real days.
+// The whole working for one employee-year. Presence beyond the period counts for nothing; presence
+// rows that don't exist (an employee who joined mid-year has no earlier attendance) self-pro-rate
+// the payout, because the denominator stays the full period while the numerator only holds real
+// days.
 // Applies explicit calendar-day denominator override if valid and positive. Skipped for empty periods.
-function withCalendarOverride(f: PeriodFigures, override: number | null | undefined): PeriodFigures {
+function withCalendarOverride(
+  f: PeriodFigures,
+  override: number | null | undefined,
+): PeriodFigures {
   if (override == null || !Number.isFinite(override) || override <= 0) return f;
   if (f.months === 0) return f;
   const days = Math.round(override);
@@ -159,7 +159,9 @@ export interface EffectiveFigures {
   total: number;
 }
 
-// The figures a row should REPORT: the frozen snapshot once finalized/paid, the live computation while still a draft (or unsaved). One rule, applied by the page table AND the .xlsx export, so screen and sheet cannot disagree.
+// The figures a row should REPORT: the frozen snapshot once finalized/paid, the live computation
+// while still a draft (or unsaved). One rule, applied by the page table AND the .xlsx export, so
+// screen and sheet cannot disagree.
 export function effectiveFigures(
   working: WorkingSnapshot | null,
   live: LeaveSalaryResult,

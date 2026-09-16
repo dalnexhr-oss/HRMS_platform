@@ -1,4 +1,4 @@
-// Inline SVG icons from the prototype's sidebar, keyed by nav slug.
+// Shared inline navigation icons, keyed by tab slug.
 import type { ReactNode } from 'react';
 
 const svg = (children: ReactNode) => (

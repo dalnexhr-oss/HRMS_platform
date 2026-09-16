@@ -1,8 +1,6 @@
 'use client';
 
-// Admin/HR user administration: create login accounts, change roles, reset or
-// set passwords. Every action is gated server-side — this screen only decides
-// what to *offer*, never what is permitted.
+// Account administration controls. Each Server Action checks the caller's role independently.
 import { useActionState, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -47,8 +45,10 @@ function rolePillStyle(role: AppRole | null): React.CSSProperties {
   }
   if (role === 'admin') return { borderColor: 'var(--brand)', color: 'var(--brand)' };
   if (role === 'hr') return { borderColor: 'var(--brass)', color: 'var(--brass)' };
-  if (role === 'employee') return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
-  if (role === 'intern') return { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' };
+  if (role === 'employee')
+    return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
+  if (role === 'intern')
+    return { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' };
   return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
 }
 
@@ -162,8 +162,8 @@ export function UsersScreen({
           <div className="bd">
             <div className="login-error">{loadError}</div>
             <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>
-              User administration writes the users collection directly, which needs the database on the
-              server. Nothing is shown rather than a misleading empty list.
+              User administration writes the users collection directly, which needs the database on
+              the server. Nothing is shown rather than a misleading empty list.
             </p>
           </div>
         </div>
@@ -224,7 +224,9 @@ export function UsersScreen({
                   </td>
                   <td className="mono muted">{stamp(u.lastSignInAt)}</td>
                   <td>
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div
+                      style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}
+                    >
                       {/* Your own role is the one row you cannot edit — mirrors
                           the server guard, so the control never offers a change
                           that would come back as a refusal. Everyone else's row
@@ -287,7 +289,11 @@ export function UsersScreen({
                         className="btn quiet"
                         disabled={pending && busy === u.id}
                         onClick={() =>
-                          run(u.id, () => sendPasswordReset(u.email), `Reset link generated for ${u.email}.`)
+                          run(
+                            u.id,
+                            () => sendPasswordReset(u.email),
+                            `Reset link generated for ${u.email}.`,
+                          )
                         }
                         title="Generate a password-recovery link (emailed if SMTP is configured)"
                       >
@@ -366,8 +372,8 @@ export function UsersScreen({
 
       <p className="muted" style={{ fontSize: 12 }}>
         New accounts are created with the password you set and can sign in immediately. They can
-        change it themselves from <b>My account</b>, or use <b>Forgot your password?</b> on the sign-in
-        page. Only an admin can create or grant the admin role.
+        change it themselves from <b>My account</b>, or use <b>Forgot your password?</b> on the
+        sign-in page. Only an admin can create or grant the admin role.
       </p>
 
       <AccessDrawer
@@ -433,7 +439,13 @@ function AddUserDrawer({
             </div>
             <div className="f">
               <label>Email</label>
-              <input name="email" type="email" className="mono" placeholder="name@dalnex.com" required />
+              <input
+                name="email"
+                type="email"
+                className="mono"
+                placeholder="name@dalnex.com"
+                required
+              />
             </div>
             <div className="f">
               <label>Temporary password</label>

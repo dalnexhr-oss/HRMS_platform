@@ -1,4 +1,3 @@
-// Core application and database type exports barrel.
-// Document interfaces and collections are defined in src/lib/db/collections.ts.
+// Shared application and domain type exports. Stored document types live in lib/db/collections.ts.
 
 export * from './app';

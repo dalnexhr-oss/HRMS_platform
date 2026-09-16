@@ -1,12 +1,7 @@
 'use client';
 
-//
-// The clickable avatar chip in the top bar. Clicking it opens a small popover to
-// • upload a photo (resized client-side to 128×128 so it stays a few KB), or
-// • pick one of the bundled shadcn avatar images, or
-// • remove the picture (back to initials).
-// The chosen value is persisted by the updateAvatar server action.
-//
+// Avatar picker: upload a cropped 128×128 photo, choose a bundled image, or revert to initials.
+// updateAvatar persists the selection.
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AvatarInner } from '@/components/ui/Avatar';
@@ -46,7 +41,8 @@ export function AvatarMenu({
 }: {
   name?: string | null;
   avatar?: string | null;
-  // Which edge the popover anchors to. 'right' for a right-aligned trigger (topbar); 'left' when the trigger sits at the left (account page).
+  // Which edge the popover anchors to. 'right' for a right-aligned trigger (topbar); 'left' when
+  // the trigger sits at the left (account page).
   align?: 'left' | 'right';
 }) {
   const router = useRouter();

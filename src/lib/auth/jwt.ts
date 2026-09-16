@@ -1,21 +1,6 @@
-//
-// Session tokens. Signed JWTs, HS256, valid for one year.
-//
-// Uses `jose` rather than jsonwebtoken because middleware runs on the EDGE
-// runtime, where node:crypto is unavailable. jose works in both runtimes, so
-// the same verify path serves middleware, Server Components and Route Handlers.
-//
-// WHY A LONG-LIVED TOKEN IS SAFE HERE: an expiry a year out means the token
-// itself can never be recalled, so the claims below carry a `ver` counter that
-// is checked against the user document on every request. Bumping
-// users.token_version invalidates every token that account holds — which is
-// what makes sign-out, password change and "disable login" actually work. The
-// token is long-lived; the SESSION is revocable.
-//
-// The trade-off that remains: a stolen cookie stays useful until someone
-// notices and bumps the counter. That is the cost of a year-long session, and
-// it is why the cookie is httpOnly, sameSite=lax and secure in production.
-//
+// HS256 session JWTs shared by Node and edge runtimes through jose. The default lifetime is one
+// year; server session checks compare ver with users.token_version to enforce revocation. A stolen
+// cookie remains usable until it expires or the account's version changes.
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import type { AppRole } from '@/types/database';
 
@@ -48,7 +33,7 @@ function secretKey(): Uint8Array {
   if (!secret || secret.length < 32) {
     throw new Error(
       'AUTH_SECRET is missing or too short (needs 32+ characters). Generate one:\n' +
-        '  node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'base64url\'))"\n' +
+        "  node -e \"console.log(require('crypto').randomBytes(48).toString('base64url'))\"\n" +
         'then add it to .env.local as AUTH_SECRET=…',
     );
   }

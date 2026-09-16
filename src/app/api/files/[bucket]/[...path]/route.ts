@@ -1,13 +1,9 @@
-// Authenticated file streaming endpoint.
-//
-// Validates session credentials and evaluates bucket/path authorization rules
-// via getObject() per request.
+// Stream files after getObject() checks the session and bucket/path permissions.
 import { NextResponse } from 'next/server';
 import { getObject, StorageAccessError, type StorageBucket } from '@/lib/db/gridfs';
 
 export const runtime = 'nodejs';
-// Per-user and permission-checked: caching this anywhere shared would serve one
-// employee's document to the next requester.
+// Do not share cached responses between users; each file request requires an access check.
 export const dynamic = 'force-dynamic';
 
 const buckets: ReadonlySet<string> = new Set([
@@ -26,7 +22,8 @@ export async function GET(
     return NextResponse.json({ error: 'Unknown bucket.' }, { status: 404 });
   }
 
-  // Next.js decodes route parameters automatically; avoid redundant decodeURIComponent to handle literal '%' characters safely.
+  // Next.js decodes route parameters automatically; avoid redundant decodeURIComponent to handle
+  // literal '%' characters safely.
   const key = path.join('/');
 
   try {

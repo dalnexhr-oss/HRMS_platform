@@ -1,15 +1,5 @@
-//
-// File storage helpers. SERVER ONLY (used from server actions).
-//
-// The bucket names and the `<employeeId>/<uuid>-<filename>` key shape are
-// unchanged, so every path already stored in the database still resolves. What
-// moved is the enforcement: the folder prefix used to be checked by a storage
-// policy in the database, and lib/db/gridfs.ts now checks it against the
-// caller's scope instead. Nothing here takes a client — who is asking comes
-// from the session.
-//
-// The upload-type whitelist below is the interesting part of this file.
-//
+// Server-side file helpers. Preserve bucket names and <employeeId>/<uuid>-<filename> keys so stored
+// paths remain valid. GridFS checks path access against the caller's session scope.
 import {
   objectUrl,
   putObject,
@@ -28,13 +18,11 @@ function safeName(filename: string): string {
   return base.replace(/[^\w.\-]+/g, '_').slice(0, 120) || 'file';
 }
 
-//
 // Upload-type whitelist. The browser's file.type is attacker-controlled: an
 // HTML file uploaded with type text/html would be SERVED as a rendered page
 // from the file URL (stored XSS on the storage origin, reachable by HR via
 // the verification queue). So the stored contentType is derived from the file
 // EXTENSION against this whitelist, and file.type is never trusted.
-//
 const extensionTypes: Record<string, string> = {
   pdf: 'application/pdf',
   png: 'image/png',
@@ -56,7 +44,8 @@ const uploadKindExits = {
 
 export type UploadKind = keyof typeof uploadKindExits;
 
-// Validate a user upload's filename against the whitelist for its kind and return the contentType to store. Refuses unknown/missing extensions.
+// Validate a user upload's filename against the whitelist for its kind and return the contentType
+// to store. Refuses unknown/missing extensions.
 export function resolveUploadType(
   filename: string,
   kind: UploadKind,
@@ -166,16 +155,8 @@ export async function uploadFileService(
 }
 
 /**
- * The URL that serves a private object.
- *
- * The name is kept because ~7 call sites use it, but nothing is signed any
- * more. A signed URL carried its own authorisation, so a leaked link was a
- * leaked file for the lifetime of the token. This returns a plain app path;
- * /api/files/... re-checks the session on every request, which makes a copied
- * link useless to anyone else and removes the expiry question entirely.
- *
- * Ownership is verified here too, so a caller that cannot read the file gets an
- * error at the point of asking rather than a URL that will 403 later.
+ * Return the authenticated app URL for a private object after checking ownership. The URL carries
+ * no credentials; the file route rechecks access on every request.
  */
 export async function signedUrl(
   bucket: StorageBucket,

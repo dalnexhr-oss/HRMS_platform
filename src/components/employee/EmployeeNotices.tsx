@@ -6,9 +6,7 @@ import { markNoticeRead } from '@/lib/actions/notices';
 import { openNoticePdf } from '@/components/notices/open-pdf';
 import type { NoticeView } from '@/lib/queries';
 
-// Read-only company notices for the employee dashboard. Full title + body, the
-// branch it applies to, when it was published, and a per-notice "Mark as read".
-// Long bodies collapse behind a "Read more" toggle.
+// Employee notices with read receipts and collapsible bodies.
 export function EmployeeNotices({
   notices,
   readIds = [],
@@ -110,7 +108,11 @@ function NoticeItem({
           )}
         </>
       )}
-      {error && <div className="login-error" role="alert">{error}</div>}
+      {error && (
+        <div className="login-error" role="alert">
+          {error}
+        </div>
+      )}
     </div>
   );
 }

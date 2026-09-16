@@ -1,5 +1,4 @@
-// Read-only card: the IT asset(s) currently assigned to the signed-in employee.
-// Assignment is managed by HR on the Asset Management tab; this just surfaces it.
+// Show the employee's current IT asset assignments. HR manages assignments.
 import { formatDate } from '@/lib/format';
 import type { MyAssetRow } from '@/lib/queries';
 
@@ -8,9 +7,7 @@ export function MyAssets({ assets, id }: { assets: MyAssetRow[]; id?: string }) 
     <div className="card" id={id}>
       <div className="hd">
         <h3>My assets</h3>
-        <span className="folio">
-          {assets.length} assigned to you
-        </span>
+        <span className="folio">{assets.length} assigned to you</span>
       </div>
       <div className="bd">
         {assets.length === 0 ? (

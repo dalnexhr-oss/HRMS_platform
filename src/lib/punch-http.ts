@@ -6,7 +6,8 @@ import { locationRequired, recordPunch, type PunchCoords, type PunchKind } from 
 // Pages a punch changes: the board and its punch log, the register, /me.
 const affectedPaths = ['/today', '/register', '/me'];
 
-// Coordinates are OPTIONAL. A body with no usable lat/lng is not an error — the browser may have denied permission or have no GPS at all — it just means the punch is stored unclassified rather than at-office or off-site.
+// Missing coordinates are allowed here. Store the punch as unclassified if the browser cannot
+// provide a usable location.
 function readCoords(body: unknown): PunchCoords | null {
   if (!body || typeof body !== 'object') return null;
   const record = body as Record<string, unknown>;
@@ -31,16 +32,12 @@ export async function handlePunch(request: NextRequest, kind: PunchKind) {
     for (const path of affectedPaths) revalidatePath(path);
     return NextResponse.json(result);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : `Unable to punch ${kind}.`;
+    const message = error instanceof Error ? error.message : `Unable to punch ${kind}.`;
 
     // A refusal for missing location gets its own code so the UI can show the
     // "unblock location" instructions rather than a generic failure.
     if (message === locationRequired) {
-      return NextResponse.json(
-        { error: message, code: 'LOCATION_REQUIRED' },
-        { status: 422 },
-      );
+      return NextResponse.json({ error: message, code: 'LOCATION_REQUIRED' }, { status: 422 });
     }
     // A sequence clash ("already punched in") is the caller's problem: 409.
     // Anything else here is a server or auth failure.

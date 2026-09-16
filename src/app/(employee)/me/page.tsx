@@ -88,55 +88,53 @@ export default async function MePage() {
     myOnboarding,
     onLeaveToday,
   ] = await Promise.all([
-      getEmployeeOverview(employeeId, profile?.full_name, periodMonth),
-      getEmployeePolicies(employeeId),
-      employeeId ? getLeaveBalances(employeeId) : Promise.resolve<LeaveBalanceRow[]>([]),
-      employeeId
-        ? getMyAttendance(employeeId, periodMonth)
-        : Promise.resolve<DayCell[]>([]),
-      employeeId ? getMyPayslips(employeeId) : Promise.resolve<PayslipRow[]>([]),
-      employeeId ? getMyRequests(employeeId) : Promise.resolve<RequestView[]>([]),
-      employeeId ? getMyTickets(employeeId) : Promise.resolve<TicketView[]>([]),
-      // The run's real status — the net-pay KPI used to hard-code "draft", which
-      // would misreport a locked or already-paid month as unfinished.
-      getPayrollRun(periodMonth),
-      employeeId ? getMyCompOffs(employeeId) : Promise.resolve<CompOffRow[]>([]),
-      employeeId ? getMyReimbursements(employeeId) : Promise.resolve<ReimbursementView[]>([]),
-      getReimbursementRate(),
-      employeeId ? getMyAssets(employeeId) : Promise.resolve<MyAssetRow[]>([]),
-      employeeId ? getMyItems(employeeId) : Promise.resolve<MyItemRow[]>([]),
-      getHolidays(),
-      getNotices(),
-      getWeekOffPolicy(),
-      employeeId ? getReadNoticeIds(employeeId) : Promise.resolve<string[]>([]),
-      employeeId ? getEmployeeDocuments(employeeId) : Promise.resolve<EmployeeDocumentRow[]>([]),
-      employeeId ? getMyOnboardingTasks(employeeId) : Promise.resolve<OnboardingTaskRow[]>([]),
-      getOnLeaveToday().catch(() => [] as OnLeaveTodayRow[]),
-    ]);
+    getEmployeeOverview(employeeId, profile?.full_name, periodMonth),
+    getEmployeePolicies(employeeId),
+    employeeId ? getLeaveBalances(employeeId) : Promise.resolve<LeaveBalanceRow[]>([]),
+    employeeId ? getMyAttendance(employeeId, periodMonth) : Promise.resolve<DayCell[]>([]),
+    employeeId ? getMyPayslips(employeeId) : Promise.resolve<PayslipRow[]>([]),
+    employeeId ? getMyRequests(employeeId) : Promise.resolve<RequestView[]>([]),
+    employeeId ? getMyTickets(employeeId) : Promise.resolve<TicketView[]>([]),
+    // Use the saved payroll run status for the net-pay summary.
+    getPayrollRun(periodMonth),
+    employeeId ? getMyCompOffs(employeeId) : Promise.resolve<CompOffRow[]>([]),
+    employeeId ? getMyReimbursements(employeeId) : Promise.resolve<ReimbursementView[]>([]),
+    getReimbursementRate(),
+    employeeId ? getMyAssets(employeeId) : Promise.resolve<MyAssetRow[]>([]),
+    employeeId ? getMyItems(employeeId) : Promise.resolve<MyItemRow[]>([]),
+    getHolidays(),
+    getNotices(),
+    getWeekOffPolicy(),
+    employeeId ? getReadNoticeIds(employeeId) : Promise.resolve<string[]>([]),
+    employeeId ? getEmployeeDocuments(employeeId) : Promise.resolve<EmployeeDocumentRow[]>([]),
+    employeeId ? getMyOnboardingTasks(employeeId) : Promise.resolve<OnboardingTaskRow[]>([]),
+    getOnLeaveToday().catch(() => [] as OnLeaveTodayRow[]),
+  ]);
 
-    // Notices are company announcements, so the employee's own read/unread
-    // state is not part of the notice itself. F
-    // Fetch the read ids separately and filter the list here.
+  // Notices are company announcements, so the employee's own read/unread
+  // state is not part of the notice itself. F
+  // Fetch the read ids separately and filter the list here.
   const ticketComments = await getTicketComments(tickets.map((t) => t.id));
 
   const noticeCutoffMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const visibleNotices: NoticeView[] = notices.filter(
-    (n) => n.published && n.publishedAt != null && new Date(n.publishedAt).getTime() >= noticeCutoffMs,
+    (n) =>
+      n.published && n.publishedAt != null && new Date(n.publishedAt).getTime() >= noticeCutoffMs,
   );
   const readNoticeSet = new Set(readNoticeIds);
   const unreadNotices = visibleNotices.filter((n) => !readNoticeSet.has(n.id)).length;
   // Holidays legitimately differ by branch, so scope those to the employee's
   // branch plus any all-branches entries.
   const myBranch = overview.branch || null;
-  const visibleHolidays: HolidayView[] = holidays.filter(
-    (h) => !h.branch || h.branch === myBranch,
-  );
+  const visibleHolidays: HolidayView[] = holidays.filter((h) => !h.branch || h.branch === myBranch);
   const todayStr = todayIST();
   const upcomingHolidayCount = visibleHolidays.filter((h) => h.date >= todayStr).length;
 
   const unread = policies.filter((p) => !p.acknowledged).length;
   const pendingRequests = requests.filter((r) => r.status === 'pending').length;
-  const openTickets = tickets.filter((t) => t.status === 'open' || t.status === 'in_progress').length;
+  const openTickets = tickets.filter(
+    (t) => t.status === 'open' || t.status === 'in_progress',
+  ).length;
 
   // Comp-off credits the employee can actually spend. A credit staff put on hold
   // (is_applicable=false) is still 'available' but cannot be applied against, so
@@ -166,7 +164,8 @@ export default async function MePage() {
           <h2>Hi, {displayName.split(' ')[0]}</h2>
           <div className="meta">
             {/* an unlinked login has no code/branch */}
-            {[overview.code, overview.branch].filter(Boolean).join(' · ') || 'No employee record linked'}
+            {[overview.code, overview.branch].filter(Boolean).join(' · ') ||
+              'No employee record linked'}
           </div>
         </div>
       </div>
@@ -190,7 +189,8 @@ export default async function MePage() {
             {overview.present}
           </div>
           <div className="note">
-            {overview.halfDays} half-day{overview.halfDays === 1 ? '' : 's'} · {overview.leaves} leave
+            {overview.halfDays} half-day{overview.halfDays === 1 ? '' : 's'} · {overview.leaves}{' '}
+            leave
           </div>
         </div>
         <div className="card kpi">
@@ -234,8 +234,7 @@ export default async function MePage() {
             {overview.netPay != null ? inr(overview.netPay) : '—'}
           </div>
           <div className="note">
-            {monthYear(periodMonth)} ·{' '}
-            {run ? runStatusLabel[run.status] : 'not computed yet'}
+            {monthYear(periodMonth)} · {run ? runStatusLabel[run.status] : 'not computed yet'}
           </div>
         </div>
         <div className="card kpi">
@@ -282,7 +281,11 @@ export default async function MePage() {
                 <span
                   key={p.employeeId}
                   className="pill"
-                  style={{ borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' }}
+                  style={{
+                    borderColor: 'var(--lm-line)',
+                    color: 'var(--lm)',
+                    background: 'var(--lm-bg)',
+                  }}
                   title={`${p.startDate === p.endDate ? p.startDate : `${p.startDate} – ${p.endDate}`}`}
                 >
                   <b>{p.name}</b>

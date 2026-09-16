@@ -1,10 +1,7 @@
 'use client';
 
-// The document register: the CURRENT version of every document the company
-// holds, for every employee, with the verification queue in front of it.
-//
-// Filtering and sorting live in the column headers (ThMenu), matching Assets
-// and Inventory — there is deliberately no separate filter bar.
+// Current employee documents and their verification queue. Header menus share the table filtering
+// and sorting pattern.
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/format';
@@ -25,7 +22,7 @@ import { verifyEmployeeDocument, deleteEmployeeDocument } from '@/lib/actions/do
 import { documentCategoryLabel } from '@/lib/constants';
 import { UploadDocumentDrawer, type DrawerTarget } from './UploadDocumentDrawer';
 import { EmployeeDocumentsPanel } from './EmployeeDocumentsPanel';
-import { openDocument } from './openDocument';
+import { openDocument } from './open-document';
 import { StatusPill } from './StatusPill';
 import type { DocumentStats, EmployeeDocumentRow, EmployeeOption } from '@/lib/queries';
 
@@ -41,11 +38,24 @@ const statusText: Record<string, string> = {
 // `get` yields the string each header menu sorts and filters on; '—' stands in
 // for blank so "no value" is itself pickable. `kind` picks the compare order —
 // Filed is a date and must sort chronologically, not A → Z.
-const cols: { key: ColKey; label: string; kind?: ColKind; get: (d: EmployeeDocumentRow) => string }[] = [
+const cols: {
+  key: ColKey;
+  label: string;
+  kind?: ColKind;
+  get: (d: EmployeeDocumentRow) => string;
+}[] = [
   { key: 'employee', label: 'Employee', get: (d) => d.name || '—' },
-  { key: 'category', label: 'Category', get: (d) => documentCategoryLabel(d.category, d.source === 'issued') },
+  {
+    key: 'category',
+    label: 'Category',
+    get: (d) => documentCategoryLabel(d.category, d.source === 'issued'),
+  },
   { key: 'title', label: 'Document', get: (d) => d.title ?? '—' },
-  { key: 'source', label: 'Source', get: (d) => (d.source === 'issued' ? 'HR issued' : 'Uploaded') },
+  {
+    key: 'source',
+    label: 'Source',
+    get: (d) => (d.source === 'issued' ? 'HR issued' : 'Uploaded'),
+  },
   { key: 'status', label: 'Status', get: (d) => statusText[d.status] ?? d.status },
   { key: 'filed', label: 'Filed', kind: 'date', get: (d) => d.uploadedAt.slice(0, 10) },
 ];
@@ -114,7 +124,10 @@ export function DocumentsScreen({
   function toggleFilter(key: ColKey, value: string) {
     setFilters((f) => {
       const cur = f[key] ?? [];
-      return { ...f, [key]: cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value] };
+      return {
+        ...f,
+        [key]: cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value],
+      };
     });
   }
 
@@ -141,7 +154,11 @@ export function DocumentsScreen({
       validate: (v) => (v.trim() ? null : 'Enter what needs fixing.'),
     });
     if (reason === null) return;
-    run(d.id, () => verifyEmployeeDocument(d.id, false, reason.trim()), 'Returned to the employee.');
+    run(
+      d.id,
+      () => verifyEmployeeDocument(d.id, false, reason.trim()),
+      'Returned to the employee.',
+    );
   }
 
   async function onDelete(d: EmployeeDocumentRow) {
@@ -163,7 +180,14 @@ export function DocumentsScreen({
 
       <div className="emp-top">
         <div className="search">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
             <circle cx="11" cy="11" r="7" />
             <path d="M21 21l-4.3-4.3" />
           </svg>
@@ -241,7 +265,9 @@ export function DocumentsScreen({
                   <tr key={d.id}>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <EmployeeLink row={d} onOpen={setPanelFor} />{' '}
-                      <span className="mono muted" style={{ fontSize: 11 }}>{d.code}</span>
+                      <span className="mono muted" style={{ fontSize: 11 }}>
+                        {d.code}
+                      </span>
                     </td>
                     <td>
                       {documentCategoryLabel(d.category)} — {d.title ?? '—'}
@@ -252,24 +278,42 @@ export function DocumentsScreen({
                         </div>
                       )}
                     </td>
-                    <td><StatusPill row={d} /></td>
+                    <td>
+                      <StatusPill row={d} />
+                    </td>
                     <td className="mono">{formatDate(d.uploadedAt.slice(0, 10))}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        <button className="btn quiet" onClick={() => openDocument(d.id, (m) => toast(m, 'error'))}>
+                        <button
+                          className="btn quiet"
+                          onClick={() => openDocument(d.id, (m) => toast(m, 'error'))}
+                        >
                           📎 Open
                         </button>
                         <button
                           className="btn primary"
                           disabled={pending && busy === d.id}
-                          onClick={() => run(d.id, () => verifyEmployeeDocument(d.id, true), 'Document verified.')}
+                          onClick={() =>
+                            run(
+                              d.id,
+                              () => verifyEmployeeDocument(d.id, true),
+                              'Document verified.',
+                            )
+                          }
                         >
                           ✓ Verify
                         </button>
-                        <button className="btn" onClick={() => setDrawer({ mode: 'replace', document: d })}>
+                        <button
+                          className="btn"
+                          onClick={() => setDrawer({ mode: 'replace', document: d })}
+                        >
                           ⟳ Replace
                         </button>
-                        <button className="btn" disabled={pending && busy === d.id} onClick={() => onReturn(d)}>
+                        <button
+                          className="btn"
+                          disabled={pending && busy === d.id}
+                          onClick={() => onReturn(d)}
+                        >
                           Return
                         </button>
                       </div>
@@ -324,7 +368,9 @@ export function DocumentsScreen({
                   <tr key={d.id}>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <EmployeeLink row={d} onOpen={setPanelFor} />
-                      <div className="mono muted" style={{ fontSize: 11 }}>{d.code}</div>
+                      <div className="mono muted" style={{ fontSize: 11 }}>
+                        {d.code}
+                      </div>
                     </td>
                     <td>{documentCategoryLabel(d.category, d.source === 'issued')}</td>
                     <td>
@@ -332,25 +378,39 @@ export function DocumentsScreen({
                       {d.version > 1 && <span className="muted"> · v{d.version}</span>}
                     </td>
                     <td>{d.source === 'issued' ? 'HR issued' : 'Uploaded'}</td>
-                    <td><StatusPill row={d} /></td>
+                    <td>
+                      <StatusPill row={d} />
+                    </td>
                     <td className="mono">{formatDate(d.uploadedAt.slice(0, 10))}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        <button className="btn quiet" onClick={() => openDocument(d.id, (m) => toast(m, 'error'))}>
+                        <button
+                          className="btn quiet"
+                          onClick={() => openDocument(d.id, (m) => toast(m, 'error'))}
+                        >
                           📎
                         </button>
                         {d.status !== 'verified' && (
                           <button
                             className="btn primary"
                             disabled={pending && busy === d.id}
-                            onClick={() => run(d.id, () => verifyEmployeeDocument(d.id, true), 'Document verified.')}
+                            onClick={() =>
+                              run(
+                                d.id,
+                                () => verifyEmployeeDocument(d.id, true),
+                                'Document verified.',
+                              )
+                            }
                           >
                             ✓
                           </button>
                         )}
                         {/* An HR-issued letter is reproduced from the exit case, never replaced by an upload — see replaceEmployeeDocument. */}
                         {d.source === 'uploaded' && (
-                          <button className="btn" onClick={() => setDrawer({ mode: 'replace', document: d })}>
+                          <button
+                            className="btn"
+                            onClick={() => setDrawer({ mode: 'replace', document: d })}
+                          >
                             ⟳ Replace
                           </button>
                         )}
@@ -383,7 +443,9 @@ export function DocumentsScreen({
   );
 }
 
-// The employee name as a button that opens their drill-down. Styled inline rather than with a class: it is the only link-shaped button in the app, and globals.css has no rule for one — adding a global class for a single use would be the wrong place to put it.
+// The employee name as a button that opens their drill-down. Styled inline rather than with a
+// class: it is the only link-shaped button in the app, and globals.css has no rule for one — adding
+// a global class for a single use would be the wrong place to put it.
 function EmployeeLink({
   row,
   onOpen,

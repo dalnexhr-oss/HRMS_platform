@@ -1,8 +1,6 @@
 'use client';
 
-// The one place a document's status becomes a colour and a word, so the
-// register, the queue and the drill-down cannot drift apart on what "returned"
-// looks like.
+// Shared document status labels and colors for the register, queue, and detail panel.
 import type { EmployeeDocumentRow } from '@/lib/queries';
 
 const pillMeta: Record<string, { label: string; color: string }> = {

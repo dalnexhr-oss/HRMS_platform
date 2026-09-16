@@ -1,7 +1,4 @@
-//
-// The company identity, in one place. Pure module — safe on client and server
-// (payslip-print.ts is client-side; letters/templates are server-only).
-//
+// Company identity shared by client-side printing and server-side documents.
 
 export const company = 'Dalnex LLP';
 

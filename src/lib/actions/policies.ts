@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
-import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/_guard';
+import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { notifyEveryone } from '@/lib/notify';
 
 // Duplicate key violation error code (mapped from Mongo 11000).
@@ -19,7 +19,8 @@ export async function acknowledgePolicy(policyId: string) {
     // Cannot file an acknowledgement without a linked employee record.
     return {
       ok: false,
-      error: 'Your login is not linked to an employee record, so the receipt could not be filed. Ask HR to link it.',
+      error:
+        'Your login is not linked to an employee record, so the receipt could not be filed. Ask HR to link it.',
     };
   }
 
@@ -40,13 +41,17 @@ export async function acknowledgePolicy(policyId: string) {
     if (error.code === '42501') {
       return {
         ok: false,
-        error: 'The database refused the receipt. Your login may not be linked to the right employee record.',
+        error:
+          'The database refused the receipt. Your login may not be linked to the right employee record.',
       };
     }
     return { ok: false, error: error.message };
   }
   if (wroteNothing(data)) {
-    return { ok: false, error: 'The policy was not marked as read — nothing was saved. Reload and try again.' };
+    return {
+      ok: false,
+      error: 'The policy was not marked as read — nothing was saved. Reload and try again.',
+    };
   }
 
   await clearPolicyNag(dbc, policyId);
@@ -101,7 +106,10 @@ export async function createPolicy(formData: FormData) {
     .select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
-    return { ok: false, error: 'The policy was not created — your account may not have permission.' };
+    return {
+      ok: false,
+      error: 'The policy was not created — your account may not have permission.',
+    };
   }
 
   // A published policy must be read and acknowledged, so it notifies everyone.
@@ -189,7 +197,10 @@ export async function updatePolicy(id: string, formData: FormData) {
     .select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
-    return { ok: false, error: 'The policy was not updated — it may be gone, or your role lacks permission.' };
+    return {
+      ok: false,
+      error: 'The policy was not updated — it may be gone, or your role lacks permission.',
+    };
   }
 
   revalidatePath('/policies');
@@ -206,7 +217,10 @@ export async function deletePolicy(id: string) {
   const { data, error } = await dbc.from('policies').delete().eq('id', id).select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
-    return { ok: false, error: 'The policy was not removed — it may already be gone, or your role lacks permission.' };
+    return {
+      ok: false,
+      error: 'The policy was not removed — it may already be gone, or your role lacks permission.',
+    };
   }
 
   revalidatePath('/policies');

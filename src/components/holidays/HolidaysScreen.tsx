@@ -85,7 +85,13 @@ export function HolidaysScreen({
   );
 }
 
-function ImportHolidays({ year, toast }: { year: number; toast: (message: string, kind?: ToastKind) => void }) {
+function ImportHolidays({
+  year,
+  toast,
+}: {
+  year: number;
+  toast: (message: string, kind?: ToastKind) => void;
+}) {
   const router = useRouter();
   const [target, setTarget] = useState(year);
   const [pending, start] = useTransition();
@@ -110,7 +116,7 @@ function ImportHolidays({ year, toast }: { year: number; toast: (message: string
         res.imported === 0
           ? `All ${res.skipped} public holiday(s) for ${res.year} are already in your calendar.`
           : `Imported ${res.imported} public holiday(s) for ${res.year}` +
-              (res.skipped ? `, skipped ${res.skipped} already present.` : '.');
+            (res.skipped ? `, skipped ${res.skipped} already present.` : '.');
       setResult(msg);
       toast(msg, 'success');
       setTentative(res.tentative);
@@ -144,7 +150,13 @@ function ImportHolidays({ year, toast }: { year: number; toast: (message: string
         </div>
       )}
 
-      <button className="btn primary" type="button" onClick={onImport} disabled={pending} style={{ marginTop: 4 }}>
+      <button
+        className="btn primary"
+        type="button"
+        onClick={onImport}
+        disabled={pending}
+        style={{ marginTop: 4 }}
+      >
         {pending ? 'Importing…' : `Import ${target} holidays`}
       </button>
 
@@ -162,7 +174,12 @@ function HolidayRow({
   toast,
 }: {
   holiday: HolidayView;
-  confirm: (opts: { title?: string; message: string; confirmLabel?: string; danger?: boolean }) => Promise<boolean>;
+  confirm: (opts: {
+    title?: string;
+    message: string;
+    confirmLabel?: string;
+    danger?: boolean;
+  }) => Promise<boolean>;
   toast: (message: string, kind?: ToastKind) => void;
 }) {
   const [pending, startTransition] = useTransition();

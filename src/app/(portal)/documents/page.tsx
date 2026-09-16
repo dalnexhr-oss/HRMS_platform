@@ -14,11 +14,11 @@ export default async function DocumentsPage() {
 
   const [register, employees] = await Promise.all([getDocumentRegister(), getEmployeeOptions()]);
 
-  // Derived from the register that is already loaded rather than counted with
-  // five more round trips. getEmployeeOptions() is the ACTIVE roster, which is
-  // the right denominator for "missing": paperwork gaps on someone who has left
-  // are not work anyone is going to do.
-  const stats = documentStats(register, employees.map((e) => e.id));
+  // Reuse the loaded register for counts. Missing documents are measured against the active roster.
+  const stats = documentStats(
+    register,
+    employees.map((e) => e.id),
+  );
 
   return <DocumentsScreen register={register} stats={stats} employees={employees} />;
 }

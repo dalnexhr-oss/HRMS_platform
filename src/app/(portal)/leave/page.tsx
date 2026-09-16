@@ -7,8 +7,7 @@ import { exportLeaveSalaryXlsx } from '@/lib/actions/export';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import type { AppRole } from '@/types/database';
 
-// The leave-salary working writes salaries and money — admin/HR only, matching
-// the server actions' requireRoles(['super_admin','admin','hr']) gate.
+// Match the leave-salary actions' staff role gate.
 const leaveAdminRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 const yearRe = /^\d{4}$/;
@@ -38,10 +37,7 @@ export default async function LeavePage({
       rows={view.rows}
       pool={pool}
       exportSlot={
-        <XlsxExportButton
-          action={exportLeaveSalaryXlsx.bind(null, year)}
-          label="Export .xlsx"
-        />
+        <XlsxExportButton action={exportLeaveSalaryXlsx.bind(null, year)} label="Export .xlsx" />
       }
     />
   );

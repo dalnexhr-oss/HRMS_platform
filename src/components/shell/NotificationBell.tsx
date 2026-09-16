@@ -1,9 +1,7 @@
 'use client';
 
-// Topbar notification bell: unread badge + dropdown list.
-// Titles/bodies are rendered as TEXT (never dangerouslySetInnerHTML) because a
-// notification body can quote user-supplied content — a ticket subject, a claim
-// description — which would otherwise be stored XSS.
+// Notification dropdown and unread count. Render bodies as text because they may contain
+// user-submitted content.
 import { useEffect, useRef, useState, useTransition } from 'react';
 import type { Route } from 'next';
 import { usePathname, useRouter } from 'next/navigation';
@@ -25,7 +23,8 @@ const kindIcon: Record<string, string> = {
   system: '⚙️',
 };
 
-// Split a stored link into path + hash, rejecting anything that isn't a relative in-app path so a stored value can never become an external redirect.
+// Split a stored link into path + hash, rejecting anything that isn't a relative in-app path so a
+// stored value can never become an external redirect.
 function splitLink(link: string | null): { path: string; hash: string | null } | null {
   if (!link || !link.startsWith('/') || link.startsWith('//')) return null;
   const i = link.indexOf('#');
@@ -33,7 +32,9 @@ function splitLink(link: string | null): { path: string; hash: string | null } |
   return { path: link.slice(0, i) || '/', hash: link.slice(i + 1) || null };
 }
 
-// Scroll a dashboard section into view and flash it. No-ops when the section isn't on the page — several /me cards render conditionally (MyOnboarding disappears once the checklist is done), and a missing target should still leave the notification marked read.
+// Scroll a dashboard section into view and flash it. No-ops when the section isn't on the page —
+// several /me cards render conditionally (MyOnboarding disappears once the checklist is done), and
+// a missing target should still leave the notification marked read.
 function scrollToSection(id: string): void {
   const el = document.getElementById(id);
   if (!el) return;
@@ -42,7 +43,8 @@ function scrollToSection(id: string): void {
   window.setTimeout(() => el.classList.remove('jump-flash'), 1600);
 }
 
-// "x minutes ago" for a notification timestamp. The server always sends UTC ISO strings, so the local timezone is applied here.
+// "x minutes ago" for a notification timestamp. The server always sends UTC ISO strings, so the
+// local timezone is applied here.
 function ago(iso: string): string {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return '';
@@ -86,13 +88,8 @@ export function NotificationBell({
     };
   }, [open]);
 
-  // Navigation is done here rather than by a <Link>, because most of these
-  // notifications point at a section of the page the reader is ALREADY on: every
-  // employee link is '/me#…' and the employee area has no other route. A same-URL
-  // <Link> push produces no navigation event at all — so clicking did nothing,
-  // and clicking the same notification twice did nothing twice. Doing it by hand
-  // also fixes the ordering: the old code raced router.refresh() against the
-  // Link's navigation.
+  // Handle navigation explicitly so notifications can scroll to a section on the current page,
+  // including repeated clicks. Complete navigation before refreshing.
   const onOpenItem = (n: NotificationRow) => {
     setError(null);
     const target = splitLink(n.link);
@@ -148,7 +145,14 @@ export function NotificationBell({
         aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
         style={{ position: 'relative' }}
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
           <path d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8" />
           <path d="M13.7 21a2 2 0 01-3.4 0" />
         </svg>
@@ -216,16 +220,23 @@ export function NotificationBell({
           )}
 
           {notifications.length === 0 ? (
-            <p className="muted" style={{ fontSize: 13, padding: 16, margin: 0, textAlign: 'center' }}>
+            <p
+              className="muted"
+              style={{ fontSize: 13, padding: 16, margin: 0, textAlign: 'center' }}
+            >
               Nothing yet.
             </p>
           ) : (
             notifications.map((n) => {
               const inner = (
                 <>
-                  <span style={{ fontSize: 15, lineHeight: '18px' }}>{kindIcon[n.kind] ?? '•'}</span>
+                  <span style={{ fontSize: 15, lineHeight: '18px' }}>
+                    {kindIcon[n.kind] ?? '•'}
+                  </span>
                   <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ fontWeight: n.readAt ? 500 : 700, fontSize: 13 }}>{n.title}</span>
+                    <span style={{ fontWeight: n.readAt ? 500 : 700, fontSize: 13 }}>
+                      {n.title}
+                    </span>
                     {n.body && (
                       <span
                         className="muted"

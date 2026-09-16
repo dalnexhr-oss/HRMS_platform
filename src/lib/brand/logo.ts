@@ -1,13 +1,6 @@
-//
-// The Dalnex logo, embedded as base64 for generated documents. SERVER ONLY —
-// logoPngBytes() uses Node's Buffer. Client code (payslip-print.ts) loads the
-// logo by URL instead.
-//
-// Source: public/logo-export.png — a 600x206 downscale of public/logo.png made
-// by scripts/make-export-logo.ps1. Embedded (rather than read off disk at
-// request time) so serverless bundles never depend on public/ being present,
-// and downscaled so each workbook/letter grows by ~21 KB, not ~92 KB.
-//
+// Embedded logo for server-generated documents. Use the 600×206 public/logo-export.png artwork to
+// keep exports small and independent of runtime filesystem access. Browser printing loads the logo
+// by URL.
 
 // Raw base64 (no data: prefix) — the form exceljs addImage() takes.
 export const logoPngBase64 =

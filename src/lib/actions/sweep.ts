@@ -1,23 +1,13 @@
 'use server';
 
+// Manually close open attendance days at the configured auto punch-out time, recompute worked
+// minutes, and write an audit entry.
 //
-// Night sweep — close attendance days that have a punch-in but no punch-out.
-//
-// An open day reads as zero worked minutes, which silently inflates the payroll
-// hours-shortfall deduction, so every open day is closed at the configured
-// auto punch-out time (default 18:00, settings.auto_punch_out_time) and the
-// worked minutes recomputed. Every sweep writes one activity_log entry so the
-// correction is auditable rather than invisible.
-//
-// This is the MANUAL sweep — the button on /today, run by a staff user against
-// a date they chose. The automatic one is autoPunchOut() in db/scheduler.ts,
-// fired at 00:00 IST by db/midnight.ts and by /api/cron. Do not wire this
-// action into a schedule: it requires a session a timer does not have, and it
-// defaults to *today*, which at midnight is a day with nothing open in it yet.
-//
+// Scheduled sweeps use db/scheduler.ts instead: they run with system scope and default to
+// yesterday, whereas this action requires a staff session and defaults to today.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
-import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/_guard';
+import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/guards';
 import {
   autoCloseDay,
   clockToMinutes,
@@ -26,8 +16,7 @@ import {
 } from '@/lib/attendance-rules';
 
 export type SweepResult =
-  | { ok: true; closed: number; at: string; date: string }
-  | { ok: false; error: string };
+  { ok: true; closed: number; at: string; date: string } | { ok: false; error: string };
 
 interface OpenDay {
   id: string;
@@ -36,15 +25,15 @@ interface OpenDay {
   punch_in: string | null;
 }
 
-// Close every open day on `dateISO` ('YYYY-MM-DD'). Defaults to today in the business timezone (Asia/Kolkata) — the sweep is a same-evening job.
+// Close every open day on `dateISO` ('YYYY-MM-DD'). Defaults to today in the business timezone
+// (Asia/Kolkata) — the sweep is a same-evening job.
 export async function runNightSweep(dateISO?: string): Promise<SweepResult> {
   const gate = await requireStaff('Running the night sweep');
   if (!gate.ok) return gate;
 
   try {
     const date =
-      dateISO ??
-      new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+      dateISO ?? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
 
     const dbc = await createClient();
 

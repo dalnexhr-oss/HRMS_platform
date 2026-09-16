@@ -6,7 +6,8 @@ export const metadata: Metadata = {
   description: 'Attendance & payroll admin portal for Dalnex.',
 };
 
-// Without this the page has no viewport meta at all, so every mobile browser assumes a ~980px desktop canvas and zooms the whole app out — which is why nothing here was readable on a phone regardless of the CSS. maximumScale is deliberately NOT set: pinch-zoom is an accessibility right, and the iOS zoom-on-focus problem it is usually used to paper over is fixed properly in globals.css by keeping mobile inputs at 16px.
+// Use the device width and leave pinch zoom enabled. Mobile inputs use 16px text in globals.css to
+// avoid iOS zoom on focus.
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,

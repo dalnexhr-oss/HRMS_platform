@@ -1,13 +1,16 @@
 /**
- * PostgREST-compatible fluent query builder adapter backed by MongoDB. SERVER ONLY.
- *
- * Translates PostgREST-style query syntax (`.from().select().eq().order()`) to MongoDB
- * aggregation pipelines and scoped repository operations (`lib/db/repo.ts`), ensuring
- * access policies from `policies.ts` are applied to all operations.
+ * Translate PostgREST-style queries to MongoDB operations. All access goes through repo.ts so
+ * collection policies remain enforced.
  */
 import 'server-only';
 import type { Document, Filter } from 'mongodb';
-import { NotSignedInError, readFilterFor, scoped, scopedFor, type ScopedCollection } from '@/lib/db/repo';
+import {
+  NotSignedInError,
+  readFilterFor,
+  scoped,
+  scopedFor,
+  type ScopedCollection,
+} from '@/lib/db/repo';
 import { currentScope, systemScope, type Scope } from '@/lib/db/scope';
 import { db } from '@/lib/db/mongo';
 import { columnDefaults, now, today, type DefaultValue } from '@/lib/db/defaults';
@@ -62,9 +65,7 @@ function outward<T extends Document>(doc: T | null): T | null {
   return doc;
 }
 
-//
 // Embedded selects
-//
 
 interface Embed {
   // Collection to join, e.g. 'branches'.
@@ -128,14 +129,14 @@ function parseSelect(select: string, parentTable: string): { fields: string[]; e
     // Anything else is malformed and is reported rather than silently treated
     // as a column name.
     if (!part.endsWith(')')) {
-      throw new Error(`pgcompat: malformed embed in select list: '${part}'`);
+      throw new Error(`postgrest-compat: malformed embed in select list: '${part}'`);
     }
     const head = part.slice(0, open).trim();
     const body = part.slice(open + 1, -1);
 
     const parsed = /^(?:([\w]+):)?([\w]+)(!inner)?$/.exec(head);
     if (!parsed) {
-      throw new Error(`pgcompat: malformed embed in select list: '${part}'`);
+      throw new Error(`postgrest-compat: malformed embed in select list: '${part}'`);
     }
     const [, aliasRaw, tableRaw, inner] = parsed;
     const alias = aliasRaw ?? tableRaw;
@@ -143,7 +144,7 @@ function parseSelect(select: string, parentTable: string): { fields: string[]; e
     const relationship = relationshipFor(parentTable, alias);
     if (!relationship) {
       throw new Error(
-        `pgcompat: no relationship declared for '${alias}' on '${parentTable}'. ` +
+        `postgrest-compat: no relationship declared for '${alias}' on '${parentTable}'. ` +
           'Add one to src/lib/db/relationships.ts — an embed is never joined on a guess.',
       );
     }
@@ -240,9 +241,7 @@ function collectionFor(table: string): string {
   return tableAliases[table] ?? table;
 }
 
-// ---------------------------------------------------------------------------
 // Sorting
-// ---------------------------------------------------------------------------
 
 /** One `.order()` key: field, direction, and where its nulls belong. */
 interface SortKey {
@@ -293,9 +292,7 @@ function sortStages(keys: SortKey[]): { pre: Document[]; sort: Document; helpers
   return { pre, sort, helpers };
 }
 
-// ---------------------------------------------------------------------------
 // The builder
-// ---------------------------------------------------------------------------
 
 type Mode = 'select' | 'insert' | 'update' | 'delete' | 'upsert';
 
@@ -321,16 +318,17 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
   private conflictKeys: string[] = [];
   private ignoreDuplicates = false;
 
-  constructor(private readonly table: string, asSystem = false) {
+  constructor(
+    private readonly table: string,
+    asSystem = false,
+  ) {
     this.asSystem = asSystem;
   }
 
   /** The repository this query runs through — scoped, or system-wide. */
   private async repo(): Promise<ScopedCollection<Document>> {
     const name = collectionFor(this.table);
-    return this.asSystem
-      ? scopedFor<Document>(name, systemScope)
-      : scoped<Document>(name);
+    return this.asSystem ? scopedFor<Document>(name, systemScope) : scoped<Document>(name);
   }
 
   /** Who this query runs as. Same rule as repo(), as a scope rather than a handle. */
@@ -341,7 +339,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
     return scope;
   }
 
-  // --- shaping -------------------------------------------------------------
+  // shaping
 
   /**
    * Sets projection fields and optional count mode.
@@ -389,15 +387,29 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
     return this;
   }
 
-  // --- filters -------------------------------------------------------------
+  // filters
 
-  eq(field: string, value: unknown): this { return this.push({ [col(field)]: value }); }
-  neq(field: string, value: unknown): this { return this.push({ [col(field)]: { $ne: value } }); }
-  gt(field: string, value: unknown): this { return this.push({ [col(field)]: { $gt: value } }); }
-  gte(field: string, value: unknown): this { return this.push({ [col(field)]: { $gte: value } }); }
-  lt(field: string, value: unknown): this { return this.push({ [col(field)]: { $lt: value } }); }
-  lte(field: string, value: unknown): this { return this.push({ [col(field)]: { $lte: value } }); }
-  in(field: string, values: unknown[]): this { return this.push({ [col(field)]: { $in: values } }); }
+  eq(field: string, value: unknown): this {
+    return this.push({ [col(field)]: value });
+  }
+  neq(field: string, value: unknown): this {
+    return this.push({ [col(field)]: { $ne: value } });
+  }
+  gt(field: string, value: unknown): this {
+    return this.push({ [col(field)]: { $gt: value } });
+  }
+  gte(field: string, value: unknown): this {
+    return this.push({ [col(field)]: { $gte: value } });
+  }
+  lt(field: string, value: unknown): this {
+    return this.push({ [col(field)]: { $lt: value } });
+  }
+  lte(field: string, value: unknown): this {
+    return this.push({ [col(field)]: { $lte: value } });
+  }
+  in(field: string, values: unknown[]): this {
+    return this.push({ [col(field)]: { $in: values } });
+  }
 
   /** Matches null or boolean values on a field. */
   is(field: string, value: null | boolean): this {
@@ -441,7 +453,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
     return this.push(clause);
   }
 
-  // --- modifiers -----------------------------------------------------------
+  // modifiers
 
   /**
    * Configures sort direction and null placement semantics for a field.
@@ -459,7 +471,10 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
     return this;
   }
 
-  limit(n: number): this { this.limitN = n; return this; }
+  limit(n: number): this {
+    this.limitN = n;
+    return this;
+  }
 
   range(from: number, to: number): this {
     this.skipN = from;
@@ -490,7 +505,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
     return { $and: this.filters };
   }
 
-  // --- execution -----------------------------------------------------------
+  // execution
 
   then<R1 = PgResult<T>, R2 = never>(
     onfulfilled?: ((value: PgResult<T>) => R1 | PromiseLike<R1>) | null,
@@ -515,11 +530,16 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
 
       const repo = await this.repo();
       switch (this.mode) {
-        case 'select': return await this.runSelect(repo);
-        case 'insert': return await this.runInsert(repo);
-        case 'upsert': return await this.runUpsert(repo);
-        case 'update': return await this.runUpdate(repo);
-        case 'delete': return await this.runDelete(repo);
+        case 'select':
+          return await this.runSelect(repo);
+        case 'insert':
+          return await this.runInsert(repo);
+        case 'upsert':
+          return await this.runUpsert(repo);
+        case 'update':
+          return await this.runUpdate(repo);
+        case 'delete':
+          return await this.runDelete(repo);
       }
     } catch (e) {
       // The shape the caller expects: an error object, never a throw. A thrown
@@ -539,18 +559,15 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
    * pipeline instead.
    */
   private async runView(): Promise<PgResult<T>> {
-    // asSystem has to be honoured HERE as well as in repo(). The view branch of
-    // run() is taken before repo() is ever called, so a service-client read of
-    // a view used to land in scoped() with no session, throw NotSignedInError
-    // and come back as `{data: [], error: 'You are not signed in.'}` — an empty
-    // board for the one caller whose whole purpose is running without a user.
+    // Pass system scope to views explicitly because this branch runs before repo() is called.
     let rows = await runView(this.table, this.asSystem ? systemScope : undefined);
     rows = rows.filter((row) => matches(row, this.where()));
 
     if (this.sortKeys.length) {
       rows = [...rows].sort((a, b) => {
         for (const { field, dir, nullsLast } of this.sortKeys) {
-          const av = a[field], bv = b[field];
+          const av = a[field],
+            bv = b[field];
           const aNull = av === null || av === undefined;
           const bNull = bv === null || bv === undefined;
           if (aNull || bNull) {
@@ -576,7 +593,10 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
         if (this.wantSingle === 'maybe') return { data: null as T, error: null, count };
         return {
           data: null as T,
-          error: { message: 'JSON object requested, multiple (or no) rows returned', code: 'PGRST116' },
+          error: {
+            message: 'JSON object requested, multiple (or no) rows returned',
+            code: 'PGRST116',
+          },
           count,
         };
       }
@@ -627,7 +647,10 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
         if (this.wantSingle === 'maybe') return { data: null as T, error: null, count };
         return {
           data: null as T,
-          error: { message: 'JSON object requested, multiple (or no) rows returned', code: 'PGRST116' },
+          error: {
+            message: 'JSON object requested, multiple (or no) rows returned',
+            code: 'PGRST116',
+          },
           count,
         };
       }
@@ -711,16 +734,8 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
         const set = touched(this.table, rest);
         const onInsert: Document = { _id };
         for (const [field, value] of Object.entries(doc)) {
-          // A field in $set must NOT also appear in $setOnInsert. MongoDB
-          // rejects the pair outright — error 40, "would create a conflict at
-          // '<field>'" — and `updated_at` landed in both every single time:
-          // withDefaults() puts it in `doc` because the column carries a
-          // default, and touched() puts it in `set` because that same default
-          // is what marks the collection as carrying the old BEFORE UPDATE
-          // trigger. So every upsert the app makes failed before it reached
-          // the collection: punch in/out, the attendance correction and bulk
-          // save, the register import, comp-off settle, settings, payslip
-          // adjustments, the leave-salary snapshot and full-and-final.
+          // Remove $set fields from $setOnInsert. MongoDB rejects overlapping paths, including
+          // updated_at supplied by both defaults and touched().
           if (field in set) continue;
           onInsert[field] = value;
         }
@@ -728,15 +743,8 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
       }
 
       if (!this.returning) continue;
-      // Read the row back rather than echoing the payload.
-      //
-      // The payload is not what is stored. An upsert that lands on an EXISTING
-      // row keeps THAT row's `_id`, so echoing `doc` handed the caller a
-      // freshly minted id belonging to no document — and, worse, made
-      // `.upsert(...).select().maybeSingle()` unconditionally truthy, so the
-      // "no row back means the write was filtered" branch after every upsert
-      // in the app (attendance.ts's "your role may not have permission", and
-      // its siblings) was unreachable code.
+      // Read back the stored row. An upsert into an existing document retains its ID, so echoing
+      // the insertion payload would return an unused ID and misreport filtered writes.
       const saved = await repo.findOne(key);
       if (saved) out.push(outward(saved) as Document);
     }
@@ -750,24 +758,9 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
   private async runUpdate(repo: ScopedCollection<Document>): Promise<PgResult<T>> {
     const where = this.where();
 
-    // Capture WHICH rows the WRITE will touch before writing, then re-read
-    // those by id. Two opposite mistakes are being avoided here.
-    //
-    // Re-reading with the same filter AFTERWARDS finds nothing whenever the
-    // update changes a column the filter tests — and
-    // `.eq('status','pending').update({status:'approved'}).select()` is the
-    // shape every approval path uses. `wroteNothing(data)` then reported a
-    // failure on a write that had in fact succeeded: leave approval told the
-    // reviewer "already reviewed by someone else" while the row flipped, and
-    // the balance deduction and notifications behind that check never ran.
-    //
-    // Reading through the READ policy is the mirror-image mistake, and the
-    // more dangerous one. The read policy is the wider of the two, so a row
-    // the caller may see but may not write came back looking updated: an
-    // employee's own already-approved reimbursement matched staffOrOwn on the
-    // read while the write matched nothing, and the action went on to report
-    // success, revalidate, log an event and notify for a write that never
-    // happened. findForWrite() asks the question the guard is asking.
+    // Capture writable IDs before updating, then read those IDs back. The update may change fields
+    // in the original filter. Use the write policy here: read access alone must not make a rejected
+    // mutation appear successful.
     const ids = this.returning
       ? (await repo.findForWrite(where, { projection: { _id: 1 } })).map((r) => r._id)
       : [];
@@ -804,9 +797,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
   }
 }
 
-// ---------------------------------------------------------------------------
 // helpers
-// ---------------------------------------------------------------------------
 
 function withId(doc: Document): Document {
   if (doc._id) return doc;
@@ -903,24 +894,45 @@ function matches(row: Document, filter: Document): boolean {
       // filtering v_items for 'laptop' found nothing when the row said
       // 'Laptop', and only on the screens backed by a view.
       const regexFlags =
-        typeof (cond as Document).$options === 'string' ? ((cond as Document).$options as string) : '';
+        typeof (cond as Document).$options === 'string'
+          ? ((cond as Document).$options as string)
+          : '';
       for (const [op, operand] of Object.entries(cond as Document)) {
         switch (op) {
-          case '$eq': if (value !== operand) return false; break;
-          case '$ne': if (value === operand) return false; break;
-          case '$in': if (!(operand as unknown[]).includes(value)) return false; break;
-          case '$nin': if ((operand as unknown[]).includes(value)) return false; break;
-          case '$gt': if (!(value > (operand as never))) return false; break;
-          case '$gte': if (!(value >= (operand as never))) return false; break;
-          case '$lt': if (!(value < (operand as never))) return false; break;
-          case '$lte': if (!(value <= (operand as never))) return false; break;
+          case '$eq':
+            if (value !== operand) return false;
+            break;
+          case '$ne':
+            if (value === operand) return false;
+            break;
+          case '$in':
+            if (!(operand as unknown[]).includes(value)) return false;
+            break;
+          case '$nin':
+            if ((operand as unknown[]).includes(value)) return false;
+            break;
+          case '$gt':
+            if (!(value > (operand as never))) return false;
+            break;
+          case '$gte':
+            if (!(value >= (operand as never))) return false;
+            break;
+          case '$lt':
+            if (!(value < (operand as never))) return false;
+            break;
+          case '$lte':
+            if (!(value <= (operand as never))) return false;
+            break;
           case '$regex':
             if (!new RegExp(operand as string, regexFlags).test(String(value))) return false;
             break;
-          case '$not': if (matches(row, { [key]: operand as Document })) return false; break;
-          case '$options': break; // read above, alongside $regex
+          case '$not':
+            if (matches(row, { [key]: operand as Document })) return false;
+            break;
+          case '$options':
+            break; // read above, alongside $regex
           default:
-            throw new Error(`pgcompat: operator '${op}' is not supported on a view`);
+            throw new Error(`postgrest-compat: operator '${op}' is not supported on a view`);
         }
       }
       continue;
@@ -967,13 +979,13 @@ function parseFilterNode(part: string): Document {
   if (!field || !op) {
     // Never fall through to something that quietly matches everything — that is
     // exactly how this became a delete-the-table bug.
-    throw new Error(`pgcompat: cannot parse filter expression '${part}'`);
+    throw new Error(`postgrest-compat: cannot parse filter expression '${part}'`);
   }
 
   // Negation prefix parsing: `field.not.<op>.<value>`.
   if (op === 'not') {
     const [innerOp, ...innerRest] = rest;
-    if (!innerOp) throw new Error(`pgcompat: cannot parse filter expression '${part}'`);
+    if (!innerOp) throw new Error(`postgrest-compat: cannot parse filter expression '${part}'`);
     return { $nor: [operatorClause(field, innerOp, innerRest.join('.'))] };
   }
 
@@ -983,29 +995,35 @@ function parseFilterNode(part: string): Document {
 function operatorClause(field: string, op: string, value: unknown): Document {
   const f = col(field);
   switch (op) {
-    case 'eq': return { [f]: value };
-    case 'neq': return { [f]: { $ne: value } };
-    case 'gt': return { [f]: { $gt: value } };
-    case 'gte': return { [f]: { $gte: value } };
-    case 'lt': return { [f]: { $lt: value } };
-    case 'lte': return { [f]: { $lte: value } };
-    case 'is': return { [f]: value === 'null' ? null : value };
+    case 'eq':
+      return { [f]: value };
+    case 'neq':
+      return { [f]: { $ne: value } };
+    case 'gt':
+      return { [f]: { $gt: value } };
+    case 'gte':
+      return { [f]: { $gte: value } };
+    case 'lt':
+      return { [f]: { $lt: value } };
+    case 'lte':
+      return { [f]: { $lte: value } };
+    case 'is':
+      return { [f]: value === 'null' ? null : value };
     case 'in': {
-      const list = typeof value === 'string'
-        ? value.replace(/^\(|\)$/g, '').split(',')
-        : (value as unknown[]);
+      const list =
+        typeof value === 'string' ? value.replace(/^\(|\)$/g, '').split(',') : (value as unknown[]);
       return { [f]: { $in: list } };
     }
-    case 'like': return { [f]: { $regex: likeToRegex(String(value)) } };
-    case 'ilike': return { [f]: { $regex: likeToRegex(String(value)), $options: 'i' } };
+    case 'like':
+      return { [f]: { $regex: likeToRegex(String(value)) } };
+    case 'ilike':
+      return { [f]: { $regex: likeToRegex(String(value)), $options: 'i' } };
     default:
-      throw new Error(`pgcompat: unsupported operator '${op}' on '${field}'`);
+      throw new Error(`postgrest-compat: unsupported operator '${op}' on '${field}'`);
   }
 }
 
-// ---------------------------------------------------------------------------
 // client
-// ---------------------------------------------------------------------------
 
 export interface PgClient {
   from<T = Document[]>(table: string): QueryBuilder<T>;
@@ -1029,7 +1047,9 @@ export function pgClient(asSystem = false): PgClient {
       if (!fn) {
         return {
           data: null as T,
-          error: { message: `pgcompat: no TypeScript implementation registered for '${name}'` },
+          error: {
+            message: `postgrest-compat: no TypeScript implementation registered for '${name}'`,
+          },
         };
       }
       try {

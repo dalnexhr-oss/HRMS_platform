@@ -1,11 +1,7 @@
 'use client';
 
-// The onboarding board: start a joiner's checklist from a template, then work
-// the task group by owner (HR, IT, Admin, etc). Every action is a staff action; the joiner sees only the read-only MyOnboarding card on their dashboard.
-//
-// "assignee_role" is a free-text OWNER label, not an app role — 'it' and
-// 'employee' own steps without being portal roles (see the 0037 column comment).
-// So the grouping here is presentational; every tick is a staff action.
+// Staff-managed onboarding tasks grouped by owner. assignee_role is a display label, not an
+// authorization role; employees see read-only progress.
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/format';
@@ -17,11 +13,7 @@ import {
 } from '@/lib/actions/onboarding';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
-import type {
-  OnboardingTaskRow,
-  OnboardingTemplateRow,
-  EmployeeOption,
-} from '@/lib/queries';
+import type { OnboardingTaskRow, OnboardingTemplateRow, EmployeeOption } from '@/lib/queries';
 
 const roleLabel: Record<string, string> = {
   hr: 'HR',
@@ -128,9 +120,19 @@ export function OnboardingScreen({
           <span style={{ flex: 1 }} />
           {doneCount > 0 && (
             <label
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--ink-2)' }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 13,
+                color: 'var(--ink-2)',
+              }}
             >
-              <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={showDone}
+                onChange={(e) => setShowDone(e.target.checked)}
+              />
               Show completed
             </label>
           )}
@@ -164,7 +166,9 @@ export function OnboardingScreen({
                         <tr key={t.id}>
                           <td>
                             <b>{t.name}</b>{' '}
-                            <span className="mono muted" style={{ fontSize: 11 }}>{t.code}</span>
+                            <span className="mono muted" style={{ fontSize: 11 }}>
+                              {t.code}
+                            </span>
                           </td>
                           <td>{t.title}</td>
                           <td className="mono">{t.dueDate ? formatDate(t.dueDate) : '—'}</td>
@@ -179,7 +183,12 @@ export function OnboardingScreen({
                                 <button
                                   className="btn quiet"
                                   disabled={pending}
-                                  onClick={() => run(() => setOnboardingTaskStatus(t.id, 'done'), 'Step completed.')}
+                                  onClick={() =>
+                                    run(
+                                      () => setOnboardingTaskStatus(t.id, 'done'),
+                                      'Step completed.',
+                                    )
+                                  }
                                 >
                                   ✓ Done
                                 </button>
@@ -188,7 +197,12 @@ export function OnboardingScreen({
                                 <button
                                   className="btn quiet"
                                   disabled={pending}
-                                  onClick={() => run(() => setOnboardingTaskStatus(t.id, 'blocked'), 'Step marked blocked.')}
+                                  onClick={() =>
+                                    run(
+                                      () => setOnboardingTaskStatus(t.id, 'blocked'),
+                                      'Step marked blocked.',
+                                    )
+                                  }
                                   title="Parked — still outstanding, and still chased by the reminder job"
                                 >
                                   Block
@@ -198,12 +212,21 @@ export function OnboardingScreen({
                                 <button
                                   className="btn quiet"
                                   disabled={pending}
-                                  onClick={() => run(() => setOnboardingTaskStatus(t.id, 'pending'), 'Step reopened.')}
+                                  onClick={() =>
+                                    run(
+                                      () => setOnboardingTaskStatus(t.id, 'pending'),
+                                      'Step reopened.',
+                                    )
+                                  }
                                 >
                                   Reopen
                                 </button>
                               )}
-                              <button className="btn quiet" disabled={pending} onClick={() => onDelete(t)}>
+                              <button
+                                className="btn quiet"
+                                disabled={pending}
+                                onClick={() => onDelete(t)}
+                              >
                                 ✕
                               </button>
                             </div>
@@ -259,7 +282,9 @@ function StartForm({
         <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
           <option value="">Choose a joiner…</option>
           {employees.map((e) => (
-            <option key={e.id} value={e.id}>{e.code} — {e.name}</option>
+            <option key={e.id} value={e.id}>
+              {e.code} — {e.name}
+            </option>
           ))}
         </select>
       </div>
@@ -268,7 +293,9 @@ function StartForm({
         <select value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
           {active.length === 0 && <option value="">No active template</option>}
           {active.map((t) => (
-            <option key={t.id} value={t.id}>{t.name} ({t.steps} steps)</option>
+            <option key={t.id} value={t.id}>
+              {t.name} ({t.steps} steps)
+            </option>
           ))}
         </select>
       </div>
@@ -312,19 +339,27 @@ function AddTaskForm({
         <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
           <option value="">Choose…</option>
           {employees.map((e) => (
-            <option key={e.id} value={e.id}>{e.code} — {e.name}</option>
+            <option key={e.id} value={e.id}>
+              {e.code} — {e.name}
+            </option>
           ))}
         </select>
       </div>
       <div className="f" style={{ flex: '1 1 200px', marginBottom: 0 }}>
         <label>Step</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Order access card" />
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="e.g. Order access card"
+        />
       </div>
       <div className="f" style={{ marginBottom: 0 }}>
         <label>Owner</label>
         <select value={assigneeRole} onChange={(e) => setAssigneeRole(e.target.value)}>
           {Object.entries(roleLabel).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
+            <option key={k} value={k}>
+              {v}
+            </option>
           ))}
         </select>
       </div>

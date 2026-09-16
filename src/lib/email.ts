@@ -1,24 +1,14 @@
+// Send transactional mail through the configured SMTP server. Delivery is best-effort: log failures
+// without rolling back the business action.
 //
-// Transactional email over your OWN SMTP server (nodemailer). SERVER ONLY.
+// SMTP_HOST: mail server hostname.
+// SMTP_PORT: defaults to 587; 465 uses implicit TLS.
+// SMTP_SECURE: true enables implicit TLS.
+// SMTP_USER and SMTP_PASS: server credentials.
+// EMAIL_FROM: sender name and address.
 //
-// Deliberately NOT a third-party sending API — mail goes straight out through
-// the SMTP host you configure, so nothing about employees leaves for an outside
-// provider. Mirrors notify.ts's contract: BEST-EFFORT and never throws. A failed
-// email must not roll back the business action that triggered it (creating an
-// employee still succeeds if the welcome mail fails — it is logged instead).
-//
-// Config (.env):
-// SMTP_HOST e.g. mail.dalnex.com
-// SMTP_PORT 465 (implicit TLS) or 587 (STARTTLS). Default 587.
-// SMTP_SECURE 'true' to force implicit TLS (set automatically when PORT=465)
-// SMTP_USER mailbox / auth user
-// SMTP_PASS mailbox password / app password
-// EMAIL_FROM "Dalnex HR <hr@dalnex.com>"
-//
-// When host/from are missing, sending is disabled and calls no-op with a warning
-// — exactly like notifications when the service key is absent. The `nodemailer`
-// package is imported lazily so a missing config never affects the rest of the app.
-//
+// Missing host or sender configuration disables delivery with a warning. Load nodemailer only when
+// sending.
 
 // Escape the five XML entities for safe interpolation into an HTML email body. Anything that came out of the database goes through this. A person's own full_name is set by whoever created the account, and it was being pasted straight into the password-reset body — so an admin could store `</p><a href="https://evil">click here</a>` and have it render as live markup in a genuine reset email from this system's own domain, above the real link, in the one message a recipient is primed to click.
 export function escapeHtml(value: string): string {
@@ -37,7 +27,8 @@ export interface SendEmailInput {
   text: string;
   // Optional HTML body; falls back to `text` when omitted.
   html?: string;
-  // Optional file attachments. A `cid` makes the attachment inline-embeddable from the HTML body via `<img src="cid:...">` (works in clients that block remote images, no public URL needed).
+  // Optional file attachments. A `cid` makes the attachment inline-embeddable from the HTML body
+  // via `<img src="cid:...">` (works in clients that block remote images, no public URL needed).
   attachments?: {
     filename: string;
     content: Uint8Array | Buffer;

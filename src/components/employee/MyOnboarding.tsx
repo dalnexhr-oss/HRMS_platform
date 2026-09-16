@@ -1,9 +1,5 @@
-// Read-only onboarding checklist for the joiner's own dashboard.
-//
-// Deliberately NOT interactive: 0037's read-own policy grants SELECT only, and
-// ticking a step is a staff action (done_by/done_at must name a real role).
-// So this answers "what is HR/IT still waiting on?" without pretending the
-// employee can close it themselves.
+// Read-only onboarding progress. Staff complete tasks so done_by and done_at record the responsible
+// person.
 import { formatDate } from '@/lib/format';
 import type { OnboardingTaskRow } from '@/lib/queries';
 
@@ -34,7 +30,9 @@ export function MyOnboarding({ tasks, id }: { tasks: OnboardingTaskRow[]; id?: s
       <div className="bd">
         {mine.length > 0 && (
           <div className="hint" style={{ marginBottom: 12 }}>
-            <b>{mine.length} step{mine.length === 1 ? '' : 's'} need you:</b>{' '}
+            <b>
+              {mine.length} step{mine.length === 1 ? '' : 's'} need you:
+            </b>{' '}
             {mine.map((t) => t.title).join(' · ')}
           </div>
         )}
@@ -58,7 +56,7 @@ export function MyOnboarding({ tasks, id }: { tasks: OnboardingTaskRow[]; id?: s
                 {open.map((t) => (
                   <tr key={t.id}>
                     <td>{t.title}</td>
-                    <td>{t.assigneeRole ? ownerLabel[t.assigneeRole] ?? t.assigneeRole : '—'}</td>
+                    <td>{t.assigneeRole ? (ownerLabel[t.assigneeRole] ?? t.assigneeRole) : '—'}</td>
                     <td className="mono">{t.dueDate ? formatDate(t.dueDate) : '—'}</td>
                     <td>
                       <span
@@ -66,7 +64,11 @@ export function MyOnboarding({ tasks, id }: { tasks: OnboardingTaskRow[]; id?: s
                         style={
                           t.status === 'blocked'
                             ? { borderColor: 'var(--line-2)', color: 'var(--hd)' }
-                            : { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' }
+                            : {
+                                borderColor: 'var(--lm-line)',
+                                color: 'var(--lm)',
+                                background: 'var(--lm-bg)',
+                              }
                         }
                       >
                         {t.status}

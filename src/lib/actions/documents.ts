@@ -1,18 +1,15 @@
 'use server';
 
 /**
- * Employee document register and verification server actions.
- *
- * Core invariants:
- * 1. Path scoping: `storage_path` must start with target `employee_id` to enforce tenant isolation.
- * 2. Unverified by default: Initial uploads set `verified_by` and `verified_at` to null; only admin/HR may verify.
+ * Document upload and verification actions. Scope storage paths to the target employee and leave
+ * uploads unverified until staff review them.
  */
 
 import { revalidatePath } from 'next/cache';
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
-import { requireDb, requireRoles, wroteNothing } from '@/lib/actions/_guard';
+import { requireDb, requireRoles, wroteNothing } from '@/lib/actions/guards';
 import { uploadFile, signedUrl, resolveUploadType, type StorageBucket } from '@/lib/storage';
 import { notifyEmployee } from '@/lib/notify';
 import {
@@ -41,7 +38,8 @@ export async function uploadEmployeeDocument(formData: FormData): Promise<Action
   if (!db.ok) return db;
 
   const file = formData.get('file');
-  if (!(file instanceof File) || file.size === 0) return { ok: false, error: 'Choose a file to upload.' };
+  if (!(file instanceof File) || file.size === 0)
+    return { ok: false, error: 'Choose a file to upload.' };
   if (file.size > maxBytes) return { ok: false, error: 'Documents must be 10 MB or smaller.' };
   const fileType = resolveUploadType(file.name, 'document');
   if (!fileType.ok) return fileType;
@@ -64,7 +62,13 @@ export async function uploadEmployeeDocument(formData: FormData): Promise<Action
   // The File is handed over whole rather than buffered here: putObject pipes a
   // Blob, so the bytes go to mongod a chunk at a time instead of being copied
   // twice on the way.
-  const up = await uploadFile(uploadBucket, target.employeeId, file.name, file, fileType.contentType);
+  const up = await uploadFile(
+    uploadBucket,
+    target.employeeId,
+    file.name,
+    file,
+    fileType.contentType,
+  );
   if (!up.ok || !up.path) {
     return { ok: false, error: up.error ?? 'The document could not be uploaded.' };
   }
@@ -91,7 +95,8 @@ export async function replaceEmployeeDocument(
   if (!gate.ok) return gate;
 
   const file = formData.get('file');
-  if (!(file instanceof File) || file.size === 0) return { ok: false, error: 'Choose the replacement file.' };
+  if (!(file instanceof File) || file.size === 0)
+    return { ok: false, error: 'Choose the replacement file.' };
   if (file.size > maxBytes) return { ok: false, error: 'Documents must be 10 MB or smaller.' };
   const fileType = resolveUploadType(file.name, 'document');
   if (!fileType.ok) return fileType;
@@ -119,14 +124,18 @@ export async function replaceEmployeeDocument(
   // Replacing history would fork the chain — two rows claiming to succeed the
   // same version, with no way to say which is current.
   if (previous.superseded_at) {
-    return { ok: false, error: 'That version has already been replaced. Replace the current one instead.' };
+    return {
+      ok: false,
+      error: 'That version has already been replaced. Replace the current one instead.',
+    };
   }
   // An issued letter is authoritative and is reproduced from /exits, not
   // swapped for an upload here.
   if (previous.bucket === 'generated-documents') {
     return {
       ok: false,
-      error: 'An HR-issued letter cannot be replaced by an upload — generate it again from the exit case.',
+      error:
+        'An HR-issued letter cannot be replaced by an upload — generate it again from the exit case.',
     };
   }
 
@@ -135,7 +144,13 @@ export async function replaceEmployeeDocument(
   // document, and letting it change category would break the chain's meaning.
   const category = previous.category ?? 'other';
 
-  const up = await uploadFile(uploadBucket, previous.employee_id, file.name, file, fileType.contentType);
+  const up = await uploadFile(
+    uploadBucket,
+    previous.employee_id,
+    file.name,
+    file,
+    fileType.contentType,
+  );
   if (!up.ok) return { ok: false, error: up.error ?? 'The replacement could not be uploaded.' };
 
   const nextId = randomUUID();
@@ -163,7 +178,10 @@ export async function replaceEmployeeDocument(
     .select('id');
   if (insErr) return { ok: false, error: insErr.message };
   if (wroteNothing(inserted)) {
-    return { ok: false, error: 'The replacement was not filed — your account may not have permission.' };
+    return {
+      ok: false,
+      error: 'The replacement was not filed — your account may not have permission.',
+    };
   }
 
   const { error: supErr } = await dbc

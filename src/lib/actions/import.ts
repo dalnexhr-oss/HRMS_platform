@@ -1,15 +1,7 @@
 'use server';
 
-//
-// Monthly register import — preview + commit.
-//
-// Runs on the signed-in staff user's own session: the attendance_days and
-// activity_log policies both grant writes to staff, so no service-role key is
-// needed (and none exists).
-//
-// Nothing here fakes a success. When the database is reachable and a read or write
-// fails, the real error comes back to the caller.
-//
+// Preview and commit monthly register imports using the caller's staff scope. Return database
+// failures to the caller.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { isMongoConfigured, getEmployeeCodeMap } from '@/lib/queries';
@@ -20,9 +12,9 @@ import {
   isKnownStatus,
   minutesToClock,
   type ParsedRegister,
-} from '@/lib/excel/parseRegister';
+} from '@/lib/excel/parse-register';
 import { autoCloseDay, getAutoPunchOutMinutes } from '@/lib/attendance-rules';
-import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/_guard';
+import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/guards';
 import type { AppRole } from '@/types/database';
 
 export interface MatchedEmployee {
@@ -48,7 +40,10 @@ export type CommitResult =
   | { ok: true; inserted: number; updated: number; skipped: number; errors: string[] }
   | { ok: false; error: string };
 
-// Roles that may actually write. Deliberately NOT isStaffRole() from @/lib/auth: that is the portal READ set, so gating on it would let a reader through to a write the policy layer then filters to zero rows — a write that reports success and changes nothing. An explicit set turns that into an honest, explained refusal. Mirrors _guard.ts writeRoles and importRoles in actions/export.ts.
+// Roles that may actually write. Deliberately NOT isStaffRole() from @/lib/auth: that is the portal
+// READ set, so gating on it would let a reader through to a write the policy layer then filters to
+// zero rows — a write that reports success and changes nothing. An explicit set turns that into an
+// honest, explained refusal. Mirrors guards.ts writeRoles and importRoles in actions/export.ts.
 const importRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 const upsertChunk = 500;
@@ -70,7 +65,10 @@ function errMessage(e: unknown): string {
   return 'Unexpected error.';
 }
 
-// Largest register we will parse. next.config.mjs already caps the Server Action body at 10mb, but that limit is about TRANSPORT — this one is about what we agree to decompress. A 2MB .xlsx is a zip that can expand to gigabytes in exceljs (a zip bomb), so the size is checked before the buffer is read.
+// Largest register we will parse. next.config.mjs already caps the Server Action body at 10mb, but
+// that limit is about TRANSPORT — this one is about what we agree to decompress. A 2MB .xlsx is a
+// zip that can expand to gigabytes in exceljs (a zip bomb), so the size is checked before the
+// buffer is read.
 const maxUploadBytes = 10 * 1024 * 1024;
 
 // Turn the uploaded FormData field into a parsed register.
@@ -110,7 +108,9 @@ function buildResolver(codeMap: Record<string, string>) {
     byTrailing.set(n, list);
   }
 
-  return function resolve(emplId: number): { id: string; code: string } | { ambiguous: string[] } | null {
+  return function resolve(
+    emplId: number,
+  ): { id: string; code: string } | { ambiguous: string[] } | null {
     const exact = codeForEmplId(emplId);
     if (codeMap[exact]) return { id: codeMap[exact], code: exact };
 
@@ -126,7 +126,9 @@ async function fetchNames(): Promise<Record<string, string>> {
   const dbc = await createClient();
   const { data, error } = await dbc.from('employees').select('code, full_name');
   if (error) {
-    throw new Error(`Could not load employee names: ${error.message}${error.code ? ` (${error.code})` : ''}`);
+    throw new Error(
+      `Could not load employee names: ${error.message}${error.code ? ` (${error.code})` : ''}`,
+    );
   }
   const out: Record<string, string> = {};
   for (const row of (data ?? []) as { code: string; full_name: string | null }[]) {
@@ -135,7 +137,8 @@ async function fetchNames(): Promise<Record<string, string>> {
   return out;
 }
 
-// Resolve every parsed block against the DB, and flatten to upsert rows. Shared by preview and commit so the numbers shown are the numbers written.
+// Resolve every parsed block against the DB, and flatten to upsert rows. Shared by preview and
+// commit so the numbers shown are the numbers written.
 function planImport(
   reg: ParsedRegister,
   codeMap: Record<string, string>,
@@ -196,7 +199,9 @@ function planImport(
     }
 
     if (hit.code !== codeForEmplId(emp.emplId)) {
-      warnings.push(`Empl. ID ${emp.emplId} matched employee ${hit.code} on a trailing-digit fallback.`);
+      warnings.push(
+        `Empl. ID ${emp.emplId} matched employee ${hit.code} on a trailing-digit fallback.`,
+      );
     }
     matched.push({ code: hit.code, name: names[hit.code] ?? hit.code, days: usable });
   }
@@ -210,7 +215,7 @@ function planImport(
   return { matched, unmatched, rows, warnings, skipped };
 }
 
-// ---------------------------------------------------------------- preview ---
+// preview
 
 export async function previewImport(formData: FormData): Promise<PreviewResult> {
   try {
@@ -246,7 +251,7 @@ export async function previewImport(formData: FormData): Promise<PreviewResult> 
   }
 }
 
-// ----------------------------------------------------------------- commit ---
+// commit
 
 /** Existing (employee_id, work_date) keys for the month, so we can report insert vs update. */
 async function fetchExistingKeys(
@@ -294,7 +299,8 @@ function explainWriteError(message: string, code?: string): string {
 
 export async function commitImport(formData: FormData): Promise<CommitResult> {
   // 1. A write is impossible without a database. Never pretend otherwise.
-  if (!isMongoConfigured()) return { ok: false, error: 'The database is not configured, so nothing can be imported.' };
+  if (!isMongoConfigured())
+    return { ok: false, error: 'The database is not configured, so nothing can be imported.' };
 
   try {
     // 2. Staff only.
@@ -390,7 +396,8 @@ export async function commitImport(formData: FormData): Promise<CommitResult> {
         source_rows: rows.length,
       },
     });
-    if (logError) errors.push(`Attendance imported, but the activity log entry failed: ${logError.message}`);
+    if (logError)
+      errors.push(`Attendance imported, but the activity log entry failed: ${logError.message}`);
 
     revalidatePath('/register');
     revalidatePath('/today');

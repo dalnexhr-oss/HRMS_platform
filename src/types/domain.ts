@@ -1,6 +1,4 @@
-//
-// Derived / joined shapes used by the UI (views, aggregates, joins).
-//
+// Joined and aggregated shapes used by the UI.
 import type { AttendanceStatus, Gender, IndianState } from './database';
 
 // A register row: employee + monthly summary + 30-day strip.

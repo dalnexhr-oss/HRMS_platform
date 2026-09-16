@@ -3,11 +3,11 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
-import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/_guard';
+import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { notifyEveryone } from '@/lib/notify';
 import { purgeExpiredNotices } from '@/lib/queries';
 import { uploadSharedFile, signedUrl } from '@/lib/storage';
-import { resolveBranchScope } from '@/lib/actions/_branch';
+import { resolveBranchScope } from '@/lib/actions/branch-helpers';
 
 // Duplicate key violation error code (mapped from Mongo 11000).
 const uniqueViolation = '23505';
@@ -183,14 +183,13 @@ export async function updateNotice(id: string, formData: FormData) {
   }
 
   Object.assign(patch, await resolveBranchScope(dbc, branch));
-  const { data, error } = await dbc
-    .from('notices')
-    .update(patch)
-    .eq('id', id)
-    .select('id');
+  const { data, error } = await dbc.from('notices').update(patch).eq('id', id).select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
-    return { ok: false, error: 'The notice was not updated — it may be gone, or your role lacks permission.' };
+    return {
+      ok: false,
+      error: 'The notice was not updated — it may be gone, or your role lacks permission.',
+    };
   }
 
   revalidatePath('/notices');
@@ -235,7 +234,10 @@ export async function setNoticePublished(id: string, published: boolean) {
       .select('id');
     if (error) return { ok: false, error: error.message };
     if (wroteNothing(data)) {
-      return { ok: false, error: 'The notice was not updated — it may be gone, or your role lacks permission.' };
+      return {
+        ok: false,
+        error: 'The notice was not updated — it may be gone, or your role lacks permission.',
+      };
     }
   }
 

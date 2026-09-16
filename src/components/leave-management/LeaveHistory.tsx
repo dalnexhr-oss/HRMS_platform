@@ -1,14 +1,6 @@
 'use client';
 
-//
-// HR dashboard — Leave Management tab.
-//
-// The complete history of employee leave requests: every submission with its
-// current status (pending / approved / rejected / cancelled), the span and day
-// cost, the employee's reason, and the approver's decision remark. Decisions
-// happen on /approvals; rows land here automatically via revalidation, so this
-// tab is the audit trail rather than a second approval surface.
-//
+// Leave request history. Decisions happen on /approvals; revalidation keeps this list in sync.
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { RequestView } from '@/lib/queries';
@@ -34,7 +26,12 @@ const kindLabel: Record<string, string> = {
 function day(iso: string): string {
   const d = new Date(`${iso}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'UTC' });
+  return d.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: '2-digit',
+    timeZone: 'UTC',
+  });
 }
 
 /** ISO timestamp -> '12 Aug 26'; '—' when absent. */
@@ -42,7 +39,12 @@ function stamp(iso: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'Asia/Kolkata' });
+  return d.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: '2-digit',
+    timeZone: 'Asia/Kolkata',
+  });
 }
 
 export function LeaveHistory({ requests }: { requests: RequestView[] }) {
@@ -50,7 +52,13 @@ export function LeaveHistory({ requests }: { requests: RequestView[] }) {
   const [query, setQuery] = useState('');
 
   const counts = useMemo(() => {
-    const c: Record<StatusTab, number> = { all: requests.length, pending: 0, approved: 0, rejected: 0, cancelled: 0 };
+    const c: Record<StatusTab, number> = {
+      all: requests.length,
+      pending: 0,
+      approved: 0,
+      rejected: 0,
+      cancelled: 0,
+    };
     for (const r of requests) c[r.status] += 1;
     return c;
   }, [requests]);
@@ -80,7 +88,15 @@ export function LeaveHistory({ requests }: { requests: RequestView[] }) {
         </Link>
       </div>
       <div className="bd">
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 6,
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            marginBottom: 12,
+          }}
+        >
           {statusTabs.map((t) => (
             <button
               key={t}
@@ -127,12 +143,18 @@ export function LeaveHistory({ requests }: { requests: RequestView[] }) {
                   <tr key={r.id}>
                     <td>
                       <b>{r.employeeName}</b>{' '}
-                      <span className="mono muted" style={{ fontSize: 11 }}>{r.employeeCode}</span>
-                      <div className="muted" style={{ fontSize: 11 }}>{r.branch}</div>
+                      <span className="mono muted" style={{ fontSize: 11 }}>
+                        {r.employeeCode}
+                      </span>
+                      <div className="muted" style={{ fontSize: 11 }}>
+                        {r.branch}
+                      </div>
                     </td>
                     <td>{(r.leaveKind && kindLabel[r.leaveKind]) || r.leaveKind || 'Leave'}</td>
                     <td className="mono" style={{ whiteSpace: 'nowrap' }}>
-                      {r.startDate === r.endDate ? day(r.startDate) : `${day(r.startDate)} – ${day(r.endDate)}`}
+                      {r.startDate === r.endDate
+                        ? day(r.startDate)
+                        : `${day(r.startDate)} – ${day(r.endDate)}`}
                     </td>
                     <td className="right mono">{r.days}</td>
                     <td className="mono">{stamp(r.createdAt)}</td>
@@ -140,7 +162,11 @@ export function LeaveHistory({ requests }: { requests: RequestView[] }) {
                     <td>
                       <span
                         className="pill"
-                        style={{ borderColor: 'var(--line-2)', color: statusColor[r.status], textTransform: 'capitalize' }}
+                        style={{
+                          borderColor: 'var(--line-2)',
+                          color: statusColor[r.status],
+                          textTransform: 'capitalize',
+                        }}
                       >
                         {r.status}
                       </span>

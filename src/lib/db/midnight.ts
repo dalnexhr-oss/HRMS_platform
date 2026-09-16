@@ -1,21 +1,7 @@
 /**
- * The in-process trigger for the nightly attendance sweep. SERVER ONLY.
- *
- * `/api/cron` has always been able to run this job — it just needed something
- * outside the app to call it at the right time. This module is that something,
- * so a stock `next start` sweeps at midnight with no host crontab, no Task
- * Scheduler entry and no platform cron to configure.
- *
- * It fires `autoPunchOut()` from scheduler.ts — the SYSTEM twin of the manual
- * sweep in actions/sweep.ts. The action itself is deliberately not reused: it
- * is gated on a staff session that a timer does not have, and it defaults to
- * *today*, which at 00:00 is a brand-new day with nothing open in it. The job
- * defaults to yesterday, which at 00:00 is precisely the day that just ended.
- *
- * Firing twice is harmless. Every job claims its work in `cron_run_log` under a
- * unique `(job, run_key)` index, so this timer, an external cron and an
- * operator curling the endpoint can all coexist: the first one to arrive does
- * the work and the rest are no-ops.
+ * Run the attendance sweep at midnight IST and on server startup. Use the system job, which
+ * defaults to yesterday, rather than the session-bound manual action. The unique cron_run_log claim
+ * prevents duplicate work when external cron also runs.
  */
 import 'server-only';
 import { autoPunchOut } from '@/lib/db/scheduler';
@@ -84,7 +70,9 @@ export function msUntilNextSweep(now: Date = new Date()): number {
 async function sweep(trigger: string): Promise<void> {
   try {
     const result = await autoPunchOut();
-    const outcome = result.ran ? `closed ${result.affected} open day(s)` : (result.detail ?? 'skipped');
+    const outcome = result.ran
+      ? `closed ${result.affected} open day(s)`
+      : (result.detail ?? 'skipped');
     console.info(`[midnight-sweep] ${trigger}: ${outcome}`);
   } catch (e) {
     console.error(`[midnight-sweep] ${trigger} failed:`, e instanceof Error ? e.message : e);

@@ -1,13 +1,5 @@
-//
-// The /leave page's view-model, shared with the .xlsx export.
-//
-// One builder produces the merged rows (roster × presence × saved workings)
-// for BOTH surfaces, so the sheet HR downloads always equals the screen they
-// approved from — two independent merges would drift the day one is edited.
-//
-// Server-only by dependency (it calls the data layer); the pure math it leans
-// on lives in @/lib/leave-salary, which the client table also imports.
-//
+// Build leave-salary rows for both the page and Excel export from the same roster, attendance, and
+// saved workings. Pure calculations live in leave-salary.ts.
 import {
   getLeaveSalaryPresence,
   getLeaveSalaryRoster,
@@ -39,7 +31,9 @@ export interface LeaveSalaryViewRow {
   live: LeaveSalaryResult;
   // The saved row, when one exists. Authoritative once status ≠ draft.
   working: LeaveSalaryWorkingRow | null;
-  // A finalized/paid snapshot no longer matches current attendance — someone edited the register after the working was locked. The snapshot stays authoritative; this flag is how the UI says "look again".
+  // A finalized/paid snapshot no longer matches current attendance — someone edited the register
+  // after the working was locked. The snapshot stays authoritative; this flag is how the UI says
+  // "look again".
   drift: boolean;
 }
 
@@ -114,4 +108,3 @@ export async function buildLeaveSalaryView(year: number): Promise<LeaveSalaryVie
 
   return { year, migrated: workings !== null, rows };
 }
-

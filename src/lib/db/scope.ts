@@ -1,9 +1,4 @@
-/**
- * Request execution context and role-based permissions scope. SERVER ONLY.
- *
- * Resolves user identity, role privileges, and tenant employee association
- * for policy evaluation in the repository layer.
- */
+/** Resolve the caller's identity and role flags for repository policy checks. */
 import 'server-only';
 import { getSessionUser } from '@/lib/auth/session';
 import type { AppRole } from '@/types/database';
@@ -36,11 +31,7 @@ export const systemScope: Scope = {
   isSystem: true,
 };
 
-export function scopeForRole(
-  userId: string,
-  role: AppRole,
-  employeeId: string | null,
-): Scope {
+export function scopeForRole(userId: string, role: AppRole, employeeId: string | null): Scope {
   const isStaff = role === 'super_admin' || role === 'admin' || role === 'hr';
   return {
     userId,
@@ -55,7 +46,8 @@ export function scopeForRole(
   };
 }
 
-// The signed-in caller's scope, or null when nobody is signed in. Reads through getSessionUser(), which is memoised per request and already performs the token_version and disabled checks — so a revoked session resolves to null here too, not to a stale scope.
+// Read the request-cached session, including disabled and token-version checks. Revoked sessions
+// have no scope.
 export async function currentScope(): Promise<Scope | null> {
   const user = await getSessionUser();
   if (!user) return null;

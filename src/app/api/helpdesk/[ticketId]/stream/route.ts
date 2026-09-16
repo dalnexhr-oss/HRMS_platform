@@ -1,10 +1,5 @@
-// Server-Sent Events (SSE) route for real-time helpdesk ticket comment streaming.
-//
-// Selects real-time transport based on database deployment topology:
-// - MongoDB Change Streams with oplog tailing when running against a replica set.
-// - Periodic polling fallback when running against a standalone instance.
-//
-// Verifies caller authorization at connection initialization.
+// Stream helpdesk messages over SSE after checking ticket access. Use MongoDB change streams on
+// replica sets and polling on standalone deployments.
 import { collections } from '@/lib/db/collections';
 import { scoped } from '@/lib/db/repo';
 import { db, supportsTransactions } from '@/lib/db/mongo';
@@ -15,13 +10,10 @@ export const dynamic = 'force-dynamic';
 
 // How often the polling fallback looks for new messages.
 const pollMs = 2_000;
-// Comment keeping proxies from closing an idle connection.
+// Keep idle connections open through proxies.
 const heartbeatMs = 25_000;
 
-export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ ticketId: string }> },
-) {
+export async function GET(req: Request, { params }: { params: Promise<{ ticketId: string }> }) {
   const { ticketId } = await params;
 
   const scope = await currentScope();
@@ -63,20 +55,15 @@ export async function GET(
         closed = true;
         clearInterval(heartbeat);
         cleanup();
-        try { controller.close(); } catch { /* already closed */ }
+        try {
+          controller.close();
+        } catch {
+          /* already closed */
+        }
       };
 
-      // REGISTERED BEFORE THE FIRST AWAIT, and this ordering is the fix.
-      //
-      // An AbortSignal does not fire listeners added after it has already
-      // aborted. Registering at the end of start() meant a client who
-      // disconnected while `await db()` was still resolving the connection
-      // attached to a dead signal: stop() never ran, so the 25-second
-      // heartbeat, the poll timer or the open change-stream cursor and the
-      // captured controller all survived for the life of the process. Opening
-      // and closing the drawer quickly, repeatedly, accumulated them.
-      //
-      // `cleanup` is read at call time, so the transports can assign it below.
+      // Register abort handling before the first await so an early disconnect cannot leave timers
+      // or change streams running. stop() reads the latest cleanup callback.
       stopRef = stop;
       req.signal.addEventListener('abort', stop);
       if (req.signal.aborted) return stop();

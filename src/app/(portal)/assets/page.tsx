@@ -5,7 +5,7 @@ import { getSession } from '@/lib/auth';
 import type { AppRole } from '@/types/database';
 
 // Asset Management is accessible to super_admin/admin/HR .
-const assetAdminRoles: AppRole[] = ["super_admin", "admin", "hr"];
+const assetAdminRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 export default async function AssetsPage() {
   const { profile } = await getSession();

@@ -1,8 +1,7 @@
 'use client';
 
-// The HR exits board: start an exit, work the clearance checklist, settle the
-// F&F, issue the letters, and only then complete the exit (which is what
-// finally disables the login — see src/lib/actions/exit.ts for why that order).
+// Manage clearance, settlement, and exit letters before completing the exit and disabling the
+// employee's login.
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { inr, formatDate } from '@/lib/format';
@@ -106,11 +105,15 @@ export function ExitsScreen({
       <div className="card">
         <div className="hd">
           <h3>Exits</h3>
-          <span className="folio">{cases.length} case{cases.length === 1 ? '' : 's'}</span>
+          <span className="folio">
+            {cases.length} case{cases.length === 1 ? '' : 's'}
+          </span>
         </div>
         {cases.length === 0 ? (
           <div className="bd">
-            <p className="muted" style={{ margin: 0 }}>No exits in progress.</p>
+            <p className="muted" style={{ margin: 0 }}>
+              No exits in progress.
+            </p>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -127,25 +130,40 @@ export function ExitsScreen({
               </thead>
               <tbody>
                 {cases.map((c) => {
-                  const outstanding = c.assetsOutstanding + c.itemsOutstanding + c.clearanceItemsOpen;
+                  const outstanding =
+                    c.assetsOutstanding + c.itemsOutstanding + c.clearanceItemsOpen;
                   const nextStage = stageOrder[stageOrder.indexOf(c.stage) + 1];
                   return (
                     <tr key={c.id}>
                       <td>
                         <b>{c.name}</b>{' '}
-                        <span className="mono muted" style={{ fontSize: 11 }}>{c.code}</span>
+                        <span className="mono muted" style={{ fontSize: 11 }}>
+                          {c.code}
+                        </span>
                         {c.reason && (
-                          <div className="muted" style={{ fontSize: 11 }}>{c.reason}</div>
+                          <div className="muted" style={{ fontSize: 11 }}>
+                            {c.reason}
+                          </div>
                         )}
                       </td>
-                      <td className="mono">{c.lastWorkingDay ? formatDate(c.lastWorkingDay) : '—'}</td>
+                      <td className="mono">
+                        {c.lastWorkingDay ? formatDate(c.lastWorkingDay) : '—'}
+                      </td>
                       <td>
                         <span
                           className="pill"
                           style={
                             c.stage === 'completed'
-                              ? { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' }
-                              : { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' }
+                              ? {
+                                  borderColor: 'var(--p-line)',
+                                  color: 'var(--p)',
+                                  background: 'var(--p-bg)',
+                                }
+                              : {
+                                  borderColor: 'var(--lm-line)',
+                                  color: 'var(--lm)',
+                                  background: 'var(--lm-bg)',
+                                }
                           }
                         >
                           {stageLabel[c.stage]}
@@ -167,7 +185,9 @@ export function ExitsScreen({
                         {c.fnfStatus ? (
                           <>
                             {inr(c.fnfNetPayable ?? 0)}
-                            <div className="muted" style={{ fontSize: 11 }}>{c.fnfStatus}</div>
+                            <div className="muted" style={{ fontSize: 11 }}>
+                              {c.fnfStatus}
+                            </div>
                           </>
                         ) : (
                           <span className="muted">not prepared</span>
@@ -175,14 +195,20 @@ export function ExitsScreen({
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          <button className="btn quiet" onClick={() => setOpenCase(c)} disabled={pending}>
+                          <button
+                            className="btn quiet"
+                            onClick={() => setOpenCase(c)}
+                            disabled={pending}
+                          >
                             Checklist
                           </button>
                           {c.stage !== 'completed' && (
                             <button
                               className="btn quiet"
                               disabled={pending}
-                              onClick={() => run(() => refreshExitClearance(c.id), 'Clearance refreshed.')}
+                              onClick={() =>
+                                run(() => refreshExitClearance(c.id), 'Clearance refreshed.')
+                              }
                               title="Re-scan the asset and material registers"
                             >
                               ↻ Clearance
@@ -192,7 +218,9 @@ export function ExitsScreen({
                             <button
                               className="btn quiet"
                               disabled={pending}
-                              onClick={() => run(() => prepareFullAndFinal(c.id), 'Settlement prepared.')}
+                              onClick={() =>
+                                run(() => prepareFullAndFinal(c.id), 'Settlement prepared.')
+                              }
                             >
                               Prepare F&amp;F
                             </button>
@@ -201,7 +229,12 @@ export function ExitsScreen({
                             <button
                               className="btn quiet"
                               disabled={pending}
-                              onClick={() => run(() => setFullAndFinalStatus(c.id, 'approved'), 'Settlement approved.')}
+                              onClick={() =>
+                                run(
+                                  () => setFullAndFinalStatus(c.id, 'approved'),
+                                  'Settlement approved.',
+                                )
+                              }
                             >
                               Approve F&amp;F
                             </button>
@@ -210,7 +243,12 @@ export function ExitsScreen({
                             <button
                               className="btn quiet"
                               disabled={pending}
-                              onClick={() => run(() => setFullAndFinalStatus(c.id, 'paid'), 'Settlement marked paid.')}
+                              onClick={() =>
+                                run(
+                                  () => setFullAndFinalStatus(c.id, 'paid'),
+                                  'Settlement marked paid.',
+                                )
+                              }
                             >
                               Mark F&amp;F paid
                             </button>
@@ -219,13 +257,22 @@ export function ExitsScreen({
                             <button
                               className="btn quiet"
                               disabled={pending}
-                              onClick={() => run(() => setExitStage(c.id, nextStage), `Moved to ${stageLabel[nextStage]}.`)}
+                              onClick={() =>
+                                run(
+                                  () => setExitStage(c.id, nextStage),
+                                  `Moved to ${stageLabel[nextStage]}.`,
+                                )
+                              }
                             >
                               → {stageLabel[nextStage]}
                             </button>
                           )}
                           {c.stage !== 'completed' && (
-                            <button className="btn" disabled={pending} onClick={() => onComplete(c)}>
+                            <button
+                              className="btn"
+                              disabled={pending}
+                              onClick={() => onComplete(c)}
+                            >
                               Complete
                             </button>
                           )}
@@ -324,7 +371,9 @@ function ClearanceDrawer({
         <div className="dhd">
           <h3>Clearance · {exitCase.name}</h3>
           <span style={{ flex: 1 }} />
-          <button type="button" className="btn quiet" onClick={onClose}>✕</button>
+          <button type="button" className="btn quiet" onClick={onClose}>
+            ✕
+          </button>
         </div>
         <div className="dbd">
           {items === null ? (
@@ -368,7 +417,9 @@ function ClearanceDrawer({
                   <span style={{ textDecoration: it.cleared ? 'line-through' : undefined }}>
                     {it.description ?? it.area}
                   </span>
-                  <div className="muted" style={{ fontSize: 11 }}>{it.area}</div>
+                  <div className="muted" style={{ fontSize: 11 }}>
+                    {it.area}
+                  </div>
                 </span>
               </label>
             ))
@@ -378,7 +429,9 @@ function ClearanceDrawer({
           <KtSection exitCaseId={exitCase.id} employees={employees} toast={toast} />
         </div>
         <div className="dft">
-          <button type="button" className="btn" onClick={onClose}>Close</button>
+          <button type="button" className="btn" onClick={onClose}>
+            Close
+          </button>
         </div>
       </aside>
     </>
@@ -498,7 +551,7 @@ function KtSection({
   toast: (m: string, k?: 'info' | 'error' | 'success') => void;
 }) {
   const [rows, setRows] = useState<KtItemRow[] | null>(null);
-  
+
   const [handoverTo, setHandoverTo] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -515,33 +568,49 @@ function KtSection({
     };
   }, [exitCaseId]);
 
-  const nextStatus: Record<string, string> = { pending: 'in_progress', in_progress: 'done', done: 'pending' };
+  const nextStatus: Record<string, string> = {
+    pending: 'in_progress',
+    in_progress: 'done',
+    done: 'pending',
+  };
 
   return (
     <>
       <div className="fold">
         Knowledge transfer
-        {rows && rows.length > 0 ? ` · ${rows.filter((r) => r.status === 'done').length}/${rows.length} done` : ''}
+        {rows && rows.length > 0
+          ? ` · ${rows.filter((r) => r.status === 'done').length}/${rows.length} done`
+          : ''}
       </div>
 
-      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 10 }}>
-        
+      <div
+        style={{
+          display: 'flex',
+          gap: 6,
+          alignItems: 'flex-end',
+          flexWrap: 'wrap',
+          marginBottom: 10,
+        }}
+      >
         <div className="f" style={{ flex: '1 1 130px', marginBottom: 0 }}>
           <label>Handover to</label>
           <select value={handoverTo} onChange={(e) => setHandoverTo(e.target.value)}>
             <option value="">Unassigned</option>
             {employees.map((e) => (
-              <option key={e.id} value={e.id}>{e.code} — {e.name}</option>
+              <option key={e.id} value={e.id}>
+                {e.code} — {e.name}
+              </option>
             ))}
           </select>
         </div>
-        
       </div>
 
       {rows === null ? (
         <p className="muted">Loading…</p>
       ) : rows.length === 0 ? (
-        <p className="muted" style={{ fontSize: 13 }}>Nothing recorded for handover yet.</p>
+        <p className="muted" style={{ fontSize: 13 }}>
+          Nothing recorded for handover yet.
+        </p>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table>
@@ -559,8 +628,7 @@ function KtSection({
                   <td>{r.task}</td>
                   <td>{r.handoverName ?? <span className="muted">—</span>}</td>
                   <td>
-                    {/* One button cycles pending → in_progress → done → pending;
-                        the status set matches the 0037 CHECK constraint exactly. */}
+                    {/* Cycle checklist status: pending → in_progress → done → pending. */}
                     <button
                       className="btn quiet"
                       disabled={busy}
@@ -626,17 +694,27 @@ function StartExitForm({
         <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
           <option value="">Choose…</option>
           {employees.map((e) => (
-            <option key={e.id} value={e.id}>{e.code} — {e.name}</option>
+            <option key={e.id} value={e.id}>
+              {e.code} — {e.name}
+            </option>
           ))}
         </select>
       </div>
       <div className="f" style={{ marginBottom: 0 }}>
         <label>Resignation date</label>
-        <input type="date" value={resignationDate} onChange={(e) => setResignationDate(e.target.value)} />
+        <input
+          type="date"
+          value={resignationDate}
+          onChange={(e) => setResignationDate(e.target.value)}
+        />
       </div>
       <div className="f" style={{ marginBottom: 0 }}>
         <label>Last working day</label>
-        <input type="date" value={lastWorkingDay} onChange={(e) => setLastWorkingDay(e.target.value)} />
+        <input
+          type="date"
+          value={lastWorkingDay}
+          onChange={(e) => setLastWorkingDay(e.target.value)}
+        />
       </div>
       <div className="f" style={{ flex: '1 1 160px', marginBottom: 0 }}>
         <label>Reason</label>

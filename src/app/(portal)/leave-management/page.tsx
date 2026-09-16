@@ -1,15 +1,15 @@
 import { redirect } from 'next/navigation';
-import { LeaveHistory } from '@/components/Leave_Management/LeaveHistory';
+import { LeaveHistory } from '@/components/leave-management/LeaveHistory';
 import { getOnLeaveToday, getRequests } from '@/lib/queries';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { todayIST } from '@/lib/format';
 import type { AppRole } from '@/types/database';
 
-// The HR dashboard aggregates live queues — never prerender a stale one.
+// Fetch live leave queues on each request.
 export const dynamic = 'force-dynamic';
 
-// HR management is admin/HR only, mirroring TabRoleAuthorized.hr.
+// Match the leave-management navigation role gate.
 const hrRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 // Active-roster headcount; null when it cannot be counted (shown as —).
@@ -62,8 +62,10 @@ export default async function HrDashboardPage() {
           </div>
           <div className="note">
             {onLeaveToday.length
-              ? onLeaveToday.slice(0, 3).map((p) => p.name.split(' ')[0]).join(', ') +
-                (onLeaveToday.length > 3 ? '…' : '')
+              ? onLeaveToday
+                  .slice(0, 3)
+                  .map((p) => p.name.split(' ')[0])
+                  .join(', ') + (onLeaveToday.length > 3 ? '…' : '')
               : 'everyone is in'}
           </div>
         </div>
@@ -76,7 +78,9 @@ export default async function HrDashboardPage() {
         </div>
         <div className="card kpi">
           <div className="lab">Leaves approved</div>
-          <div className="val" style={{ color: 'var(--p)' }}>{approvedThisMonth}</div>
+          <div className="val" style={{ color: 'var(--p)' }}>
+            {approvedThisMonth}
+          </div>
           <div className="note">this month</div>
         </div>
       </div>

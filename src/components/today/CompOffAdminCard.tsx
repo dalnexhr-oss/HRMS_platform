@@ -1,17 +1,11 @@
 'use client';
 
-//
-// Admin-dashboard comp-off card (0041).
-//
-// One row per employee holding live credits: their usable balance, and each
-// credit as a pill with an applicable/not-applicable switch. A credit marked
-// not applicable stays on the books but cannot be applied for by the employee
-// until it is switched back; availing and expiry retire credits regardless.
-//
+// Show usable comp-off balances and let staff toggle credit applicability. Used and expired credits
+// are retired regardless of that toggle.
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/format';
-import { setCompOffApplicability } from '@/lib/actions/compoff';
+import { setCompOffApplicability } from '@/lib/actions/comp-off';
 import { useToast } from '@/components/ui/Toast';
 import type { CompOffAdminRow } from '@/lib/queries';
 
@@ -72,12 +66,16 @@ export function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; err
           </p>
         ) : (
           groups.map((g) => {
-            const balance = g.credits.filter((c) => c.status === 'available' && c.isApplicable).length;
+            const balance = g.credits.filter(
+              (c) => c.status === 'available' && c.isApplicable,
+            ).length;
             return (
               <div key={g.code + g.name} style={{ marginBottom: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
                   <b>{g.name}</b>
-                  <span className="mono muted" style={{ fontSize: 11 }}>{g.code}</span>
+                  <span className="mono muted" style={{ fontSize: 11 }}>
+                    {g.code}
+                  </span>
                   <span style={{ flex: 1 }} />
                   <span
                     className="pill"
@@ -100,7 +98,8 @@ export function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; err
                         alignItems: 'center',
                         gap: 6,
                         borderColor: 'var(--line-2)',
-                        color: c.status === 'available' && c.isApplicable ? undefined : 'var(--ink-3)',
+                        color:
+                          c.status === 'available' && c.isApplicable ? undefined : 'var(--ink-3)',
                       }}
                     >
                       {formatDate(c.earnedDate)}
@@ -110,7 +109,9 @@ export function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; err
                         </span>
                       ) : null}
                       {c.status === 'applied' ? (
-                        <span className="muted" style={{ fontSize: 10 }}>awaiting approval</span>
+                        <span className="muted" style={{ fontSize: 10 }}>
+                          awaiting approval
+                        </span>
                       ) : (
                         <button
                           className="btn quiet"

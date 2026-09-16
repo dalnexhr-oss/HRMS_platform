@@ -1,18 +1,7 @@
 import Image from 'next/image';
 
-//
-// The Dalnex brand mark: the logo wordmark followed by "HRMS.".
-//
-// One component for every surface so the logo can never drift out of sync
-// between the sidebar, the login card and the employee top bar.
-//
-// The artwork in public/logo.png is DARK on a transparent background, so on the
-// dark-teal sidebar it is rendered white via a CSS filter (see .brand
-// .brandmark-img in globals.css). On light surfaces it renders as-is.
-//
-// Intrinsic size is the real aspect ratio (3334x1142 ~ 2.92:1) scaled down;
-// each surface then sets the height in CSS and the width follows automatically.
-//
+// Shared logo wordmark. CSS inverts the dark artwork on the sidebar and scales it using its
+// original 3334×1142 aspect ratio.
 
 const intrinsicW = 234;
 const intrinsicH = 80;

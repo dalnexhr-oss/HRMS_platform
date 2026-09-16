@@ -1,11 +1,7 @@
 'use client';
 
-// A real-time conversation window for one ticket. Used by both the staff
-// helpdesk screen and the employee dashboard. Initial messages arrive as a prop
-// (server-fetched); new ones stream in over SSE from
-// /api/helpdesk/<id>/stream, which re-checks the session and the caller's
-// access to THIS ticket before it opens the stream — so an employee only ever
-// receives their own tickets' messages.
+// Ticket chat shared by staff and employees. Seed messages on the server, then subscribe to the SSE
+// route, which checks access to the requested ticket.
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AvatarInner } from '@/components/ui/Avatar';
@@ -45,7 +41,12 @@ const statusOptions: TicketStatus[] = ['open', 'in_progress', 'resolved', 'close
 function stampTime(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 // Build a "row-mapped" comment from a Realtime payload.new row.
@@ -208,7 +209,10 @@ export function TicketChatDrawer({
 
             <div className="chat-composer">
               {error && (
-                <div className="login-error" style={{ fontSize: 12, flexBasis: '100%', marginBottom: 6 }}>
+                <div
+                  className="login-error"
+                  style={{ fontSize: 12, flexBasis: '100%', marginBottom: 6 }}
+                >
                   {error}
                 </div>
               )}
@@ -225,7 +229,12 @@ export function TicketChatDrawer({
                   }
                 }}
               />
-              <button type="button" className="btn primary" onClick={send} disabled={pending || !body.trim()}>
+              <button
+                type="button"
+                className="btn primary"
+                onClick={send}
+                disabled={pending || !body.trim()}
+              >
                 {pending ? 'Sending…' : 'Send'}
               </button>
             </div>

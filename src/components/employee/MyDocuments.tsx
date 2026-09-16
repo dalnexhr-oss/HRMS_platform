@@ -1,11 +1,7 @@
 'use client';
 
-// The employee's own document locker: upload paperwork HR asked for, see what is
-// verified, and reopen anything returned with a remark.
-//
-// Uploads land in the private employee-documents bucket under the employee's own
-// folder; there is deliberately no delete — once filed, a document is HR's record
-// (0037 grants the employee INSERT and SELECT only).
+// Employee document uploads and verification status. Files use the employee's folder in the private
+// employee-documents bucket. Employees cannot delete submitted records.
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/format';
@@ -14,9 +10,7 @@ import { documentCategories } from '@/lib/constants';
 import { useToast } from '@/components/ui/Toast';
 import type { EmployeeDocumentRow } from '@/lib/queries';
 
-// Mirrors maxBytes in lib/documents/upload.ts. Checked HERE as well so an
-// oversize file is refused instantly, instead of being uploaded in full and
-// only then rejected — which on a phone is the slowest possible way to find out.
+// Match the server upload limit and reject oversized files before sending them.
 const maxBytes = 10 * 1024 * 1024;
 
 /**
@@ -111,12 +105,22 @@ export function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[
         </span>
       </div>
       <div className="bd">
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 12 }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            alignItems: 'flex-end',
+            flexWrap: 'wrap',
+            marginBottom: 12,
+          }}
+        >
           <div className="f" style={{ marginBottom: 0 }}>
             <label>Type</label>
             <select value={category} onChange={(e) => setCategory(e.target.value)}>
               {documentCategories.map((c) => (
-                <option key={c} value={c}>{categoryLabel[c] ?? c}</option>
+                <option key={c} value={c}>
+                  {categoryLabel[c] ?? c}
+                </option>
               ))}
             </select>
           </div>
@@ -209,27 +213,40 @@ export function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[
                 {documents.map((d) => (
                   <tr key={d.id}>
                     <td>{d.title ?? '—'}</td>
-                    <td>{d.category ? categoryLabel[d.category] ?? d.category : '—'}</td>
+                    <td>{d.category ? (categoryLabel[d.category] ?? d.category) : '—'}</td>
                     <td className="mono">{formatDate(d.uploadedAt.slice(0, 10))}</td>
                     <td>
                       {d.verifiedAt ? (
                         <span
                           className="pill"
-                          style={{ borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' }}
+                          style={{
+                            borderColor: 'var(--p-line)',
+                            color: 'var(--p)',
+                            background: 'var(--p-bg)',
+                          }}
                         >
                           Verified
                         </span>
                       ) : d.verifyRemark ? (
                         <>
-                          <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--hd)' }}>
+                          <span
+                            className="pill"
+                            style={{ borderColor: 'var(--line-2)', color: 'var(--hd)' }}
+                          >
                             Needs fixing
                           </span>
-                          <div style={{ fontSize: 11, color: 'var(--hd)', marginTop: 2 }}>{d.verifyRemark}</div>
+                          <div style={{ fontSize: 11, color: 'var(--hd)', marginTop: 2 }}>
+                            {d.verifyRemark}
+                          </div>
                         </>
                       ) : (
                         <span
                           className="pill"
-                          style={{ borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' }}
+                          style={{
+                            borderColor: 'var(--lm-line)',
+                            color: 'var(--lm)',
+                            background: 'var(--lm-bg)',
+                          }}
                         >
                           Awaiting HR
                         </span>

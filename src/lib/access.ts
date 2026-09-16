@@ -1,45 +1,26 @@
-//
-// Per-user tab access.
-//
-// A super admin decides, per individual account, which sidebar tabs it may open
-// — set from a side panel on /users, not a screen of its own. Two admins can
-// therefore see different tabs.
-//
-// Pure helpers, no I/O: the signed-in user's map is fetched once per request by
-// the (portal) layout and threaded to the Sidebar, so this file imports cleanly
-// into both server and client components.
-//
-// The rule everything else derives from:
-//
-// effective = TabRoleAuthorized (static, in code) AND the user's map (DB)
-//
-// It can only NARROW. Handing an account a tab its ROLE was never entitled to
-// would render a page whose every query then fails, because the collection
-// policies gate the data underneath and know nothing about this table. So the
-// map's only real power is to switch a tab off.
-//
-import { TabRoleAuthorized } from '@/lib/constants';
+// Per-user tab access can restrict the static role gate, but cannot grant additional role
+// permissions. These pure helpers are shared by the server layout and sidebar.
+import { tabRoleAccess } from '@/lib/constants';
 import type { AppRole } from '@/types/database';
 
+export const configurableRoles: readonly AppRole[] = ['admin', 'hr'];
 
-export const congfigureAbleRoles: readonly AppRole[] = ['admin', 'hr'];
-
-// slug -> allowed, for ONE account. A missing entry means allowed.
+// Per-account overrides. Missing entries leave the role's default access unchanged.
 export type TabAccess = Record<string, boolean>;
 
-// True when the STATIC gate in constants.ts lets this role reach the tab.
+// Check the static role gate before applying per-account restrictions.
 export function staticallyAllowed(role: AppRole | null | undefined, slug: string): boolean {
-  const allowed = TabRoleAuthorized[slug];
+  const allowed = tabRoleAccess[slug];
   if (!allowed) return true; // ungated tab — every staff role reaches it
   return role != null && allowed.includes(role);
 }
 
 // True when this account's role may be customised at all.
 export function isConfigurableRole(role: AppRole | null | undefined): boolean {
-  return !!role && congfigureAbleRoles.includes(role);
+  return !!role && configurableRoles.includes(role);
 }
 
-// The one function that decides whether an account may open a tab. super_admin short-circuits to true: it is not configurable, so it can never be locked out and left with no way to undo a change.
+// Super admins retain access so they can restore another account's permissions.
 export function canAccessTab(
   role: AppRole | null | undefined,
   slug: string,
@@ -48,9 +29,10 @@ export function canAccessTab(
   if (role === 'super_admin') return true;
   if (!staticallyAllowed(role, slug)) return false;
   if (!isConfigurableRole(role)) return true;
-  // An absent entry means allowed, so an untouched tab behaves
-  // exactly as it did before this feature existed.
-  return access[slug] !== false;
+  // Keep existing restrictions until the account saves the renamed tab's setting.
+  const allowed =
+    slug === 'leave-management' ? (access[slug] ?? access.leaveManagment) : access[slug];
+  return allowed !== false;
 }
 
 // Slug for a portal pathname: '/assets/x' -> 'assets'. '' for the root.

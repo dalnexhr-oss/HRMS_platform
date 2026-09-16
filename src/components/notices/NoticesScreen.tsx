@@ -1,7 +1,12 @@
 'use client';
 
 import { useActionState, useState, useTransition } from 'react';
-import { createNotice, updateNotice, deleteNotice, setNoticePublished } from '@/lib/actions/notices';
+import {
+  createNotice,
+  updateNotice,
+  deleteNotice,
+  setNoticePublished,
+} from '@/lib/actions/notices';
 import { openNoticePdf } from '@/components/notices/open-pdf';
 import { formatDate } from '@/lib/format';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -41,7 +46,13 @@ export function NoticesScreen({
             <p className="muted">No notices yet — publish one on the right.</p>
           )}
           {notices.map((n) => (
-            <NoticeItem key={n.id} notice={n} onEdit={() => setEditing(n)} confirm={confirm} toast={toast} />
+            <NoticeItem
+              key={n.id}
+              notice={n}
+              onEdit={() => setEditing(n)}
+              confirm={confirm}
+              toast={toast}
+            />
           ))}
         </div>
       </div>
@@ -72,7 +83,12 @@ function NoticeItem({
 }: {
   notice: NoticeView;
   onEdit: () => void;
-  confirm: (opts: { title?: string; message: string; confirmLabel?: string; danger?: boolean }) => Promise<boolean>;
+  confirm: (opts: {
+    title?: string;
+    message: string;
+    confirmLabel?: string;
+    danger?: boolean;
+  }) => Promise<boolean>;
   toast: (message: string, kind?: ToastKind) => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -165,7 +181,12 @@ function NoticeForm({
     <form action={action}>
       <div className="f">
         <label>Title</label>
-        <input name="title" placeholder="e.g. Diwali holiday schedule" required defaultValue={editing?.title} />
+        <input
+          name="title"
+          placeholder="e.g. Diwali holiday schedule"
+          required
+          defaultValue={editing?.title}
+        />
       </div>
       <div className="f">
         <label>Body</label>
@@ -206,16 +227,23 @@ function NoticeForm({
         </div>
       </div>
       <div className="f">
-        <label>PDF attachment {editing?.pdfPath ? '(choosing a file replaces the current one)' : '(optional)'}</label>
+        <label>
+          PDF attachment{' '}
+          {editing?.pdfPath ? '(choosing a file replaces the current one)' : '(optional)'}
+        </label>
         <input type="file" name="pdf" accept=".pdf,application/pdf" />
         {editing?.pdfPath && (
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginTop: 6 }}>
+          <label
+            style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginTop: 6 }}
+          >
             <input type="checkbox" name="remove_pdf" /> Remove the current PDF
           </label>
         )}
       </div>
       {!editing && (
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 14 }}>
+        <label
+          style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 14 }}
+        >
           <input type="checkbox" name="publish" defaultChecked /> Publish immediately
         </label>
       )}

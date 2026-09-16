@@ -1,19 +1,7 @@
 'use server';
 
-//
-// Payroll run actions: compute drafts, lock, mark paid, and edit the manual
-// adjustments that feed net_payable.
-//
-// Every function here talks to the real database or fails loudly. There is no
-// short-circuit that returns { ok: true } without writing: with no database
-// configured the run simply cannot happen, and we say so.
-//
-// The run functions are the authority on what is allowed. fn_compute_run /
-// fn_lock_run / fn_mark_run_paid keep their SQL names and now live in
-// src/lib/db/payroll.ts, registered as RPCs; they refuse an illegal transition
-// with an explicit message, and those are passed through to
-// the operator verbatim — they are the whole point of the guard.
-//
+// Payroll run and adjustment actions. The payroll RPC handlers enforce state transitions; pass
+// their failures back to the caller.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { isMongoConfigured } from '@/lib/db/mongo';
@@ -23,7 +11,10 @@ import type { Decimal128 } from 'mongodb';
 import { toMoney } from '@/lib/db/money';
 import type { AppRole, PayrollStatus } from '@/types/database';
 
-// Roles allowed to move money. Deliberately NOT `staffRoles` from @/lib/auth: that is the portal READ set, and gating on it let a reader through to writes the policy layer then filtered to zero rows — a write that reports success and changes nothing. An explicit set turns that into an honest, explained refusal. Matches _guard.ts writeRoles: super_admin, admin, hr.
+// Roles allowed to move money. Deliberately NOT `staffRoles` from @/lib/auth: that is the portal
+// READ set, and gating on it let a reader through to writes the policy layer then filtered to zero
+// rows — a write that reports success and changes nothing. An explicit set turns that into an
+// honest, explained refusal. Matches guards.ts writeRoles: super_admin, admin, hr.
 const payrollRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
 // A run in one of these states is history; recompute/adjust must refuse.
@@ -36,7 +27,8 @@ interface PgError {
   code?: string;
 }
 
-// Flatten a query error into one readable line. The summary arrives in `message`; some errors put the useful half in `hint`/`details` instead.
+// Flatten a query error into one readable line. The summary arrives in `message`; some errors put
+// the useful half in `hint`/`details` instead.
 function pgMessage(error: PgError): string {
   return [error.message, error.details, error.hint].filter(Boolean).join(' — ');
 }
@@ -48,8 +40,7 @@ async function gate(): Promise<Gate> {
   if (!isMongoConfigured()) {
     return {
       ok: false,
-      error:
-        'The database is not configured, so payroll cannot run.',
+      error: 'The database is not configured, so payroll cannot run.',
     };
   }
 
@@ -70,7 +61,7 @@ function caught(context: string, e: unknown): { ok: false; error: string } {
   return { ok: false, error: `${context}: ${message}` };
 }
 
-// ------------------------------------------------------------ run actions ---
+// run actions
 
 /**
  * Creates a new payroll run in 'draft' status for the specified period month (YYYY-MM-01).
@@ -99,7 +90,10 @@ export async function openRun(periodMonth: string): Promise<{ ok: boolean; error
       .select('id');
     if (error) return { ok: false, error: pgMessage(error) };
     if (!data || data.length === 0) {
-      return { ok: false, error: `${context}: no run was created — your role may lack permission.` };
+      return {
+        ok: false,
+        error: `${context}: no run was created — your role may lack permission.`,
+      };
     }
 
     revalidatePath('/payroll');
@@ -190,7 +184,7 @@ export async function markRunPaid(runId: string): Promise<{ ok: boolean; error?:
   return callRunRpc('fn_mark_run_paid', runId, 'Mark run paid');
 }
 
-// ------------------------------------------------------------ adjustments ---
+// adjustments
 
 const moneyFields = [
   'advance_recovery',
@@ -218,7 +212,9 @@ const moneyLabel: Record<MoneyField, string> = {
  * change their pay.
  */
 function money(formData: FormData, key: MoneyField): number | string {
-  const raw = String(formData.get(key) ?? '').trim().replace(/[,\s₹]/g, '');
+  const raw = String(formData.get(key) ?? '')
+    .trim()
+    .replace(/[,\s₹]/g, '');
   if (!raw) return 0;
   const n = Number(raw);
   if (!Number.isFinite(n)) return `${moneyLabel[key]} must be a number (got "${raw}").`;

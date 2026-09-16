@@ -15,8 +15,7 @@ export default async function EmployeeLayout({ children }: { children: React.Rea
     getUnreadNotificationCount(),
   ]);
 
-  // Role gate — see the portal layout. Staff belong in the portal; a signed-in
-  // user with no profile row belongs nowhere until HR provisions them.
+  // Staff use the portal. Accounts without a profile cannot enter either area.
   if (!profile) {
     redirect('/login?error=Your+account+is+not+provisioned+yet.+Ask+HR+to+set+up+your+access.');
   }

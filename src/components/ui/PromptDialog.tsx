@@ -1,16 +1,7 @@
 'use client';
 
-// Styled text-input modal — a themed replacement for window.prompt(). Use the
-// usePrompt() hook: `const { prompt, promptDialog } = usePrompt()`, then
-// `const value = await prompt({ title, message, ... })` (resolves the typed
-// string, or null on cancel) and render {promptDialog} once in the component.
-// Matches the app's overlay/card look and the useConfirm() ergonomics.
-//
-// Two extra guards beyond a bare prompt:
-// - `matchToken`: the confirm button stays disabled until the typed value
-// equals the token (case-insensitive). This preserves the deliberate
-// "type the email to confirm" friction on destructive actions.
-// - `validate`: return an error string to block submission, or null to allow.
+// Use usePrompt() to await text input and render promptDialog once. Cancellation returns null.
+// matchToken requires a case-insensitive match; validate returns an error string or null.
 import { useCallback, useEffect, useState } from 'react';
 
 export interface PromptOptions {
@@ -93,7 +84,14 @@ function PromptDialog({
           <div className="m-hd">
             {danger && (
               <span className="m-ic" aria-hidden>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
                   <path d="M12 9v4" />
                   <path d="M12 17h.01" />
                   <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
@@ -159,7 +157,8 @@ export function usePrompt() {
   const [pending, setPending] = useState<Pending | null>(null);
 
   const prompt = useCallback(
-    (opts: PromptOptions) => new Promise<string | null>((resolve) => setPending({ ...opts, resolve })),
+    (opts: PromptOptions) =>
+      new Promise<string | null>((resolve) => setPending({ ...opts, resolve })),
     [],
   );
 

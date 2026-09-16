@@ -8,9 +8,7 @@ import { ProfileMenu } from '@/components/shell/ProfileMenu';
 import type { NotificationRow } from '@/lib/queries';
 
 export function Topbar({
-  // No placeholder identity: an unnamed profile falls back to a neutral label in
-  // ProfileMenu ("Signed in") rather than showing a real person's name to
-  // whoever happens to be logged in.
+  // Let ProfileMenu use its neutral fallback when the profile has no name.
   name = null,
   avatar = null,
   role = null,

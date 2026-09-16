@@ -1,20 +1,14 @@
 # Dalnex HRMS — Admin Portal
 
-Attendance & payroll admin portal for Dalnex (Pune · Maharashtra, Vadodara ·
-Gujarat). **Next.js (App Router) + TypeScript** backed by **MongoDB**. The
-visual design is preserved verbatim in `globals.css`.
+Attendance and payroll portal for Dalnex in Pune and Vadodara, built with
+Next.js App Router, TypeScript, and MongoDB.
 
-Originally built on Supabase Postgres. The migration to MongoDB is complete:
-nothing imports a Supabase package, and the SQL migrations that were kept as a
-reference specification have been removed. MongoDB is the only schema now —
-`scripts/schema.generated.mjs` and `scripts/schema.mjs` define the collection
-validators and indexes, and `src/lib/db/defaults.ts` supplies the values
-Postgres used to fill in. All three are edited by hand.
+Collection validators and indexes live in `scripts/schema-base.mjs` and
+`scripts/schema.mjs`. Insert defaults live in `src/lib/db/defaults.ts`.
+All three files are maintained by hand.
 
-Some comments still explain a decision by naming the Postgres construct it
-replaced — a view, an RLS policy, a `plpgsql` function. That is deliberate: it
-records *why* the code has the shape it does. Nothing in `src/` runs against
-Postgres.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for naming, formatting, comment conventions,
+and development checks.
 
 ## Stack
 
@@ -31,7 +25,7 @@ npm install
 
 # 1. MongoDB must be running. The URI names the database:
 #      MONGO_URI=mongodb://localhost:27018/hrms
-#    A SINGLE-NODE REPLICA SET is strongly recommended — see below.
+#    Use a replica set for transactions and change streams; see below.
 
 # 2. Create .env.local
 cat > .env.local <<'EOF'
@@ -55,14 +49,14 @@ npm run dev                 # http://localhost:3000 (redirects to /login)
 A standalone `mongod` cannot do **multi-document transactions** or **change
 streams**. Both are used:
 
-| Needs a replica set        | Where                                              |
-| -------------------------- | -------------------------------------------------- |
-| Transactions               | payroll runs, punch in/out, exit F&F, branch rename |
-| Change streams             | live helpdesk chat (`/api/helpdesk/<id>/stream`)    |
+| Needs a replica set | Where                                               |
+| ------------------- | --------------------------------------------------- |
+| Transactions        | payroll runs, punch in/out, exit F&F, branch rename |
+| Change streams      | live helpdesk chat (`/api/helpdesk/<id>/stream`)    |
 
 The app degrades rather than breaking on a standalone: writes still happen but
 are not atomic (with a loud one-time warning), and the chat falls back to
-polling. Converting is three steps and is best done while the database is empty:
+polling. To configure a replica set:
 
 ```
 1. add to mongod.cfg:   replication:
@@ -76,13 +70,19 @@ polling. Converting is three steps and is best done while the database is empty:
 
 ## Scripts
 
-| Command                 | What it does                                                |
-| ----------------------- | ----------------------------------------------------------- |
-| `npm run dev`           | Development server                                          |
-| `npm run build`         | Production build                                            |
-| `npm run typecheck`     | `tsc --noEmit`                                              |
-| `npm run db:setup`      | Create collections, validators and indexes (idempotent)     |
-| `npm run db:setup -- --admin --email …` | …and create/reset the first super admin     |
+| Command                                 | What it does                                            |
+| --------------------------------------- | ------------------------------------------------------- |
+| `npm run dev`                           | Development server                                      |
+| `npm run build`                         | Production build                                        |
+| `npm run typecheck`                     | `tsc --noEmit`                                          |
+| `npm run lint`                          | ESLint checks                                           |
+| `npm run format`                        | Format maintained source and documentation              |
+| `npm run format:check`                  | Check formatting without writing files                  |
+| `npm run check:names`                   | Validate source filenames and directories               |
+| `npm test`                              | Route and access compatibility tests (Node.js 22.15+)   |
+| `npm run check`                         | Formatting, naming, lint, types, and tests              |
+| `npm run db:setup`                      | Create collections, validators and indexes (idempotent) |
+| `npm run db:setup -- --admin --email …` | …and create/reset the first super admin                 |
 
 ## Project layout
 
@@ -100,48 +100,42 @@ src/
     db/
       mongo.ts           # connection + withTransaction
       collections.ts     # collection registry + document shapes
-      scope.ts           # who is asking (was auth.uid/auth_role/is_staff)
+      scope.ts           # caller identity and role flags
       policies.ts        # per-collection access rules  ← the security boundary
       repo.ts            # applies them to every query
       money.ts           # Decimal128 + exact paise arithmetic
-      views.ts           # the 5 dashboard views, as aggregation pipelines
+      views.ts           # scoped aggregation views
       functions.ts       # the payroll/leave routines, in TypeScript
       payroll.ts         # payslip computation
       scheduler.ts       # the 7 scheduled jobs
       gridfs.ts          # file storage
-      pgcompat.ts        # PostgREST-shaped adapter (see below)
+      postgrest-compat.ts # PostgREST-style query adapter
     queries.ts           # data access
     actions/             # Server Actions (mutations)
+  types/                 # client-safe shared types
 scripts/
   db-setup.mjs           # applies the schema
-  schema.generated.mjs   # collection validators + indexes  ← the schema
-  schema.mjs             # overrides layered over it, and buildSchema()
+  schema-base.mjs        # base collection validators and indexes
+  schema.mjs             # schema overrides and buildSchema()
+tests/                  # route and access compatibility tests
 ```
 
-### About `pgcompat.ts`
+### About `postgrest-compat.ts`
 
-Roughly 500 call sites were written in PostgREST's idiom
-(`.from(t).select(c).eq(a, b)` returning `{ data, error }`). Rewriting each one
-by hand is not a reliable operation at that volume — the failure mode is a
-single dropped `.eq()` that silently widens a query, with no compiler check to
-catch it. So that idiom is translated to MongoDB instead.
-
-Crucially it runs **through** `repo.ts`, so every query it issues still has the
-collection's access policy ANDed in. The adapter cannot be used to escape
-scoping. It is not the destination: the auth layer, org core, payroll, views and
-scheduled jobs all use `scoped()` directly, and files still on the adapter can
-be moved over one at a time.
+The adapter translates PostgREST-style calls such as
+`.from(t).select(c).eq(a, b)` into MongoDB operations and returns `{ data, error }`.
+It uses `repo.ts`, which combines every query with the collection's access policy.
+Native database code can use `scoped()` directly.
 
 ## Auth & roles
 
-Sign-in is email + password. A single `users` collection carries credentials,
-role and, for employees, `employee_id` — what used to be `auth.users` (GoTrue)
-plus `public.profiles` plus `public.user_tab_access`.
+Sign-in uses email and password. The `users` collection holds credentials,
+role, per-tab access, and an optional `employee_id`.
 
-| Role                                  | Lands on | Sees                                           |
-| ------------------------------------- | -------- | ---------------------------------------------- |
-| `super_admin` / `admin` / `hr`        | `/today` | The full admin portal                          |
-|  / `employee`                | `/me`    | Own attendance/pay snapshot + company policies |
+| Role                           | Lands on | Sees                                             |
+| ------------------------------ | -------- | ------------------------------------------------ |
+| `super_admin` / `admin` / `hr` | `/today` | The full admin portal                            |
+| `employee` / `intern`          | `/me`    | Own attendance/pay snapshot and company policies |
 
 **Sessions are year-long JWTs, and they are revocable.** An expiry a year out
 means a token cannot be recalled by waiting, so every session carries a `ver`
@@ -169,7 +163,7 @@ query. Three properties are worth knowing:
 - **Declarative.** Each entry mirrors the SQL policy it replaces, so the two can
   be read side by side.
 - **Fail closed.** A collection with no entry is denied to everyone. Porting a
-  collection *requires* deciding who may read it.
+  collection _requires_ deciding who may read it.
 - **Read, write and insert are separate.** An employee may read their own
   reimbursement claim but only edit it while it is pending — one predicate
   cannot express that, and collapsing them is how "edit an approved claim" gets
@@ -255,8 +249,6 @@ PT   = resolved from pt_slabs (month-specific beats gender-specific beats broade
 
 ## Notes
 
-- The schema is `scripts/schema.generated.mjs` + `scripts/schema.mjs`, applied
-  by `npm run db:setup`. Both are hand-edited; there is no generator behind them
-  any more, so a new field means editing the validator, and — if it needs one —
-  adding its default to `src/lib/db/defaults.ts` with the right BSON type.
-- The original prototype is kept at `dalnex-admin-portal.html` for reference.
+- Update `scripts/schema-base.mjs` or `scripts/schema.mjs` when adding fields,
+  and add any insert default in `src/lib/db/defaults.ts` with the matching BSON type.
+  Apply schema changes with `npm run db:setup`.

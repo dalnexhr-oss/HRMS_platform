@@ -2,9 +2,7 @@ import type { HolidayView } from '@/lib/queries';
 import { describePolicy, type WeekOffPolicy } from '@/lib/week-off';
 import { todayIST } from '@/lib/format';
 
-// Read-only holiday calendar for the employee dashboard. Leads with the weekly
-// off schedule (Sundays + which Saturdays), then holidays split into upcoming and
-// past with the next upcoming one highlighted.
+// Show the employee's weekly off schedule and upcoming and past holidays.
 export function EmployeeHolidays({
   holidays,
   policy,
@@ -75,15 +73,7 @@ export function EmployeeHolidays({
 }
 
 const saturday = 6;
-const weekdayNames = [
-  'Sunday',
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-];
+const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const ord = (n: number) => `${n}${['th', 'st', 'nd', 'rd'][n] ?? 'th'}`;
 
 // Build a plain-language explanation that stays consistent with describePolicy
@@ -108,7 +98,9 @@ function weekOffSentence(policy: WeekOffPolicy): string {
       const working = `the ${workSats.map(ord).join(' & ')} Saturday${
         workSats.length > 1 ? 's are' : ' is'
       } working`;
-      parts.push(offSats.length ? `${working}, so the ${offSats.map(ord).join(', ')} are off` : working);
+      parts.push(
+        offSats.length ? `${working}, so the ${offSats.map(ord).join(', ')} are off` : working,
+      );
     }
   }
 

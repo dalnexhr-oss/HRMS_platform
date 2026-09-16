@@ -1,10 +1,6 @@
 'use server';
 
-//
-// .xlsx export Server Actions. Build the workbook on the server (exceljs is
-// server-only) and return the bytes as base64 for the client to download. Both
-// exports carry payroll/attendance data, so they are staff-gated.
-//
+// Build staff exports on the server and return workbook bytes as base64 for browser download.
 import {
   getPayslips,
   getPunchLogToday,
@@ -22,7 +18,7 @@ import {
   registerWorkbook,
   registerImportTemplateWorkbook,
   reimbursementsWorkbook,
-} from '@/lib/excel/buildWorkbook';
+} from '@/lib/excel/build-workbook';
 import { buildLeaveSalaryView } from '@/lib/leave-salary-view';
 import {
   getStatutoryRows,
@@ -30,11 +26,10 @@ import {
   buildEsicXlsx,
   buildPtXlsx,
 } from '@/lib/statutory/statutory';
-import { requireRoles, requireStaff } from '@/lib/actions/_guard';
+import { requireRoles, requireStaff } from '@/lib/actions/guards';
 
 export type ExportResult =
-  | { ok: true; filename: string; base64: string; mime?: string }
-  | { ok: false; error: string };
+  { ok: true; filename: string; base64: string; mime?: string } | { ok: false; error: string };
 
 const textMime = 'text/plain;charset=utf-8';
 
@@ -88,7 +83,8 @@ export async function exportRegisterXlsx(periodMonth: string): Promise<ExportRes
   if (!gate.ok) return gate;
   try {
     const employees = await getRegister(periodMonth);
-    if (employees.length === 0) return { ok: false, error: 'No attendance to export for this month.' };
+    if (employees.length === 0)
+      return { ok: false, error: 'No attendance to export for this month.' };
     const bytes = await registerWorkbook(employees, daysOf(periodMonth), periodMonth);
     return { ok: true, filename: `register-${periodMonth.slice(0, 7)}.xlsx`, base64: b64(bytes) };
   } catch (e) {
@@ -102,7 +98,8 @@ export async function exportAttendanceTemplateXlsx(periodMonth: string): Promise
   if (!gate.ok) return gate;
   try {
     const employees = await getRegister(periodMonth);
-    if (employees.length === 0) return { ok: false, error: 'No attendance to export for this month.' };
+    if (employees.length === 0)
+      return { ok: false, error: 'No attendance to export for this month.' };
     const bytes = await attendanceTemplateWorkbook(employees, periodMonth);
     return { ok: true, filename: `attendance-${periodMonth.slice(0, 7)}.xlsx`, base64: b64(bytes) };
   } catch (e) {
@@ -140,17 +137,8 @@ function normalisePeriodMonth(
 }
 
 /**
- * A blank register-import template for HR/Admin to fill in and upload.
- *
- * Unlike the other exports this reads NO employee data — the workbook is blank —
- * so it is gated on role via getSession() rather than requireStaff(), and
- * exposes nothing sensitive by design.
- *
- * `periodMonth` ('YYYY-MM' or 'YYYY-MM-01') stamps cell B2, which is the ONLY
- * thing that decides where a later upload lands — parseRegister's readPeriod()
- * reads it back and commitImport builds every work_date from it. Omitted, it
- * falls back to the current month, which is what the button did before the
- * month picker existed.
+ * Build a blank register template for authorized staff. periodMonth sets B2, which determines the
+ * month used by a later import. Accept YYYY-MM or YYYY-MM-01 and default to the current month.
  */
 export async function exportRegisterImportTemplateXlsx(
   periodMonth?: string,
@@ -206,7 +194,10 @@ export async function exportReimbursementsXlsx(): Promise<ExportResult> {
  * this file carries every employee's salary.
  */
 export async function exportLeaveSalaryXlsx(year: number): Promise<ExportResult> {
-  const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Exporting the leave-salary working');
+  const gate = await requireRoles(
+    ['super_admin', 'admin', 'hr'],
+    'Exporting the leave-salary working',
+  );
   if (!gate.ok) return gate;
   if (!Number.isInteger(year) || year < 2000 || year > 2100) {
     return { ok: false, error: 'Enter a valid year.' };
@@ -221,7 +212,7 @@ export async function exportLeaveSalaryXlsx(year: number): Promise<ExportResult>
   }
 }
 
-// -------------------------------------------------------------- statutory ---
+// statutory
 
 export async function exportPfEcr(periodMonth: string): Promise<ExportResult> {
   const gate = await requireStaff('Exporting the PF ECR');

@@ -1,12 +1,8 @@
-//
-// Statutory filing builders — PF ECR, ESIC contribution, Professional Tax.
-// SERVER ONLY. Reads payslips joined to employee statutory identifiers and emits
-// the filing artifacts. These are DRAFTS to reconcile against the EPFO/ESIC/state
-// portals before submission — the wage bases follow the app's confirmed rules.
-//
+// Build draft PF, ESIC, and Professional Tax filings from payslips and employee identifiers.
+// Reconcile exported figures before submission.
 import ExcelJS from 'exceljs';
 import { createClient } from '@/lib/db/server';
-import { monthTitle } from '@/lib/excel/buildWorkbook';
+import { monthTitle } from '@/lib/excel/build-workbook';
 import { writeBrandHeader } from '@/lib/excel/brand';
 
 export interface StatutoryRow {
@@ -79,7 +75,7 @@ export async function getStatutoryRows(periodMonth: string): Promise<StatutoryRo
     .sort((a, b) => a.code.localeCompare(b.code));
 }
 
-// -------------------------------------------------------------------- PF ECR ---
+// PF ECR
 
 /**
  * EPFO ECR v2.0 text file: one #~#-delimited line per member, fields:
@@ -152,10 +148,13 @@ function header(row: ExcelJS.Row): void {
   row.font = { bold: true };
 }
 
-// --------------------------------------------------------------------- ESIC
+// ESIC
 
 // ESIC monthly contribution as .xlsx — covered employees only (esic_employee > 0).
-export async function buildEsicXlsx(rows: StatutoryRow[], periodMonth: string): Promise<Uint8Array> {
+export async function buildEsicXlsx(
+  rows: StatutoryRow[],
+  periodMonth: string,
+): Promise<Uint8Array> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Dalnex HRMS';
   const ws = wb.addWorksheet(`ESIC ${monthTitle(periodMonth)}`);
@@ -191,7 +190,7 @@ export async function buildEsicXlsx(rows: StatutoryRow[], periodMonth: string): 
   return bytes(wb);
 }
 
-// ----------------------------------------------------------- Professional Tax ---
+// Professional Tax
 
 /** PT summary as .xlsx, grouped by branch state, with per-state totals. */
 export async function buildPtXlsx(rows: StatutoryRow[], periodMonth: string): Promise<Uint8Array> {

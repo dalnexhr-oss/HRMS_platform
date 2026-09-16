@@ -5,7 +5,7 @@ import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { notifyEmployee } from '@/lib/notify';
 import { getAssetAssignments, getAssetMaintenance } from '@/lib/queries';
-import { requireRoles, wroteNothing } from './_guard';
+import { requireRoles, wroteNothing } from './guards';
 import type { AppRole } from '@/types/database';
 import { todayIST } from '@/lib/format';
 import { toMoney } from '@/lib/db/money';
@@ -25,17 +25,8 @@ const assetAdminRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * The date rules an asset's own dates have to satisfy.
- *
- * These are ORDERING rules, not freshness ones, and that is the whole point:
- * unlike an assignment or a leave request, an asset is usually entered long
- * after it was bought, so the purchase date looks BACKWARDS with no floor at
- * all. What it does have is a ceiling — nothing was bought tomorrow — and it is
- * then the floor for everything that follows from it, because warranty cover
- * and its renewal cannot begin before the machine existed.
- *
- * Checked server-side as well as in the drawer: the min/max attributes there
- * are a convenience, and a Server Action is a public endpoint.
+ * Validate asset date ordering on the server as well as in the form: purchase cannot be after
+ * today, warranty cannot precede purchase, and renewal cannot precede the cover it renews.
  */
 function checkAssetDates(fields: {
   purchase_date: string | null;
@@ -179,7 +170,10 @@ export async function assignAsset(formData: FormData) {
     .select('id, desktop_name, brand');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
-    return { ok: false, error: 'The asset was not assigned — it may no longer exist, or your role lacks permission.' };
+    return {
+      ok: false,
+      error: 'The asset was not assigned — it may no longer exist, or your role lacks permission.',
+    };
   }
 
   // Record the transfer in the history trail (0034). Best-effort: the snapshot
@@ -221,7 +215,11 @@ export async function unassignAsset(id: string) {
     .from('assets')
     .select('assigned_employee_id, desktop_name, brand')
     .eq('id', id)
-    .maybeSingle<{ assigned_employee_id: string | null; desktop_name: string; brand: string | null }>();
+    .maybeSingle<{
+      assigned_employee_id: string | null;
+      desktop_name: string;
+      brand: string | null;
+    }>();
   if (readErr) return { ok: false, error: readErr.message };
   if (!before) return { ok: false, error: 'That asset no longer exists.' };
   if (!before.assigned_employee_id) {
@@ -285,7 +283,10 @@ export async function createAssetMaintenance(formData: FormData) {
   const nextDue = text('next_due');
   if (!isoDate.test(maintDate)) return { ok: false, error: 'Enter a valid maintenance date.' };
   if (maintDate > todayIST()) {
-    return { ok: false, error: 'The maintenance date is in the future — log the work once it is done.' };
+    return {
+      ok: false,
+      error: 'The maintenance date is in the future — log the work once it is done.',
+    };
   }
   if (nextDue) {
     if (!isoDate.test(nextDue)) return { ok: false, error: 'Enter a valid next-due date.' };
@@ -311,7 +312,10 @@ export async function createAssetMaintenance(formData: FormData) {
     .select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
-    return { ok: false, error: 'The maintenance record was not saved — your role may lack permission.' };
+    return {
+      ok: false,
+      error: 'The maintenance record was not saved — your role may lack permission.',
+    };
   }
   revalidatePath('/assets');
   return { ok: true };

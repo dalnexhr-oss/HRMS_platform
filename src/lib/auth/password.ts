@@ -1,8 +1,7 @@
-// Password hashing and verification via Node.js crypto scrypt. SERVER ONLY (Node runtime).
+// Hash passwords with Node.js scrypt. Store the work factors with the hash so they can change
+// without invalidating existing passwords.
 //
-// Storage format: scrypt$N$r$p$<salt_b64>$<hash_b64>
-// Parameterized format allows tuning work factors without invalidating existing hashes.
-//
+// Format: scrypt$N$r$p$<salt_b64>$<hash_b64>
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 
@@ -42,11 +41,10 @@ export async function hashPassword(password: string): Promise<string> {
   ].join('$');
 }
 
-// Check a password against a stored hash. Returns false rather than throwing on a malformed or unrecognised hash — a corrupt row must read as "wrong password", never as a 500 that tells an attacker the account exists.
-export async function verifyPassword(
-  password: string,
-  stored: string,
-): Promise<boolean> {
+// Check a password against a stored hash. Returns false rather than throwing on a malformed or
+// unrecognised hash — a corrupt row must read as "wrong password", never as a 500 that tells an
+// attacker the account exists.
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   try {
     const [scheme, n, r, p, saltB64, hashB64] = stored.split('$');
     if (scheme !== 'scrypt') return false;
@@ -67,7 +65,9 @@ export async function verifyPassword(
   }
 }
 
-// Minimum password rules for the sign-up and reset paths. Length is the only requirement that measurably helps; character-class rules push people towards "Password1!" and were dropped deliberately.
+// Minimum password rules for the sign-up and reset paths. Length is the only requirement that
+// measurably helps; character-class rules push people towards "Password1!" and were dropped
+// deliberately.
 export function validatePassword(password: string): string | null {
   if (password.length < 10) return 'Use at least 10 characters.';
   if (password.length > 200) return 'That password is too long.';

@@ -5,16 +5,14 @@ import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { getItemAssignments, type ItemAssignmentRow } from '@/lib/queries';
 import { notifyEmployee } from '@/lib/notify';
-import { requireRoles, wroteNothing } from './_guard';
+import { requireRoles, wroteNothing } from './guards';
 import type { AppRole } from '@/types/database';
 import { todayIST } from '@/lib/format';
 
 // Item Management is super-admin/admin/HR — same gate as assets and user admin.
 const itemAdminRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
-// The shape item_assignments.assigned_date is validated against. A value that
-// does not match is refused here rather than by the collection validator, whose
-// error says only "new row violates check constraint".
+// Validate assignment dates before writing so invalid input receives a useful error.
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
 // Pull the item columns from the form; blank strings become null.
@@ -118,7 +116,10 @@ export async function assignItem(formData: FormData) {
   if (assignedDate) {
     if (!isoDate.test(assignedDate)) return { ok: false, error: 'Enter a valid assigned date.' };
     if (assignedDate < todayIST()) {
-      return { ok: false, error: 'The assigned date has already passed — pick today or a later day.' };
+      return {
+        ok: false,
+        error: 'The assigned date has already passed — pick today or a later day.',
+      };
     }
   }
 

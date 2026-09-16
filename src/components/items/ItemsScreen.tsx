@@ -1,25 +1,36 @@
 'use client';
 
-// Item Management (admin/HR). Inventory list with derived Assigned/Remaining,
-// an add/edit drawer, an assign drawer (with the item's assignment log), and
-// delete. Mirrors AssetsScreen.
+// Inventory list with stock balances, item editing, and assignment history.
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AddItemDrawer } from './AddItemDrawer';
 import { AssignItemDrawer } from './AssignItemDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
-import { ThMenu, distinctValues, sortRows, type SortDir, type ColKind } from '@/components/ui/ThMenu';
+import {
+  ThMenu,
+  distinctValues,
+  sortRows,
+  type SortDir,
+  type ColKind,
+} from '@/components/ui/ThMenu';
 import { deleteItem } from '@/lib/actions/items';
 import type { ItemRow, EmployeeOption } from '@/lib/queries';
 
-// One entry per data column, in display order (Actions excluded). `get` yields
-// the string each header menu sorts and filters on; '—' stands in for blank so
-// "no value" is itself pickable in the filter. Quantity columns sort/filter on
-// their numbers (low → high) and keep the right-aligned header.
+// Header-menu columns in display order. Use an em dash for missing values so they can be filtered;
+// quantity columns compare numerically.
 type ColKey =
-  | 'code' | 'name' | 'category' | 'brand' | 'size' | 'unit'
-  | 'total' | 'assigned' | 'remaining' | 'status' | 'returnable';
+  | 'code'
+  | 'name'
+  | 'category'
+  | 'brand'
+  | 'size'
+  | 'unit'
+  | 'total'
+  | 'assigned'
+  | 'remaining'
+  | 'status'
+  | 'returnable';
 
 const cols: { key: ColKey; label: string; get: (i: ItemRow) => string; kind?: ColKind }[] = [
   { key: 'code', label: 'Material / Tool ID', get: (i) => i.item_code ?? '—' },
@@ -30,12 +41,23 @@ const cols: { key: ColKey; label: string; get: (i: ItemRow) => string; kind?: Co
   { key: 'unit', label: 'Unit', get: (i) => i.unit ?? '—' },
   { key: 'total', label: 'Total', get: (i) => String(i.total_quantity), kind: 'number' },
   { key: 'assigned', label: 'Assigned', get: (i) => String(i.quantity_assigned), kind: 'number' },
-  { key: 'remaining', label: 'Remaining', get: (i) => String(i.quantity_remaining), kind: 'number' },
+  {
+    key: 'remaining',
+    label: 'Remaining',
+    get: (i) => String(i.quantity_remaining),
+    kind: 'number',
+  },
   { key: 'status', label: 'Status', get: (i) => i.status || '—' },
   { key: 'returnable', label: 'Returnable', get: (i) => (i.returnable ? 'Yes' : 'No') },
 ];
 
-export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: EmployeeOption[] }) {
+export function ItemsScreen({
+  items,
+  employees,
+}: {
+  items: ItemRow[];
+  employees: EmployeeOption[];
+}) {
   const router = useRouter();
   const [q, setQ] = useState('');
   const [editDrawer, setEditDrawer] = useState(false);
@@ -65,7 +87,9 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
     let rows = items;
     if (term) {
       rows = rows.filter((i) =>
-        [i.item_name, i.item_code, i.category, i.brand].some((v) => (v ?? '').toLowerCase().includes(term)),
+        [i.item_name, i.item_code, i.category, i.brand].some((v) =>
+          (v ?? '').toLowerCase().includes(term),
+        ),
       );
     }
     for (const c of cols) {
@@ -82,7 +106,10 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
   function toggleFilter(key: ColKey, value: string) {
     setFilters((f) => {
       const cur = f[key] ?? [];
-      return { ...f, [key]: cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value] };
+      return {
+        ...f,
+        [key]: cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value],
+      };
     });
   }
 
@@ -120,11 +147,22 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
     <div className="wrap">
       <div className="emp-top">
         <div className="search">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
             <circle cx="11" cy="11" r="7" />
             <path d="M21 21l-4.3-4.3" />
           </svg>
-          <input placeholder="Search name, code, category…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input
+            placeholder="Search name, code, category…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
         </div>
         <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
           {items.length} item{items.length === 1 ? '' : 's'} · materials &amp; tools
@@ -191,7 +229,11 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
                         className="btn quiet"
                         onClick={() => setAssignFor(i)}
                         disabled={i.quantity_remaining <= 0}
-                        title={i.quantity_remaining <= 0 ? 'Nothing left to assign' : 'Assign to an employee'}
+                        title={
+                          i.quantity_remaining <= 0
+                            ? 'Nothing left to assign'
+                            : 'Assign to an employee'
+                        }
                       >
                         Assign
                       </button>
@@ -233,11 +275,7 @@ export function ItemsScreen({ items, employees }: { items: ItemRow[]; employees:
         }}
       />
 
-      <AssignItemDrawer
-        item={assignFor}
-        employees={employees}
-        onClose={() => setAssignFor(null)}
-      />
+      <AssignItemDrawer item={assignFor} employees={employees} onClose={() => setAssignFor(null)} />
       {confirmDialog}
     </div>
   );

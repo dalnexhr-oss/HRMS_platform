@@ -13,8 +13,7 @@ import {
   getMyTabAccess,
 } from '@/lib/queries';
 
-// The portal shell (sidebar + sticky topbar) wraps every screen. Each route
-// under (portal) renders inside <main>, replacing the prototype's tab switch.
+// Shared portal shell. Each route renders inside the main content area.
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const [{ profile, email }, notifications, unread, stats, hdrs] = await Promise.all([
     getSession(),

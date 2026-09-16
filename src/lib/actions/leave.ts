@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
-import { requireRoles, wroteNothing } from '@/lib/actions/_guard';
+import { requireRoles, wroteNothing } from '@/lib/actions/guards';
 import { toDecimal } from '@/lib/db/money';
 import { notifyEmployee } from '@/lib/notify';
 
@@ -24,7 +24,9 @@ function validYear(y: number): boolean {
  * Provisions annual paid leave (PL) entitlement for active employees.
  * Idempotent: safe to run multiple times for the same calendar year.
  */
-export async function provisionLeaveYear(year: number): Promise<ActionResult & { created?: number }> {
+export async function provisionLeaveYear(
+  year: number,
+): Promise<ActionResult & { created?: number }> {
   const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Provisioning leave balances');
   if (!gate.ok) return gate;
   if (!validYear(year)) return { ok: false, error: 'Enter a valid year.' };
@@ -63,7 +65,8 @@ export async function adjustLeaveBalance(input: {
   const reason = String(input.reason ?? '').trim();
   const delta = Number(input.delta);
 
-  if (!uuidRe.test(String(input.employeeId ?? ''))) return { ok: false, error: 'Pick an employee.' };
+  if (!uuidRe.test(String(input.employeeId ?? '')))
+    return { ok: false, error: 'Pick an employee.' };
   if (!validYear(Number(input.year))) return { ok: false, error: 'Enter a valid year.' };
   if (!Number.isFinite(delta) || delta === 0) {
     return { ok: false, error: 'Enter a non-zero number of days (negative to debit).' };
@@ -103,7 +106,10 @@ export async function adjustLeaveBalance(input: {
 
   const next = Math.round(((Number(existing?.balance ?? 0) || 0) + delta) * 10) / 10;
   const { error: balErr } = existing
-    ? await dbc.from('leave_balances').update({ balance: toDecimal(next) }).eq('id', existing.id)
+    ? await dbc
+        .from('leave_balances')
+        .update({ balance: toDecimal(next) })
+        .eq('id', existing.id)
     : await dbc
         .from('leave_balances')
         .insert({ employee_id: input.employeeId, year, type: 'PL', balance: toDecimal(next) });

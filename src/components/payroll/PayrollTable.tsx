@@ -38,7 +38,8 @@ function isFrozen(run: PayrollRunView | null): boolean {
   return run ? run.status === 'locked' || run.status === 'paid' : true;
 }
 
-// Calendar days in the run's month — the denominator payable days are counted against (the register's "to pay for" column: working days + OH + WO). Derived, not assumed: this used to be a hardcoded "of 30", which is simply wrong for any 31-day month. Returns null when there's no run to derive it from, in which case the denominator is omitted rather than guessed.
+// Use the run month's actual calendar-day count as the denominator. Omit it when no run is
+// available.
 function daysInPeriod(periodMonth: string | null | undefined): number | null {
   if (!periodMonth) return null;
   const m = /^(\d{4})-(\d{2})/.exec(periodMonth);
@@ -48,9 +49,7 @@ function daysInPeriod(periodMonth: string | null | undefined): number | null {
   return Number.isNaN(d.getTime()) ? null : d.getUTCDate();
 }
 
-// ============================================================ run actions
-// Lives here (not in the page) because it needs handlers; the page keeps the
-// .run-banner markup and drops this in where the two buttons used to be.
+// Client-side run actions rendered inside the page's run banner.
 
 export function RunActions({
   run,
@@ -66,8 +65,7 @@ export function RunActions({
   const [error, setError] = useState<string | null>(null);
   const { confirm, confirmDialog } = useConfirm();
 
-  // No run for this month yet — offer to start one rather than only disabling
-  // every action (a new month previously needed a manual SQL insert).
+  // Offer to create a run when this month has none.
   if (!run) {
     return (
       <>
@@ -125,7 +123,13 @@ export function RunActions({
       <button
         className="btn"
         disabled={!run || frozen || pending}
-        title={!run ? noRun : frozen ? `This run is ${run.status} — drafts can no longer be recomputed.` : undefined}
+        title={
+          !run
+            ? noRun
+            : frozen
+              ? `This run is ${run.status} — drafts can no longer be recomputed.`
+              : undefined
+        }
         onClick={() => call(computeRun)}
       >
         {pending ? 'Working…' : 'Recompute drafts'}
@@ -176,7 +180,7 @@ export function RunActions({
   );
 }
 
-// ============================================================ payroll table ===
+// payroll table
 
 export function PayrollTable({
   payslips,
@@ -394,10 +398,8 @@ function AdjForm({
     {},
   );
 
-  const set =
-    (k: keyof typeof form) =>
-    (e: ChangeEvent<HTMLInputElement>) =>
-      setForm((f) => ({ ...f, [k]: e.target.value }));
+  const set = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const { toast, toastNode } = useToast();
 
@@ -481,7 +483,10 @@ function AdjForm({
           type="button"
           onClick={() => {
             if (!printPayslip(p)) {
-              toast('Your browser blocked the payslip window. Allow pop-ups for this site and try again.', 'error');
+              toast(
+                'Your browser blocked the payslip window. Allow pop-ups for this site and try again.',
+                'error',
+              );
             }
           }}
           title="Open a printable payslip (Save as PDF from the print dialog)"

@@ -1,8 +1,6 @@
 'use client';
 
-// Set a new password from a reset link.
-// The token is a one-time secret that identifies the account and authorizes the change. 
-// It is never stored in a cookie or session, so it must be sent with the form.
+// Submit the one-time reset token with the new password; it is not stored in the session.
 import { useActionState } from 'react';
 import Link from 'next/link';
 import { resetPassword, type PasswordState } from '@/lib/actions/password';
@@ -13,8 +11,7 @@ const minLen = 10;
 export function UpdatePasswordForm({ token }: { token?: string }) {
   const [state, action, pending] = useActionState<PasswordState, FormData>(resetPassword, {});
 
-  // A link with no token cannot be completed, so say so before they type a
-  // password and lose it to a failed submit.
+  // Reject a missing token before the user enters a new password.
   if (!token) {
     return (
       <div>
@@ -37,7 +34,11 @@ export function UpdatePasswordForm({ token }: { token?: string }) {
           ✓&nbsp; Your password has been updated, and every other device has been signed out.
         </div>
         <div style={{ marginTop: 14, textAlign: 'center' }}>
-          <Link className="btn primary" href="/login" style={{ width: '100%', justifyContent: 'center' }}>
+          <Link
+            className="btn primary"
+            href="/login"
+            style={{ width: '100%', justifyContent: 'center' }}
+          >
             Sign in
           </Link>
         </div>

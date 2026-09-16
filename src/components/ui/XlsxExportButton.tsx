@@ -1,9 +1,6 @@
 'use client';
 
-// Generic .xlsx download button. Calls a Server Action that returns base64
-// workbook bytes, then decodes to a Blob and triggers a browser download. The
-// action reference is passed in so this one component drives register, payroll
-// and statutory exports.
+// Download base64 workbook bytes returned by a Server Action as an XLSX file.
 import { useState, useTransition } from 'react';
 import type { ExportResult } from '@/lib/actions/export';
 

@@ -1,16 +1,11 @@
 'use server';
 
-//
-// Per-user tab access — the side panel on /users. Super admin only.
-//
-// Writes the user document's embedded `tab_access` map. Every rule the panel
-// shows is re-checked here, because a Server Action is a public endpoint: the
-// button only being rendered for a super admin proves nothing about the caller.
-//
+// Super-admin actions for users.tab_access. Recheck caller and target permissions at the action
+// boundary.
 import { revalidatePath } from 'next/cache';
 import { usersCollection } from '@/lib/db/collections';
 import { createClient } from '@/lib/db/server';
-import { requireRoles } from '@/lib/actions/_guard';
+import { requireRoles } from '@/lib/actions/guards';
 import { navItems } from '@/lib/constants';
 import { isConfigurableRole, staticallyAllowed, type TabAccess } from '@/lib/access';
 import type { AppRole } from '@/types/database';
@@ -56,11 +51,8 @@ export async function fetchUserTabAccess(
 }
 
 /**
- * Turn one tab on or off for one account.
- *
- * Refuses anything outside the admin/hr × real-NAV-slug grid, mirroring both the
- * 0045 trigger and the narrowing rule in lib/access.ts: a tab the account's role
- * cannot statically reach is not something this panel may hand out.
+ * Change one tab permission for an admin or HR account. Only known tabs already allowed by the
+ * target's role can be configured.
  */
 export async function setUserTabAccess(
   userId: string,

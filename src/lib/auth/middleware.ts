@@ -1,20 +1,12 @@
-// Edge middleware request routing and session validation gate.
-//
-// Performs edge-compatible JWT cryptographic verification and UX routing (/login redirects).
-// Server layout components and scoped repository queries enforce final authorization boundaries
-// and token revocation checks (token_version verification against database).
+// Verify JWT signatures at the edge and route unauthenticated requests to login. Server session
+// checks enforce revocation; layouts and repository policies enforce authorization.
 import { NextResponse, type NextRequest } from 'next/server';
 import { verifySession } from '@/lib/auth/jwt';
 import { sessionCookie } from '@/lib/auth/session-shared';
 
 export async function updateSession(request: NextRequest) {
-  // The (portal) layout enforces per-tab access and needs to know which tab was
-  // requested, which a Server Component cannot read on its own. Forwarding the
-  // path as a header costs nothing and keeps that enforcement in one place
-  // rather than repeated across ~21 page files.
-  //
-  // Headers are copied rather than mutated: NextRequest.headers is immutable in
-  // some runtimes, and a throw here would 500 every request.
+  // Forward the pathname for the portal layout's tab-access check. Copy request headers because
+  // they may be immutable in this runtime.
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-pathname', request.nextUrl.pathname);
   const forward = () => NextResponse.next({ request: { headers: requestHeaders } });

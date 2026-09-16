@@ -10,8 +10,7 @@ import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { exportPayrollXlsx, exportAttendanceTemplateXlsx } from '@/lib/actions/export';
 import { StatutoryExports } from '@/components/payroll/StatutoryExports';
 
-// Timestamps are rendered on the server only, so a fixed zone keeps them stable
-// and correct for the business rather than dependent on the host's TZ.
+// Use the business timezone for server-rendered timestamps.
 const ist = 'Asia/Kolkata';
 
 const runStatusLabel: Record<PayrollRunView['status'], string> = {
@@ -67,14 +66,8 @@ function dayLabel(date: string | null): string | null {
 }
 
 /**
- * The run's adjustments window (payroll_runs.adjustments_open / _close).
- *
- * These fields are real and populated on seeded runs — the "1–9 Jul" the
- * prototype showed was seeded data, not invention. Read directly because Core's
- * PayrollRunView doesn't carry them and queries.ts is owned elsewhere.
- *
- * Shown as INFORMATION only. Nothing in the schema enforces this window — only
- * `status` freezes adjustments — so the UI must not imply it is a hard gate.
+ * Read the run's adjustment-window dates for display. They are informational; payroll status
+ * controls whether adjustments can be changed.
  */
 async function loadAdjustmentWindow(
   runId: string | null,
@@ -109,24 +102,15 @@ interface AdjustmentRow {
 }
 
 /**
- * Load the saved adjustments for the payslips on screen so the inputs show what
- * is actually stored instead of a cosmetic "0".
- *
- * Queried here rather than via @/lib/queries because the data contract has no
- * adjustments accessor and queries.ts is owned elsewhere. Same rule applies: a
- * failure when the database IS reachable is surfaced, never swallowed into zeros —
- * blank adjustment boxes over a broken read would invite someone to "re-enter"
- * values that were already there and double-count them.
+ * Load saved payslip adjustments and surface read failures. Treating a failed lookup as zero could
+ * prompt duplicate adjustments.
  */
 async function loadAdjustments(payslipIds: string[]): Promise<Record<string, PayslipAdjustments>> {
   if (!isMongoConfigured() || payslipIds.length === 0) return {};
 
   const dbc = await createClient();
   // Select all adjustment fields; missing values default to 0 during normalization below.
-  const { data, error } = await dbc
-    .from('payslip_adjustments')
-    .select('*')
-    .in('id', payslipIds);
+  const { data, error } = await dbc.from('payslip_adjustments').select('*').in('id', payslipIds);
 
   if (error) {
     throw new Error(
@@ -170,9 +154,7 @@ export default async function PayrollPage({
   const label = monthLabel(run?.periodMonth ?? periodMonth);
   const statusLabel = run ? runStatusLabel[run.status] : 'No run';
 
-  // Only milestones that have actually happened — a null timestamp means the
-  // step hasn't occurred, so it isn't rendered. (The prototype's "Locks & pays
-  // Fri 10 Jul" really is unbacked — no such column exists — and stays gone.)
+  // Show only milestones with recorded timestamps.
   const segments: [string, string][] = run
     ? (
         [
@@ -228,7 +210,11 @@ export default async function PayrollPage({
           )}
         </div>
         <span style={{ flex: 1 }} />
-        <RunActions run={run} payslipCount={payslips.length} periodMonth={run?.periodMonth ?? periodMonth} />
+        <RunActions
+          run={run}
+          payslipCount={payslips.length}
+          periodMonth={run?.periodMonth ?? periodMonth}
+        />
       </div>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -240,7 +226,10 @@ export default async function PayrollPage({
           action={exportAttendanceTemplateXlsx.bind(null, run?.periodMonth ?? periodMonth)}
           label="Attendance template"
         />
-        <StatutoryExports periodMonth={run?.periodMonth ?? periodMonth} disabled={payslips.length === 0} />
+        <StatutoryExports
+          periodMonth={run?.periodMonth ?? periodMonth}
+          disabled={payslips.length === 0}
+        />
       </div>
 
       <PayrollTable

@@ -1,19 +1,5 @@
-//
-// Whether a month is still open for attendance changes. ONE definition.
-//
-// Payslips are final once a run is locked, and the recompute is blocked at that
-// point — so rewriting the attendance behind them silently desyncs pay from the
-// register, and the numbers can never catch up.
-//
-// This lives on its own because two different callers enforce it and they sit
-// on opposite sides of the app: actions/_guard.ts guards the staff-triggered
-// writes (attendance correction, the register import, the manual night sweep),
-// and db/scheduler.ts guards the same writes when a cron run makes them. The
-// scheduler's copy did not exist at all — /api/cron rewrote punch_out values
-// behind a locked month, with the register then disagreeing with the payslips
-// that were already paid — and writing a second copy to fix that is how the
-// two would end up disagreeing about what "closed" means.
-//
+// Shared payroll-month write guard for staff actions and scheduled jobs. Locked or paid runs must
+// keep their attendance unchanged because payslips can no longer be recomputed.
 
 // The columns of a payroll_runs row this rule reads.
 export interface PayrollRunSeal {

@@ -1,11 +1,6 @@
 'use client';
 
-//
-// The top-bar profile icon. Clicking it opens a small identity card — the
-// avatar (or initials), name and basic info — plus a link to the account page
-// where the avatar and password are actually changed. It does NOT edit anything
-// itself; that lives on /account (staff) or /me (employees).
-//
+// Profile popover with identity details and a link to the account settings page.
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';

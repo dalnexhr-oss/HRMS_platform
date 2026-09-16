@@ -1,9 +1,6 @@
 'use client';
 
-// Styled confirmation modal — a themed replacement for window.confirm(). Use the
-// useConfirm() hook: `const { confirm, confirmDialog } = useConfirm()`, then
-// `if (!(await confirm({ title, message, danger }))) return;` and render
-// {confirmDialog} once in the component. Matches the app's overlay/card look.
+// Use useConfirm() to await a confirmation and render confirmDialog once in the calling component.
 import { useCallback, useEffect, useState } from 'react';
 
 export interface ConfirmOptions {
@@ -54,7 +51,14 @@ function ConfirmDialog({
           <div className="m-hd">
             {danger && (
               <span className="m-ic" aria-hidden>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
                   <path d="M12 9v4" />
                   <path d="M12 17h.01" />
                   <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
@@ -68,7 +72,12 @@ function ConfirmDialog({
             <button type="button" className="btn" onClick={onCancel}>
               {cancelLabel}
             </button>
-            <button type="button" className={`btn ${danger ? 'danger' : 'primary'}`} onClick={onConfirm} autoFocus>
+            <button
+              type="button"
+              className={`btn ${danger ? 'danger' : 'primary'}`}
+              onClick={onConfirm}
+              autoFocus
+            >
               {confirmLabel}
             </button>
           </div>
@@ -92,15 +101,12 @@ export function useConfirm() {
     [],
   );
 
-  const settle = useCallback(
-    (value: boolean) => {
-      setPending((p) => {
-        p?.resolve(value);
-        return null;
-      });
-    },
-    [],
-  );
+  const settle = useCallback((value: boolean) => {
+    setPending((p) => {
+      p?.resolve(value);
+      return null;
+    });
+  }, []);
 
   const confirmDialog = (
     <ConfirmDialog

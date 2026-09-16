@@ -1,8 +1,6 @@
 'use client';
 
-// Closes any day left with a punch-in and no punch-out, writing the configured
-// auto punch-out time (default 18:00). Sits beside the punch log because that is
-// exactly where the open sessions it fixes are visible.
+// Manually close open attendance sessions at the configured auto punch-out time.
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { runNightSweep } from '@/lib/actions/sweep';

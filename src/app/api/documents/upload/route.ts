@@ -1,20 +1,5 @@
-//
-// Streaming document upload.
-//
-// The counterpart to the Server Action in actions/documents.ts, and it exists
-// for one reason: SIZE. An action receives FormData, which means Next buffers
-// and decodes the entire multipart body before the action's first line runs —
-// so a 10 MB scan is held whole in memory, nothing reaches mongod until the
-// last byte has arrived, and the browser has no way to report progress because
-// an action call exposes no upload events.
-//
-// Here the file IS the request body. It is piped into GridFS as it arrives, so
-// storing overlaps receiving, only one chunk is resident at a time, and the
-// client can drive a real progress bar off XMLHttpRequest.upload.
-//
-// The metadata travels in the query string rather than as form fields, because
-// a multipart body would reintroduce exactly the buffering this avoids.
-//
+// Stream the request body directly into GridFS so large uploads can report progress without
+// buffering the entire file in a Server Action. Metadata is sent in the query string.
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { isMongoConfigured } from '@/lib/db/mongo';

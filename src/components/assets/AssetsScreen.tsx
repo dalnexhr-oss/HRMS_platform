@@ -1,8 +1,6 @@
 'use client';
 
-// Asset Management (admin/HR). Lists IT assets with search, an add/edit drawer,
-// and delete. The list rows carry every column, so editing reuses the in-memory
-// row — no per-row fetch needed.
+// Asset list with search, editing, assignment, and deletion. Editing uses the loaded row.
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AddAssetDrawer } from './AddAssetDrawer';
@@ -28,23 +26,37 @@ import type { AssetRow, EmployeeOption, AssetSummaryRow } from '@/lib/queries';
 // "no value" is itself pickable in the filter. `kind` picks the compare order —
 // date columns must not fall back to the A → Z text sort.
 type ColKey =
-  | 'purchased' | 'cost' | 'name' | 'category' | 'brand' | 'serial' | 'model'
-  | 'assigned' | 'warranty' | 'processor' | 'ram' | 'storage';
+  | 'purchased'
+  | 'cost'
+  | 'name'
+  | 'category'
+  | 'brand'
+  | 'serial'
+  | 'model'
+  | 'assigned'
+  | 'warranty'
+  | 'processor'
+  | 'ram'
+  | 'storage';
 
 const cols: { key: ColKey; label: string; kind?: ColKind; get: (a: AssetRow) => string }[] = [
-  { key: 'purchased',     label: 'Purchased on', kind: 'date', get: (a) => a.purchase_date ?? '—' },
-  { key: 'cost',    label: 'Purchase cost', kind: 'number',
-    get: (a) => (a.purchase_cost == null ? '—' : String(a.purchase_cost)) },
-  { key: 'name',    label: 'Desktop name', get: (a) => a.desktop_name || '—' },
-  { key: 'category',    label: 'Category', get: (a) => a.asset_category ?? '—' },
-  { key: 'brand',     label: 'Brand', get: (a) => a.brand ?? '—' },
-  { key: 'serial',    label: 'Serial no.', get: (a) => a.serial_no ?? '—' },
-  { key: 'model',     label: 'Model', get: (a) => a.model_no ?? '—' },
-  { key: 'assigned',    label: 'Assigned to', get: (a) => a.assigned_person_name ?? '—' },
-  { key: 'warranty',    label: 'Warranty upto', kind: 'date', get: (a) => a.warranty_upto ?? '—' },
-  { key: 'processor',     label: 'Processor', get: (a) => a.processor ?? '—' },
-  { key: 'ram',     label: 'RAM', get: (a) => a.ram ?? '—' },
-  { key: 'storage',     label: 'Storage', get: (a) => a.storage ?? '—' },
+  { key: 'purchased', label: 'Purchased on', kind: 'date', get: (a) => a.purchase_date ?? '—' },
+  {
+    key: 'cost',
+    label: 'Purchase cost',
+    kind: 'number',
+    get: (a) => (a.purchase_cost == null ? '—' : String(a.purchase_cost)),
+  },
+  { key: 'name', label: 'Desktop name', get: (a) => a.desktop_name || '—' },
+  { key: 'category', label: 'Category', get: (a) => a.asset_category ?? '—' },
+  { key: 'brand', label: 'Brand', get: (a) => a.brand ?? '—' },
+  { key: 'serial', label: 'Serial no.', get: (a) => a.serial_no ?? '—' },
+  { key: 'model', label: 'Model', get: (a) => a.model_no ?? '—' },
+  { key: 'assigned', label: 'Assigned to', get: (a) => a.assigned_person_name ?? '—' },
+  { key: 'warranty', label: 'Warranty upto', kind: 'date', get: (a) => a.warranty_upto ?? '—' },
+  { key: 'processor', label: 'Processor', get: (a) => a.processor ?? '—' },
+  { key: 'ram', label: 'RAM', get: (a) => a.ram ?? '—' },
+  { key: 'storage', label: 'Storage', get: (a) => a.storage ?? '—' },
 ];
 
 export function AssetsScreen({
@@ -113,7 +125,10 @@ export function AssetsScreen({
   function toggleFilter(key: ColKey, value: string) {
     setFilters((f) => {
       const cur = f[key] ?? [];
-      return { ...f, [key]: cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value] };
+      return {
+        ...f,
+        [key]: cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value],
+      };
     });
   }
 
@@ -152,7 +167,14 @@ export function AssetsScreen({
     <div className="wrap">
       <div className="emp-top">
         <div className="search">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
             <circle cx="11" cy="11" r="7" />
             <path d="M21 21l-4.3-4.3" />
           </svg>
@@ -184,7 +206,10 @@ export function AssetsScreen({
               <div className="note">
                 {s.assigned} assigned · {s.available} free
                 {s.warranty_expiring > 0 && (
-                  <> · <span style={{ color: 'var(--lm)' }}>{s.warranty_expiring} warranty≤30d</span></>
+                  <>
+                    {' '}
+                    · <span style={{ color: 'var(--lm)' }}>{s.warranty_expiring} warranty≤30d</span>
+                  </>
                 )}
               </div>
             </div>
@@ -232,7 +257,10 @@ export function AssetsScreen({
                   </td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     {a.asset_category ? (
-                      <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
+                      <span
+                        className="pill"
+                        style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}
+                      >
                         {a.asset_category}
                       </span>
                     ) : (
@@ -274,7 +302,11 @@ export function AssetsScreen({
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 6, whiteSpace: 'nowrap' }}>
-                      <button className="btn quiet" onClick={() => openEdit(a)} disabled={pending && busyId === a.id}>
+                      <button
+                        className="btn quiet"
+                        onClick={() => openEdit(a)}
+                        disabled={pending && busyId === a.id}
+                      >
                         Edit
                       </button>
                       <button
@@ -300,7 +332,9 @@ export function AssetsScreen({
               {filtered.length === 0 && (
                 <tr>
                   <td className="muted" colSpan={11} style={{ textAlign: 'center' }}>
-                    {q || hasFilters ? 'No assets match the current search / filters.' : 'No assets yet.'}
+                    {q || hasFilters
+                      ? 'No assets match the current search / filters.'
+                      : 'No assets yet.'}
                   </td>
                 </tr>
               )}
@@ -317,7 +351,11 @@ export function AssetsScreen({
           setEditing(null);
         }}
       />
-      <AssignAssetDrawer asset={assigning} employees={employees} onClose={() => setAssigning(null)} />
+      <AssignAssetDrawer
+        asset={assigning}
+        employees={employees}
+        onClose={() => setAssigning(null)}
+      />
       {confirmDialog}
     </div>
   );

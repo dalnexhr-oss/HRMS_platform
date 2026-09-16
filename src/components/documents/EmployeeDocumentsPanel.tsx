@@ -1,11 +1,7 @@
 'use client';
 
-// One employee's complete document picture: what is on file now, what is
-// missing, and every superseded version behind each document.
-//
-// Loads the FULL history on open (getEmployeeDocumentHistory), not the register
-// row, because the register deliberately carries only current versions — the
-// history is the reason this panel exists.
+// Load the employee's full document history when the panel opens. Register rows only include
+// current versions.
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/format';
@@ -18,7 +14,7 @@ import { documentCategoryLabel, requiredDocumentCategories } from '@/lib/constan
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { usePrompt } from '@/components/ui/PromptDialog';
 import { useToast } from '@/components/ui/Toast';
-import { openDocument } from './openDocument';
+import { openDocument } from './open-document';
 import { StatusPill } from './StatusPill';
 import type { EmployeeDocumentRow } from '@/lib/queries';
 
@@ -28,7 +24,10 @@ interface DocumentChain {
   history: EmployeeDocumentRow[];
 }
 
-// Group flat rows into chains by doc_group. The row with no supersession is the current one. A chain can legitimately have none for a moment — replaceEmployeeDocument inserts the new version before stamping the old one — so the newest version stands in rather than the whole document disappearing from the panel.
+// Group flat rows into chains by doc_group. The row with no supersession is the current one. A
+// chain can legitimately have none for a moment — replaceEmployeeDocument inserts the new version
+// before stamping the old one — so the newest version stands in rather than the whole document
+// disappearing from the panel.
 function toChains(rows: EmployeeDocumentRow[]): DocumentChain[] {
   const byGroup = new Map<string, EmployeeDocumentRow[]>();
   for (const r of rows) {
@@ -82,7 +81,9 @@ export function EmployeeDocumentsPanel({
 
   const chains = rows ? toChains(rows) : [];
   const heldVerified = new Set(
-    chains.filter((c) => c.current.status === 'verified' && c.current.category).map((c) => c.current.category!),
+    chains
+      .filter((c) => c.current.status === 'verified' && c.current.category)
+      .map((c) => c.current.category!),
   );
   const missing = requiredDocumentCategories.filter((c) => !heldVerified.has(c));
 
@@ -115,7 +116,11 @@ export function EmployeeDocumentsPanel({
       validate: (v) => (v.trim() ? null : 'Enter what needs fixing.'),
     });
     if (reason === null) return;
-    run(d.id, () => verifyEmployeeDocument(d.id, false, reason.trim()), 'Returned to the employee.');
+    run(
+      d.id,
+      () => verifyEmployeeDocument(d.id, false, reason.trim()),
+      'Returned to the employee.',
+    );
   }
 
   async function onDelete(d: EmployeeDocumentRow) {
@@ -146,15 +151,24 @@ export function EmployeeDocumentsPanel({
 
         <div className="dhd">
           <h3>
-            {employee?.name} <span className="mono muted" style={{ fontSize: 12 }}>{employee?.code}</span>
+            {employee?.name}{' '}
+            <span className="mono muted" style={{ fontSize: 12 }}>
+              {employee?.code}
+            </span>
           </h3>
           <span style={{ flex: 1 }} />
-          <button className="btn quiet" onClick={onClose} aria-label="Close">✕</button>
+          <button className="btn quiet" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
         </div>
 
         <div className="dbd" style={{ display: 'grid', gap: 14, alignContent: 'start' }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <button className="btn primary" disabled={!employee} onClick={() => employee && onUpload(employee.id)}>
+            <button
+              className="btn primary"
+              disabled={!employee}
+              onClick={() => employee && onUpload(employee.id)}
+            >
               + Upload for {employee ? employee.name.split(' ')[0] : 'employee'}
             </button>
             <span style={{ flex: 1 }} />
@@ -166,8 +180,10 @@ export function EmployeeDocumentsPanel({
           {missing.length > 0 && (
             <div className="card" style={{ borderColor: 'var(--lm)' }}>
               <div className="bd">
-                <b style={{ color: 'var(--lm)' }}>Missing {missing.length} required document
-                  {missing.length === 1 ? '' : 's'}</b>
+                <b style={{ color: 'var(--lm)' }}>
+                  Missing {missing.length} required document
+                  {missing.length === 1 ? '' : 's'}
+                </b>
                 <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
                   {missing.map((c) => documentCategoryLabel(c)).join(' · ')}
                 </div>
@@ -180,17 +196,25 @@ export function EmployeeDocumentsPanel({
           )}
 
           {rows === null ? (
-            <p className="muted" style={{ margin: 0 }}>Loading…</p>
+            <p className="muted" style={{ margin: 0 }}>
+              Loading…
+            </p>
           ) : chains.length === 0 ? (
-            <p className="muted" style={{ margin: 0 }}>Nothing on file for this employee yet.</p>
+            <p className="muted" style={{ margin: 0 }}>
+              Nothing on file for this employee yet.
+            </p>
           ) : (
             <div style={{ display: 'grid', gap: 10 }}>
               {chains.map(({ current, history }) => (
                 <div className="card" key={current.docGroup}>
                   <div className="bd" style={{ display: 'grid', gap: 8 }}>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                    <div
+                      style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}
+                    >
                       <b>{documentCategoryLabel(current.category, current.source === 'issued')}</b>
-                      <span className="muted" style={{ fontSize: 12 }}>{current.title ?? '—'}</span>
+                      <span className="muted" style={{ fontSize: 12 }}>
+                        {current.title ?? '—'}
+                      </span>
                       <span style={{ flex: 1 }} />
                       <StatusPill row={current} />
                     </div>
@@ -198,7 +222,8 @@ export function EmployeeDocumentsPanel({
                     <div className="muted" style={{ fontSize: 11 }}>
                       v{current.version} · filed {formatDate(current.uploadedAt.slice(0, 10))}
                       {current.source === 'issued' && ' · issued by HR'}
-                      {current.verifiedAt && ` · verified ${formatDate(current.verifiedAt.slice(0, 10))}`}
+                      {current.verifiedAt &&
+                        ` · verified ${formatDate(current.verifiedAt.slice(0, 10))}`}
                     </div>
 
                     {current.verifyRemark && (
@@ -208,7 +233,10 @@ export function EmployeeDocumentsPanel({
                     )}
 
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      <button className="btn quiet" onClick={() => openDocument(current.id, (m) => toast(m, 'error'))}>
+                      <button
+                        className="btn quiet"
+                        onClick={() => openDocument(current.id, (m) => toast(m, 'error'))}
+                      >
                         📎 Open
                       </button>
                       {current.status !== 'verified' && (
@@ -216,7 +244,11 @@ export function EmployeeDocumentsPanel({
                           className="btn primary"
                           disabled={pending && busy === current.id}
                           onClick={() =>
-                            run(current.id, () => verifyEmployeeDocument(current.id, true), 'Document verified.')
+                            run(
+                              current.id,
+                              () => verifyEmployeeDocument(current.id, true),
+                              'Document verified.',
+                            )
                           }
                         >
                           ✓ Verify
@@ -246,7 +278,9 @@ export function EmployeeDocumentsPanel({
                       {history.length > 0 && (
                         <button
                           className="btn quiet"
-                          onClick={() => setExpanded(expanded === current.docGroup ? null : current.docGroup)}
+                          onClick={() =>
+                            setExpanded(expanded === current.docGroup ? null : current.docGroup)
+                          }
                         >
                           {expanded === current.docGroup ? 'Hide' : 'History'} ({history.length})
                         </button>
@@ -265,13 +299,23 @@ export function EmployeeDocumentsPanel({
                         {history.map((h) => (
                           <div
                             key={h.id}
-                            style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 12 }}
+                            style={{
+                              display: 'flex',
+                              gap: 8,
+                              alignItems: 'center',
+                              flexWrap: 'wrap',
+                              fontSize: 12,
+                            }}
                           >
                             <span className="mono muted">v{h.version}</span>
                             <span>{h.title ?? '—'}</span>
-                            <span className="muted">filed {formatDate(h.uploadedAt.slice(0, 10))}</span>
+                            <span className="muted">
+                              filed {formatDate(h.uploadedAt.slice(0, 10))}
+                            </span>
                             {h.supersededAt && (
-                              <span className="muted">· replaced {formatDate(h.supersededAt.slice(0, 10))}</span>
+                              <span className="muted">
+                                · replaced {formatDate(h.supersededAt.slice(0, 10))}
+                              </span>
                             )}
                             <span style={{ flex: 1 }} />
                             <button

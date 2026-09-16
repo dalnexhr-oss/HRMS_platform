@@ -1,15 +1,5 @@
-//
-// Notification dispatch. SERVER ONLY.
-//
-// Uses the SYSTEM client because a notification is addressed to SOMEONE ELSE:
-// an employee raising leave must notify approvers, and the notifications policy
-// deliberately gives normal users no way to insert one, so nobody can forge a
-// "your leave was approved" for another account.
-//
-// Every function here is BEST-EFFORT and never throws. A failed notification
-// must not roll back the business action that triggered it — approving leave
-// still succeeds if the notification insert fails; it is logged instead.
-//
+// Dispatch notifications with system scope. Normal users cannot insert notifications for others.
+// Log delivery failures without failing the business action.
 import { createServiceClient, isServiceRoleConfigured } from '@/lib/db/server';
 import type { AppRole } from '@/types/database';
 
@@ -31,7 +21,10 @@ export interface NotifyInput {
   kind: NotificationKind;
   title: string;
   body?: string | null;
-  // In-app relative path, e.g. '/approvals'. A fragment is supported and is how employee notifications target a section of the dashboard ('/me#payslips') — NotificationBell scrolls to it itself, because the reader is usually already on that route and a same-URL navigation is a no-op.
+  // In-app relative path, e.g. '/approvals'. A fragment is supported and is how employee
+  // notifications target a section of the dashboard ('/me#payslips') — NotificationBell scrolls to
+  // it itself, because the reader is usually already on that route and a same-URL navigation is a
+  // no-op.
   link?: string | null;
 }
 
@@ -80,10 +73,7 @@ export async function notifyProfiles(profileIds: string[], input: NotifyInput): 
  * Notify the profile linked to an employee record (if any). Used for
  * "your claim was approved" style messages.
  */
-export async function notifyEmployee(
-  employeeId: string | null,
-  input: NotifyInput,
-): Promise<void> {
+export async function notifyEmployee(employeeId: string | null, input: NotifyInput): Promise<void> {
   if (!employeeId) return;
   if (!isServiceRoleConfigured()) {
     warn(input.kind, 'MONGO_URI is not set, so notifications are disabled.');
@@ -96,13 +86,16 @@ export async function notifyEmployee(
       .select<{ id: string }[]>('id')
       .eq('employee_id', employeeId);
     if (error) return warn(input.kind, error.message);
-    await dispatch((data ?? []).map((p: { id: string }) => p.id), input);
+    await dispatch(
+      (data ?? []).map((p: { id: string }) => p.id),
+      input,
+    );
   } catch (e) {
     warn(input.kind, e);
   }
 }
 
-/** Notify everyone who can approve things — mirrors _guard.ts writeRoles. */
+/** Notify everyone who can approve things — mirrors guards.ts writeRoles. */
 export async function notifyApprovers(input: NotifyInput, exceptProfileId?: string): Promise<void> {
   if (!isServiceRoleConfigured()) {
     warn(input.kind, 'MONGO_URI is not set, so notifications are disabled.');

@@ -10,12 +10,8 @@ import type { AppRole } from '@/types/database';
 import { icons } from '@/components/Icons';
 import { Brand } from '@/components/ui/Brand';
 
-// Marks for the screens added since the prototype, whose slugs ICONS does not
-// carry. They are looked up after ICONS so the ported artwork always wins.
-//
-// Nav rows themselves are NOT declared here: NAV owns every row, its group and
-// its order. Injecting 'Import' and 'Users' locally is what let their group
-// names drift out of sync with the shared list.
+// Extra icons for tabs absent from Icons.tsx. Navigation rows, groups, and order come from navItems
+// in constants.ts.
 const extraIcons: Record<string, React.ReactNode> = {
   // Magnifier over a page — reading back who edited attendance.
   audit: (
@@ -123,7 +119,9 @@ function iconFor(slug: string) {
   return icons[slug] ?? extraIcons[slug] ?? fallbackIcon;
 }
 
-// Drop the links this role would only be bounced from — the static gate in constants.ts AND whatever the super admin has switched off on /access. Hiding the link is cosmetic; the (portal) layout is what actually blocks the page.
+// Drop the links this role would only be bounced from — the static gate in constants.ts AND
+// whatever the super admin has switched off on /access. Hiding the link is cosmetic; the (portal)
+// layout is what actually blocks the page.
 function visibleNav(role: AppRole | null | undefined, access: TabAccess): NavItem[] {
   return navItems.filter((n) => canAccessTab(role, n.slug, access));
 }
@@ -181,7 +179,13 @@ export function Sidebar({
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          aria-hidden="true"
+        >
           {open ? (
             <>
               <path d="M6 6l12 12" />
@@ -202,45 +206,45 @@ export function Sidebar({
         aria-hidden="true"
       />
       <aside className={`sidebar${open ? ' open' : ''}`}>
-      <div className="brand">
-        <Brand priority />
-      </div>
-      <nav className="nav" aria-label="Primary">
-        {/* Walk groupOrder, not the items: it fixes header order, and a group
+        <div className="brand">
+          <Brand priority />
+        </div>
+        <nav className="nav" aria-label="Primary">
+          {/* Walk groupOrder, not the items: it fixes header order, and a group
             whose rows are all role-gated away renders nothing at all rather
             than a bare heading. */}
-        {groupOrder.map((group) => {
-          const rows = items.filter((n) => n.group === group);
-          if (rows.length === 0) return null;
+          {groupOrder.map((group) => {
+            const rows = items.filter((n) => n.group === group);
+            if (rows.length === 0) return null;
 
-          return (
-            <div key={group}>
-              <div className="group">{group}</div>
-              {/* prefetch={false}: every nav target is fully dynamic and
+            return (
+              <div key={group}>
+                <div className="group">{group}</div>
+                {/* prefetch={false}: every nav target is fully dynamic and
                   auth-gated, so a prefetched payload is barely reusable — but
                   all ~19 links sit in the viewport at once, so prefetching them
                   fires 19 full layout renders against a free-tier pooler and
                   starves the click the user actually made. staleTimes in
                   next.config.mjs is what keeps revisits feeling instant. */}
-              {rows.map((item) => (
-                <Link
-                  key={item.slug}
-                  href={`/${item.slug}` as Route}
-                  prefetch={false}
-                  aria-current={active === item.slug}
-                >
-                  {iconFor(item.slug)}
-                  <span className="txt">{item.label}</span>
-                </Link>
-              ))}
-            </div>
-          );
-        })}
-      </nav>
+                {rows.map((item) => (
+                  <Link
+                    key={item.slug}
+                    href={`/${item.slug}` as Route}
+                    prefetch={false}
+                    aria-current={active === item.slug}
+                  >
+                    {iconFor(item.slug)}
+                    <span className="txt">{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+            );
+          })}
+        </nav>
         <div className="side-foot">
           <b>{name || 'Signed in'}</b>
           <br />
-          {role ? roleLabel[role] ?? role : 'Dalnex HRMS'}
+          {role ? (roleLabel[role] ?? role) : 'Dalnex HRMS'}
         </div>
       </aside>
     </>

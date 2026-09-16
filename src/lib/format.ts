@@ -1,6 +1,7 @@
-// Formatting helpers ported from the prototype's inline script.
+// Shared display formatting and IST business dates.
 
-// Today's date 'YYYY-MM-DD' in the business timezone (IST) — NOT the host clock. new Date().toISOString() is UTC, which is *yesterday* between 00:00 and 05:30 IST; every business-date default must go through this.
+// Today as YYYY-MM-DD in IST. UTC is still the previous day before 05:30 IST, so business-date
+// defaults must use this helper.
 export function todayIST(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
 }
@@ -40,35 +41,12 @@ export function trimTime(t: string | null): string | null {
   return t.slice(0, 5);
 }
 
-// ---------------------------------------------------------------------------
-// Period-month helpers.
-//
-// A "period month" is the 'YYYY-MM-01' string used everywhere as the key for a
-// monthly period (payroll_runs.period_month, the register's ?m=, cell B2 of the
-// import template).
-//
-// These live in format.ts — not queries.ts — deliberately: queries.ts imports
-// '@/lib/db/server', so a client component cannot touch it. These are
-// pure string/date arithmetic and are safe on both sides.
-// ---------------------------------------------------------------------------
+// Period months use YYYY-MM-01 across payroll, register URLs, and import cell B2. Keep these pure
+// helpers client-safe.
 
 /**
- * 'YYYY-MM-01' -> 'August 2026'.
- *
- * Parsed as UTC and formatted in UTC, both ends pinned deliberately.
- *
- * The floating form this replaces (`new Date(`${d}T00:00:00`)` formatted with no
- * timeZone) was not itself broken: a no-Z date-time parses as LOCAL and is then
- * formatted as local, so the two cancel and the label is correct in every zone.
- * The reason to pin UTC anyway is that the cancellation is a coincidence of the
- * exact string shape — trim it to 'YYYY-MM' or a bare 'YYYY-MM-DD' and the spec
- * switches to UTC parsing while the formatter stays local, at which point a
- * viewer west of UTC silently sees the PREVIOUS month.
- *
- * That matters most here: this labels cell B2 of the import template, which
- * buildWorkbook writes as `new Date('…T00:00:00Z')` and titles via monthTitle()
- * in UTC. Sharing their convention means the label and the cell it describes
- * cannot drift apart.
+ * Format YYYY-MM-01 as a month label using UTC for both parsing and display. This matches the
+ * workbook date and avoids showing the previous month west of UTC.
  */
 export function monthLabelUTC(periodMonth: string): string {
   const d = new Date(`${periodMonth.slice(0, 7)}-01T00:00:00Z`);

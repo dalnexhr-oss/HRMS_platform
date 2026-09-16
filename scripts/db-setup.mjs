@@ -1,16 +1,10 @@
+// Apply collection validators and indexes, and optionally create or reset a super admin.
 //
-// Database setup — collections, validators, indexes, and the first super admin.
+// Usage: npm run db:setup
+// Usage: npm run db:setup -- --admin --email you@company.com
 //
-// npm run db:setup schema only
-// npm run db:setup -- --admin --email you@company.com
-//
-// Idempotent: re-running creates nothing twice and never touches a user unless
-// --admin names one.
-//
-// The schema itself lives in scripts/schema.mjs (generated translation of the
-// SQL DDL + hand-written overrides). This file only applies it, so there is one
-// place to look for "what is the shape" and one for "how is it installed".
-//
+// Schema definitions live in schema.mjs. Setup can be repeated; user accounts are only changed when
+// --admin is supplied.
 import { MongoClient } from 'mongodb';
 import { randomBytes, randomUUID, scrypt } from 'node:crypto';
 import { promisify, parseArgs } from 'node:util';
@@ -21,11 +15,20 @@ const scryptAsync = promisify(scrypt);
 // These MUST match src/lib/auth/password.ts, or the admin created here cannot
 // sign in. Duplicated rather than imported because that module is TypeScript
 // and uses path aliases; the encoding format is the contract between them.
-const N = 65_536, R = 8, P = 1, KEYLEN = 64, MAXMEM = 192 * 1024 * 1024;
+const N = 65_536,
+  R = 8,
+  P = 1,
+  KEYLEN = 64,
+  MAXMEM = 192 * 1024 * 1024;
 
 async function hashPassword(password) {
   const salt = randomBytes(16);
-  const hash = await scryptAsync(password.normalize('NFKC'), salt, KEYLEN, { N, r: R, p: P, maxmem: MAXMEM });
+  const hash = await scryptAsync(password.normalize('NFKC'), salt, KEYLEN, {
+    N,
+    r: R,
+    p: P,
+    maxmem: MAXMEM,
+  });
   return ['scrypt', N, R, P, salt.toString('base64'), hash.toString('base64')].join('$');
 }
 
@@ -68,7 +71,9 @@ const existing = new Set(
   (await db.listCollections({}, { nameOnly: true }).toArray()).map((c) => c.name),
 );
 
-let created = 0, updated = 0, indexed = 0;
+let created = 0,
+  updated = 0,
+  indexed = 0;
 const problems = [];
 
 for (const [name, def] of Object.entries(schema)) {
@@ -99,7 +104,9 @@ for (const [name, def] of Object.entries(schema)) {
   }
 }
 
-console.log(`\ncollections created: ${created}, validators updated: ${updated}, indexes ensured: ${indexed}`);
+console.log(
+  `\ncollections created: ${created}, validators updated: ${updated}, indexes ensured: ${indexed}`,
+);
 if (problems.length) {
   console.log(`\n${problems.length} problem(s):`);
   for (const p of problems) console.log('  ' + p);
@@ -113,7 +120,8 @@ if (values.admin) {
     process.exit(1);
   }
 
-  const password = values.password ?? process.env.SEED_ADMIN_PASSWORD ?? randomBytes(12).toString('base64url');
+  const password =
+    values.password ?? process.env.SEED_ADMIN_PASSWORD ?? randomBytes(12).toString('base64url');
   const generated = !values.password && !process.env.SEED_ADMIN_PASSWORD;
   const now = new Date();
   const users = db.collection('users');
@@ -123,17 +131,36 @@ if (values.admin) {
     // Reset rather than refuse: the usual reason to re-run is a forgotten
     // password on the only admin account. token_version bumps, so any session
     // issued against the old password stops working immediately.
-    await users.updateOne({ _id: found._id }, {
-      $set: { password_hash: await hashPassword(password), role: 'super_admin', disabled: false, updated_at: now },
-      $inc: { token_version: 1 },
-    });
+    await users.updateOne(
+      { _id: found._id },
+      {
+        $set: {
+          password_hash: await hashPassword(password),
+          role: 'super_admin',
+          disabled: false,
+          updated_at: now,
+        },
+        $inc: { token_version: 1 },
+      },
+    );
     console.log(`\nadmin reset:   ${email} (role forced to super_admin, sessions revoked)`);
   } else {
     await users.insertOne({
-      _id: randomUUID(), email, password_hash: await hashPassword(password),
-      full_name: values.name ?? 'Super Admin', role: 'super_admin', branch_id: null, avatar: null,
-      employee_id: null, disabled: false, token_version: 0, tab_access: {},
-      email_verified_at: now, last_sign_in_at: null, created_at: now, updated_at: now,
+      _id: randomUUID(),
+      email,
+      password_hash: await hashPassword(password),
+      full_name: values.name ?? 'Super Admin',
+      role: 'super_admin',
+      branch_id: null,
+      avatar: null,
+      employee_id: null,
+      disabled: false,
+      token_version: 0,
+      tab_access: {},
+      email_verified_at: now,
+      last_sign_in_at: null,
+      created_at: now,
+      updated_at: now,
     });
     console.log(`\nadmin created: ${email}`);
   }

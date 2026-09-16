@@ -1,11 +1,4 @@
-/**
- * Shared write-guard and validation helpers for Server Actions.
- *
- * Enforces standard mutation requirements:
- * 1. Active database connection requirement (fails closed when unconfigured).
- * 2. Role-based authorization gates for administrative actions.
- * 3. Write verification (ensures mutations modified at least one document).
- */
+/** Shared Server Action guards for database availability, staff roles, and successful writes. */
 import { isMongoConfigured } from '@/lib/db/mongo';
 import { getSession } from '@/lib/auth';
 import type { createClient } from '@/lib/db/server';
@@ -19,8 +12,7 @@ type DbClient = Awaited<ReturnType<typeof createClient>>;
 export const writeRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
 export type StaffGate =
-  | { ok: true; profileId: string; employeeId: string | null }
-  | { ok: false; error: string };
+  { ok: true; profileId: string; employeeId: string | null } | { ok: false; error: string };
 
 /** Validates an administrative staff session (super_admin, admin, hr) with an active DB connection. */
 export async function requireStaff(action = 'This action'): Promise<StaffGate> {
@@ -49,9 +41,7 @@ export async function requireStaff(action = 'This action'): Promise<StaffGate> {
 export async function requireRoles(
   roles: readonly AppRole[],
   action = 'This action',
-): Promise<
-  { ok: true; profileId: string; role: AppRole } | { ok: false; error: string }
-> {
+): Promise<{ ok: true; profileId: string; role: AppRole } | { ok: false; error: string }> {
   if (!isMongoConfigured()) {
     return {
       ok: false,
@@ -85,16 +75,8 @@ export function requireDb(action = 'This action'): { ok: true } | { ok: false; e
 }
 
 /**
- * Refuse to write attendance into a month whose payroll is already locked or paid.
- *
- * correctAttendance enforced this; the register IMPORT and the night SWEEP did
- * not, which meant either could quietly rewrite a closed month (an import is
- * per-month and a sweep takes an arbitrary date).
- *
- * Fails CLOSED: if the run status cannot be read, the write is refused. The
- * rule itself is in lib/payroll-month.ts, shared with the scheduler.
- *
- * `workDate` is 'YYYY-MM-DD'; only its month is used.
+ * Reject attendance writes in locked or paid payroll months. If the status lookup fails, refuse the
+ * write. The shared rule lives in payroll-month.ts; workDate uses YYYY-MM-DD.
  */
 export async function requireOpenPayrollMonth(
   dbc: DbClient,

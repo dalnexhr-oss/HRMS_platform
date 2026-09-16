@@ -24,7 +24,6 @@ const leaveKindLabel: Record<string, string> = {
   SL: 'Sick leave',
   LWP: 'Leave without pay',
   LOP: 'Leave of pay',
-  
 };
 
 // '2026-07-16' -> day-of-month number as a string.
@@ -49,15 +48,10 @@ function dateRange(startIso: string, endIso: string): string {
 export function ApprovalsScreen({ requests }: { requests: RequestView[] }) {
   const { toast, toastNode } = useToast();
   // Start with just the pending requests; reviewed cards drop out optimistically.
-  const initialPending = useMemo(
-    () => requests.filter((r) => r.status === 'pending'),
-    [requests],
-  );
+  const initialPending = useMemo(() => requests.filter((r) => r.status === 'pending'), [requests]);
   const [pending, setPending] = useState<RequestView[]>(initialPending);
 
-  // Requests filed while this page is mounted arrive via revalidatePath — the
-  // state used to be captured once on mount, so the queue never grew. Keep the
-  // optimistic removals: only re-sync when the server list actually changes.
+  // Resync when server rows change while retaining optimistic removals between updates.
   useEffect(() => {
     setPending(initialPending);
   }, [initialPending]);
@@ -82,8 +76,8 @@ export function ApprovalsScreen({ requests }: { requests: RequestView[] }) {
         <div className="card">
           <div className="empty" style={{ padding: 26 }}>
             <span className="muted" style={{ font: '500 12px var(--mono)' }}>
-              Nothing else waiting — leave and outdoor-duty requests land here the moment they&rsquo;re
-              raised in the app.
+              Nothing else waiting — leave and outdoor-duty requests land here the moment
+              they&rsquo;re raised in the app.
             </span>
           </div>
         </div>
@@ -175,8 +169,7 @@ function requestSentence(r: RequestView) {
         <b>
           {kind} · {range}
         </b>{' '}
-        ({r.days} {r.days === 1 ? 'day' : 'days'})
-        {reason && <> — {reason}</>}
+        ({r.days} {r.days === 1 ? 'day' : 'days'}){reason && <> — {reason}</>}
         {r.balanceAfter != null && (
           <>
             {' '}

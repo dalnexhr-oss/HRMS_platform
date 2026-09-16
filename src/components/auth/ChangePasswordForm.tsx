@@ -1,14 +1,7 @@
 'use client';
 
-// Change your own password while signed in.
-//
-// The current password is verified server-side against the stored hash before
-// the new one is written — an unattended session must not be enough to lock the
-// real owner out.
-//
-// This used to prove the current password by calling signInWithPassword with
-// it, which REPLACED the live session as a side effect. Verifying the hash
-// directly has no such effect, and never puts the password on the wire twice.
+// Verify the current password server-side before changing it. Checking the stored hash avoids
+// replacing the active session.
 import { useActionState } from 'react';
 import { changePassword, type PasswordState } from '@/lib/actions/password';
 
@@ -63,7 +56,11 @@ export function ChangePasswordForm({ email }: { email?: string | null }) {
         </div>
       </div>
 
-      {state.error && <div className="login-error" role="alert">{state.error}</div>}
+      {state.error && (
+        <div className="login-error" role="alert">
+          {state.error}
+        </div>
+      )}
       {state.done && (
         <div className="hint">
           ✓&nbsp; Your password has been changed, and every other device has been signed out.

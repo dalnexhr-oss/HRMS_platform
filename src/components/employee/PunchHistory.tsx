@@ -1,12 +1,6 @@
 'use client';
 
-// The punch trail under the attendance clock. Grouped by day, newest first,
-// so a multi-session day (in, lunch, back, out) reads as one block rather than
-// four loose rows.
-//
-// The list scrolls inside its own box: the API returns the last 100 punches,
-// which unchecked runs to several screens of history below a card that is
-// mostly read for *today*.
+// Group punches by day, newest first. Keep the last 100 events in a scrollable panel.
 import { useEffect, useState } from 'react';
 import { getPunchHistory, type PunchRecord } from '@/lib/actions/punch';
 import { GeoChip } from './GeoChip';

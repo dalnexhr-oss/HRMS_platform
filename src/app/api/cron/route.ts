@@ -1,17 +1,8 @@
-// Runs the scheduled jobs. Replaces pg_cron's in-database schedule.
+// Run scheduled jobs with system privileges. Requests require the CRON_SECRET bearer token; an
+// unset secret disables the endpoint. Each job uses cron_run_log to prevent duplicate work.
 //
-// AUTHENTICATION: a shared secret in the Authorization header, NOT a session.
-// The caller is a machine — the host's crontab, a platform scheduler — and
-// these jobs run with system privileges, so this endpoint is as powerful as the
-// service-role key used to be. Without CRON_SECRET set it refuses outright
-// rather than defaulting to open.
-//
-// Every job is individually idempotent through cron_run_log, so a double fire,
-// a retry, or an operator curling this twice does the work once.
-//
-// Daily, from the host:
-// 0 2 * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" \
-// https://your-host/api/cron
+// Example cron entry:
+// 0 2 * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://your-host/api/cron
 import { NextResponse } from 'next/server';
 import { jobs, runDailyJobs, type JobName } from '@/lib/db/scheduler';
 

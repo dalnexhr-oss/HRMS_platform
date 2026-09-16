@@ -4,7 +4,6 @@ import { getSession } from '@/lib/auth';
 
 export default async function ReimbursementsPage() {
   const [claims, { profile }] = await Promise.all([getReimbursements(), getSession()]);
-  // Finance sign-off is admin-only; the screen only decides what to OFFER — the
-  // server action re-checks, so this never becomes the security boundary.
+  // Control which actions are shown. Server Actions enforce the finance role gate.
   return <ReimbursementsScreen claims={claims} callerRole={profile?.role ?? null} />;
 }

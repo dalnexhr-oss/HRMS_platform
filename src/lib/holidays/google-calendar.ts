@@ -1,13 +1,5 @@
-//
-// Import public holidays from Google Calendar.
-//
-// Google publishes its regional holiday calendars as PUBLIC .ics feeds, so this
-// needs no OAuth, no API key and no user consent — the server just fetches a URL.
-// That is deliberately simpler (and less privileged) than the Calendar API: we
-// only ever want the published holiday list, never anyone's personal calendar.
-//
-// SERVER ONLY (makes an outbound fetch).
-//
+// Fetch Google's public regional holiday ICS feeds on the server. These feeds do not require
+// Calendar API credentials.
 
 // Google's public holiday calendars, by region.
 export const holidayCalendars = {
@@ -29,16 +21,12 @@ function feedUrl(region: HolidayRegion): string {
   return `https://calendar.google.com/calendar/ical/${encodeURIComponent(id)}/public/basic.ics`;
 }
 
-/**
- * Unfold RFC 5545 line continuations: a CRLF followed by a space or tab is a
- * continuation of the previous line, not a new one. Long SUMMARY/DESCRIPTION
- * values are routinely folded, so parsing without this truncates names.
- */
+/** Join folded ICS lines before parsing so long summaries and descriptions remain intact. */
 function unfold(ics: string): string {
   return ics.replace(/\r\n/g, '\n').replace(/\n[ \t]/g, '');
 }
 
-/** Unescape the RFC 5545 text escapes used in SUMMARY/DESCRIPTION. */
+/** Decode ICS text escapes in summaries and descriptions. */
 function unescapeText(v: string): string {
   return v
     .replace(/\\n/gi, ' ')
@@ -54,12 +42,8 @@ function toISO(yyyymmdd: string): string {
 }
 
 /**
- * Parse an .ics feed into holidays for one year.
- *
- * Only entries Google labels "Public holiday" are returned. The same feed also
- * carries ~37 "Observance" entries a year (Valentine's Day, Vasant Panchami …)
- * which are NOT days off — importing those would wrongly mark them non-working
- * and inflate payable days for everyone.
+ * Return only public holidays for the requested year. Observances are excluded because they are not
+ * days off.
  */
 export function parseHolidayIcs(ics: string, year: number): CalendarHoliday[] {
   const text = unfold(ics);
@@ -102,7 +86,7 @@ export async function fetchPublicHolidays(
   let res: Response;
   try {
     res = await fetch(feedUrl(region), {
-      // The published calendar changes at most a few times a year.
+      // Cache the public holiday feed for one day.
       next: { revalidate: 60 * 60 * 24 },
       headers: { Accept: 'text/calendar' },
     });

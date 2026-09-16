@@ -1,15 +1,11 @@
 'use server';
 
 /**
- * Branch management actions (Settings).
- *
- * Referential integrity invariants:
- * - Deletion guard: A branch cannot be deleted if any employees are currently assigned to it.
- * - Atomic rename synchronization: Renaming a branch propagates the updated `branch_name`
- *   to all assigned employee documents within a transaction.
+ * Branch actions. Block deletion while employees are assigned and propagate renamed branch labels
+ * in a transaction.
  */
 import { revalidatePath } from 'next/cache';
-import { requireRoles } from '@/lib/actions/_guard';
+import { requireRoles } from '@/lib/actions/guards';
 import { collections, type BranchDoc, type EmployeeDoc } from '@/lib/db/collections';
 import { scoped } from '@/lib/db/repo';
 import { withTransaction } from '@/lib/db/mongo';
@@ -38,17 +34,8 @@ function revalidateBranchSurfaces(): void {
 const defaultGeofenceRadiusM = 150;
 
 /**
- * Set (or clear) one branch's OFFICE LOCATION.
- *
- * Separate from updateBranch, which renames a branch and has to keep the
- * denormalised copies of that name in step across four collections. Nothing is
- * denormalised here: a coordinate is read only by the punch classifier, so this
- * is a single-document write and needs no transaction.
- *
- * Latitude and longitude move TOGETHER. A branch with one and not the other
- * cannot be measured against, so a half-filled pair is refused rather than
- * stored — and clearing both is how a branch goes back to the company-wide
- * office_lat / office_lng settings.
+ * Update a branch's office location in one document. Require both coordinates or neither; clearing
+ * them restores the company-wide fallback.
  */
 export async function updateBranchLocation(id: string, formData: FormData): Promise<ActionResult> {
   const gate = await requireRoles(branchAdminRoles, 'Setting a branch office location');
@@ -108,7 +95,8 @@ export async function updateBranchLocation(id: string, formData: FormData): Prom
     if (matched === 0) {
       return {
         ok: false,
-        error: 'The office location was not saved — the branch may be gone, or your role lacks permission.',
+        error:
+          'The office location was not saved — the branch may be gone, or your role lacks permission.',
       };
     }
 
@@ -119,7 +107,10 @@ export async function updateBranchLocation(id: string, formData: FormData): Prom
     revalidatePath('/me');
     return { ok: true };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : 'Could not save the office location.' };
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : 'Could not save the office location.',
+    };
   }
 }
 
@@ -141,14 +132,9 @@ export async function updateBranch(id: string, formData: FormData): Promise<Acti
   }
 
   try {
-    // The rename and the denormalised copies must land together, or the roster
-    // shows a name the branch no longer has. On a standalone mongod this still
-    // runs, just not atomically — withTransaction says so once, loudly.
-    //
-    // Every handle is opened INSIDE the callback and bound to the session. They
-    // used to be opened outside and the session ignored, so all four writes ran
-    // on the normal pool: the transaction wrapped nothing and a failure midway
-    // left the copies permanently disagreeing with the branch.
+    // Open all collection handles inside the transaction callback and bind them to its session so
+    // branch and cached names change together. Standalone MongoDB runs the writes without
+    // atomicity.
     const matched = await withTransaction(async (session) => {
       const branches = await scoped<BranchDoc>(collections.branches, session);
       const employees = await scoped<EmployeeDoc>(collections.employees, session);
@@ -182,14 +168,7 @@ export async function updateBranch(id: string, formData: FormData): Promise<Acti
   }
 }
 
-/**
- * Delete a branch.
- *
- * Safe only because of the headcount check below: it is what used to be
- * `on delete restrict` on employees.branch_id. A branch that still has
- * employees cannot be removed, only one that is empty or was created by
- * mistake.
- */
+/** Delete a branch only when no employees reference it. */
 export async function deleteBranch(id: string): Promise<ActionResult> {
   const gate = await requireRoles(branchAdminRoles, 'Deleting a branch');
   if (!gate.ok) return gate;
@@ -204,7 +183,8 @@ export async function deleteBranch(id: string): Promise<ActionResult> {
     if (headcount > 0) {
       return {
         ok: false,
-        error: 'This branch still has employees. Move them to another branch first, then delete it.',
+        error:
+          'This branch still has employees. Move them to another branch first, then delete it.',
       };
     }
 
@@ -213,7 +193,8 @@ export async function deleteBranch(id: string): Promise<ActionResult> {
     if (deleted === 0) {
       return {
         ok: false,
-        error: 'The branch was not deleted — it may already be gone, or your role lacks permission.',
+        error:
+          'The branch was not deleted — it may already be gone, or your role lacks permission.',
       };
     }
 

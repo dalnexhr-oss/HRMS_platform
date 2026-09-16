@@ -4,9 +4,7 @@ import { Brand } from '@/components/ui/Brand';
 
 export const metadata: Metadata = { title: 'Set a new password — Dalnex HRMS' };
 
-// The token arrives in the reset link's query string. It is read here and
-// handed to the form as a hidden field rather than being touched by client
-// JavaScript, so it never lands in a client-side router cache.
+// Pass the reset token from the query string to the form as a hidden field.
 export default async function UpdatePasswordPage({
   searchParams,
 }: {

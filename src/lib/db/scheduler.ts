@@ -1,11 +1,6 @@
 /**
- * Scheduled background tasks and cron job handlers. SERVER ONLY.
- *
- * Idempotency & Distributed Locking:
- * - Uses `cron_run_log` collection with unique `(job, run_key)` constraint as a distributed lock.
- * - If a job has already executed for a period/key, subsequent concurrent or duplicate runs are skipped.
- * - If an unexpected error occurs during execution, the claim is explicitly released (`cronRelease`)
- *   to allow retries.
+ * Scheduled jobs claim a unique (job, run_key) entry in cron_run_log to skip duplicate runs.
+ * Release the claim on unexpected failure so the job can retry.
  */
 import 'server-only';
 import { randomUUID } from 'node:crypto';
@@ -21,7 +16,7 @@ import {
 } from '@/lib/attendance-rules';
 import { monthSealReason, periodMonthFor, type PayrollRunSeal } from '@/lib/payroll-month';
 // Every job's notion of "now" — the company runs on IST — and the app's one
-// definition of it. See the note on the same import in pgcompat.ts.
+// definition of it. See the note on the same import in postgrest-compat.ts.
 import { todayIST } from '@/lib/format';
 import { noticeRetentionDays } from '@/lib/constants';
 
@@ -101,30 +96,14 @@ export interface JobResult {
   detail?: string;
 }
 
-// ---------------------------------------------------------------------------
 // purge-old-notices
-// ---------------------------------------------------------------------------
 
 /**
- * Hard-delete expired notices. THE one implementation of the retention rule.
- *
- * `coalesce(published_at, created_at) < now() - 30 days`, as fn_purge_old_notices()
- * expressed it — so a published notice ages from its publication and a draft
- * from its creation. Two typed deletes rather than one `.or()`: both columns
- * hold BSON dates, and MongoDB orders values within a type, so a single
- * expression mixing a null test with a date bound is easy to get silently
- * wrong.
- *
- * System-scoped on purpose: retention is a housekeeping rule, not something
- * that should depend on who happened to trigger it.
- *
- * Callers: the nightly job below, and queries.purgeExpiredNotices() for the
- * opportunistic sweep on publish. It used to be written out separately in each
- * of those, with a different window in each — see noticeRetentionDays.
+ * Delete notices older than the shared retention cutoff, using published_at or created_at for
+ * drafts. Use separate BSON-date filters for the two cases. Cleanup uses system scope whether
+ * triggered by cron or publishing.
  */
-export async function deleteExpiredNotices(
-  retentionDays = noticeRetentionDays,
-): Promise<number> {
+export async function deleteExpiredNotices(retentionDays = noticeRetentionDays): Promise<number> {
   const cutoff = new Date(`${addDays(todayIST(), -retentionDays)}T00:00:00Z`);
   const notices = scopedFor<BaseDoc>(collections.notices, systemScope);
   const published = await notices.deleteMany({
@@ -138,9 +117,7 @@ export async function deleteExpiredNotices(
 }
 
 /** Delete notices that have outlived the retention window. */
-export async function purgeOldNotices(
-  retentionDays = noticeRetentionDays,
-): Promise<JobResult> {
+export async function purgeOldNotices(retentionDays = noticeRetentionDays): Promise<JobResult> {
   return claimed(
     'purge-old-notices',
     { job: 'purge_old_notices', runKey: todayIST() },
@@ -149,9 +126,7 @@ export async function purgeOldNotices(
   );
 }
 
-// ---------------------------------------------------------------------------
 // comp-off-expiry
-// ---------------------------------------------------------------------------
 
 /** Expire comp-offs whose expiry date has passed and that were never used. */
 export async function expireCompOffs(): Promise<JobResult> {
@@ -178,9 +153,7 @@ export async function expireCompOffs(): Promise<JobResult> {
   );
 }
 
-// ---------------------------------------------------------------------------
 // asset-warranty-reminders
-// ---------------------------------------------------------------------------
 
 /**
  * Notify staff about assets whose warranty expires within 30 days.
@@ -227,9 +200,7 @@ export async function warrantyReminders(): Promise<JobResult> {
   return { job: 'asset-warranty-reminders', ran: true, affected: notified };
 }
 
-// ---------------------------------------------------------------------------
 // attendance-auto-punch-out
-// ---------------------------------------------------------------------------
 
 /**
  * Close yesterday's open days: someone punched in and never punched out.
@@ -301,9 +272,7 @@ export async function autoPunchOut(targetDate?: string): Promise<JobResult> {
   );
 }
 
-// ---------------------------------------------------------------------------
 // attendance-auto-close-month
-// ---------------------------------------------------------------------------
 
 /** Stamp the previous month's payroll run as closed, once the month is over. */
 export async function autoCloseMonth(): Promise<JobResult> {
@@ -329,9 +298,7 @@ export async function autoCloseMonth(): Promise<JobResult> {
   );
 }
 
-// ---------------------------------------------------------------------------
 // leave-annual-provision
-// ---------------------------------------------------------------------------
 
 /** Open the current leave year. Idempotent through the ledger and by row. */
 export async function leaveAnnualProvision(year?: number): Promise<JobResult> {
@@ -340,16 +307,13 @@ export async function leaveAnnualProvision(year?: number): Promise<JobResult> {
     'leave-annual-provision',
     { job: 'leave_provision', runKey: String(target) },
     `already provisioned ${target}`,
-    // SCHEDULED is what marks this as the job runner rather than a request.
-    // It used to be inferred from "there is no session", which every
-    // authentication failure also satisfies — see functions.ts:Invocation.
+    // Pass the explicit scheduled-job context; a missing session must never imply system
+    // privileges.
     async () => ({ affected: await provisionLeaveBalances({ p_year: target }, scheduled) }),
   );
 }
 
-// ---------------------------------------------------------------------------
 // lifecycle-reminders
-// ---------------------------------------------------------------------------
 
 /** Nudge staff about exits whose last working day is within a week. */
 export async function lifecycleReminders(): Promise<JobResult> {
@@ -386,9 +350,7 @@ export async function lifecycleReminders(): Promise<JobResult> {
   return { job: 'lifecycle-reminders', ran: true, affected: notified };
 }
 
-// ---------------------------------------------------------------------------
 // shared helpers
-// ---------------------------------------------------------------------------
 
 async function staffUserIds(): Promise<string[]> {
   const users = scopedFor<BaseDoc>(collections.users, systemScope);
@@ -435,9 +397,7 @@ async function logActivity(eventType: string, message: string): Promise<void> {
   });
 }
 
-// ---------------------------------------------------------------------------
 // the schedule
-// ---------------------------------------------------------------------------
 
 export const jobs = {
   'purge-old-notices': purgeOldNotices,

@@ -1,29 +1,14 @@
+// Parse the monthly attendance register from a workbook buffer.
 //
-// Pure parser for the company's monthly attendance register (.xlsx).
+// B1 contains the year and B2 the month. Row 3 has weekdays; row 4 has day numbers and summary
+// columns; row 5 has target hours and payroll headers. Locate day and summary columns by content
+// because month lengths vary.
 //
-// No database, no React, no I/O beyond the buffer handed in — so it can be
-// unit-tested and run anywhere.
+// Employee blocks start at row 6 and use four rows: status and counts, punch-in, punch-out, then
+// worked hours. Column A carries the employee ID.
 //
-// LAYOUT (verified against "reference for desktop app (1).xlsx", Sheet1):
-// B1 year (2026)
-// B2 the month, as a real date (2026-06-01)
-// row 3 C..AF weekday names; AQ.. a legend ('P ' = Present with CO)
-// row 4 C..AF day-of-month 1..30/31; then the summary headers
-// (P,T,LM,S,OH,L,CO,HD,WO) at AG..AO; AP 'Working Days'
-// — both bands are located by content, not hardcoded, because
-// C..AF is exactly 30 wide and cannot be right for every month.
-// row 5 A 'Empl. ID'; C..AF per-day target hours; AP..BP payroll headers
-// rows 6+ employee blocks, STRIDE 4:
-// k+0 A = Empl. ID, C..AF = status code, AG..AO = counts,
-// AP = working days, AQ = 'to pay for' days
-// k+1 B = 'In' C..AF punch-in
-// k+2 B = 'Out' C..AF punch-out
-// k+3 B = 'Total Hrs Completed' C..AF worked; AS month total
-//
-// TIME VALUES: exceljs hands back real Date objects (epoch 1899-12-30), *not*
-// the raw Excel fractions the spec describes. Both are handled — see
-// excelValueToMinutes. A zero/blank time means "no punch" -> null.
-//
+// ExcelJS may return times as Date objects or Excel fractions. excelValueToMinutes handles both;
+// zero or blank means no punch.
 import ExcelJS from 'exceljs';
 
 export interface ParsedDay {
@@ -55,13 +40,16 @@ export interface ParsedRegister {
   warnings: string[];
 }
 
-// Status codes the attendance_days validator accepts. A code outside this set is surfaced as an error rather than quietly dropped.
+// Status codes the attendance_days validator accepts. A code outside this set is surfaced as an
+// error rather than quietly dropped.
 export const knownStatuses = ['P', 'LM', 'HD', 'L', 'WO', 'OH', 'AB', 'S', 'T', 'CO'] as const;
 export type KnownStatus = (typeof knownStatuses)[number];
 
 const knownSet = new Set<string>(knownStatuses);
 
-// Spellings seen in the sheet + its legend that aren't literal enum members. 'P ' (trailing space) is the legend's "Present with CO"; it still books as a present day, and TRIM collapses it into 'P' before we ever get here.
+// Spellings seen in the sheet + its legend that aren't literal enum members. 'P ' (trailing space)
+// is the legend's "Present with CO"; it still books as a present day, and TRIM collapses it into
+// 'P' before we ever get here.
 const statusAliases: Record<string, string> = {
   PRESENT: 'P',
   'P ADJUSTED': 'P',
@@ -70,9 +58,9 @@ const statusAliases: Record<string, string> = {
   A: 'AB',
   ABSENT: 'AB',
   'WEEK OFF': 'WO',
-  'WEEKOFF': 'WO',
+  WEEKOFF: 'WO',
   'HALF DAY': 'HD',
-  'HALFDAY': 'HD',
+  HALFDAY: 'HD',
   'LATE MARK': 'LM',
   'OFFICIAL HOLIDAY': 'OH',
   HOLIDAY: 'OH',
@@ -84,7 +72,7 @@ const statusAliases: Record<string, string> = {
   TRAVELLING: 'T',
 };
 
-// --------------------------------------------------------------- geometry
+// geometry
 const rowYear = 1;
 const rowMonth = 2;
 const rowDayNumbers = 4;
@@ -96,7 +84,8 @@ const colLabel = 2; // B
 const colFirstDay = 3; // C
 const maxDayColumns = 31;
 
-// The summary band (counts, then Working Days, then 'to pay for') is FOUND by its header rather than assumed to be at a fixed letter. In the June 2026 sample the days occupy C..AF (exactly 30 columns) and the band starts at AG(33) — matching the layout note. But C..AF holds only 30 days, so a 31-day month must put day 31 somewhere, and a 28-day month leaves a gap. Whether such sheets shift the band or pin it at AG is unknowable from a June-only sample. Both hardcoding AG and hugging the last day column get one of those cases wrong, so instead we scan right from the end of the day columns for the 'P' header. That resolves to AG..AO / AP / AQ on the real sheet and stays correct either way.
+// Find the summary band by its P header after the day columns. Month lengths vary, so neither a
+// fixed AG column nor the position immediately after the final day is reliable.
 const summaryCountColumns = 9; // P,T,LM,S,OH,L,CO,HD,WO
 const offsetWorkingDays = summaryCountColumns; // AP, relative to band start
 const offsetPayableDays = summaryCountColumns + 1; // AQ
@@ -110,11 +99,12 @@ const excelEpoch1904 = Date.UTC(1904, 0, 1);
 const msPerMin = 60_000;
 const minutesPerDay = 1440;
 
-// ------------------------------------------------------------- primitives
+// primitives
 
 type CellLike = ExcelJS.CellValue;
 
-// Unwrap the shapes exceljs hands back: formula results, rich text, hyperlinks and shared-string objects all arrive as objects rather than scalars.
+// Unwrap the shapes exceljs hands back: formula results, rich text, hyperlinks and shared-string
+// objects all arrive as objects rather than scalars.
 function unwrap(v: CellLike): unknown {
   if (v === null || v === undefined) return null;
   if (v instanceof Date) return v;
@@ -149,7 +139,10 @@ function asNumber(v: CellLike): number | null {
   return null;
 }
 
-// Convert a duration/time cell to whole minutes. exceljs normally resolves these to Date objects anchored at the workbook's epoch, but a raw fraction (0.385416.. = 09:15) shows up when a cell has no date format. Both are supported. Values may legitimately exceed 24h (the month's total-hours cell), so this returns elapsed minutes since the epoch rather than a clock reading.
+// Convert a duration/time cell to whole minutes. exceljs normally resolves these to Date objects
+// anchored at the workbook's epoch, but a raw fraction (0.385416.. = 09:15) shows up when a cell
+// has no date format. Both are supported. Values may legitimately exceed 24h (the month's
+// total-hours cell), so this returns elapsed minutes since the epoch rather than a clock reading.
 export function excelValueToMinutes(v: CellLike, date1904 = false): number | null {
   const u = unwrap(v);
   if (u === null || u === undefined || u === '') return null;
@@ -214,7 +207,7 @@ function daysInMonthOf(year: number, month1: number): number {
   return new Date(Date.UTC(year, month1, 0)).getUTCDate();
 }
 
-// ------------------------------------------------------------ month header ---
+// month header
 
 /** Resolve B2 (and B1) into a year + 1-indexed month. Fatal if undecidable. */
 function readPeriod(
@@ -303,14 +296,19 @@ function readCountHeaders(ws: ExcelJS.Worksheet, bandStart: number): string[] {
   return headers.every((h) => !h) ? [...fallbackCountOrder] : headers;
 }
 
-function findLabelledRow(ws: ExcelJS.Worksheet, from: number, to: number, re: RegExp): number | null {
+function findLabelledRow(
+  ws: ExcelJS.Worksheet,
+  from: number,
+  to: number,
+  re: RegExp,
+): number | null {
   for (let r = from; r <= to; r++) {
     if (re.test(asText(ws.getCell(r, colLabel).value).toUpperCase())) return r;
   }
   return null;
 }
 
-// ----------------------------------------------------------------- parser ---
+// parser
 
 export async function parseRegisterWorkbook(buf: ArrayBuffer | Buffer): Promise<ParsedRegister> {
   const workbook = new ExcelJS.Workbook();
@@ -330,7 +328,8 @@ export async function parseRegisterWorkbook(buf: ArrayBuffer | Buffer): Promise<
 
   const warnings: string[] = [];
   const date1904 = Boolean((workbook.properties as { date1904?: boolean } | undefined)?.date1904);
-  if (date1904) warnings.push('Workbook uses the 1904 date system; times were converted accordingly.');
+  if (date1904)
+    warnings.push('Workbook uses the 1904 date system; times were converted accordingly.');
 
   const { year, month1 } = readPeriod(ws, date1904, warnings);
   const periodMonth = `${year}-${pad2(month1)}-01`;
@@ -382,11 +381,15 @@ export async function parseRegisterWorkbook(buf: ArrayBuffer | Buffer): Promise<
     if (idRaw === null && !hasAnyStatus) continue;
 
     if (idRaw === null) {
-      warnings.push(`Row ${r}: attendance found but the Empl. ID cell (A${r}) is blank — block skipped.`);
+      warnings.push(
+        `Row ${r}: attendance found but the Empl. ID cell (A${r}) is blank — block skipped.`,
+      );
       continue;
     }
     if (!Number.isInteger(idRaw) || idRaw <= 0) {
-      warnings.push(`Row ${r}: Empl. ID "${idRaw}" is not a positive whole number — block skipped.`);
+      warnings.push(
+        `Row ${r}: Empl. ID "${idRaw}" is not a positive whole number — block skipped.`,
+      );
       continue;
     }
     const emplId = idRaw;
@@ -408,12 +411,12 @@ export async function parseRegisterWorkbook(buf: ArrayBuffer | Buffer): Promise<
     const outRow = findLabelledRow(ws, r + 1, r + blockStride - 1, /^OUT\b/);
     const totalRow = findLabelledRow(ws, r + 1, r + blockStride - 1, /^TOTAL/);
     if (inRow === null && outRow === null) {
-      warnings.push(`Empl. ID ${emplId} (row ${r}): no In/Out rows found — punch times imported as blank.`);
+      warnings.push(
+        `Empl. ID ${emplId} (row ${r}): no In/Out rows found — punch times imported as blank.`,
+      );
     }
-    // A missing Total-Hrs row used to silently zero worked_minutes for every day,
-    // which inflates the payroll shortfall/deduction with no warning. When the
-    // Total row is absent but punches exist, worked minutes are derived from
-    // out−in below; flag it so the numbers are trusted deliberately, not blindly.
+    // If the total-hours row is absent, derive worked minutes from punches and flag the fallback
+    // for review.
     if (totalRow === null && (inRow !== null || outRow !== null)) {
       warnings.push(
         `Empl. ID ${emplId} (row ${r}): no "Total Hrs" row found — worked minutes were derived from the In/Out punch times.`,
@@ -440,8 +443,10 @@ export async function parseRegisterWorkbook(buf: ArrayBuffer | Buffer): Promise<
 
       // One bad cell must never sink the block — each read is independently safe.
       const inMin = inRow === null ? null : toPunchMinutes(ws.getCell(inRow, col).value, date1904);
-      const outMin = outRow === null ? null : toPunchMinutes(ws.getCell(outRow, col).value, date1904);
-      const workedRaw = totalRow === null ? null : excelValueToMinutes(ws.getCell(totalRow, col).value, date1904);
+      const outMin =
+        outRow === null ? null : toPunchMinutes(ws.getCell(outRow, col).value, date1904);
+      const workedRaw =
+        totalRow === null ? null : excelValueToMinutes(ws.getCell(totalRow, col).value, date1904);
 
       let workedMin = workedRaw !== null && workedRaw > 0 ? workedRaw : 0;
       // Fallback: no Total-Hrs cell but both punches present — derive out−in so

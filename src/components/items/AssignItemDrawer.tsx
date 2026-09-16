@@ -1,11 +1,15 @@
 'use client';
 
-// Assign an item to an employee, and view/return its existing assignments.
-// Opens when `item` is non-null. The assignment log loads on open and after any
-// change; Remaining is recomputed from the active (not-returned) assignments.
+// Load assignments when an item opens and after each change. Remaining stock excludes active
+// assignments.
 import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { assignItem, returnAssignment, deleteAssignment, fetchItemAssignments } from '@/lib/actions/items';
+import {
+  assignItem,
+  returnAssignment,
+  deleteAssignment,
+  fetchItemAssignments,
+} from '@/lib/actions/items';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import { todayIST } from '@/lib/format';
@@ -133,7 +137,8 @@ export function AssignItemDrawer({
             </div>
             <div className="dbd">
               <div className="hint">
-                Total {item.total_quantity} · Assigned {activeAssigned} · <b>Remaining {remaining}</b>
+                Total {item.total_quantity} · Assigned {activeAssigned} ·{' '}
+                <b>Remaining {remaining}</b>
                 {item.unit ? ` ${item.unit}` : ''}
               </div>
 
@@ -155,7 +160,14 @@ export function AssignItemDrawer({
                 <div className="f-row">
                   <div className="f">
                     <label>Quantity</label>
-                    <input name="quantity" type="number" min={1} max={remaining} defaultValue={1} className="mono" />
+                    <input
+                      name="quantity"
+                      type="number"
+                      min={1}
+                      max={remaining}
+                      defaultValue={1}
+                      className="mono"
+                    />
                   </div>
                   <div className="f">
                     <label>Assigned date</label>
@@ -178,7 +190,11 @@ export function AssignItemDrawer({
                 </div>
                 {state.error && <div className="login-error">{state.error}</div>}
                 <div style={{ margin: '4px 0 8px' }}>
-                  <button type="submit" className="btn primary" disabled={submitting || remaining <= 0}>
+                  <button
+                    type="submit"
+                    className="btn primary"
+                    disabled={submitting || remaining <= 0}
+                  >
                     {submitting ? 'Assigning…' : 'Assign'}
                   </button>
                 </div>

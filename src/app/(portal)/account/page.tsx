@@ -2,8 +2,7 @@ import { getSession } from '@/lib/auth';
 import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm';
 import { AvatarMenu } from '@/components/shell/AvatarMenu';
 
-// Personal account settings for staff. (/settings holds the company-wide rules;
-// this is the signed-in user's own account.) Employees get the same card on /me.
+// Personal staff settings; company settings live at /settings.
 export default async function AccountPage() {
   const { profile, email } = await getSession();
 

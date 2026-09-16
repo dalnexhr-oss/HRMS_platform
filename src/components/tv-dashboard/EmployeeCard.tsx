@@ -1,10 +1,6 @@
-// One employee tile on the TV attendance board.
-//
-// Sized and coloured to be read across a room: presence is carried by the tile
-// tint, a coloured dot AND the word itself, so it survives both a washed-out
-// projector and colour-vision deficiency.
-import type { EmployeeData } from '@/lib/types/employee';
-import { presenceLabel } from '@/lib/types/employee';
+// Use text, a dot, and the tile tint to show attendance state on distant displays.
+import type { EmployeeData } from '@/types/tv';
+import { presenceLabel } from '@/types/tv';
 import { statusMeta } from '@/lib/constants';
 
 const timeFmt: Intl.DateTimeFormatOptions = {
@@ -14,7 +10,7 @@ const timeFmt: Intl.DateTimeFormatOptions = {
   timeZone: 'Asia/Kolkata',
 };
 
-// The initials of a name, for the big mono letters in the top-left corner of the card.
+// Initials displayed on the employee tile.
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '—';
@@ -52,14 +48,16 @@ export function EmployeeCard({ employee }: { employee: EmployeeData }) {
         {at ? (
           <>
             {employee.lastKind === 'in' ? 'In' : 'Out'} {at}
-            {employee.withinGeofence === false ? (
-              <span className="tv-flag">off-site</span>
-            ) : null}
+            {employee.withinGeofence === false ? <span className="tv-flag">off-site</span> : null}
           </>
         ) : employee.presence === 'off' || employee.presence === 'leave' ? (
           // The human name for the day's status ('Leave', 'Week off'…), not the
           // raw 'L' / 'WO' code the register uses.
-          employee.dayStatus ? statusMeta(employee.dayStatus)[2] : 'Away'
+          employee.dayStatus ? (
+            statusMeta(employee.dayStatus)[2]
+          ) : (
+            'Away'
+          )
         ) : (
           'No punch yet'
         )}

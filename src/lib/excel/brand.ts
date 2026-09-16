@@ -1,22 +1,8 @@
+// Shared Excel letterhead. writeBrandHeader reserves rows 1–3 and returns the data-header row.
+// writeBrandOverlay adds a floating logo without changing register geometry.
 //
-// The Dalnex letterhead for .xlsx exports. SERVER ONLY (exceljs).
-//
-// Two modes:
-// writeBrandHeader — rows 1–3 become a letterhead (logo, title, subtitle)
-// and the data header moves to headerRow. For report
-// sheets whose layout is ours to choose.
-// writeBrandOverlay — a floating logo only; no cell is written and no row is
-// inserted. For sheets whose geometry is parsed back
-// (the register layout parseRegister.ts reads).
-//
-// Call-order gotcha for banded sheets: exceljs's ws.columns setter writes any
-// `header` values straight into row 1, over the band. Builders therefore set
-// columns with key+width only and write the header row themselves:
-//
-// ws.columns = COLUMNS.map(({ key, width }) => ({ key, width }));
-// const headerRow = writeBrandHeader(wb, ws, { title });
-// ws.getRow(headerRow).values = COLUMNS.map((c) => c.header);
-//
+// Set ws.columns with keys and widths only: its header property writes to row 1 and would overwrite
+// the letterhead. Write column labels to the row returned by writeBrandHeader.
 import type ExcelJS from 'exceljs';
 import { logoAspect, logoPngBase64 } from '@/lib/brand/logo';
 import { company } from '@/lib/brand/company';
@@ -37,7 +23,8 @@ function logoId(wb: ExcelJS.Workbook): number {
   return id;
 }
 
-// Float the logo over the sheet at a cell anchor (0-indexed col/row), sized by height in px with the artwork's own aspect. Cells underneath stay untouched.
+// Float the logo over the sheet at a cell anchor (0-indexed col/row), sized by height in px with
+// the artwork's own aspect. Cells underneath stay untouched.
 export function writeBrandOverlay(
   wb: ExcelJS.Workbook,
   ws: ExcelJS.Worksheet,
@@ -50,7 +37,8 @@ export function writeBrandOverlay(
   });
 }
 
-// Write the rows 1–3 letterhead: logo, report title, subtitle (defaulting to "Dalnex LLP · Generated YYYY-MM-DD"). Returns headerRow, where the caller puts its data header.
+// Write the rows 1–3 letterhead: logo, report title, subtitle (defaulting to "Dalnex LLP ·
+// Generated YYYY-MM-DD"). Returns headerRow, where the caller puts its data header.
 export function writeBrandHeader(
   wb: ExcelJS.Workbook,
   ws: ExcelJS.Worksheet,

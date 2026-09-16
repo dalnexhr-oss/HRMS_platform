@@ -3,7 +3,7 @@
 import { useActionState, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createRequest, cancelRequest } from '@/lib/actions/requests';
-import { applyCompOff } from '@/lib/actions/compoff';
+import { applyCompOff } from '@/lib/actions/comp-off';
 import { todayIST } from '@/lib/format';
 import type { LeaveBalanceRow, RequestView } from '@/lib/queries';
 import type { RequestType } from '@/types/database';
@@ -30,7 +30,10 @@ const leaveKindLabel: Record<LeaveBalanceRow['type'], string> = {
   LWP: 'Leave without pay',
 };
 
-// What a NEW leave request may be filed as. 'CO' is deliberately not a LeaveType: comp off is absent from the leave_type enum, so createRequest rejects it as a leave_kind. Picking it here files a comp-off application against an earned credit via applyCompOff instead — the only way a comp off can be taken, because the credit has to be claimed so it cannot be spent twice.
+// What a NEW leave request may be filed as. 'CO' is deliberately not a LeaveType: comp off is
+// absent from the leave_type enum, so createRequest rejects it as a leave_kind. Picking it here
+// files a comp-off application against an earned credit via applyCompOff instead — the only way a
+// comp off can be taken, because the credit has to be claimed so it cannot be spent twice.
 const leaveKindOptions = [
   { value: 'CO', label: 'Comp off' },
   { value: 'LWP', label: 'Leave without pay' },
@@ -149,7 +152,8 @@ export function ApplyLeave({
         <div className="hd">
           <h3>Request history &amp; status</h3>
           <span className="folio">
-            {requests.filter((r) => r.status === 'pending').length} pending · {requests.length} total
+            {requests.filter((r) => r.status === 'pending').length} pending · {requests.length}{' '}
+            total
           </span>
         </div>
         <div className="bd">
@@ -213,7 +217,10 @@ function RequestItem({ request }: { request: RequestView }) {
       </p>
       {request.reason && <p className="body">{request.reason}</p>}
       {request.reviewRemark && (request.status === 'approved' || request.status === 'rejected') && (
-        <p className="body" style={{ color: request.status === 'rejected' ? 'var(--hd)' : 'var(--p)' }}>
+        <p
+          className="body"
+          style={{ color: request.status === 'rejected' ? 'var(--hd)' : 'var(--p)' }}
+        >
           <b>{request.status === 'approved' ? 'Approved' : 'Rejected'} with note:</b>{' '}
           {request.reviewRemark}
         </p>
@@ -248,8 +255,7 @@ function NewRequestForm({ compOffBalance }: { compOffBalance: number }) {
       // A comp off is an application against an earned credit, not a leave kind,
       // so it goes to applyCompOff. The intent is read off the FormData rather
       // than component state so a submit can never race a re-render.
-      const takingCompOff =
-        formData.get('type') === 'leave' && formData.get('leave_kind') === 'CO';
+      const takingCompOff = formData.get('type') === 'leave' && formData.get('leave_kind') === 'CO';
       const res = takingCompOff ? await applyCompOff(formData) : await createRequest(formData);
       // The actions revalidate /me, but refresh keeps the list in step even
       // when this form is rendered inside an unchanged cached segment.
@@ -273,11 +279,7 @@ function NewRequestForm({ compOffBalance }: { compOffBalance: number }) {
     <form action={action}>
       <div className="f">
         <label>Request type</label>
-        <select
-          name="type"
-          value={type}
-          onChange={(e) => setType(e.target.value as RequestType)}
-        >
+        <select name="type" value={type} onChange={(e) => setType(e.target.value as RequestType)}>
           {typeOptions.map((t) => (
             <option key={t} value={t}>
               {typeLabel[t]}

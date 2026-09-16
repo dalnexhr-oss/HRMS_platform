@@ -22,7 +22,6 @@ const blankTokens = new Set(['', '—']);
 const popW = 220;
 const popWDate = 274;
 
-
 const isoDay = /^\d{4}-\d{2}-\d{2}/;
 
 // An ISO day (or the day part of a timestamp) -> epoch ms. NaN-safe.
@@ -51,14 +50,8 @@ function monthEnd(iso: string): string {
 type Preset = { label: string; range: DateRange };
 
 /**
- * The presets on offer are derived from the column's own data, not hard-coded.
- * A warranty-end column holds nothing but future dates, where 'Last 7 days'
- * can only ever return an empty table; a filed-on column is all past, where
- * 'Next 30 days' is just as dead. Anything that cannot intersect [min, max] is
- * dropped, so every button left in the menu returns rows.
- *
- * `today` is passed in rather than read here, so it can be refreshed each time
- * the menu opens — a tab left open overnight must not still offer yesterday.
+ * Offer date presets that intersect the column's date range. The caller supplies today when the
+ * menu opens so a tab left open overnight uses the current date.
  */
 function presetsFor(min: string, max: string, today: string): Preset[] {
   const year = today.slice(0, 4);
@@ -113,7 +106,7 @@ export function inDateRange(value: string, r?: DateRange): boolean {
   return true;
 }
 
-// ------------------------------------------------------------------- menu ---
+// menu
 
 export function ThMenu({
   label,
@@ -254,7 +247,14 @@ export function ThMenu({
             {sortDir === 'asc' ? '↑' : '↓'}
           </span>
         ) : (
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+          <svg
+            width="9"
+            height="9"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.5}
+          >
             <path d="M6 9l6 6 6-6" />
           </svg>
         )}
@@ -300,7 +300,11 @@ export function ThMenu({
                 <div className="th-pop-hd">
                   Filter by date
                   {rangeActive(range) && (
-                    <button type="button" className="th-pop-clear" onClick={() => onRange?.(noRange)}>
+                    <button
+                      type="button"
+                      className="th-pop-clear"
+                      onClick={() => onRange?.(noRange)}
+                    >
                       Clear
                     </button>
                   )}
@@ -326,7 +330,9 @@ export function ThMenu({
                       type="button"
                       className={'th-chip' + (range.blank ? ' on' : '')}
                       aria-pressed={!!range.blank}
-                      onClick={() => onRange?.(range.blank ? noRange : { from: '', to: '', blank: true })}
+                      onClick={() =>
+                        onRange?.(range.blank ? noRange : { from: '', to: '', blank: true })
+                      }
                     >
                       No date
                     </button>
@@ -394,7 +400,11 @@ export function ThMenu({
                 <div className="th-pop-list">
                   {shown.map((o) => (
                     <label key={o} className="th-pop-opt">
-                      <input type="checkbox" checked={selected.includes(o)} onChange={() => onToggle(o)} />
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(o)}
+                        onChange={() => onToggle(o)}
+                      />
                       <span title={o}>{o}</span>
                     </label>
                   ))}
@@ -413,7 +423,7 @@ export function ThMenu({
   );
 }
 
-// ------------------------------------------------------------------ sorts ---
+// sorts
 
 /**
  * Sort rows by one column, the way that column's kind demands.
@@ -423,7 +433,12 @@ export function ThMenu({
  * year before. Blanks sink to the bottom in BOTH directions: flipping the sort
  * should not fill the top of the table with rows that have no value here.
  */
-export function sortRows<T>(rows: T[], value: (row: T) => string, kind: ColKind, dir: SortDir): T[] {
+export function sortRows<T>(
+  rows: T[],
+  value: (row: T) => string,
+  kind: ColKind,
+  dir: SortDir,
+): T[] {
   const sign = dir === 'asc' ? 1 : -1;
   return [...rows].sort((x, y) => {
     const a = value(x);

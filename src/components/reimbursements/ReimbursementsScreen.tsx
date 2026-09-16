@@ -1,8 +1,6 @@
 'use client';
 
-// Staff review queue for expense claims: approve / reject / mark paid.
-// Columns mirror the company's claim sheet — Sr.No, Description, Purpose, Date,
-// Source/Medium, Kms, Mode of payment, Amount, Remarks.
+// Staff expense review queue, using the company claim-sheet columns.
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { inr, formatDate } from '@/lib/format';
@@ -35,7 +33,8 @@ const statusLabel: Record<ReimbursementView['status'], string> = {
 function statusPillStyle(status: ReimbursementView['status']): React.CSSProperties {
   if (status === 'pending' || status === 'finance_review')
     return { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' };
-  if (status === 'approved') return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
+  if (status === 'approved')
+    return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
   if (status === 'rejected') return { borderColor: 'var(--line-2)', color: 'var(--hd)' };
   return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
 }
@@ -115,7 +114,11 @@ export function ReimbursementsScreen({
       validate: (v) => (v.trim() ? null : 'Enter a reason for rejecting the claim.'),
     });
     if (reason === null) return;
-    run(id, () => financeReviewReimbursement(id, 'rejected', reason.trim()), 'Claim rejected by Finance.');
+    run(
+      id,
+      () => financeReviewReimbursement(id, 'rejected', reason.trim()),
+      'Claim rejected by Finance.',
+    );
   }
 
   // Capture the payment reference (UTR/cheque) so 'paid' is verifiable.
@@ -253,7 +256,13 @@ export function ReimbursementsScreen({
                             <button
                               className="btn primary"
                               disabled={pending && busy === c.id}
-                              onClick={() => run(c.id, () => reviewReimbursement(c.id, 'approved'), 'Claim approved and added to payroll.')}
+                              onClick={() =>
+                                run(
+                                  c.id,
+                                  () => reviewReimbursement(c.id, 'approved'),
+                                  'Claim approved and added to payroll.',
+                                )
+                              }
                             >
                               {pending && busy === c.id ? '…' : 'Approve'}
                             </button>
@@ -331,8 +340,8 @@ export function ReimbursementsScreen({
 
       <p className="muted" style={{ fontSize: 12 }}>
         Approving a claim adds its amount to that employee’s “Reimbursement / bonus” adjustment on
-        the payslip for the claim’s month and recomputes it, so it is paid with salary. Travel claims
-        are calculated as km × the rate in Settings.
+        the payslip for the claim’s month and recomputes it, so it is paid with salary. Travel
+        claims are calculated as km × the rate in Settings.
       </p>
     </div>
   );

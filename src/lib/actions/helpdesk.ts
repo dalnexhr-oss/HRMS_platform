@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { getSession, isStaffRole } from '@/lib/auth';
-import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/_guard';
+import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { notifyApprovers, notifyEmployee } from '@/lib/notify';
 import type { TicketComment } from '@/lib/queries';
 
@@ -32,7 +32,10 @@ export async function createTicket(formData: FormData) {
 
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
-    return { ok: false, error: 'The ticket was not raised — your account may not have permission.' };
+    return {
+      ok: false,
+      error: 'The ticket was not raised — your account may not have permission.',
+    };
   }
 
   await notifyApprovers(
@@ -120,19 +123,8 @@ export async function addTicketComment(ticketId: string, body: string) {
 
   const dbc = await createClient();
 
-  // THE PARENT-TICKET CHECK — the authorisation for this action.
-  //
-  // The collection's insert rule only asks "is author_id you?", which every
-  // caller trivially satisfies about themselves; it says nothing about WHICH
-  // ticket. The SQL policy scoped the insert through the parent
-  // (`exists (select 1 from helpdesk_tickets …)`) and policies.ts records that
-  // the check belongs here — it just was not written. Without it, any
-  // signed-in employee could post into a stranger's thread by supplying that
-  // ticket's id, and both the ticket's owner and HR would see the message.
-  //
-  // Read through the caller's own scope, so an employee sees only their own
-  // ticket and staff see any: the same rule that decides whether the thread is
-  // visible decides whether it can be replied to.
+  // Check access to the parent ticket through the caller's scope before accepting a reply. The
+  // comment insert policy verifies authorship, but cannot establish access to the ticket.
   const { data: ticket, error: ticketError } = await dbc
     .from('helpdesk_tickets')
     .select('id, status, subject, employee_id')
@@ -155,13 +147,18 @@ export async function addTicketComment(ticketId: string, body: string) {
       author_is_staff: isStaff,
       body: text,
     })
-    .select('id, ticket_id, author_id, author_name, author_role, author_is_staff, body, created_at');
+    .select(
+      'id, ticket_id, author_id, author_name, author_role, author_is_staff, body, created_at',
+    );
 
   if (error) {
     return { ok: false, error: error.message };
   }
   if (wroteNothing(data)) {
-    return { ok: false, error: 'The follow-up was not posted — your account may not have permission.' };
+    return {
+      ok: false,
+      error: 'The follow-up was not posted — your account may not have permission.',
+    };
   }
 
   const inserted = data![0] as {
@@ -189,15 +186,8 @@ export async function addTicketComment(ticketId: string, body: string) {
         : String(inserted.created_at),
   };
 
-  // The parent ticket was already loaded above, for the authorisation check —
-  // it is reused here for the reopen decision and for notifying the other
-  // party, rather than read a second time.
-  //
-  // An employee following up on a resolved/closed ticket reopens it. The result
-  // IS inspected: a reopen that quietly matched nothing is indistinguishable to
-  // the employee from one that worked — the comment is posted either way — and
-  // it leaves the ticket closed with nobody alerted, which is precisely what
-  // the inverted write policy used to do here.
+  // Reuse the authorized parent ticket for notifications and reopening. Check the reopen result so
+  // a posted follow-up does not leave a closed ticket unnoticed.
   if (!isStaff && (ticket.status === 'resolved' || ticket.status === 'closed')) {
     const reopened = await dbc
       .from('helpdesk_tickets')

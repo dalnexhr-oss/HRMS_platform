@@ -1,8 +1,7 @@
 'use client';
 
-// Per-account tab access, as a side panel on /users. Opens when `user` is
-// non-null. Super admin only, and only for admin/HR accounts — the button that
-// opens it is hidden otherwise, and setUserTabAccess re-checks both.
+// Super-admin control for individual admin/HR tab access. setUserTabAccess checks both the caller
+// and target roles.
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchUserTabAccess, setUserTabAccess, resetUserTabAccess } from '@/lib/actions/access';
@@ -88,7 +87,9 @@ export function AccessDrawer({
 
   // Tabs this account's ROLE can reach at all. Anything else is not ours to give.
   const eligible = user ? navItems.filter((n) => staticallyAllowed(user.role, n.slug)) : [];
-  const revoked = user ? eligible.filter((n) => !canAccessTab(user.role, n.slug, access)).length : 0;
+  const revoked = user
+    ? eligible.filter((n) => !canAccessTab(user.role, n.slug, access)).length
+    : 0;
 
   return (
     <>
@@ -169,7 +170,12 @@ export function AccessDrawer({
                               checked={on}
                               disabled={pending && busySlug !== null}
                               onChange={(e) => toggle(n.slug, e.target.checked)}
-                              style={{ width: 16, height: 16, flex: 'none', accentColor: 'var(--brand)' }}
+                              style={{
+                                width: 16,
+                                height: 16,
+                                flex: 'none',
+                                accentColor: 'var(--brand)',
+                              }}
                             />
                             <span style={{ flex: 1 }}>{n.label}</span>
                             <span className="mono muted" style={{ fontSize: 11 }}>

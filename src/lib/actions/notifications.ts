@@ -1,13 +1,10 @@
 'use server';
 
-//
-// Notification read-state. Marking read is the ONLY mutation a recipient may
-// perform, and the notifications policy scopes it to `recipient_id` = the
-// caller — so these actions never take a recipient id from the caller.
-//
+// Recipients may only update their own notification read state. The collection policy supplies
+// recipient scoping.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
-import { requireDb } from '@/lib/actions/_guard';
+import { requireDb } from '@/lib/actions/guards';
 
 export interface ActionResult {
   ok: boolean;

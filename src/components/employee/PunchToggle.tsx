@@ -1,15 +1,6 @@
 'use client';
 
-// The punch in / punch out control in the employee top bar.
-//
-// It sits where Sign out used to: the clock is the one thing pressed every day,
-// in a hurry, and it used to live far enough down /me that you had to scroll —
-// landing it right beside a Sign out button that ends the session on a misfire.
-// Sign out has moved to the foot of the page, so the two can no longer be
-// confused for one another.
-//
-// The state lives in usePunchClock, shared with the full card on /me, so both
-// buttons always read the same way.
+// Topbar attendance toggle. Share usePunchClock with the detailed card on /me.
 import { useToast } from '@/components/ui/Toast';
 import { usePunchClock, duration } from './usePunchClock';
 

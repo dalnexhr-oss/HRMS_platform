@@ -1,19 +1,10 @@
 'use server';
 
-//
-// Leave-salary workings: save, finalize, reopen, mark paid.
-//
-// The one rule of this file: THE SERVER COMPUTES. The client shows a live
-// preview with the same pure module, but every figure that lands in the table
-// is recomputed here from attendance_days + the submitted salaries — a crafted
-// POST cannot save itself a bigger payout than the formula produces.
-//
-// Status flow: draft → finalized → paid. Finalize re-snapshots and locks the
-// inputs; reopen (finalized → draft) exists for corrections; paid is terminal.
-//
+// Recompute leave-salary amounts on the server from attendance and submitted salaries. Finalizing
+// saves a snapshot; reopening allows corrections; paid rows cannot be reopened.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
-import { requireRoles, wroteNothing } from '@/lib/actions/_guard';
+import { requireRoles, wroteNothing } from '@/lib/actions/guards';
 import { notifyEmployee } from '@/lib/notify';
 import { computeLeaveSalary, presenceByMonth } from '@/lib/leave-salary';
 import { inr } from '@/lib/format';
@@ -32,7 +23,8 @@ function validYear(y: number): boolean {
   return Number.isInteger(y) && y >= 2000 && y <= 2100;
 }
 
-// One employee-year of attendance, credit-weighted per month. ≤366 rows, so no paging is needed here (the page-wide sweep in queries.ts is the paged one).
+// One employee-year of attendance, credit-weighted per month. ≤366 rows, so no paging is needed
+// here (the page-wide sweep in queries.ts is the paged one).
 async function loadPresence(
   dbc: Awaited<ReturnType<typeof createClient>>,
   employeeId: string,
@@ -87,10 +79,14 @@ export async function saveLeaveSalaryWorking(input: {
   const calendarDaysP1Override = parseOverride(input.calendarDaysP1Override);
   const calendarDaysP2Override = parseOverride(input.calendarDaysP2Override);
   if (calendarDaysP1Override === 'bad' || calendarDaysP2Override === 'bad') {
-    return { ok: false, error: 'Days must be a whole number between 1 and 366, or blank for the real calendar days.' };
+    return {
+      ok: false,
+      error: 'Days must be a whole number between 1 and 366, or blank for the real calendar days.',
+    };
   }
 
-  if (!uuidRe.test(String(input.employeeId ?? ''))) return { ok: false, error: 'Pick an employee.' };
+  if (!uuidRe.test(String(input.employeeId ?? '')))
+    return { ok: false, error: 'Pick an employee.' };
   if (!validYear(year)) return { ok: false, error: 'Enter a valid year.' };
   if (!Number.isFinite(salaryBefore) || salaryBefore < 0 || salaryBefore > salaryCap) {
     return { ok: false, error: 'Enter a valid monthly salary for the pre-appraisal period.' };
@@ -174,7 +170,10 @@ export async function saveLeaveSalaryWorking(input: {
  * save) and stamp the result. From here the figures on the row ARE the payout.
  */
 export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
-  const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Finalizing a leave-salary working');
+  const gate = await requireRoles(
+    ['super_admin', 'admin', 'hr'],
+    'Finalizing a leave-salary working',
+  );
   if (!gate.ok) return gate;
   if (!uuidRe.test(id)) return { ok: false, error: 'Unknown working.' };
 
@@ -255,7 +254,10 @@ export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
 
 /** Unlock a finalized working for correction. Paid stays paid. */
 export async function reopenLeaveSalary(id: string): Promise<ActionResult> {
-  const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Reopening a leave-salary working');
+  const gate = await requireRoles(
+    ['super_admin', 'admin', 'hr'],
+    'Reopening a leave-salary working',
+  );
   if (!gate.ok) return gate;
   if (!uuidRe.test(id)) return { ok: false, error: 'Unknown working.' };
 
@@ -268,7 +270,10 @@ export async function reopenLeaveSalary(id: string): Promise<ActionResult> {
     .select('id');
   if (error) return { ok: false, error: error.message };
   if (wroteNothing(data)) {
-    return { ok: false, error: 'Only a finalized working can be reopened — a paid one is settled.' };
+    return {
+      ok: false,
+      error: 'Only a finalized working can be reopened — a paid one is settled.',
+    };
   }
 
   revalidatePath('/leave');
@@ -286,13 +291,21 @@ export async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
     .from('leave_salary_workings')
     .select('id, employee_id, year, total_amount, status')
     .eq('id', id)
-    .maybeSingle<{ employee_id: string; year: number; total_amount: number | string; status: string }>();
+    .maybeSingle<{
+      employee_id: string;
+      year: number;
+      total_amount: number | string;
+      status: string;
+    }>();
   if (readErr) return { ok: false, error: readErr.message };
   if (!row) return { ok: false, error: 'That working no longer exists.' };
   if (row.status !== 'finalized') {
     return {
       ok: false,
-      error: row.status === 'paid' ? 'This working is already paid.' : 'Finalize the working before paying it.',
+      error:
+        row.status === 'paid'
+          ? 'This working is already paid.'
+          : 'Finalize the working before paying it.',
     };
   }
 
@@ -308,7 +321,8 @@ export async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
     .eq('status', 'finalized')
     .select('id');
   if (error) return { ok: false, error: error.message };
-  if (wroteNothing(data)) return { ok: false, error: 'Only a finalized working can be marked paid.' };
+  if (wroteNothing(data))
+    return { ok: false, error: 'Only a finalized working can be marked paid.' };
 
   const total = Number(row.total_amount ?? 0);
   await notifyEmployee(row.employee_id, {

@@ -1,12 +1,5 @@
-// Document templates for system-generated HR documents and letters.
-//
-// Invariants:
-// - Deterministic output: Dates are explicitly passed inputs (no ambient clock usage)
-//   to ensure re-issued documents are byte-identical.
-// - Typography: Monetary amounts use ASCII "Rs." with 2 decimal places to guarantee
-//   compatibility with WinAnsi-encoded standard PDF fonts (e.g. Helvetica).
-// - Factual claims: Statements reflect verified database records (identity, tenure, designation).
-//
+// HR letter templates use dates supplied by the caller and facts from stored records. Use ASCII Rs.
+// with two decimal places because the standard PDF fonts use WinAnsi encoding.
 import type { LetterSpec } from './letters';
 // One escaper for every HTML email body in the app, next to sendEmail().
 import { escapeHtml } from '@/lib/email';
@@ -323,16 +316,8 @@ export interface WelcomeEmail {
 }
 
 /**
- * Welcome email for a newly onboarded employee.
- *
- * Not a LetterSpec: this one is never a PDF, so it returns the subject/text/html
- * triple that `sendEmail()` takes. Both bodies are built from the same facts and
- * carry the same content — a text-only client must not lose the portal address.
- *
- * Everything interpolated into the HTML is escaped, and the portal link is only
- * rendered as an anchor when it is genuinely http(s); a stored value like
- * `javascript:…` degrades to plain text rather than becoming a clickable payload
- * in an employee's inbox.
+ * Build matching text and HTML welcome emails. Escape interpolated HTML and only make HTTP(S)
+ * portal URLs clickable.
  */
 export function buildWelcomeEmail(input: WelcomeEmailInput): WelcomeEmail {
   const name = clean(input.employeeName);

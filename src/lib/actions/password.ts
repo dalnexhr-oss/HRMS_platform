@@ -4,11 +4,7 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth/session';
-import {
-  createSession,
-  destroySession,
-  revokeAllSessions,
-} from '@/lib/auth/session';
+import { createSession, destroySession, revokeAllSessions } from '@/lib/auth/session';
 import { hashPassword, validatePassword, verifyPassword } from '@/lib/auth/password';
 import { consumeResetToken, createResetToken, resetTokenTtlMinutes } from '@/lib/auth/reset-tokens';
 import { usersCollection, type UserDoc } from '@/lib/db/collections';
@@ -25,17 +21,16 @@ export interface PasswordState {
   devLink?: string;
 }
 
-
-//
 // Request a reset link
-//
 
 // Initiates password reset flow. Returns uniform success response to prevent account enumeration.
 export async function requestPasswordReset(
   _prev: PasswordState,
   formData: FormData,
 ): Promise<PasswordState> {
-  const email = String(formData.get('email') ?? '').trim().toLowerCase();
+  const email = String(formData.get('email') ?? '')
+    .trim()
+    .toLowerCase();
   if (!email) return { error: 'Enter your email.' };
   if (!isMongoConfigured()) {
     return { error: 'The database is not configured, so password reset is unavailable.' };
@@ -94,9 +89,7 @@ export async function requestPasswordReset(
   return { sent: true };
 }
 
-// ---------------------------------------------------------------------------
 // Redeem a reset link
-// ---------------------------------------------------------------------------
 
 export async function resetPassword(
   _prev: PasswordState,
@@ -140,9 +133,7 @@ export async function resetPassword(
   return { done: true };
 }
 
-// ---------------------------------------------------------------------------
 // Change your own password while signed in
-// ---------------------------------------------------------------------------
 
 export async function changePassword(
   _prev: PasswordState,

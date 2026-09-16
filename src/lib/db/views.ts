@@ -1,9 +1,5 @@
-// Aggregation pipelines implementing virtual views for attendance, celebrations,
-// inventory balances, asset metrics, and exit clearance state.
-//
-// Pipeline collections are scoped to the caller's authorization context unless an
-// explicit system scope is provided. Temporal filters default to Indian Standard Time (IST)
-// to ensure uniform calendar boundaries regardless of server runtime timezone.
+// Scoped aggregation views for attendance, celebrations, inventory, assets, and exits. Business-day
+// filters use IST.
 
 import 'server-only';
 import type { Document } from 'mongodb';
@@ -23,9 +19,7 @@ function addDays(date: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-// ---------------------------------------------------------------------------
 // v_today_board — headcount and attendance per branch, for today
-// ---------------------------------------------------------------------------
 
 async function todayBoard(scope?: Scope): Promise<Document[]> {
   const date = todayIST();
@@ -40,7 +34,11 @@ async function todayBoard(scope?: Scope): Promise<Document[]> {
         from: collections.attendanceDays,
         let: { eid: '$_id' },
         pipeline: [
-          { $match: { $expr: { $and: [{ $eq: ['$employee_id', '$$eid'] }, { $eq: ['$work_date', date] }] } } },
+          {
+            $match: {
+              $expr: { $and: [{ $eq: ['$employee_id', '$$eid'] }, { $eq: ['$work_date', date] }] },
+            },
+          },
           { $project: { status: 1 } },
         ],
         as: 'today',
@@ -61,9 +59,7 @@ async function todayBoard(scope?: Scope): Promise<Document[]> {
   ]);
 }
 
-// ---------------------------------------------------------------------------
 // v_celebrations — birthdays and work anniversaries falling today
-// ---------------------------------------------------------------------------
 
 async function celebrations(scope?: Scope): Promise<Document[]> {
   const date = todayIST();
@@ -83,7 +79,10 @@ async function celebrations(scope?: Scope): Promise<Document[]> {
     },
     {
       $project: {
-        full_name: 1, code: 1, date_of_birth: 1, date_of_joining: 1,
+        full_name: 1,
+        code: 1,
+        date_of_birth: 1,
+        date_of_joining: 1,
         branch: { $ifNull: ['$branch_name', null] },
         department: { $ifNull: ['$department_name', null] },
       },
@@ -94,22 +93,34 @@ async function celebrations(scope?: Scope): Promise<Document[]> {
   const out: Document[] = [];
   for (const e of rows) {
     if (typeof e.date_of_birth === 'string' && e.date_of_birth.endsWith(`-${mmdd}`)) {
-      out.push({ id: e._id, full_name: e.full_name, code: e.code, branch: e.branch,
-                 department: e.department, kind: 'birthday', years: 0 });
+      out.push({
+        id: e._id,
+        full_name: e.full_name,
+        code: e.code,
+        branch: e.branch,
+        department: e.department,
+        kind: 'birthday',
+        years: 0,
+      });
     }
     const doj = e.date_of_joining as string | undefined;
     // Exclude employees joining today (anniversary requires >= 1 complete year).
     if (typeof doj === 'string' && doj.endsWith(`-${mmdd}`) && doj < date) {
-      out.push({ id: e._id, full_name: e.full_name, code: e.code, branch: e.branch,
-                 department: e.department, kind: 'anniversary', years: year - Number(doj.slice(0, 4)) });
+      out.push({
+        id: e._id,
+        full_name: e.full_name,
+        code: e.code,
+        branch: e.branch,
+        department: e.department,
+        kind: 'anniversary',
+        years: year - Number(doj.slice(0, 4)),
+      });
     }
   }
   return out;
 }
 
-// ---------------------------------------------------------------------------
 // v_items — stock with assigned / remaining quantities
-// ---------------------------------------------------------------------------
 
 async function items(scope?: Scope): Promise<Document[]> {
   const repo = await handle(collections.items, scope);
@@ -119,7 +130,11 @@ async function items(scope?: Scope): Promise<Document[]> {
         from: collections.itemAssignments,
         let: { iid: '$_id' },
         pipeline: [
-          { $match: { $expr: { $and: [{ $eq: ['$item_id', '$$iid'] }, { $eq: ['$returned', false] }] } } },
+          {
+            $match: {
+              $expr: { $and: [{ $eq: ['$item_id', '$$iid'] }, { $eq: ['$returned', false] }] },
+            },
+          },
           { $group: { _id: null, qty: { $sum: '$quantity' } } },
         ],
         as: 'out',
@@ -140,9 +155,7 @@ async function items(scope?: Scope): Promise<Document[]> {
   ]);
 }
 
-// ---------------------------------------------------------------------------
 // v_asset_summary — counts per category
-// ---------------------------------------------------------------------------
 
 async function assetSummary(scope?: Scope): Promise<Document[]> {
   const soon = addDays(todayIST(), 30);
@@ -159,20 +172,28 @@ async function assetSummary(scope?: Scope): Promise<Document[]> {
           $sum: {
             $cond: [
               { $and: [{ $ne: ['$warranty_upto', null] }, { $lte: ['$warranty_upto', soon] }] },
-              1, 0,
+              1,
+              0,
             ],
           },
         },
       },
     },
-    { $project: { _id: 0, category: '$_id', total: 1, assigned: 1, available: 1, warranty_expiring: 1 } },
+    {
+      $project: {
+        _id: 0,
+        category: '$_id',
+        total: 1,
+        assigned: 1,
+        available: 1,
+        warranty_expiring: 1,
+      },
+    },
     { $sort: { category: 1 } },
   ]);
 }
 
-// ---------------------------------------------------------------------------
 // v_exit_clearance_pending — what is still outstanding per exit case
-// ---------------------------------------------------------------------------
 
 async function exitClearancePending(scope?: Scope): Promise<Document[]> {
   const repo = await handle(collections.exitCases, scope);
@@ -182,7 +203,10 @@ async function exitClearancePending(scope?: Scope): Promise<Document[]> {
       $lookup: {
         from: collections.assets,
         let: { eid: '$employee_id' },
-        pipeline: [{ $match: { $expr: { $eq: ['$assigned_employee_id', '$$eid'] } } }, { $count: 'n' }],
+        pipeline: [
+          { $match: { $expr: { $eq: ['$assigned_employee_id', '$$eid'] } } },
+          { $count: 'n' },
+        ],
         as: 'assets',
       },
     },
@@ -191,7 +215,11 @@ async function exitClearancePending(scope?: Scope): Promise<Document[]> {
         from: collections.itemAssignments,
         let: { eid: '$employee_id' },
         pipeline: [
-          { $match: { $expr: { $and: [{ $eq: ['$employee_id', '$$eid'] }, { $eq: ['$returned', false] }] } } },
+          {
+            $match: {
+              $expr: { $and: [{ $eq: ['$employee_id', '$$eid'] }, { $eq: ['$returned', false] }] },
+            },
+          },
           { $count: 'n' },
         ],
         as: 'issued',
@@ -202,7 +230,11 @@ async function exitClearancePending(scope?: Scope): Promise<Document[]> {
         from: collections.exitClearanceItems,
         let: { cid: '$_id' },
         pipeline: [
-          { $match: { $expr: { $and: [{ $eq: ['$exit_case_id', '$$cid'] }, { $eq: ['$cleared', false] }] } } },
+          {
+            $match: {
+              $expr: { $and: [{ $eq: ['$exit_case_id', '$$cid'] }, { $eq: ['$cleared', false] }] },
+            },
+          },
           { $count: 'n' },
         ],
         as: 'open',
@@ -229,8 +261,6 @@ async function exitClearancePending(scope?: Scope): Promise<Document[]> {
     { $project: { assets: 0, issued: 0, open: 0 } },
   ]);
 }
-
-// ---------------------------------------------------------------------------
 
 const views: Record<string, (scope?: Scope) => Promise<Document[]>> = {
   v_today_board: todayBoard,
