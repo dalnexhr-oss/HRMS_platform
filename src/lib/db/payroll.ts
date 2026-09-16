@@ -42,23 +42,37 @@ export async function professionalTax(
   gender: string,
   month: number,
 ): Promise<number> {
-  if (!state) return 0;
+  if (!state) {
+    return 0;
+  }
   const slabs = scopedFor<BaseDoc>(collections.ptSlabs, systemScope);
   const rows = await slabs.find({ state });
 
   const matching = rows.filter((s) => {
-    if (s.gender != null && s.gender !== gender) return false;
-    if (grossPaise < toPaise(s.min_gross as never)) return false;
-    if (s.max_gross != null && grossPaise > toPaise(s.max_gross as never)) return false;
-    if (s.month != null && s.month !== month) return false;
+    if (s.gender != null && s.gender !== gender) {
+      return false;
+    }
+    if (grossPaise < toPaise(s.min_gross as never)) {
+      return false;
+    }
+    if (s.max_gross != null && grossPaise > toPaise(s.max_gross as never)) {
+      return false;
+    }
+    if (s.month != null && s.month !== month) {
+      return false;
+    }
     return true;
   });
 
   matching.sort((a, b) => {
     const monthRank = Number(b.month != null) - Number(a.month != null);
-    if (monthRank) return monthRank;
+    if (monthRank) {
+      return monthRank;
+    }
     const genderRank = Number(b.gender != null) - Number(a.gender != null);
-    if (genderRank) return genderRank;
+    if (genderRank) {
+      return genderRank;
+    }
     return toPaise(b.min_gross as never) - toPaise(a.min_gross as never);
   });
 
@@ -100,9 +114,13 @@ export async function computePayslip(
   const branches = scopedFor<BaseDoc>(collections.branches, systemScope, session);
 
   const e = await employees.findOne({ _id: employeeId });
-  if (!e) throw new Error(`computePayslip: no employee ${employeeId}`);
+  if (!e) {
+    throw new Error(`computePayslip: no employee ${employeeId}`);
+  }
   const run = await runs.findOne({ _id: runId });
-  if (!run) throw new Error(`computePayslip: no payroll run ${runId}`);
+  if (!run) {
+    throw new Error(`computePayslip: no payroll run ${runId}`);
+  }
 
   const branch = await branches.findOne({ _id: e.branch_id as string });
   const state = (branch?.state as string | null) ?? null;
@@ -113,7 +131,10 @@ export async function computePayslip(
 
   const esicCapPaise = toPaise(await settingNumeric('esic_gross_cap', 21000));
   let fullDayMin = await settingNumeric('full_day_minutes', 555);
-  if (fullDayMin <= 0) fullDayMin = 555; // 9h15m
+  if (fullDayMin <= 0) {
+    // 9h15m
+    fullDayMin = 555;
+  }
 
   // attendance for the month
   // Calendar days are strings, so a month is a prefix — no date arithmetic and
@@ -129,9 +150,13 @@ export async function computePayslip(
   let workedMinutes = 0;
   for (const d of days) {
     const status = d.status as string;
-    if (fullDay.includes(status)) workingDays += 1;
-    else if (status === 'HD') workingDays += 0.5;
-    else if (status === 'WO') weekOffs += 1;
+    if (fullDay.includes(status)) {
+      workingDays += 1;
+    } else if (status === 'HD') {
+      workingDays += 0.5;
+    } else if (status === 'WO') {
+      weekOffs += 1;
+    }
     workedMinutes += Number(d.worked_minutes ?? 0);
   }
 
@@ -298,16 +323,14 @@ async function runStatus(runId: string, session?: ClientSession): Promise<RunSta
 }
 
 /**
- * Recomputes payslips for all active employees in a draft or in-review payroll run.
- *
- * Note: Individual employee payslips are updated iteratively rather than in a single
- * unbounded multi-document transaction to prevent transaction timeout (60s limit).
- * The run status transition occurs as the terminal step, ensuring partial failures
- * remain safely retryable.
+ * Recompute draft or in-review payslips individually to avoid one unbounded transaction. Change
+ * run status last so partial failures remain retryable.
  */
 export async function computeRun(runId: string): Promise<void> {
   const status = await runStatus(runId);
-  if (status === null) throw new Error(`Payroll run ${runId} does not exist`);
+  if (status === null) {
+    throw new Error(`Payroll run ${runId} does not exist`);
+  }
   if (status === 'locked' || status === 'paid') {
     throw new Error(`Payroll run ${runId} is ${status} — recompute is not allowed after lock`);
   }
@@ -339,7 +362,9 @@ export async function computeRun(runId: string): Promise<void> {
 export async function lockRun(runId: string): Promise<void> {
   await withTransaction(async (session) => {
     const status = await runStatus(runId, session);
-    if (status === null) throw new Error(`Payroll run ${runId} does not exist`);
+    if (status === null) {
+      throw new Error(`Payroll run ${runId} does not exist`);
+    }
     if (status === 'locked' || status === 'paid') {
       throw new Error(`Payroll run ${runId} is already ${status}`);
     }
@@ -380,7 +405,9 @@ export async function markRunPaid(runId: string): Promise<void> {
 let registered = false;
 
 export function registerPayrollFunctions(): void {
-  if (registered) return;
+  if (registered) {
+    return;
+  }
   registered = true;
   registerRpc('fn_compute_payslip', async (a) => {
     const { p_employee_id, p_run_id } = a as { p_employee_id: string; p_run_id: string };

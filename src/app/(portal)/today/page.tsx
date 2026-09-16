@@ -39,16 +39,15 @@ function todayLabel(): string {
   );
 }
 
-// '2026-06-01' -> 'June'.
+// 'YYYY-06-01' -> 'June'.
 function monthLabelOf(periodMonth: string): string {
   return new Intl.DateTimeFormat('en-GB', { month: 'long' }).format(
     new Date(periodMonth + 'T00:00:00'),
   );
 }
 
-// Settle a query into a value-or-real-error. Each card fails on its own instead of taking the page
-// down, and the failure text is the query's actual message — we do NOT fall back to stand-in data
-// to paper over a broken database.
+// Let each card handle its own query failure and display the underlying error without replacing
+// failed data with sample values.
 async function load<T>(promise: Promise<T>): Promise<Loaded<T>> {
   try {
     return { ok: true, data: await promise };
@@ -61,7 +60,9 @@ async function load<T>(promise: Promise<T>): Promise<Loaded<T>> {
 // *counts* are the real data, and the threshold has a documented default — so this degrades to
 // defaultMarkThreshold rather than throwing.
 function markThreshold(settings: Loaded<SettingView[]>): number {
-  if (!settings.ok) return defaultMarkThreshold;
+  if (!settings.ok) {
+    return defaultMarkThreshold;
+  }
   const raw = settings.data.find((s) => s.key === 'mark_threshold')?.value;
   const n = typeof raw === 'number' ? raw : Number(raw);
   return Number.isInteger(n) && n > 0 ? n : defaultMarkThreshold;
@@ -113,7 +114,7 @@ export default async function TodayPage() {
         todayLabel={todayLabel()}
         periodMonthLabel={monthLabelOf(periodMonth)}
       />
-      {/* Comp-off balances + the applicable/not-applicable switch (0041). */}
+
       <div className="wrap grid">
         <CompOffAdminCard
           rows={compOffs.ok ? compOffs.data : []}

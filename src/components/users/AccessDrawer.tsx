@@ -36,12 +36,17 @@ export function AccessDrawer({
 
   // Load this account's switches whenever the panel opens on someone new.
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
     latestId.current = user.id;
     setLoading(true);
     setLoadError(null);
     fetchUserTabAccess(user.id).then((res) => {
-      if (latestId.current !== user.id) return; // a newer account opened meanwhile
+      if (latestId.current !== user.id) {
+        // a newer account opened meanwhile
+        return;
+      }
       setLoading(false);
       if (!res.ok) {
         setLoadError(res.error);
@@ -53,7 +58,9 @@ export function AccessDrawer({
   }, [user]);
 
   function toggle(slug: string, next: boolean) {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
     setBusySlug(slug);
     // Optimistic: the switch answers immediately, and a failure puts it back.
     setAccess((a) => ({ ...a, [slug]: next }));
@@ -70,7 +77,9 @@ export function AccessDrawer({
   }
 
   function onReset() {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
     setBusySlug('__reset');
     startTransition(async () => {
       const res = await resetUserTabAccess(user.id);
@@ -136,7 +145,9 @@ export function AccessDrawer({
               ) : (
                 groupOrder.map((group) => {
                   const rows = eligible.filter((n) => n.group === group);
-                  if (rows.length === 0) return null;
+                  if (rows.length === 0) {
+                    return null;
+                  }
                   return (
                     <div key={group} style={{ marginBottom: 16 }}>
                       <div

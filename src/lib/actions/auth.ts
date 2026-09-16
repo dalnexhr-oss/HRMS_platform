@@ -30,7 +30,9 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
   if (!isAuthConfigured()) {
     return { error: 'Sign-in is not configured. Set AUTH_SECRET in .env.local.' };
   }
-  if (!email || !password) return { error: 'Enter your email and password.' };
+  if (!email || !password) {
+    return { error: 'Enter your email and password.' };
+  }
 
   const users = await usersCollection();
   // Collation must match the unique index, or a user who registered as
@@ -42,7 +44,9 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
   const stored = user?.password_hash ?? dummyHash;
   const ok = await verifyPassword(password, stored);
 
-  if (!user || !ok || user.disabled) return { error: badCredentials };
+  if (!user || !ok || user.disabled) {
+    return { error: badCredentials };
+  }
 
   await users.updateOne({ _id: user._id }, { $set: { last_sign_in_at: new Date() } });
   await createSession(user);
@@ -56,12 +60,13 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
   redirect((safeNext ?? homeForRole(user.role)) as Parameters<typeof redirect>[0]);
 }
 
-// Sign out everywhere, not just here. Clearing the cookie only affects this browser, and the token
-// stays valid for the rest of its year. Bumping token_version is what actually revokes it, so a
-// copy taken from a shared machine stops working too.
+// Bump token_version to revoke all sessions. Clearing this browser's cookie alone leaves other
+// copies valid.
 export async function signOut() {
   const { userId } = await getSession();
-  if (userId) await revokeAllSessions(userId);
+  if (userId) {
+    await revokeAllSessions(userId);
+  }
   await destroySession();
   redirect('/login');
 }

@@ -26,18 +26,23 @@ const kindIcon: Record<string, string> = {
 // Split a stored link into path + hash, rejecting anything that isn't a relative in-app path so a
 // stored value can never become an external redirect.
 function splitLink(link: string | null): { path: string; hash: string | null } | null {
-  if (!link || !link.startsWith('/') || link.startsWith('//')) return null;
+  if (!link || !link.startsWith('/') || link.startsWith('//')) {
+    return null;
+  }
   const i = link.indexOf('#');
-  if (i === -1) return { path: link, hash: null };
+  if (i === -1) {
+    return { path: link, hash: null };
+  }
   return { path: link.slice(0, i) || '/', hash: link.slice(i + 1) || null };
 }
 
-// Scroll a dashboard section into view and flash it. No-ops when the section isn't on the page —
-// several /me cards render conditionally (MyOnboarding disappears once the checklist is done), and
-// a missing target should still leave the notification marked read.
+// Scroll to and highlight the target section when present. Conditional dashboard cards may be
+// absent; the receipt still counts as read.
 function scrollToSection(id: string): void {
   const el = document.getElementById(id);
-  if (!el) return;
+  if (!el) {
+    return;
+  }
   el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   el.classList.add('jump-flash');
   window.setTimeout(() => el.classList.remove('jump-flash'), 1600);
@@ -47,12 +52,20 @@ function scrollToSection(id: string): void {
 // local timezone is applied here.
 function ago(iso: string): string {
   const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return '';
+  if (Number.isNaN(then)) {
+    return '';
+  }
   const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) {
+    return 'just now';
+  }
+  if (mins < 60) {
+    return `${mins}m ago`;
+  }
   const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) {
+    return `${hrs}h ago`;
+  }
   return `${Math.round(hrs / 24)}d ago`;
 }
 
@@ -73,12 +86,18 @@ export function NotificationBell({
   // Close on outside click / Escape — a dropdown that traps focus in a sticky
   // topbar is worse than no dropdown.
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
     function onDown(e: MouseEvent) {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') {
+        setOpen(false);
+      }
     }
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
@@ -105,12 +124,13 @@ export function NotificationBell({
         }
       }
       setOpen(false);
-      if (!target) return;
+      if (!target) {
+        return;
+      }
 
       if (samePage) {
-        // Scroll BEFORE refreshing: router.refresh() re-renders in place and
-        // preserves scroll position, whereas scrolling afterwards would race the
-        // commit. replaceState (not push) keeps the back stack clean.
+        // Scroll before refreshing so the new render preserves the target position. replaceState
+        // avoids adding a duplicate history entry.
         if (target.hash) {
           window.history.replaceState(null, '', `${target.path}#${target.hash}`);
           scrollToSection(target.hash);

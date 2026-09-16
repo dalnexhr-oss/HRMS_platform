@@ -13,12 +13,16 @@ const timeFmt: Intl.DateTimeFormatOptions = {
 // Initials displayed on the employee tile.
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '—';
+  if (parts.length === 0) {
+    return '—';
+  }
   return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
 }
 
 function clock(value: string | null): string | null {
-  if (!value) return null;
+  if (!value) {
+    return null;
+  }
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? null

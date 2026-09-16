@@ -16,22 +16,21 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isLogin = path === '/login' || path.startsWith('/login/');
   const isAuthRoute = path.startsWith('/auth');
-  // Route handlers are fetched by JavaScript, which cannot follow a redirect to
-  // an HTML login page — it would parse the markup as JSON and report a syntax
-  // error instead of "signed out". They get a 401 they can act on. Every route
-  // under /api already performs its own role check and returns JSON errors, so
-  // this only changes the unauthenticated case.
+  // Return JSON 401 for API requests so clients can handle an expired session without trying to
+  // parse an HTML login page.
   const isApi = path.startsWith('/api/');
 
-  // /api/cron carries its own bearer secret and is called by a machine that has
-  // no session and never will. Gating it here would make the scheduled jobs
-  // unreachable; the route refuses outright when CRON_SECRET is unset, so
-  // passing through does not open anything.
-  if (path === '/api/cron' || path.startsWith('/api/cron/')) return response;
+  // Cron authenticates with its own bearer secret and has no browser session. The endpoint refuses
+  // requests when CRON_SECRET is unset.
+  if (path === '/api/cron' || path.startsWith('/api/cron/')) {
+    return response;
+  }
 
   // /auth/* handles its own flows (password reset, invite acceptance) and
   // writes cookies itself. Gating it here would abort those.
-  if (isAuthRoute) return response;
+  if (isAuthRoute) {
+    return response;
+  }
 
   // A prefetch is speculative and must never cost work. The sidebar holds ~19
   // links, all in the viewport, so one page load fires 19 prefetches. Access is
@@ -49,20 +48,26 @@ export async function updateSession(request: NextRequest) {
   const claims = token ? await verifySession(token) : null;
 
   if (!claims) {
-    if (isLogin) return response;
+    if (isLogin) {
+      return response;
+    }
     if (isApi) {
       return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
     }
     const target = new URL('/login', request.url);
     // Preserve where they were headed so sign-in can return them to it.
-    if (path !== '/') target.searchParams.set('next', path);
+    if (path !== '/') {
+      target.searchParams.set('next', path);
+    }
     return NextResponse.redirect(target);
   }
 
   if (isLogin) {
     // An ?error= on /login means something upstream deliberately sent the user
     // here to read it. Bouncing them off would loop.
-    if (request.nextUrl.searchParams.has('error')) return response;
+    if (request.nextUrl.searchParams.has('error')) {
+      return response;
+    }
     return NextResponse.redirect(new URL('/', request.url));
   }
 

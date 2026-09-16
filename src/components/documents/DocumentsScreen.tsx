@@ -35,9 +35,7 @@ const statusText: Record<string, string> = {
   superseded: 'Superseded',
 };
 
-// `get` yields the string each header menu sorts and filters on; '—' stands in
-// for blank so "no value" is itself pickable. `kind` picks the compare order —
-// Filed is a date and must sort chronologically, not A → Z.
+/** Combine column filters with AND; selected values within a column use OR. */
 const cols: {
   key: ColKey;
   label: string;
@@ -81,14 +79,15 @@ export function DocumentsScreen({
 
   const [sort, setSort] = useState<{ key: ColKey; dir: SortDir } | null>(null);
   const [filters, setFilters] = useState<Partial<Record<ColKey, string[]>>>({});
-  // Date columns filter by range, not by ticking individual days.
   const [ranges, setRanges] = useState<Partial<Record<ColKey, DateRange>>>({});
 
-  // Options come from the full register, not the filtered view, so a selection
-  // in one column never hides another column's choices.
+  // The distinct values for each column, used to populate the filter menus. Recomputed whenever
+  // the register changes, which is only when the page is refreshed.
   const options = useMemo(() => {
     const out = {} as Record<ColKey, string[]>;
-    for (const c of cols) out[c.key] = distinctValues(register.map(c.get), c.kind);
+    for (const c of cols) {
+      out[c.key] = distinctValues(register.map(c.get), c.kind);
+    }
     return out;
   }, [register]);
 
@@ -103,15 +102,21 @@ export function DocumentsScreen({
     for (const c of cols) {
       if (c.kind === 'date') {
         const r = ranges[c.key];
-        if (rangeActive(r)) out = out.filter((d) => inDateRange(c.get(d), r));
+        if (rangeActive(r)) {
+          out = out.filter((d) => inDateRange(c.get(d), r));
+        }
         continue;
       }
       const sel = filters[c.key];
-      if (sel?.length) out = out.filter((d) => sel.includes(c.get(d)));
+      if (sel?.length) {
+        out = out.filter((d) => sel.includes(c.get(d)));
+      }
     }
     if (sort) {
       const col = cols.find((c) => c.key === sort.key);
-      if (col) out = sortRows(out, col.get, col.kind ?? 'text', sort.dir);
+      if (col) {
+        out = sortRows(out, col.get, col.kind ?? 'text', sort.dir);
+      }
     }
     return out;
   }, [q, register, filters, ranges, sort]);
@@ -136,8 +141,9 @@ export function DocumentsScreen({
     startTransition(async () => {
       const res = await fn();
       setBusy(null);
-      if (!res.ok) toast(res.error ?? 'The action failed.', 'error');
-      else {
+      if (!res.ok) {
+        toast(res.error ?? 'The action failed.', 'error');
+      } else {
         toast(okMsg, 'success');
         router.refresh();
       }
@@ -153,7 +159,9 @@ export function DocumentsScreen({
       danger: true,
       validate: (v) => (v.trim() ? null : 'Enter what needs fixing.'),
     });
-    if (reason === null) return;
+    if (reason === null) {
+      return;
+    }
     run(
       d.id,
       () => verifyEmployeeDocument(d.id, false, reason.trim()),
@@ -168,7 +176,9 @@ export function DocumentsScreen({
       confirmLabel: 'Delete',
       danger: true,
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
     run(d.id, () => deleteEmployeeDocument(d.id), 'Document deleted.');
   }
 
@@ -443,9 +453,6 @@ export function DocumentsScreen({
   );
 }
 
-// The employee name as a button that opens their drill-down. Styled inline rather than with a
-// class: it is the only link-shaped button in the app, and globals.css has no rule for one — adding
-// a global class for a single use would be the wrong place to put it.
 function EmployeeLink({
   row,
   onOpen,

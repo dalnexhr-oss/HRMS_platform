@@ -7,6 +7,7 @@
 // yesterday, whereas this action requires a staff session and defaults to today.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
+import { todayIST } from '@/lib/format';
 import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/guards';
 import {
   autoCloseDay,
@@ -29,19 +30,20 @@ interface OpenDay {
 // (Asia/Kolkata) — the sweep is a same-evening job.
 export async function runNightSweep(dateISO?: string): Promise<SweepResult> {
   const gate = await requireStaff('Running the night sweep');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   try {
-    const date =
-      dateISO ?? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+    const date = dateISO ?? todayIST();
 
     const dbc = await createClient();
 
-    // The date is caller-supplied, so without this a staff user could sweep an
-    // arbitrary PAST date and mass-rewrite punch_out values behind an already
-    // locked/paid payroll month.
+    // Caller-supplied dates must respect the same payroll seal as attendance corrections.
     const monthOpen = await requireOpenPayrollMonth(dbc, date);
-    if (!monthOpen.ok) return { ok: false, error: monthOpen.error };
+    if (!monthOpen.ok) {
+      return { ok: false, error: monthOpen.error };
+    }
 
     const autoOutMin = await getAutoPunchOutMinutes();
 
@@ -51,7 +53,9 @@ export async function runNightSweep(dateISO?: string): Promise<SweepResult> {
       .eq('work_date', date)
       .not('punch_in', 'is', null)
       .is('punch_out', null);
-    if (error) return { ok: false, error: `Could not read open days: ${error.message}` };
+    if (error) {
+      return { ok: false, error: `Could not read open days: ${error.message}` };
+    }
 
     const open = (data ?? []) as OpenDay[];
     if (open.length === 0) {
@@ -64,13 +68,21 @@ export async function runNightSweep(dateISO?: string): Promise<SweepResult> {
     for (const row of open) {
       const inMin = clockToMinutes(row.punch_in);
       const result = autoCloseDay(inMin, null, autoOutMin);
-      if (!result) continue; // unparseable punch-in — leave it for a human
+      if (!result) {
+        // unparseable punch-in — leave it for a human
+        continue;
+      }
 
       const { error: updErr, data: updated } = await dbc
         .from('attendance_days')
         .update({
           punch_out: minutesToClock(result.outMin),
           worked_minutes: result.workedMin,
+          is_corrected: true,
+          correction_reason: 'Manual night sweep: no closing punch was recorded.',
+          corrected_by: gate.profileId,
+          auto_close_source: 'manual',
+          auto_closed_at: new Date(),
         })
         .eq('id', row.id)
         // Only close it if it is still open — a real punch-out landing mid-sweep wins.
@@ -80,7 +92,9 @@ export async function runNightSweep(dateISO?: string): Promise<SweepResult> {
         failures.push(updErr.message);
         continue;
       }
-      if (updated && updated.length > 0) closed++;
+      if (updated && updated.length > 0) {
+        closed++;
+      }
     }
 
     if (closed === 0 && failures.length > 0) {
@@ -98,6 +112,7 @@ export async function runNightSweep(dateISO?: string): Promise<SweepResult> {
 
     revalidatePath('/today');
     revalidatePath('/register');
+    revalidatePath('/me');
     return { ok: true, closed, at: minutesToClock(autoOutMin), date };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'The night sweep failed.' };

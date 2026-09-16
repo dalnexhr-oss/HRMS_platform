@@ -17,15 +17,24 @@ export async function settleApprovedCompOff(requestId: string): Promise<string |
       .select('id, employee_id, used_date')
       .eq('request_id', requestId)
       .maybeSingle<{ id: string; employee_id: string; used_date: string | null }>();
-    if (error) return `Could not load the comp-off credit: ${error.message}`;
-    if (!credit) return null; // not a comp-off-backed request
+    if (error) {
+      return `Could not load the comp-off credit: ${error.message}`;
+    }
+    if (!credit) {
+      // not a comp-off-backed request
+      return null;
+    }
 
     const takeDate = credit.used_date;
-    if (!takeDate) return 'The comp-off credit has no date to apply.';
+    if (!takeDate) {
+      return 'The comp-off credit has no date to apply.';
+    }
 
     // Never stamp a day inside a locked/paid month — the payslips are final.
     const monthOpen = await requireOpenPayrollMonth(dbc, takeDate);
-    if (!monthOpen.ok) return `Approved, but the day was not stamped: ${monthOpen.error}`;
+    if (!monthOpen.ok) {
+      return `Approved, but the day was not stamped: ${monthOpen.error}`;
+    }
 
     // Preserve any real punches already on that day. The previous version
     // upserted punch_in/punch_out to null, so approving a comp off for a date
@@ -36,7 +45,9 @@ export async function settleApprovedCompOff(requestId: string): Promise<string |
       .eq('employee_id', credit.employee_id)
       .eq('work_date', takeDate)
       .maybeSingle<{ punch_in: string | null; punch_out: string | null; worked_minutes: number }>();
-    if (readErr) return `Approved, but the existing day could not be read: ${readErr.message}`;
+    if (readErr) {
+      return `Approved, but the existing day could not be read: ${readErr.message}`;
+    }
 
     const { error: dayErr } = await dbc.from('attendance_days').upsert(
       {
@@ -49,7 +60,9 @@ export async function settleApprovedCompOff(requestId: string): Promise<string |
       },
       { onConflict: 'employee_id,work_date' },
     );
-    if (dayErr) return `Approved, but the day could not be stamped as comp off: ${dayErr.message}`;
+    if (dayErr) {
+      return `Approved, but the day could not be stamped as comp off: ${dayErr.message}`;
+    }
 
     // Only an 'applied' credit may become 'used' — a credit that is already
     // 'used' must not be re-consumed.
@@ -58,7 +71,9 @@ export async function settleApprovedCompOff(requestId: string): Promise<string |
       .update({ status: 'used' })
       .eq('id', credit.id)
       .eq('status', 'applied');
-    if (useErr) return `Approved, but the comp-off credit was not closed: ${useErr.message}`;
+    if (useErr) {
+      return `Approved, but the comp-off credit was not closed: ${useErr.message}`;
+    }
 
     revalidatePath('/register');
     revalidatePath('/me');

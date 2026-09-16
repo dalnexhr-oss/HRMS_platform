@@ -110,19 +110,20 @@ export const documentCategoryLabels: Record<string, string> = {
   settlement: 'Full & final statement',
 };
 
-// The label to show for a row, given where its file came from. Only 'experience' needs the
-// distinction — see the note on generatedDocumentCategories — but routing every row through one
-// function means a future overlap is handled in one place rather than at each table.
+// Choose document labels by source so issued experience letters and uploaded certificates remain
+// distinguishable.
 export function documentCategoryLabel(category: string | null, issued = false): string {
-  if (!category) return '—';
-  if (issued && category === 'experience') return 'Experience letter';
+  if (!category) {
+    return '—';
+  }
+  if (issued && category === 'experience') {
+    return 'Experience letter';
+  }
   return documentCategoryLabels[category] ?? category;
 }
 
-// What every employee is expected to have on file. Drives the "missing" count on /documents and the
-// gaps listed in an employee's drill-down. Deliberately short: it is the joining paperwork the
-// company cannot operate without, not everything it might ever want. A category outside this list
-// is welcome on file but never reported as missing.
+// Required joining documents drive missing-document counts. Additional categories can be uploaded
+// without being reported as missing.
 export const requiredDocumentCategories: readonly string[] = [
   'offer_letter',
   'contract',
@@ -279,14 +280,12 @@ export const tabTitles: Record<string, [string, string]> = {
   account: ['My account', 'Your profile & password'],
 };
 
-// Live figures behind the topbar subtitles, resolved by the portal layout (see getTopbarStats).
-// Date labels are pre-formatted on the SERVER so the client cannot hydrate a different day. The
-// interface lives here rather than in queries.ts so the client-side Topbar can import it without
-// dragging a server-only module into the browser bundle.
+// Server-formatted dates keep topbar hydration consistent. Keep this client-safe contract outside
+// the server-only queries module.
 export interface TopbarStats {
-  // e.g. 'Saturday, 25 July 2026' — today in the business timezone.
+  // e.g. 'Saturday, 25 July YYYY' — today in the business timezone.
   todayLabel: string;
-  // e.g. 'July 2026' — the current payroll period.
+  // e.g. 'July YYYY' — the current payroll period.
   periodLabel: string;
   // Current year in the business timezone.
   year: number;
@@ -314,7 +313,9 @@ const runStatusLabel: Record<string, string> = {
 // number.
 export function pageHeader(slug: string, stats?: TopbarStats | null): [string, string] {
   const [title, fallback] = tabTitles[slug] ?? ['', ''];
-  if (!stats) return [title, fallback];
+  if (!stats) {
+    return [title, fallback];
+  }
 
   switch (slug) {
     case 'today':
@@ -332,13 +333,17 @@ export function pageHeader(slug: string, stats?: TopbarStats | null): [string, s
     }
 
     case 'employees': {
-      if (stats.activeEmployees == null) return [title, fallback];
+      if (stats.activeEmployees == null) {
+        return [title, fallback];
+      }
       const where = stats.branches.length ? ` · ${stats.branches.join(' & ')}` : '';
       return [title, `${stats.activeEmployees} active${where}`];
     }
 
     case 'approvals': {
-      if (stats.pendingApprovals == null) return [title, fallback];
+      if (stats.pendingApprovals == null) {
+        return [title, fallback];
+      }
       return [
         title,
         stats.pendingApprovals === 0 ? 'Nothing pending' : `${stats.pendingApprovals} pending`,

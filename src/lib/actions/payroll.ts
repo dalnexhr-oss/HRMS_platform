@@ -11,10 +11,8 @@ import type { Decimal128 } from 'mongodb';
 import { toMoney } from '@/lib/db/money';
 import type { AppRole, PayrollStatus } from '@/types/database';
 
-// Roles allowed to move money. Deliberately NOT `staffRoles` from @/lib/auth: that is the portal
-// READ set, and gating on it let a reader through to writes the policy layer then filtered to zero
-// rows — a write that reports success and changes nothing. An explicit set turns that into an
-// honest, explained refusal. Matches guards.ts writeRoles: super_admin, admin, hr.
+// Match guards.ts writeRoles. Payroll writes require super_admin, admin, or hr; portal read access
+// is insufficient.
 const payrollRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
 // A run in one of these states is history; recompute/adjust must refuse.
@@ -45,7 +43,9 @@ async function gate(): Promise<Gate> {
   }
 
   const { profile } = await getSession();
-  if (!profile) return { ok: false, error: 'You are not signed in.' };
+  if (!profile) {
+    return { ok: false, error: 'You are not signed in.' };
+  }
   if (!payrollRoles.includes(profile.role)) {
     return {
       ok: false,
@@ -71,7 +71,9 @@ export async function openRun(periodMonth: string): Promise<{ ok: boolean; error
   const context = 'Start payroll run';
   try {
     const g = await gate();
-    if (!g.ok) return { ok: false, error: g.error };
+    if (!g.ok) {
+      return { ok: false, error: g.error };
+    }
 
     const start = `${periodMonth.slice(0, 7)}-01`;
     const dbc = await createClient();
@@ -81,14 +83,20 @@ export async function openRun(periodMonth: string): Promise<{ ok: boolean; error
       .select('id')
       .eq('period_month', start)
       .maybeSingle();
-    if (existErr) return { ok: false, error: pgMessage(existErr) };
-    if (existing) return { ok: false, error: `A payroll run for ${start} already exists.` };
+    if (existErr) {
+      return { ok: false, error: pgMessage(existErr) };
+    }
+    if (existing) {
+      return { ok: false, error: `A payroll run for ${start} already exists.` };
+    }
 
     const { data, error } = await dbc
       .from('payroll_runs')
       .insert({ period_month: start, status: 'draft' })
       .select('id');
-    if (error) return { ok: false, error: pgMessage(error) };
+    if (error) {
+      return { ok: false, error: pgMessage(error) };
+    }
     if (!data || data.length === 0) {
       return {
         ok: false,
@@ -112,14 +120,20 @@ async function callRunRpc(
   context: string,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    if (!runId) return { ok: false, error: `${context}: no payroll run for this month yet.` };
+    if (!runId) {
+      return { ok: false, error: `${context}: no payroll run for this month yet.` };
+    }
 
     const g = await gate();
-    if (!g.ok) return { ok: false, error: g.error };
+    if (!g.ok) {
+      return { ok: false, error: g.error };
+    }
 
     const dbc = await createClient();
     const { error } = await dbc.rpc(fn, { p_run_id: runId });
-    if (error) return { ok: false, error: pgMessage(error) };
+    if (error) {
+      return { ok: false, error: pgMessage(error) };
+    }
 
     revalidatePath('/payroll');
     return { ok: true };
@@ -141,7 +155,9 @@ export async function lockRun(runId: string): Promise<{ ok: boolean; error?: str
   const res = await callRunRpc('fn_lock_run', runId, 'Lock run');
   // Locking is the moment payslips become final, so tell each employee theirs
   // is ready. Best-effort: a notification failure never un-locks the run.
-  if (res.ok) await notifyPayslipsReady(runId);
+  if (res.ok) {
+    await notifyPayslipsReady(runId);
+  }
   return res;
 }
 
@@ -215,9 +231,13 @@ function money(formData: FormData, key: MoneyField): number | string {
   const raw = String(formData.get(key) ?? '')
     .trim()
     .replace(/[,\s₹]/g, '');
-  if (!raw) return 0;
+  if (!raw) {
+    return 0;
+  }
   const n = Number(raw);
-  if (!Number.isFinite(n)) return `${moneyLabel[key]} must be a number (got "${raw}").`;
+  if (!Number.isFinite(n)) {
+    return `${moneyLabel[key]} must be a number (got "${raw}").`;
+  }
   // Round to paise (2 decimal places).
   return Math.round(n * 100) / 100;
 }
@@ -235,15 +255,21 @@ export async function saveAdjustments(
   const context = 'Save adjustments';
   try {
     const payslipId = String(formData.get('payslipId') ?? '').trim();
-    if (!payslipId) return { ok: false, error: `${context}: no payslip selected.` };
+    if (!payslipId) {
+      return { ok: false, error: `${context}: no payslip selected.` };
+    }
 
     const g = await gate();
-    if (!g.ok) return { ok: false, error: g.error };
+    if (!g.ok) {
+      return { ok: false, error: g.error };
+    }
 
     const values = {} as Record<MoneyField, number>;
     for (const field of moneyFields) {
       const parsed = money(formData, field);
-      if (typeof parsed === 'string') return { ok: false, error: parsed };
+      if (typeof parsed === 'string') {
+        return { ok: false, error: parsed };
+      }
       values[field] = parsed;
     }
     const remarksRaw = String(formData.get('remarks') ?? '').trim();
@@ -256,7 +282,9 @@ export async function saveAdjustments(
       .select('id, employee_id, payroll_run_id')
       .eq('id', payslipId)
       .maybeSingle<{ id: string; employee_id: string; payroll_run_id: string }>();
-    if (lookupError) return { ok: false, error: `${context}: ${pgMessage(lookupError)}` };
+    if (lookupError) {
+      return { ok: false, error: `${context}: ${pgMessage(lookupError)}` };
+    }
     if (!payslip) {
       return { ok: false, error: `${context}: payslip ${payslipId} no longer exists.` };
     }
@@ -306,7 +334,9 @@ export async function saveAdjustments(
       },
       { onConflict: 'id' },
     );
-    if (upsertError) return { ok: false, error: `${context}: ${pgMessage(upsertError)}` };
+    if (upsertError) {
+      return { ok: false, error: `${context}: ${pgMessage(upsertError)}` };
+    }
 
     // Recompute so the row the user is looking at tells the truth.
     const { error: recomputeError } = await dbc.rpc('fn_compute_payslip', {

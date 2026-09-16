@@ -136,19 +136,13 @@ export default async function MePage() {
     (t) => t.status === 'open' || t.status === 'in_progress',
   ).length;
 
-  // Comp-off credits the employee can actually spend. A credit staff put on hold
-  // (is_applicable=false) is still 'available' but cannot be applied against, so
-  // counting on status alone would advertise a balance applyCompOff refuses.
-  // Same rule as the Comp offs card, so the two never disagree.
+  // Exclude held comp-off credits from the spendable balance, matching applyCompOff and the Comp
+  // offs card.
   const compOffBalance = compOffs.filter((c) => c.status === 'available' && c.isApplicable).length;
   const compOffApplied = compOffs.filter((c) => c.status === 'applied').length;
 
-  // createTicket writes `employee_id: profile.employee_id`, so an unlinked login
-  // would file a ticket that never appears in "My tickets" below; and with no
-  // the database it returns {ok:true} without writing at all. Gate the form on both
-  // rather than render a control that green-ticks over nothing.
-  // getEmployeeOverview returns name:'' for an unlinked login with no full_name,
-  // which would render "Hi, " and a blank avatar.
+  // Ticket creation needs a linked employee and a configured database. Use a fallback greeting
+  // when the profile has no name.
   const displayName = overview.name.trim() || profile?.full_name?.trim() || 'there';
 
   const canRaiseTicket = isMongoConfigured() && !!employeeId;
@@ -421,7 +415,7 @@ const runStatusLabel: Record<PayrollRunView['status'], string> = {
   paid: 'paid',
 };
 
-/** '2026-06-01' -> 'June'. */
+/** 'yyyy-MM-dd' -> 'month  name'. */
 function monthName(periodMonth: string): string {
   return new Date(`${periodMonth.slice(0, 7)}-01T00:00:00Z`).toLocaleDateString('en-GB', {
     month: 'long',
@@ -429,7 +423,7 @@ function monthName(periodMonth: string): string {
   });
 }
 
-/** '2026-06-01' -> 'June 2026'. */
+/** 'yyyy-MM-dd' -> 'monthname yyyy'. */
 function monthYear(periodMonth: string): string {
   return new Date(`${periodMonth.slice(0, 7)}-01T00:00:00Z`).toLocaleDateString('en-GB', {
     month: 'long',

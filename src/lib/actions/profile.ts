@@ -22,9 +22,11 @@ const dataUrlRe = /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/]+=*$/;
 // rejected.
 export async function updateAvatar(value: string | null): Promise<ActionResult> {
   const db = requireDb('Updating your picture');
-  if (!db.ok) return db;
+  if (!db.ok) {
+    return db;
+  }
 
-  // Validate the shape BEFORE touching the DB — never store an arbitrary string.
+  // Validate before saving the profile value.
   if (value !== null) {
     if (value.startsWith('preset:')) {
       if (!isAvatarPresetId(value.slice('preset:'.length))) {
@@ -43,7 +45,9 @@ export async function updateAvatar(value: string | null): Promise<ActionResult> 
   }
 
   const { userId } = await getSession();
-  if (!userId) return { ok: false, error: 'You must be signed in to change your picture.' };
+  if (!userId) {
+    return { ok: false, error: 'You must be signed in to change your picture.' };
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -52,7 +56,9 @@ export async function updateAvatar(value: string | null): Promise<ActionResult> 
     .eq('id', userId)
     .select('id');
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return { ok: false, error: 'Your picture was not saved — your account may lack permission.' };
   }

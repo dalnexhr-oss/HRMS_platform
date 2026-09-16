@@ -17,7 +17,7 @@ export async function createClient(): Promise<PgClient> {
   return pgClient();
 }
 
-// System-scoped client for privileged background processing (cron jobs, payroll execution). SERVER ONLY.
+// Server-only client for privileged background jobs.
 export function createServiceClient(): PgClient {
   if (!isMongoConfigured()) {
     throw new Error(

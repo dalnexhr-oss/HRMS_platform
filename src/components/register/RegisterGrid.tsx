@@ -20,8 +20,12 @@ const offDayStatuses = new Set(['WO', 'OH']);
 // Comp-off eligibility includes both WO/OH stamps and scheduled days off. An employee can be
 // stamped P after working a scheduled day off.
 export function isCompOffEligible(cell: DayCell | undefined, scheduledOff = false): boolean {
-  if (!cell) return false;
-  if (!offDayStatuses.has(cell.status) && !scheduledOff) return false;
+  if (!cell) {
+    return false;
+  }
+  if (!offDayStatuses.has(cell.status) && !scheduledOff) {
+    return false;
+  }
   return cell.in !== null || (cell.hours !== null && cell.hours !== '00:00');
 }
 
@@ -104,8 +108,11 @@ export function RegisterGrid({
     const key = `${employeeId}|${dateFor(periodMonth, day)}`;
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
       return next;
     });
   }
@@ -116,8 +123,11 @@ export function RegisterGrid({
   }
 
   function onCellClick(e: RegisterEmployee, day: number, cell: DayCell | undefined) {
-    if (bulkMode) toggleSelect(e.id, day);
-    else openCorrection(e, day, cell);
+    if (bulkMode) {
+      toggleSelect(e.id, day);
+    } else {
+      openCorrection(e, day, cell);
+    }
   }
 
   function openCorrection(e: RegisterEmployee, day: number, cell: DayCell | undefined) {
@@ -162,13 +172,19 @@ export function RegisterGrid({
               confirmLabel: 'Apply',
               danger: true,
             });
-            if (!ok) return;
+            if (!ok) {
+              return;
+            }
             startApply(async () => {
               const res = await correctAttendanceBulk({ targets, status, reason });
-              if (!res.ok) toast(res.error ?? 'The bulk correction failed.', 'error');
-              else {
-                if (res.warning) toast(res.warning, 'info');
-                else toast(`Corrected ${targets.length} day(s).`, 'success');
+              if (!res.ok) {
+                toast(res.error ?? 'The bulk correction failed.', 'error');
+              } else {
+                if (res.warning) {
+                  toast(res.warning, 'info');
+                } else {
+                  toast(`Corrected ${targets.length} day(s).`, 'success');
+                }
                 exitBulk();
                 router.refresh();
               }
@@ -267,10 +283,8 @@ export function RegisterGrid({
                     const c = byDay.get(d);
                     const isWeekOff = c ? c.isWeekOff : wo.has(d);
                     const punchTitle = c?.in ? `${c.in} – ${c.out} · ${c.hours}` : undefined;
-                    // Worked an off day: flag it so staff can grant the comp off.
-                    // `wo.has(d)` carries the schedule (Sundays + 1st/3rd/5th
-                    // Saturdays), so a worked non-working Saturday counts even
-                    // when it is stamped plain 'P'.
+                    // Include scheduled days off even when attendance is stamped P, so staff can
+                    // grant comp-off for working them.
                     const coEligible = isCompOffEligible(c, wo.has(d));
                     const coGranted =
                       coEligible && granted.has(compOffKey(e.id, dateFor(periodMonth, d)));
@@ -411,7 +425,9 @@ function CorrectionForm({
     if (state.ok) {
       // Saved-with-a-caveat (e.g. the audit-log write failed) still closes the
       // drawer — the correction is committed — but the caveat is surfaced.
-      if (state.warning) onWarning?.(state.warning);
+      if (state.warning) {
+        onWarning?.(state.warning);
+      }
       onClose();
     }
   }, [state.ok, state.warning, onClose, onWarning]);
@@ -612,10 +628,10 @@ function BulkBar({
 }: {
   bulkMode: boolean;
   count: number;
-  /** True while the parent's apply transition is in flight. The transition lives
-   *  in RegisterGrid, NOT here — wrapping onApply in a transition from this side
-   *  would put the confirm dialog's state update inside it and deadlock the
-   *  whole flow (see the onApply call site). */
+  /**
+   * The parent owns the apply transition. Await confirmation before starting it, or the dialog
+   * update can remain suspended inside the transition.
+   */
   pending: boolean;
   onEnter: () => void;
   onExit: () => void;
@@ -700,7 +716,9 @@ function dateFor(periodMonth: string, day: number): string {
 /** Real weekday for the day-of-month, so any month's header is correct. */
 function weekdayLabel(periodMonth: string, day: number): string {
   const d = new Date(`${dateFor(periodMonth, day)}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return '';
+  if (Number.isNaN(d.getTime())) {
+    return '';
+  }
   // JS: 0=Sun..6=Sat. DOW is Mo-first.
   return dow[(d.getDay() + 6) % 7];
 }

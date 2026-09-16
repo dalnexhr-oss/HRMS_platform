@@ -26,28 +26,21 @@ export default async function PortalLayout({ children }: { children: React.React
   // Needs the profile id, so it cannot join the batch above.
   const access = await getMyTabAccess(profile?.id ?? null);
 
-  // Role gate — moved here from middleware, where it cost a profiles SELECT on
-  // every single request. getSession() is request-memoized, so this is free.
-  //
-  // A missing profile row is fail-closed: never assume a role. A signed-in user
-  // without one (trigger not run, deleted, unprovisioned) is sent to /login with
-  // an explanation rather than into any area. This is the last line of defence
-  // behind the 'employee' role default.
+  // Resolve the role from the request-cached session. A missing profile cannot grant portal
+  // access.
   if (!profile) {
     redirect('/login?error=Your+account+is+not+provisioned+yet.+Ask+HR+to+set+up+your+access.');
   }
-  if (!isStaffRole(profile.role)) redirect('/me');
+  if (!isStaffRole(profile.role)) {
+    redirect('/me');
+  }
 
-  // Per-tab access. This is the ONE place it is enforced, so a
-  // route added later is covered without touching its page file. x-pathname is
-  // set by middleware; if it is somehow absent we cannot identify the tab, and
-  // the static per-page role gates still apply underneath.
+  // Enforce per-tab access for all portal pages. Middleware supplies x-pathname; page-level role
+  // checks still apply when it is missing.
   const slug = slugFromPathname(hdrs.get('x-pathname') ?? '');
   if (slug && !canAccessTab(profile.role, slug, access)) {
-    // Bounce to the first tab they CAN open, never to a fixed '/today': if Today
-    // itself is the revoked tab, redirecting there re-enters this layout and
-    // loops forever. With every tab revoked there is no portal left to show, so
-    // say so on /login rather than spinning.
+    // Redirect to an accessible tab to avoid a loop when Today is revoked. With no accessible
+    // tabs, return to login with an explanation.
     const fallback = navItems.find((n) => canAccessTab(profile.role, n.slug, access));
     redirect(
       fallback

@@ -47,7 +47,9 @@ function daysOf(periodMonth: string): number[] {
 
 export async function exportPayrollXlsx(periodMonth: string): Promise<ExportResult> {
   const gate = await requireStaff('Exporting payroll');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
   try {
     // The register is fetched alongside the payslips so the workbook carries each
     // day's punch in/out on a second sheet — payroll can be verified against the
@@ -56,7 +58,9 @@ export async function exportPayrollXlsx(periodMonth: string): Promise<ExportResu
       getPayslips(periodMonth),
       getRegister(periodMonth),
     ]);
-    if (payslips.length === 0) return { ok: false, error: 'No payslips to export for this month.' };
+    if (payslips.length === 0) {
+      return { ok: false, error: 'No payslips to export for this month.' };
+    }
     const bytes = await payrollWorkbook(payslips, periodMonth, register);
     return { ok: true, filename: `payroll-${periodMonth.slice(0, 7)}.xlsx`, base64: b64(bytes) };
   } catch (e) {
@@ -67,10 +71,14 @@ export async function exportPayrollXlsx(periodMonth: string): Promise<ExportResu
 /** Today's punch log as a branded .xlsx — replaces the old client-side CSV. */
 export async function exportPunchLogXlsx(date: string): Promise<ExportResult> {
   const gate = await requireStaff('Exporting the punch log');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
   try {
     const rows = await getPunchLogToday();
-    if (rows.length === 0) return { ok: false, error: 'Nothing to export yet.' };
+    if (rows.length === 0) {
+      return { ok: false, error: 'Nothing to export yet.' };
+    }
     const bytes = await punchLogWorkbook(rows, date);
     return { ok: true, filename: `punch-log-${date}.xlsx`, base64: b64(bytes) };
   } catch (e) {
@@ -80,11 +88,14 @@ export async function exportPunchLogXlsx(date: string): Promise<ExportResult> {
 
 export async function exportRegisterXlsx(periodMonth: string): Promise<ExportResult> {
   const gate = await requireStaff('Exporting the register');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
   try {
     const employees = await getRegister(periodMonth);
-    if (employees.length === 0)
+    if (employees.length === 0) {
       return { ok: false, error: 'No attendance to export for this month.' };
+    }
     const bytes = await registerWorkbook(employees, daysOf(periodMonth), periodMonth);
     return { ok: true, filename: `register-${periodMonth.slice(0, 7)}.xlsx`, base64: b64(bytes) };
   } catch (e) {
@@ -95,11 +106,14 @@ export async function exportRegisterXlsx(periodMonth: string): Promise<ExportRes
 /** Per-employee monthly attendance sheets for the pay period, to hand out with payroll. */
 export async function exportAttendanceTemplateXlsx(periodMonth: string): Promise<ExportResult> {
   const gate = await requireStaff('Exporting the attendance template');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
   try {
     const employees = await getRegister(periodMonth);
-    if (employees.length === 0)
+    if (employees.length === 0) {
       return { ok: false, error: 'No attendance to export for this month.' };
+    }
     const bytes = await attendanceTemplateWorkbook(employees, periodMonth);
     return { ok: true, filename: `attendance-${periodMonth.slice(0, 7)}.xlsx`, base64: b64(bytes) };
   } catch (e) {
@@ -114,13 +128,8 @@ const importRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 const monthRe = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 /**
- * Normalise a caller-supplied period month to 'YYYY-MM-01', or explain why it
- * cannot be used. Accepts 'YYYY-MM' and 'YYYY-MM-01' alike.
- *
- * This value now arrives from a client component, i.e. across the network, so it
- * is untrusted input to a Server Action — validate rather than interpolate it
- * straight into a Date. Returns {ok:false} instead of throwing, matching
- * exportLeaveSalaryXlsx's year check below.
+ * Validate the caller's period month and normalize YYYY-MM or YYYY-MM-01 to YYYY-MM-01. Return a
+ * form error for invalid input.
  */
 function normalisePeriodMonth(
   input: string,
@@ -159,7 +168,9 @@ export async function exportRegisterImportTemplateXlsx(
     month = currentPeriodMonth();
   } else {
     const parsed = normalisePeriodMonth(periodMonth);
-    if (!parsed.ok) return parsed;
+    if (!parsed.ok) {
+      return parsed;
+    }
     month = parsed.periodMonth;
   }
 
@@ -177,10 +188,14 @@ export async function exportRegisterImportTemplateXlsx(
 
 export async function exportReimbursementsXlsx(): Promise<ExportResult> {
   const gate = await requireStaff('Exporting reimbursement claims');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
   try {
     const claims = await getReimbursements();
-    if (claims.length === 0) return { ok: false, error: 'There are no claims to export.' };
+    if (claims.length === 0) {
+      return { ok: false, error: 'There are no claims to export.' };
+    }
     const bytes = await reimbursementsWorkbook(claims);
     return { ok: true, filename: 'reimbursement-claims.xlsx', base64: b64(bytes) };
   } catch (e) {
@@ -198,13 +213,17 @@ export async function exportLeaveSalaryXlsx(year: number): Promise<ExportResult>
     ['super_admin', 'admin', 'hr'],
     'Exporting the leave-salary working',
   );
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
   if (!Number.isInteger(year) || year < 2000 || year > 2100) {
     return { ok: false, error: 'Enter a valid year.' };
   }
   try {
     const view = await buildLeaveSalaryView(year);
-    if (view.rows.length === 0) return { ok: false, error: 'There are no employees to export.' };
+    if (view.rows.length === 0) {
+      return { ok: false, error: 'There are no employees to export.' };
+    }
     const bytes = await leaveSalaryWorkbook(view.rows, year);
     return { ok: true, filename: `leave-salary-${year}.xlsx`, base64: b64(bytes) };
   } catch (e) {
@@ -216,12 +235,18 @@ export async function exportLeaveSalaryXlsx(year: number): Promise<ExportResult>
 
 export async function exportPfEcr(periodMonth: string): Promise<ExportResult> {
   const gate = await requireStaff('Exporting the PF ECR');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
   try {
     const rows = await getStatutoryRows(periodMonth);
-    if (rows.length === 0) return { ok: false, error: 'No payslips to file for this month.' };
+    if (rows.length === 0) {
+      return { ok: false, error: 'No payslips to file for this month.' };
+    }
     const text = buildPfEcr(rows, periodMonth);
-    if (!text) return { ok: false, error: 'No PF members with contributions this month.' };
+    if (!text) {
+      return { ok: false, error: 'No PF members with contributions this month.' };
+    }
     return {
       ok: true,
       filename: `PF_ECR_${periodMonth.slice(0, 7)}.txt`,
@@ -235,7 +260,9 @@ export async function exportPfEcr(periodMonth: string): Promise<ExportResult> {
 
 export async function exportEsic(periodMonth: string): Promise<ExportResult> {
   const gate = await requireStaff('Exporting the ESIC return');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
   try {
     const rows = await getStatutoryRows(periodMonth);
     const bytes = await buildEsicXlsx(rows, periodMonth);
@@ -247,7 +274,9 @@ export async function exportEsic(periodMonth: string): Promise<ExportResult> {
 
 export async function exportPt(periodMonth: string): Promise<ExportResult> {
   const gate = await requireStaff('Exporting the PT summary');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
   try {
     const rows = await getStatutoryRows(periodMonth);
     const bytes = await buildPtXlsx(rows, periodMonth);

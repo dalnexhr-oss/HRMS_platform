@@ -82,7 +82,9 @@ for (const e of all) {
     if (id === null) {
       // No reference: legitimately unassigned. Only normalise a MISSING field
       // to an explicit null so the shape is uniform; never invent a name.
-      if (!(nameField in e)) patch[nameField] = null;
+      if (!(nameField in e)) {
+        patch[nameField] = null;
+      }
       unassigned.push(`${e.code} ${label}`);
       continue;
     }
@@ -101,7 +103,10 @@ for (const e of all) {
       continue;
     }
 
-    if (stored === resolved) continue; // already correct — do not churn
+    if (stored === resolved) {
+      // already correct — do not churn
+      continue;
+    }
 
     patch[nameField] = resolved;
     (stored === null ? filled : corrected).push(
@@ -116,8 +121,12 @@ for (const e of all) {
 
 const show = (title, rows) => {
   console.log(`${title}: ${rows.length}`);
-  for (const r of rows.slice(0, 25)) console.log('   ' + r);
-  if (rows.length > 25) console.log(`   … and ${rows.length - 25} more`);
+  for (const r of rows.slice(0, 25)) {
+    console.log('   ' + r);
+  }
+  if (rows.length > 25) {
+    console.log(`   … and ${rows.length - 25} more`);
+  }
 };
 
 show('to FILL (was null/missing)', filled);
@@ -154,18 +163,27 @@ for (const e of await employees
     const id = e[idField] ?? null;
     const stored = e[nameField] ?? null;
     if (id === null) {
-      if (stored === null) okUnassigned++;
-      else {
+      if (stored === null) {
+        okUnassigned++;
+      } else {
         console.log(`  !! ${e.code}: ${nameField}=${JSON.stringify(stored)} with no ${idField}`);
         wrong++;
       }
       continue;
     }
     const resolved = lookup.get(id);
-    if (resolved === undefined || resolved === null) continue; // dangling, reported above
-    if (stored === resolved) continue;
-    if (stored === null) stillNull++;
-    else wrong++;
+    if (resolved === undefined || resolved === null) {
+      // dangling, reported above
+      continue;
+    }
+    if (stored === resolved) {
+      continue;
+    }
+    if (stored === null) {
+      stillNull++;
+    } else {
+      wrong++;
+    }
     console.log(
       `  !! ${e.code}: ${nameField}=${JSON.stringify(stored)} but ${idField} resolves to ${JSON.stringify(resolved)}`,
     );

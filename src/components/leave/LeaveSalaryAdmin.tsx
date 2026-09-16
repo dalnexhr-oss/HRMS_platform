@@ -61,8 +61,9 @@ export function LeaveSalaryAdmin({
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) {
     startTransition(async () => {
       const res = await fn();
-      if (!res.ok) toast(res.error ?? 'The action failed.', 'error');
-      else {
+      if (!res.ok) {
+        toast(res.error ?? 'The action failed.', 'error');
+      } else {
         toast(okMsg, 'success');
         router.refresh();
       }
@@ -77,11 +78,14 @@ export function LeaveSalaryAdmin({
         `Safe to re-run — anyone already provisioned for ${year} is skipped, never credited twice.`,
       confirmLabel: 'Provision year',
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
     startTransition(async () => {
       const res = await provisionLeaveYear(year);
-      if (!res.ok) toast(res.error ?? 'Provisioning failed.', 'error');
-      else {
+      if (!res.ok) {
+        toast(res.error ?? 'Provisioning failed.', 'error');
+      } else {
         toast(
           res.created === 0
             ? `Nothing to do — ${year} is already provisioned for everyone.`
@@ -242,8 +246,9 @@ export function LeaveSalaryAdmin({
                         year={year}
                         disabled={pending}
                         onDone={(res) => {
-                          if (!res.ok) toast(res.error ?? 'The adjustment failed.', 'error');
-                          else {
+                          if (!res.ok) {
+                            toast(res.error ?? 'The adjustment failed.', 'error');
+                          } else {
                             toast('Balance adjusted.', 'success');
                             router.refresh();
                           }
@@ -286,7 +291,7 @@ function WorkingRow({
   const [after, setAfter] = useState(String(row.salaryAfter || ''));
   const [incMonth, setIncMonth] = useState(row.incrementMonth);
   const [remarks, setRemarks] = useState(row.remarks);
-  // Editable calendar-day denominators (0041). Blank = real calendar days.
+  // Blank denominator overrides use the actual calendar-day count.
   const [daysP1, setDaysP1] = useState(
     row.calendarDaysP1Override != null ? String(row.calendarDaysP1Override) : '',
   );
@@ -305,7 +310,9 @@ function WorkingRow({
 
   const overrideOf = (raw: string): number | null => {
     const s = raw.trim();
-    if (!s) return null;
+    if (!s) {
+      return null;
+    }
     const n = Math.round(Number(s));
     return Number.isFinite(n) && n >= 1 && n <= 366 ? n : null;
   };
@@ -523,7 +530,9 @@ function WorkingRow({
                   className="btn quiet"
                   disabled={pending}
                   onClick={async () => {
-                    if (!(await onConfirmPaid(row.name, fig.total))) return;
+                    if (!(await onConfirmPaid(row.name, fig.total))) {
+                      return;
+                    }
                     onAction(
                       () => markLeaveSalaryPaid(row.working!.id),
                       'Leave salary marked paid.',

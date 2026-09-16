@@ -10,7 +10,9 @@ const presentLike = new Set(['P', 'LM', 'S', 'T']);
 
 // 'HH:MM' -> minutes. Returns 0 for null/blank so it can be summed safely.
 function hoursToMinutes(hours: string | null): number {
-  if (!hours) return 0;
+  if (!hours) {
+    return 0;
+  }
   const [h, m] = hours.split(':');
   return Number(h) * 60 + Number(m);
 }
@@ -24,7 +26,7 @@ function formatHrs(min: number): string {
 /**
  * Weekday initials for a day-of-month, derived from the real calendar rather
  * than the register's `DOW[(d - 1) % 7]` shortcut (which only holds for months
- * that happen to start on a Monday, as June 2026 does).
+ * that happen to start on a Monday, as June YYYY does).
  */
 function dowFor(periodMonth: string, day: number): string {
   const year = Number(periodMonth.slice(0, 4));
@@ -33,7 +35,7 @@ function dowFor(periodMonth: string, day: number): string {
   return dow[(jsDow + 6) % 7]; // DOW is Mon-first
 }
 
-/** '2026-06-01' -> 'June 2026'. */
+/** 'YYYY-06-01' -> 'June YYYY'. */
 function monthLabel(periodMonth: string): string {
   const d = new Date(`${periodMonth.slice(0, 7)}-01T00:00:00Z`);
   return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });

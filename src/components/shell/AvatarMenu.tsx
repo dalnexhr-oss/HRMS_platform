@@ -22,7 +22,9 @@ async function fileToAvatarDataUrl(file: File): Promise<string> {
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Your browser could not process the image.');
+  if (!ctx) {
+    throw new Error('Your browser could not process the image.');
+  }
   // Fill first so a transparent PNG/WebP doesn't turn black under JPEG.
   ctx.fillStyle = '#0E7A8F';
   ctx.fillRect(0, 0, size, size);
@@ -52,22 +54,25 @@ export function AvatarMenu({
   const boxRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Drive the display from local state so a pick/remove is reflected instantly,
-  // then reconcile with the server value once the refresh lands. Without this the
-  // chip only changes after router.refresh() round-trips, which reads as "the
-  // button did nothing" (especially for Remove).
+  // Update the avatar locally while router.refresh loads the saved value.
   const [current, setCurrent] = useState<string | null | undefined>(avatar);
   useEffect(() => {
     setCurrent(avatar);
   }, [avatar]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
     function onDown(e: MouseEvent) {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') {
+        setOpen(false);
+      }
     }
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
@@ -94,7 +99,9 @@ export function AvatarMenu({
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = ''; // allow re-selecting the same file later
-    if (!file) return;
+    if (!file) {
+      return;
+    }
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
       setError('Please choose a PNG, JPEG or WebP image.');
       return;

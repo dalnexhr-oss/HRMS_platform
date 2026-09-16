@@ -22,7 +22,9 @@ type PdfParse =
 // The optional `pdf` form field: absent/empty is fine; anything non-PDF is not.
 function pdfField(formData: FormData): PdfParse {
   const file = formData.get('pdf');
-  if (!(file instanceof File) || file.size === 0) return { ok: true, file: null };
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: true, file: null };
+  }
   if (!/\.pdf$/i.test(file.name)) {
     return { ok: false, error: 'Notice attachments must be PDF files.' };
   }
@@ -52,10 +54,14 @@ async function uploadNoticePdf(
 /** Employee marks a notice as read on their dashboard. Idempotent. */
 export async function markNoticeRead(noticeId: string) {
   const db = requireDb('Marking a notice as read');
-  if (!db.ok) return db;
+  if (!db.ok) {
+    return db;
+  }
 
   const { profile } = await getSession();
-  if (!profile?.employee_id) return { ok: false, error: 'No employee linked to this account.' };
+  if (!profile?.employee_id) {
+    return { ok: false, error: 'No employee linked to this account.' };
+  }
 
   const dbc = await createClient();
   const { error } = await dbc
@@ -82,16 +88,22 @@ export async function createNotice(formData: FormData) {
   const branch = String(formData.get('branch') ?? '').trim();
   const publish = formData.get('publish') === 'on';
 
-  if (!title) return { ok: false, error: 'Please enter a title.' };
+  if (!title) {
+    return { ok: false, error: 'Please enter a title.' };
+  }
 
   const channel: 'app' | 'whatsapp' | 'both' =
     channelRaw === 'whatsapp' || channelRaw === 'both' ? channelRaw : 'app';
 
   const pdf = pdfField(formData);
-  if (!pdf.ok) return pdf;
+  if (!pdf.ok) {
+    return pdf;
+  }
 
   const gate = await requireStaff('Publishing a notice');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
 
@@ -100,7 +112,9 @@ export async function createNotice(formData: FormData) {
   let pdfPath: string | null = null;
   if (pdf.file) {
     const up = await uploadNoticePdf(pdf.file);
-    if (!up.ok) return up;
+    if (!up.ok) {
+      return up;
+    }
     pdfPath = up.path;
   }
 
@@ -113,15 +127,14 @@ export async function createNotice(formData: FormData) {
       channel,
       ...branchScope,
       pdf_url: pdfPath,
-      // A BSON Date, not an ISO string: the collection declares published_at as
-      // `["date","null"]`, so a string was refused outright — publishing a
-      // notice failed while saving it as a draft worked. It also has to be a
-      // Date for the retention sweep to compare against, since MongoDB only
-      // orders values within one BSON type.
+      // Store published_at as BSON Date to satisfy validation and the retention sweep's date
+      // comparisons.
       published_at: publish ? new Date() : null,
     })
     .select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return { ok: false, error: 'The notice was not saved — your account may not have permission.' };
   }
@@ -156,27 +169,33 @@ export async function updateNotice(id: string, formData: FormData) {
   const channelRaw = String(formData.get('channel') ?? 'app').trim();
   const branch = String(formData.get('branch') ?? '').trim();
   const removePdf = formData.get('remove_pdf') === 'on';
-  if (!title) return { ok: false, error: 'Please enter a title.' };
+  if (!title) {
+    return { ok: false, error: 'Please enter a title.' };
+  }
 
   const channel: 'app' | 'whatsapp' | 'both' =
     channelRaw === 'whatsapp' || channelRaw === 'both' ? channelRaw : 'app';
 
   const pdf = pdfField(formData);
-  if (!pdf.ok) return pdf;
+  if (!pdf.ok) {
+    return pdf;
+  }
 
   const gate = await requireStaff('Editing a notice');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
 
-  // Only touch pdf_url when the user acted: a fresh file replaces, the remove
-  // checkbox clears, otherwise the existing attachment is left alone. The old
-  // object is deliberately left in storage (same rule as employee documents):
-  // the bucket is private and orphans are harmless.
+  // Change pdf_url only for a replacement or explicit removal. Keep the previous private storage
+  // object, matching document retention behavior.
   const patch: Record<string, unknown> = { title, body: body || null, channel };
   if (pdf.file) {
     const up = await uploadNoticePdf(pdf.file);
-    if (!up.ok) return up;
+    if (!up.ok) {
+      return up;
+    }
     patch.pdf_url = up.path;
   } else if (removePdf) {
     patch.pdf_url = null;
@@ -184,7 +203,9 @@ export async function updateNotice(id: string, formData: FormData) {
 
   Object.assign(patch, await resolveBranchScope(dbc, branch));
   const { data, error } = await dbc.from('notices').update(patch).eq('id', id).select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,
@@ -203,22 +224,24 @@ export async function updateNotice(id: string, formData: FormData) {
  */
 export async function setNoticePublished(id: string, published: boolean) {
   const gate = await requireStaff(published ? 'Publishing a notice' : 'Unpublishing a notice');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
 
   if (published) {
-    // Only a genuine draft -> published transition restamps published_at and
-    // notifies. The `.is('published_at', null)` guard means re-clicking Publish
-    // on an already-published notice is a benign no-op — it won't restart the
-    // 30-day expiry clock or re-spam everyone.
+    // Only an unpublished notice can acquire published_at and notify recipients. Repeated Publish
+    // clicks must not reset retention or send duplicates.
     const { data, error } = await dbc
       .from('notices')
       .update({ published_at: new Date() })
       .eq('id', id)
       .is('published_at', null)
       .select('id, title');
-    if (error) return { ok: false, error: error.message };
+    if (error) {
+      return { ok: false, error: error.message };
+    }
     if (!wroteNothing(data)) {
       const title = (data as { title: string }[])[0]?.title ?? 'A notice';
       await notifyEveryone(
@@ -232,7 +255,9 @@ export async function setNoticePublished(id: string, published: boolean) {
       .update({ published_at: null })
       .eq('id', id)
       .select('id');
-    if (error) return { ok: false, error: error.message };
+    if (error) {
+      return { ok: false, error: error.message };
+    }
     if (wroteNothing(data)) {
       return {
         ok: false,
@@ -254,7 +279,9 @@ export async function getNoticePdfUrl(
   id: string,
 ): Promise<{ ok: boolean; url?: string; error?: string }> {
   const db = requireDb('Opening a notice PDF');
-  if (!db.ok) return db;
+  if (!db.ok) {
+    return db;
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -262,8 +289,12 @@ export async function getNoticePdfUrl(
     .select('pdf_url')
     .eq('id', id)
     .maybeSingle<{ pdf_url: string | null }>();
-  if (error) return { ok: false, error: error.message };
-  if (!data?.pdf_url) return { ok: false, error: 'This notice has no PDF attached.' };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  if (!data?.pdf_url) {
+    return { ok: false, error: 'This notice has no PDF attached.' };
+  }
 
   const signed = await signedUrl('notice-attachments', data.pdf_url);
   return signed.ok ? { ok: true, url: signed.url } : { ok: false, error: signed.error };
@@ -272,11 +303,15 @@ export async function getNoticePdfUrl(
 /** Delete a notice by id. */
 export async function deleteNotice(id: string) {
   const gate = await requireStaff('Deleting a notice');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc.from('notices').delete().eq('id', id).select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,

@@ -26,22 +26,26 @@ const leaveKindLabel: Record<string, string> = {
   LOP: 'Leave of pay',
 };
 
-// '2026-07-16' -> day-of-month number as a string.
+// 'yyyy-MM-dd' -> day-of-month number as a string.
 function dayOf(iso: string): number {
   return new Date(iso + 'T00:00:00').getDate();
 }
 
-// '2026-07-16' -> 'Jul' (short month).
+// 'yyyy-MM-dd' -> 'Jul' (short month).
 function monthOf(iso: string): string {
   return new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { month: 'short' });
 }
 
-// '2026-07-16'..'2026-07-17' -> '16 – 17 Jul'; spans months when needed.
+// 'yyyy-MM-dd'..'yyyy-MM-dd' -> '1 Jul – 3 Jul' or '1 Jul – 3 Aug' or '1 Jul' depending on the range.
 function dateRange(startIso: string, endIso: string): string {
   const startMonth = monthOf(startIso);
   const endMonth = monthOf(endIso);
-  if (startIso === endIso) return `${dayOf(startIso)} ${startMonth}`;
-  if (startMonth === endMonth) return `${dayOf(startIso)} – ${dayOf(endIso)} ${endMonth}`;
+  if (startIso === endIso) {
+    return `${dayOf(startIso)} ${startMonth}`;
+  }
+  if (startMonth === endMonth) {
+    return `${dayOf(startIso)} – ${dayOf(endIso)} ${endMonth}`;
+  }
   return `${dayOf(startIso)} ${startMonth} – ${dayOf(endIso)} ${endMonth}`;
 }
 
@@ -105,8 +109,11 @@ function RequestCard({
         onReviewed(request.id);
         // A warning means the decision stood but a side-effect needs a human
         // (balance missing, register locked, …) — show it, loudly.
-        if (res.warning) toast(res.warning, 'info');
-        else toast(`Request ${decision}.`, 'success');
+        if (res.warning) {
+          toast(res.warning, 'info');
+        } else {
+          toast(`Request ${decision}.`, 'success');
+        }
       } else {
         toast(res.error ?? 'The request could not be reviewed.', 'error');
       }

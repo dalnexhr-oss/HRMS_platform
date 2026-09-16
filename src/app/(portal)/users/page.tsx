@@ -11,7 +11,9 @@ const userAdminRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 export default async function UsersPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
-  if (!role || !userAdminRoles.includes(role)) redirect('/today');
+  if (!role || !userAdminRoles.includes(role)) {
+    redirect('/today');
+  }
 
   const [result, employees] = await Promise.all([listUsers(), getEmployeeOptions()]);
 

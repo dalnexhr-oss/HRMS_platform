@@ -23,7 +23,9 @@ function stampTime(iso: string): string {
 export default async function AuditPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
-  if (!role || !auditRoles.includes(role)) redirect('/today');
+  if (!role || !auditRoles.includes(role)) {
+    redirect('/today');
+  }
 
   let entries: Awaited<ReturnType<typeof getAttendanceAudit>> = [];
   let loadError: string | null = null;

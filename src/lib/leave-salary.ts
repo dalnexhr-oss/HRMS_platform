@@ -25,15 +25,15 @@ export const presentCredit: Record<AttendanceStatus, number> = {
   AB: 0,
 };
 
-// Credit-weighted presence per calendar month (index 0 = January) from raw attendance rows. Rows
-// outside the intended year, with unknown statuses, or with malformed dates contribute nothing
-// rather than throwing — attendance is imported from spreadsheets and this must not die on one bad
-// row.
+// Sum credit-weighted presence by calendar month, with January at index 0. Ignore malformed dates,
+// unknown statuses, and rows outside the requested year.
 export function presenceByMonth(rows: { workDate: string; status: string }[]): number[] {
   const months = new Array(12).fill(0);
   for (const row of rows) {
     const month = Number(row.workDate?.slice(5, 7));
-    if (!Number.isInteger(month) || month < 1 || month > 12) continue;
+    if (!Number.isInteger(month) || month < 1 || month > 12) {
+      continue;
+    }
     months[month - 1] += presentCredit[row.status as AttendanceStatus] ?? 0;
   }
   return months;
@@ -81,7 +81,9 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 // Calendar days in [startMonth, endMonth] (1-based, inclusive) of `year`.
 function calendarDays(year: number, startMonth: number, endMonth: number): number {
-  if (endMonth < startMonth) return 0;
+  if (endMonth < startMonth) {
+    return 0;
+  }
   // Day 0 of month m+1 is the last day of month m — leap-safe by construction.
   const start = Date.UTC(year, startMonth - 1, 1);
   const end = Date.UTC(year, endMonth, 0);
@@ -98,24 +100,28 @@ function periodFigures(
   const months = Math.max(0, endMonth - startMonth + 1);
   const days = calendarDays(year, startMonth, endMonth);
   let present = 0;
-  for (let m = startMonth; m <= endMonth; m++) present += monthlyPresence[m - 1] ?? 0;
+  for (let m = startMonth; m <= endMonth; m++) {
+    present += monthlyPresence[m - 1] ?? 0;
+  }
   const entitled = (salary / 2) * (months / 12);
   // Guard the empty period (incrementMonth = 1 ⇒ p1 has 0 days): 0, never NaN.
   const payable = days > 0 ? round2(entitled * (present / days)) : 0;
   return { months, calendarDays: days, presentDays: present, entitled, payable };
 }
 
-// The whole working for one employee-year. Presence beyond the period counts for nothing; presence
-// rows that don't exist (an employee who joined mid-year has no earlier attendance) self-pro-rate
-// the payout, because the denominator stays the full period while the numerator only holds real
-// days.
-// Applies explicit calendar-day denominator override if valid and positive. Skipped for empty periods.
+// Calculate one employee-year. Keep the full period denominator so missing attendance prorates
+// payment; ignore presence outside the period. Apply valid positive denominator overrides only to
+// nonempty periods.
 function withCalendarOverride(
   f: PeriodFigures,
   override: number | null | undefined,
 ): PeriodFigures {
-  if (override == null || !Number.isFinite(override) || override <= 0) return f;
-  if (f.months === 0) return f;
+  if (override == null || !Number.isFinite(override) || override <= 0) {
+    return f;
+  }
+  if (f.months === 0) {
+    return f;
+  }
   const days = Math.round(override);
   return { ...f, calendarDays: days, payable: round2(f.entitled * (f.presentDays / days)) };
 }

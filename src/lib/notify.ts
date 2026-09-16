@@ -21,10 +21,8 @@ export interface NotifyInput {
   kind: NotificationKind;
   title: string;
   body?: string | null;
-  // In-app relative path, e.g. '/approvals'. A fragment is supported and is how employee
-  // notifications target a section of the dashboard ('/me#payslips') — NotificationBell scrolls to
-  // it itself, because the reader is usually already on that route and a same-URL navigation is a
-  // no-op.
+  // Relative in-app path, optionally with a dashboard fragment such as /me#payslips.
+  // NotificationBell also scrolls when the user is already on that page.
   link?: string | null;
 }
 
@@ -41,7 +39,9 @@ function warn(context: string, detail: unknown): void {
 /** Insert one row per recipient. Duplicates/empty lists are no-ops. */
 async function dispatch(recipientIds: string[], input: NotifyInput): Promise<void> {
   const unique = [...new Set(recipientIds.filter(Boolean))];
-  if (unique.length === 0) return;
+  if (unique.length === 0) {
+    return;
+  }
 
   if (!isServiceRoleConfigured()) {
     warn(input.kind, 'MONGO_URI is not set, so notifications are disabled.');
@@ -58,7 +58,9 @@ async function dispatch(recipientIds: string[], input: NotifyInput): Promise<voi
       link: input.link ?? null,
     }));
     const { error } = await admin.from('notifications').insert(rows);
-    if (error) warn(input.kind, error.message);
+    if (error) {
+      warn(input.kind, error.message);
+    }
   } catch (e) {
     warn(input.kind, e);
   }
@@ -74,7 +76,9 @@ export async function notifyProfiles(profileIds: string[], input: NotifyInput): 
  * "your claim was approved" style messages.
  */
 export async function notifyEmployee(employeeId: string | null, input: NotifyInput): Promise<void> {
-  if (!employeeId) return;
+  if (!employeeId) {
+    return;
+  }
   if (!isServiceRoleConfigured()) {
     warn(input.kind, 'MONGO_URI is not set, so notifications are disabled.');
     return;
@@ -85,7 +89,9 @@ export async function notifyEmployee(employeeId: string | null, input: NotifyInp
       .from('profiles')
       .select<{ id: string }[]>('id')
       .eq('employee_id', employeeId);
-    if (error) return warn(input.kind, error.message);
+    if (error) {
+      return warn(input.kind, error.message);
+    }
     await dispatch(
       (data ?? []).map((p: { id: string }) => p.id),
       input,
@@ -107,7 +113,9 @@ export async function notifyApprovers(input: NotifyInput, exceptProfileId?: stri
       .from('profiles')
       .select<{ id: string; role: string }[]>('id, role')
       .in('role', approverRoles as unknown as string[]);
-    if (error) return warn(input.kind, error.message);
+    if (error) {
+      return warn(input.kind, error.message);
+    }
     const ids = (data ?? [])
       .map((p: { id: string }) => p.id)
       .filter((id) => id !== exceptProfileId);
@@ -130,7 +138,9 @@ export async function notifyEveryone(input: NotifyInput, exceptProfileId?: strin
   try {
     const admin = createServiceClient();
     const { data, error } = await admin.from('profiles').select<{ id: string }[]>('id');
-    if (error) return warn(input.kind, error.message);
+    if (error) {
+      return warn(input.kind, error.message);
+    }
     const ids = (data ?? [])
       .map((p: { id: string }) => p.id)
       .filter((id) => id !== exceptProfileId);

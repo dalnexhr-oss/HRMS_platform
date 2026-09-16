@@ -36,7 +36,7 @@ function unescapeText(v: string): string {
     .trim();
 }
 
-/** '20260815' -> '2026-08-15'. */
+/** '20260815' -> 'YYYY-08-15'. */
 function toISO(yyyymmdd: string): string {
   return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
 }
@@ -54,21 +54,31 @@ export function parseHolidayIcs(ics: string, year: number): CalendarHoliday[] {
     const body = chunk.split('END:VEVENT')[0];
 
     const dt = /^DTSTART(?:;VALUE=DATE)?:(\d{8})/m.exec(body);
-    if (!dt) continue;
+    if (!dt) {
+      continue;
+    }
     const date = toISO(dt[1]);
-    if (!date.startsWith(String(year))) continue;
+    if (!date.startsWith(String(year))) {
+      continue;
+    }
 
     const summary = /^SUMMARY:(.*)$/m.exec(body);
     const name = summary ? unescapeText(summary[1]) : '';
-    if (!name) continue;
+    if (!name) {
+      continue;
+    }
 
     const description = /^DESCRIPTION:(.*)$/m.exec(body);
     const desc = description ? unescapeText(description[1]) : '';
-    if (!/^public holiday/i.test(desc)) continue;
+    if (!/^public holiday/i.test(desc)) {
+      continue;
+    }
 
     // The feed can repeat an event across years/edits — one row per date+name.
     const key = `${date}|${name}`;
-    if (seen.has(key)) continue;
+    if (seen.has(key)) {
+      continue;
+    }
     seen.add(key);
 
     out.push({ date, name, tentative: /tentative/i.test(desc) });

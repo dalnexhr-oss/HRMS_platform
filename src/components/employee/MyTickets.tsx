@@ -16,8 +16,12 @@ const statusLabel: Record<TicketView['status'], string> = {
 
 // Same pill language as the staff helpdesk screen.
 function statusPillStyle(status: TicketView['status']): React.CSSProperties {
-  if (status === 'open') return { borderColor: 'var(--line-2)', color: 'var(--lm)' };
-  if (status === 'in_progress') return { borderColor: 'var(--line-2)', color: 'var(--brand)' };
+  if (status === 'open') {
+    return { borderColor: 'var(--line-2)', color: 'var(--lm)' };
+  }
+  if (status === 'in_progress') {
+    return { borderColor: 'var(--line-2)', color: 'var(--brand)' };
+  }
   return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
 }
 
@@ -116,7 +120,9 @@ function NewTicketForm() {
       const res = await createTicket(formData);
       // createTicket only revalidates /helpdesk, so refresh this route ourselves
       // to pull the new ticket into the list beside the form.
-      if (res.ok) router.refresh();
+      if (res.ok) {
+        router.refresh();
+      }
       return res;
     },
     {},

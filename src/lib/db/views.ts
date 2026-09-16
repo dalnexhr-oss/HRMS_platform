@@ -282,6 +282,8 @@ export function isView(name: string): boolean {
  */
 export async function runView(name: string, scope?: Scope): Promise<Document[]> {
   const view = views[name];
-  if (!view) throw new Error(`Unknown view '${name}'. Views live in src/lib/db/views.ts.`);
+  if (!view) {
+    throw new Error(`Unknown view '${name}'. Views live in src/lib/db/views.ts.`);
+  }
   return view(scope);
 }

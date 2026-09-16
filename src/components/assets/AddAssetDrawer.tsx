@@ -5,6 +5,7 @@ import { useActionState, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createAsset, updateAsset } from '@/lib/actions/assets';
 import { todayIST } from '@/lib/format';
+import { assetLinkMaxLength } from '@/lib/asset-link';
 import type { AssetRow } from '@/lib/queries';
 
 type State = { ok?: boolean; error?: string };
@@ -27,8 +28,7 @@ export function AddAssetDrawer({
     {},
   );
 
-  // Close + refresh once per successful submit — keyed on the `state` object
-  // identity so a reopened drawer isn't snapped shut by a stale state.ok=true.
+  // Keep callback changes from rerunning the effect after a successful submission.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   useEffect(() => {
@@ -114,6 +114,23 @@ export function AddAssetDrawer({
             />
 
             <PurchaseAndWarranty asset={asset} />
+
+            <div className="f">
+              <label htmlFor="asset-form-qr-link">QR destination link</label>
+              <input
+                id="asset-form-qr-link"
+                name="qr_url"
+                type="url"
+                placeholder="https://example.com/assets/this-asset"
+                maxLength={assetLinkMaxLength}
+                defaultValue={asset?.qr_url ?? ''}
+                autoCapitalize="none"
+                spellCheck={false}
+              />
+              <span className="muted" style={{ fontSize: 12 }}>
+                Optional. Scanning the QR code opens this link. Leave blank to remove it.
+              </span>
+            </div>
 
             <div className="fold">Specifications</div>
             <div className="f-row">
@@ -248,9 +265,9 @@ function Field({
   value?: string;
   onValueChange?: (value: string) => void;
   type?: string;
-  /** type="number" defaults to step=1, which rejects paise. */
+  /** The step attribute for type="number" — defaults to 1.0.  */
   step?: string;
-  /** Bounds for type="date" — see PurchaseAndWarranty for what they encode. */
+  /** The min attribute for type="number" or type="date". */
   min?: string;
   max?: string;
   mono?: boolean;

@@ -23,9 +23,8 @@ export interface ActionResult {
 const purposes: readonly ReimbursementPurpose[] = ['travel', 'material_purchase', 'other'];
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
-// Append one row to the claim's timeline. BEST-EFFORT, exactly like notify.ts: the business write
-// is already committed and there is no transaction across the two, so a failed event must never
-// turn a successful approval into an error. It is logged instead.
+// Timeline writes are best-effort after the claim is saved. Log failures without reporting the
+// committed decision as failed.
 async function logClaimEvent(
   dbc: Awaited<ReturnType<typeof createClient>>,
   claimId: string,
@@ -72,7 +71,9 @@ function money(v: FormDataEntryValue | null): number | null {
   const raw = String(v ?? '')
     .trim()
     .replace(/[,\s₹]/g, '');
-  if (!raw) return null;
+  if (!raw) {
+    return null;
+  }
   const n = Number(raw);
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
 }
@@ -86,9 +87,15 @@ export async function createReimbursement(formData: FormData): Promise<ActionRes
   const modeOfPayment = String(formData.get('mode_of_payment') ?? '').trim() || null;
   const remarks = String(formData.get('remarks') ?? '').trim() || null;
 
-  if (!description) return { ok: false, error: 'Enter a description.' };
-  if (!purposes.includes(purpose)) return { ok: false, error: 'Choose a purpose.' };
-  if (!isoDate.test(claimDate)) return { ok: false, error: 'Choose a valid date.' };
+  if (!description) {
+    return { ok: false, error: 'Enter a description.' };
+  }
+  if (!purposes.includes(purpose)) {
+    return { ok: false, error: 'Choose a purpose.' };
+  }
+  if (!isoDate.test(claimDate)) {
+    return { ok: false, error: 'Choose a valid date.' };
+  }
 
   const kmsRaw = money(formData.get('kms'));
   let amount: number;
@@ -104,12 +111,16 @@ export async function createReimbursement(formData: FormData): Promise<ActionRes
     amount = Math.round(kms * rate * 100) / 100;
   } else {
     const typed = money(formData.get('amount'));
-    if (typed === null || typed <= 0) return { ok: false, error: 'Enter the claim amount.' };
+    if (typed === null || typed <= 0) {
+      return { ok: false, error: 'Enter the claim amount.' };
+    }
     amount = typed;
   }
 
   const db = requireDb('Filing a reimbursement claim');
-  if (!db.ok) return db;
+  if (!db.ok) {
+    return db;
+  }
 
   const { profile } = await getSession();
   const employeeId = profile?.employee_id ?? null;
@@ -139,7 +150,9 @@ export async function createReimbursement(formData: FormData): Promise<ActionRes
     })
     .select('id');
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return { ok: false, error: 'The claim was not filed — your account may not have permission.' };
   }
@@ -185,7 +198,9 @@ async function addToPayroll(
     .select('id, status')
     .eq('period_month', periodStart)
     .maybeSingle<{ id: string; status: string }>();
-  if (runErr) return `Approved, but the payroll run could not be read: ${runErr.message}`;
+  if (runErr) {
+    return `Approved, but the payroll run could not be read: ${runErr.message}`;
+  }
   if (!run) {
     return `Approved. No payroll run exists for ${periodStart.slice(0, 7)} yet, so it will need adding to that run's adjustments once it is started.`;
   }
@@ -199,16 +214,15 @@ async function addToPayroll(
     .eq('payroll_run_id', run.id)
     .eq('employee_id', employeeId)
     .maybeSingle<{ id: string }>();
-  if (psErr) return `Approved, but the payslip could not be read: ${psErr.message}`;
+  if (psErr) {
+    return `Approved, but the payslip could not be read: ${psErr.message}`;
+  }
   if (!payslip) {
     return 'Approved. This employee has no payslip in that run yet — recompute drafts, then it can be added.';
   }
 
-  // Accumulate the bonus with a compare-and-swap: the UPDATE is predicated on
-  // the value we read, so two claims approved concurrently for the same
-  // employee/month cannot both apply against the same starting bonus (a plain
-  // read-modify-write silently dropped one claim's amount). The loser re-reads
-  // and retries.
+  // Update only if the bonus still matches the value read. Retry concurrent changes so separate
+  // approvals cannot lose each other's amounts.
   let applied = false;
   for (let attempt = 0; attempt < 3 && !applied; attempt++) {
     const { data: existing, error: adjErr } = await dbc
@@ -216,7 +230,9 @@ async function addToPayroll(
       .select('id, reimbursement_bonus')
       .eq('id', payslip.id)
       .maybeSingle<{ id: string; reimbursement_bonus: number | string | null }>();
-    if (adjErr) return `Approved, but the current adjustments could not be read: ${adjErr.message}`;
+    if (adjErr) {
+      return `Approved, but the current adjustments could not be read: ${adjErr.message}`;
+    }
 
     const current = Number(existing?.reimbursement_bonus ?? 0) || 0;
     const next = Math.round((current + amount) * 100) / 100;
@@ -243,7 +259,9 @@ async function addToPayroll(
         ? casQuery.is('reimbursement_bonus', null)
         : casQuery.eq('reimbursement_bonus', existing.reimbursement_bonus)
     ).select('id');
-    if (upErr) return `Approved, but the payslip adjustment failed: ${upErr.message}`;
+    if (upErr) {
+      return `Approved, but the payslip adjustment failed: ${upErr.message}`;
+    }
     applied = !!casRows && casRows.length > 0;
   }
   if (!applied) {
@@ -268,7 +286,9 @@ export async function reviewReimbursement(
   remark?: string,
 ): Promise<ActionResult> {
   const gate = await requireStaff(`Marking a claim ${decision}`);
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   // A rejection must say why — the employee sees this note on their dashboard.
   const cleanRemark = (remark ?? '').trim();
@@ -288,7 +308,9 @@ export async function reviewReimbursement(
     reviewed_by: gate.profileId,
     reviewed_at: new Date(),
   };
-  if (decision === 'rejected') patch.review_remark = cleanRemark;
+  if (decision === 'rejected') {
+    patch.review_remark = cleanRemark;
+  }
 
   const { data, error } = await dbc
     .from('reimbursement_claims')
@@ -373,7 +395,9 @@ export async function reviewReimbursement(
       String(row.claim_date).slice(0, 10),
       finalAmount,
     );
-    if (warning) return { ok: true, warning };
+    if (warning) {
+      return { ok: true, warning };
+    }
   }
 
   if (twoStage) {
@@ -392,10 +416,8 @@ export async function reviewReimbursement(
 }
 
 /**
- * The Finance stage's final say on a claim already approved by HR
- * (status='finance_review'). Approving here is what credits payroll; rejecting
- * sends it back to the employee with a reason. Admin-only — Finance sign-off is
- * deliberately narrower than the general staff gate.
+ * Finalize a claim in finance_review. Admin approval credits payroll; rejection returns it to the
+ * employee with a reason.
  */
 export async function financeReviewReimbursement(
   id: string,
@@ -406,7 +428,9 @@ export async function financeReviewReimbursement(
     ['super_admin', 'admin'],
     `Finance-${decision === 'approved' ? 'approving' : 'rejecting'} a claim`,
   );
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const cleanRemark = (remark ?? '').trim();
   if (decision === 'rejected' && !cleanRemark) {
@@ -419,7 +443,9 @@ export async function financeReviewReimbursement(
     finance_reviewed_by: gate.profileId,
     finance_reviewed_at: new Date(),
   };
-  if (decision === 'rejected') patch.review_remark = cleanRemark;
+  if (decision === 'rejected') {
+    patch.review_remark = cleanRemark;
+  }
 
   const { data, error } = await dbc
     .from('reimbursement_claims')
@@ -427,7 +453,9 @@ export async function financeReviewReimbursement(
     .eq('id', id)
     .eq('status', 'finance_review')
     .select('id, employee_id, claim_date, amount');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return { ok: false, error: 'Only a claim awaiting Finance approval can be reviewed here.' };
   }
@@ -466,7 +494,9 @@ export async function financeReviewReimbursement(
       String(row.claim_date).slice(0, 10),
       amount,
     );
-    if (warning) return { ok: true, warning };
+    if (warning) {
+      return { ok: true, warning };
+    }
   }
 
   return { ok: true };
@@ -485,9 +515,15 @@ export async function updateReimbursement(id: string, formData: FormData): Promi
   const modeOfPayment = String(formData.get('mode_of_payment') ?? '').trim() || null;
   const remarks = String(formData.get('remarks') ?? '').trim() || null;
 
-  if (!description) return { ok: false, error: 'Enter a description.' };
-  if (!purposes.includes(purpose)) return { ok: false, error: 'Choose a purpose.' };
-  if (!isoDate.test(claimDate)) return { ok: false, error: 'Choose a valid date.' };
+  if (!description) {
+    return { ok: false, error: 'Enter a description.' };
+  }
+  if (!purposes.includes(purpose)) {
+    return { ok: false, error: 'Choose a purpose.' };
+  }
+  if (!isoDate.test(claimDate)) {
+    return { ok: false, error: 'Choose a valid date.' };
+  }
 
   const kmsRaw = money(formData.get('kms'));
   let amount: number;
@@ -501,12 +537,16 @@ export async function updateReimbursement(id: string, formData: FormData): Promi
     amount = Math.round(kms * rate * 100) / 100;
   } else {
     const typed = money(formData.get('amount'));
-    if (typed === null || typed <= 0) return { ok: false, error: 'Enter the claim amount.' };
+    if (typed === null || typed <= 0) {
+      return { ok: false, error: 'Enter the claim amount.' };
+    }
     amount = typed;
   }
 
   const db = requireDb('Editing a reimbursement claim');
-  if (!db.ok) return db;
+  if (!db.ok) {
+    return db;
+  }
 
   const dbc = await createClient();
 
@@ -544,7 +584,9 @@ export async function updateReimbursement(id: string, formData: FormData): Promi
     .in('status', ['pending', 'rejected'])
     .select('id');
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,
@@ -582,7 +624,9 @@ export async function updateReimbursement(id: string, formData: FormData): Promi
 /** Employee withdraws their OWN still-pending claim. The write policy restricts it to that. */
 export async function deleteReimbursement(id: string): Promise<ActionResult> {
   const db = requireDb('Withdrawing a reimbursement claim');
-  if (!db.ok) return db;
+  if (!db.ok) {
+    return db;
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -592,7 +636,9 @@ export async function deleteReimbursement(id: string): Promise<ActionResult> {
     .eq('status', 'pending')
     .select('id');
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,
@@ -615,7 +661,9 @@ export async function markReimbursementPaid(
   paymentRef?: string,
 ): Promise<ActionResult> {
   const gate = await requireStaff('Marking a claim paid');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const ref = (paymentRef ?? '').trim() || null;
@@ -633,7 +681,9 @@ export async function markReimbursementPaid(
     .eq('status', 'approved')
     .select('id, employee_id, amount');
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return { ok: false, error: 'Only an approved claim can be marked paid.' };
   }
@@ -668,23 +718,30 @@ export async function uploadReimbursementReceipt(
   formData: FormData,
 ): Promise<ActionResult> {
   const db = requireDb('Attaching a receipt');
-  if (!db.ok) return db;
+  if (!db.ok) {
+    return db;
+  }
 
   const file = formData.get('receipt');
-  if (!(file instanceof File) || file.size === 0)
+  if (!(file instanceof File) || file.size === 0) {
     return { ok: false, error: 'Choose a receipt file.' };
-  if (file.size > 5 * 1024 * 1024) return { ok: false, error: 'Receipts must be 5 MB or smaller.' };
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    return { ok: false, error: 'Receipts must be 5 MB or smaller.' };
+  }
   const fileType = resolveUploadType(file.name, 'receipt');
-  if (!fileType.ok) return fileType;
+  if (!fileType.ok) {
+    return fileType;
+  }
 
   const { profile } = await getSession();
   const employeeId = profile?.employee_id ?? null;
-  if (!employeeId) return { ok: false, error: 'Your login is not linked to an employee record.' };
+  if (!employeeId) {
+    return { ok: false, error: 'Your login is not linked to an employee record.' };
+  }
 
-  // Verify the claim BEFORE uploading — uploading first orphans an object in
-  // the bucket whenever the attach is then refused. Only a pending claim can
-  // take a receipt — a reviewed claim is frozen; a rejected one must be edited
-  // first, which resets it to pending.
+  // Check ownership and pending status before uploading to avoid orphaned receipts. Rejected
+  // claims must be edited back to pending first.
   const dbc = await createClient();
   const { data: claim, error: claimError } = await dbc
     .from('reimbursement_claims')
@@ -692,8 +749,12 @@ export async function uploadReimbursementReceipt(
     .eq('id', id)
     .eq('employee_id', employeeId)
     .maybeSingle<{ id: string; status: string }>();
-  if (claimError) return { ok: false, error: claimError.message };
-  if (!claim) return { ok: false, error: 'This claim could not be found.' };
+  if (claimError) {
+    return { ok: false, error: claimError.message };
+  }
+  if (!claim) {
+    return { ok: false, error: 'This claim could not be found.' };
+  }
   if (claim.status !== 'pending') {
     return {
       ok: false,
@@ -709,7 +770,9 @@ export async function uploadReimbursementReceipt(
     file,
     fileType.contentType,
   );
-  if (!up.ok) return { ok: false, error: up.error ?? 'The receipt could not be uploaded.' };
+  if (!up.ok) {
+    return { ok: false, error: up.error ?? 'The receipt could not be uploaded.' };
+  }
 
   const { data, error } = await dbc
     .from('reimbursement_claims')
@@ -717,7 +780,9 @@ export async function uploadReimbursementReceipt(
     .eq('id', id)
     .eq('status', 'pending')
     .select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,
@@ -742,7 +807,9 @@ export async function getReceiptUrl(
   claimId: string,
 ): Promise<{ ok: boolean; url?: string; error?: string }> {
   const db = requireDb('Opening a receipt');
-  if (!db.ok) return db;
+  if (!db.ok) {
+    return db;
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -750,8 +817,12 @@ export async function getReceiptUrl(
     .select('receipt_path')
     .eq('id', claimId)
     .maybeSingle<{ receipt_path: string | null }>();
-  if (error) return { ok: false, error: error.message };
-  if (!data?.receipt_path) return { ok: false, error: 'This claim has no receipt attached.' };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  if (!data?.receipt_path) {
+    return { ok: false, error: 'This claim has no receipt attached.' };
+  }
 
   const signed = await signedUrl('reimbursement-receipts', data.receipt_path);
   return signed.ok ? { ok: true, url: signed.url } : { ok: false, error: signed.error };

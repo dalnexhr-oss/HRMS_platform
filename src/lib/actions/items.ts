@@ -39,14 +39,20 @@ function itemFields(formData: FormData) {
 
 export async function createItem(formData: FormData) {
   const gate = await requireRoles(itemAdminRoles, 'Adding an item');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const fields = itemFields(formData);
-  if (!fields.item_name) return { ok: false, error: 'Item name is required.' };
+  if (!fields.item_name) {
+    return { ok: false, error: 'Item name is required.' };
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc.from('items').insert(fields).select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return { ok: false, error: 'The item was not added — your account may not have permission.' };
   }
@@ -56,17 +62,25 @@ export async function createItem(formData: FormData) {
 
 export async function updateItem(formData: FormData) {
   const gate = await requireRoles(itemAdminRoles, 'Updating an item');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const id = String(formData.get('id') ?? '').trim();
-  if (!id) return { ok: false, error: 'Which item to update is missing.' };
+  if (!id) {
+    return { ok: false, error: 'Which item to update is missing.' };
+  }
 
   const fields = itemFields(formData);
-  if (!fields.item_name) return { ok: false, error: 'Item name is required.' };
+  if (!fields.item_name) {
+    return { ok: false, error: 'Item name is required.' };
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc.from('items').update(fields).eq('id', id).select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,
@@ -79,11 +93,15 @@ export async function updateItem(formData: FormData) {
 
 export async function deleteItem(id: string) {
   const gate = await requireRoles(itemAdminRoles, 'Deleting an item');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc.from('items').delete().eq('id', id).select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,
@@ -96,7 +114,9 @@ export async function deleteItem(id: string) {
 
 export async function assignItem(formData: FormData) {
   const gate = await requireRoles(itemAdminRoles, 'Assigning an item');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const itemId = String(formData.get('item_id') ?? '').trim();
   const employeeId = String(formData.get('employee_id') ?? '').trim();
@@ -104,17 +124,20 @@ export async function assignItem(formData: FormData) {
   const assignedDate = String(formData.get('assigned_date') ?? '').trim() || null;
   const remarks = String(formData.get('remarks') ?? '').trim() || null;
 
-  if (!itemId) return { ok: false, error: 'Which item to assign is missing.' };
-  if (!employeeId) return { ok: false, error: 'Choose an employee to assign to.' };
+  if (!itemId) {
+    return { ok: false, error: 'Which item to assign is missing.' };
+  }
+  if (!employeeId) {
+    return { ok: false, error: 'Choose an employee to assign to.' };
+  }
   if (!Number.isFinite(quantity) || quantity <= 0) {
     return { ok: false, error: 'Enter a quantity greater than zero.' };
   }
-  // The date is optional — blank means "today" via the column default — but a
-  // supplied one has to be today or later. Back-dating an assignment moves
-  // stock out of the store on a day that is already closed, and the return
-  // stamp (returnAssignment writes today) would then predate the hand-over.
+  // Blank uses today's date. Reject supplied past dates to prevent backdated stock assignments.
   if (assignedDate) {
-    if (!isoDate.test(assignedDate)) return { ok: false, error: 'Enter a valid assigned date.' };
+    if (!isoDate.test(assignedDate)) {
+      return { ok: false, error: 'Enter a valid assigned date.' };
+    }
     if (assignedDate < todayIST()) {
       return {
         ok: false,
@@ -131,8 +154,12 @@ export async function assignItem(formData: FormData) {
     .select('item_name, quantity_remaining')
     .eq('id', itemId)
     .maybeSingle<{ item_name: string; quantity_remaining: number }>();
-  if (itemErr) return { ok: false, error: itemErr.message };
-  if (!item) return { ok: false, error: 'That item no longer exists.' };
+  if (itemErr) {
+    return { ok: false, error: itemErr.message };
+  }
+  if (!item) {
+    return { ok: false, error: 'That item no longer exists.' };
+  }
   if (quantity > item.quantity_remaining) {
     return {
       ok: false,
@@ -146,8 +173,12 @@ export async function assignItem(formData: FormData) {
     .select('code, full_name')
     .eq('id', employeeId)
     .maybeSingle<{ code: string; full_name: string }>();
-  if (empErr) return { ok: false, error: empErr.message };
-  if (!emp) return { ok: false, error: 'That employee no longer exists.' };
+  if (empErr) {
+    return { ok: false, error: empErr.message };
+  }
+  if (!emp) {
+    return { ok: false, error: 'That employee no longer exists.' };
+  }
 
   const { profile } = await getSession();
 
@@ -161,10 +192,14 @@ export async function assignItem(formData: FormData) {
     remarks,
   };
   // Omit assigned_date when blank so the column default (current_date) applies.
-  if (assignedDate) row.assigned_date = assignedDate;
+  if (assignedDate) {
+    row.assigned_date = assignedDate;
+  }
 
   const { data, error } = await dbc.from('item_assignments').insert(row).select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return { ok: false, error: 'The assignment was not saved — your role may lack permission.' };
   }
@@ -182,7 +217,9 @@ export async function assignItem(formData: FormData) {
 
 export async function returnAssignment(id: string) {
   const gate = await requireRoles(itemAdminRoles, 'Returning an item');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -191,7 +228,9 @@ export async function returnAssignment(id: string) {
     .eq('id', id)
     .eq('returned', false)
     .select('id, quantity, employee_id, items(item_name)');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return { ok: false, error: 'Nothing to return — it may already be marked returned.' };
   }
@@ -214,7 +253,9 @@ export async function returnAssignment(id: string) {
 
 export async function deleteAssignment(id: string) {
   const gate = await requireRoles(itemAdminRoles, 'Deleting an assignment');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -222,7 +263,9 @@ export async function deleteAssignment(id: string) {
     .delete()
     .eq('id', id)
     .select('id, quantity, returned, employee_id, items(item_name)');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return { ok: false, error: 'The assignment was not deleted — it may no longer exist.' };
   }

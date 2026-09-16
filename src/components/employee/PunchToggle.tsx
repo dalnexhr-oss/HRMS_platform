@@ -14,11 +14,18 @@ export function PunchToggle() {
   // No clock to offer — an unlinked login, or the status route is down. The
   // card on /me says why; the bar just steps out of the way rather than
   // showing a button that cannot work.
-  if (loadError && !state) return null;
+  if (loadError && !state) {
+    return null;
+  }
 
   return (
     <div className="punch-top">
       {toastNode}
+      {state?.lastNightSweep && (
+        <a href="/me#punch" className="muted" title={state.lastNightSweep.message}>
+          Missed punch-out
+        </a>
+      )}
       {/* Today's running total, so the bar states where you stand before you press anything. Hidden on narrow screens — the button is the point. */}
       <span className={`punch-top-read${isIn ? ' on' : ''}`} aria-hidden={loading}>
         <i className="dot" />

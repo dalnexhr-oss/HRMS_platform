@@ -29,7 +29,9 @@ async function getHeadcount(): Promise<number | null> {
 export default async function HrDashboardPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
-  if (!role || !hrRoles.includes(role)) redirect('/today');
+  if (!role || !hrRoles.includes(role)) {
+    redirect('/today');
+  }
 
   const [requests, onLeaveToday, headcount] = await Promise.all([
     getRequests(),

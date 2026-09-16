@@ -9,7 +9,9 @@ const xlsxMime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sh
 function base64ToBlob(base64: string, mime: string): Blob {
   const bin = atob(base64);
   const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  for (let i = 0; i < bin.length; i++) {
+    bytes[i] = bin.charCodeAt(i);
+  }
   return new Blob([bytes], { type: mime });
 }
 

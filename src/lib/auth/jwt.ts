@@ -27,7 +27,9 @@ export interface SessionClaims {
 let cachedKey: Uint8Array | null = null;
 
 function secretKey(): Uint8Array {
-  if (cachedKey) return cachedKey;
+  if (cachedKey) {
+    return cachedKey;
+  }
 
   const secret = process.env.AUTH_SECRET;
   if (!secret || secret.length < 32) {
@@ -59,15 +61,8 @@ export async function signSession(claims: SessionClaims): Promise<string> {
 }
 
 /**
- * Verify a token's signature, issuer, audience and expiry.
- *
- * Returns null on ANY failure — expired, tampered, wrong key, malformed. The
- * caller treats null as "not signed in"; there is nothing useful to tell a
- * visitor about which of those it was.
- *
- * This does NOT check `ver` against the database — it cannot, because
- * middleware has no database access on the edge. Call assertLiveSession() on
- * the server for that.
+ * Verify signature, issuer, audience, and expiry; return null on failure. Server callers must also
+ * use assertLiveSession to check revocation against the database.
  */
 export async function verifySession(token: string): Promise<SessionClaims | null> {
   try {
@@ -80,8 +75,12 @@ export async function verifySession(token: string): Promise<SessionClaims | null
     // Shape-check rather than trusting the payload: a token signed with the
     // right key but an older claim set must not produce an undefined role.
     const { sub, email, role, eid, ver } = payload as unknown as SessionClaims;
-    if (typeof sub !== 'string' || typeof email !== 'string') return null;
-    if (typeof role !== 'string' || typeof ver !== 'number') return null;
+    if (typeof sub !== 'string' || typeof email !== 'string') {
+      return null;
+    }
+    if (typeof role !== 'string' || typeof ver !== 'number') {
+      return null;
+    }
 
     return { sub, email, role, eid: typeof eid === 'string' ? eid : null, ver };
   } catch {

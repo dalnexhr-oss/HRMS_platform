@@ -27,9 +27,7 @@ export function AddEmployeeDrawer({
   // could offer a branch that no longer existed in the table — updateEmployee then failed its name
   // lookup, and the save was lost.
   branches?: BranchRow[];
-  // Bumped by the parent on every open. Part of the form key, so each open remounts from freshly
-  // loaded values — and, crucially, CLOSING never changes the key. Re-keying on close remounted the
-  // form mid-animation and visibly reset every field on a record the user had just saved.
+  // Increment on open to reload form defaults. Keep the key stable during the closing animation.
   formSeq?: number;
 }) {
   const router = useRouter();
@@ -51,12 +49,8 @@ export function AddEmployeeDrawer({
     branchOptions.unshift({ value: employee.branch, label: employee.branch });
   }
 
-  // The fields are UNCONTROLLED: `employee` seeds them through defaultValue and
-  // React does not track them afterwards, so typing costs no re-render. That is
-  // also why the submit handler reads the values back off the DOM rather than
-  // out of state — and why the form carries a key (employee code, or 'new',
-  // plus formSeq): a defaultValue is only read on mount, so remounting is the
-  // only way to refresh what the fields show.
+  // Read uncontrolled fields from FormData. The employee/formSeq key remounts the form because
+  // defaultValue is only applied on mount.
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -134,18 +128,13 @@ export function AddEmployeeDrawer({
             </div>
             {/* Drives the PAYROLL rules, not dashboard access — an intern's
                 login role is set separately on /users. */}
-            {/* <SelectField
-              name="employment_type"
-              label="Employment type"
-              defaultValue={employee?.employment_type ?? 'employee'}
-              options={EMPLOYMENT_TYPES.map((t) => ({ value: t, label: EMPLOYMENT_TYPE_LABEL[t] }))}
-            /> */}
+
             <div className="f-row">
               <Field
                 name="date_of_joining"
                 label="Date of joining"
                 type="date"
-                defaultValue={employee?.date_of_joining ?? '2026-08-01'}
+                defaultValue={employee?.date_of_joining ?? 'YYYY-08-01'}
               />
               <Field
                 name="date_of_birth"

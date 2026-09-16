@@ -27,7 +27,7 @@ export interface LeaveSalaryViewRow {
   // Explicit period denominators from saved working; null = calculated from calendar.
   calendarDaysP1Override: number | null;
   calendarDaysP2Override: number | null;
-  // Computed from CURRENT attendance + the inputs above.
+  // Calculated from current attendance and the inputs above.
   live: LeaveSalaryResult;
   // The saved row, when one exists. Authoritative once status ≠ draft.
   working: LeaveSalaryWorkingRow | null;

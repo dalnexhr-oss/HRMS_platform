@@ -19,6 +19,7 @@ import { monthSealReason, periodMonthFor, type PayrollRunSeal } from '@/lib/payr
 // definition of it. See the note on the same import in postgrest-compat.ts.
 import { todayIST } from '@/lib/format';
 import { noticeRetentionDays } from '@/lib/constants';
+import { lastNightSweepNotice, type SweepClosure } from '@/lib/night-sweep';
 
 function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`);
@@ -45,18 +46,16 @@ export async function cronClaim(job: string, runKey: string, detail?: string): P
     return true;
   } catch (e) {
     // 11000 = duplicate key violation (job already claimed for this run key).
-    if ((e as { code?: number }).code === 11000) return false;
+    if ((e as { code?: number }).code === 11000) {
+      return false;
+    }
     throw e;
   }
 }
 
 /**
- * Give a claim back, so the work can be attempted again.
- *
- * Best-effort by design: this only ever runs on a path that is already
- * failing, and the error the caller is about to see matters more than this
- * one. A claim that cannot be released is a job skipped until tomorrow, which
- * is exactly where we started.
+ * Release a failed job's claim for retry. Preserve the original job error if releasing the claim
+ * also fails.
  */
 async function cronRelease(job: string, runKey: string): Promise<void> {
   try {
@@ -174,7 +173,9 @@ export async function warrantyReminders(): Promise<JobResult> {
 
   for (const asset of expiring) {
     const key = `${asset._id}|${asset.warranty_upto}`;
-    if (!(await cronClaim('warranty_reminder', key))) continue;
+    if (!(await cronClaim('warranty_reminder', key))) {
+      continue;
+    }
     // Per-item claims need the same rollback as the per-day ones: without it a
     // notification that fails to send marks the asset as reminded for that
     // warranty date, so nobody is ever told about it.
@@ -182,11 +183,7 @@ export async function warrantyReminders(): Promise<JobResult> {
       await notifyAll(recipients, {
         kind: 'warranty',
         title: 'Asset warranty expiring',
-        // desktop_name is what the collection actually calls it — every other
-        // site in the app reads that field. `asset_name` does not exist, so the
-        // body said only "An asset", and because the claim key is per (asset,
-        // warranty date) that anonymous message was the ONLY reminder anyone
-        // would ever get for it.
+
         body: `${asset.desktop_name ?? 'An asset'} is under warranty until ${asset.warranty_upto}.`,
         link: '/assets',
       });
@@ -215,22 +212,19 @@ export async function autoPunchOut(targetDate?: string): Promise<JobResult> {
     { job: 'auto_punch_out', runKey: date },
     'already ran for ' + date,
     async () => {
-      // The same seal the manual sweep checks, and for the same reason: this
-      // rewrites punch_out, worked_minutes and is_corrected, and the date is
-      // yesterday's — so a run on the 1st lands in the month that has just been
-      // locked, paid or closed. Without it the register silently drifts away
-      // from payslips that are already final. Reading the run FAILS CLOSED:
-      // "cannot tell" is not "open".
+      // Respect payroll seals before changing yesterday's attendance, including month-boundary
+      // runs. A failed payroll lookup must stop the sweep.
       const periodMonth = periodMonthFor(date);
       const runs = scopedFor<BaseDoc>(collections.payrollRuns, systemScope);
       const run = await runs.findOne({ period_month: periodMonth });
       const sealed = monthSealReason(periodMonth, run as PayrollRunSeal | null);
-      if (sealed) return { affected: 0, detail: sealed };
+      if (sealed) {
+        return { affected: 0, detail: sealed };
+      }
 
       const settings = scopedFor<BaseDoc>(collections.settings, systemScope);
       const row = await settings.findOne({ key: 'auto_punch_out_time' });
-      // ONE definition of this setting's default and of how it parses, shared
-      // with the manual sweep. See autoPunchOutMinutesFrom().
+      // Share parsing and defaults with the manual sweep.
       const closeMin = autoPunchOutMinutesFrom(row?.value);
       const closeAt = minutesToClock(closeMin);
 
@@ -243,25 +237,58 @@ export async function autoPunchOut(targetDate?: string): Promise<JobResult> {
 
       let closed = 0;
       for (const day of open) {
-        // autoCloseDay is the sweep's own arithmetic, including the night-shift
-        // wrap when the close time is earlier than the punch-in. An unparseable
-        // punch-in returns null and is left for a human rather than written as
-        // NaN worked minutes.
+        // Use the shared night-shift calculation. Leave invalid punch times unchanged for HR to
+        // review.
         const result = autoCloseDay(clockToMinutes(day.punch_in), null, closeMin);
-        if (!result) continue;
-        await attendance.updateOne(
-          { _id: day._id },
+        if (!result) {
+          continue;
+        }
+        const closedAt = new Date();
+        const matched = await attendance.updateOne(
+          { _id: day._id, punch_out: null, updated_at: day.updated_at },
           {
             $set: {
               punch_out: closeAt,
               worked_minutes: result.workedMin,
               is_corrected: true,
               correction_reason: 'Auto punch-out: no closing punch was recorded.',
-              updated_at: new Date(),
+              corrected_by: null,
+              auto_close_source: 'scheduled',
+              auto_closed_at: closedAt,
+              updated_at: closedAt,
             },
           },
         );
-        closed++;
+        closed += matched;
+      }
+
+      // Revisit saved closures on retry if notification delivery failed after the attendance write.
+      const swept = await attendance.find({ work_date: date, auto_close_source: 'scheduled' });
+      const users = scopedFor<BaseDoc>(collections.users, systemScope);
+      const notifications = scopedFor<BaseDoc>(collections.notifications, systemScope);
+      for (const day of swept) {
+        const notice = lastNightSweepNotice(day as unknown as SweepClosure);
+        if (!notice) {
+          continue;
+        }
+        const recipients = await users.find({ employee_id: day.employee_id, disabled: false });
+        for (const recipient of recipients) {
+          const notification = {
+            _id: `night-sweep:${day._id}:${recipient._id}`,
+            recipient_id: recipient._id,
+            kind: 'system',
+            title: 'Missed punch-out closed by night sweep',
+            body: notice.message,
+            link: '/me#punch',
+            read_at: null,
+            created_at: new Date(),
+          };
+          await notifications.upsertOne(
+            { _id: notification._id },
+            { $setOnInsert: notification },
+            notification,
+          );
+        }
       }
 
       if (closed > 0) {
@@ -331,7 +358,9 @@ export async function lifecycleReminders(): Promise<JobResult> {
 
   for (const exit of due) {
     const key = `${exit._id}|${exit.last_working_day}`;
-    if (!(await cronClaim('lifecycle_reminder', key))) continue;
+    if (!(await cronClaim('lifecycle_reminder', key))) {
+      continue;
+    }
     // See warrantyReminders: give the claim back if the notification fails.
     try {
       await notifyAll(recipients, {
@@ -365,7 +394,9 @@ async function notifyAll(
   recipients: string[],
   n: { kind: string; title: string; body: string; link: string },
 ): Promise<void> {
-  if (recipients.length === 0) return;
+  if (recipients.length === 0) {
+    return;
+  }
   const notifications = scopedFor<BaseDoc>(collections.notifications, systemScope);
   await notifications.insertMany(
     recipients.map((recipient_id) => ({

@@ -10,7 +10,9 @@ const assetAdminRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 export default async function AssetsPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
-  if (!role || !assetAdminRoles.includes(role)) redirect('/today');
+  if (!role || !assetAdminRoles.includes(role)) {
+    redirect('/today');
+  }
 
   const [assets, employees, summary] = await Promise.all([
     getAssets(),

@@ -13,16 +13,22 @@ export const maxDuration = 300;
 
 function authorised(req: Request): boolean {
   const secret = process.env.CRON_SECRET;
-  if (!secret || secret.length < 16) return false;
+  if (!secret || secret.length < 16) {
+    return false;
+  }
 
   const header = req.headers.get('authorization') ?? '';
   const presented = header.startsWith('Bearer ') ? header.slice(7) : '';
-  if (presented.length !== secret.length) return false;
+  if (presented.length !== secret.length) {
+    return false;
+  }
 
   // Constant-time compare: a length-safe equality that does not leak the
   // secret one character at a time through response timing.
   let diff = 0;
-  for (let i = 0; i < secret.length; i++) diff |= secret.charCodeAt(i) ^ presented.charCodeAt(i);
+  for (let i = 0; i < secret.length; i++) {
+    diff |= secret.charCodeAt(i) ^ presented.charCodeAt(i);
+  }
   return diff === 0;
 }
 

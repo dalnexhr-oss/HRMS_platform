@@ -19,7 +19,9 @@ export default async function LeavePage({
 }) {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
-  if (!role || !leaveAdminRoles.includes(role)) redirect('/today');
+  if (!role || !leaveAdminRoles.includes(role)) {
+    redirect('/today');
+  }
 
   const { y } = await searchParams;
   // Default to the current year; ?y= lets HR open a prior/next one.

@@ -35,15 +35,17 @@ const systemOnly = (s: Scope): ScopeFilter => (s.isSystem ? {} : null);
 // `is_staff()` — super_admin, admin, hr.
 const staffOnly = (s: Scope): ScopeFilter => (s.isStaff ? {} : null);
 
-// `is_portal() or employee_id = current_employee_id()` — the most common shape. Staff see
-// everything; an employee sees their own rows and nothing else. An account with no employee record
-// and no staff role sees NOTHING rather than everything: matching on `null` would otherwise select
-// every row whose employee_id happens to be null.
+// Portal readers see all rows; employees see their own. An unlinked employee matches nothing,
+// including rows with a null employee_id.
 const staffOrOwn =
   (field = 'employee_id') =>
   (s: Scope): ScopeFilter => {
-    if (s.isStaff) return {};
-    if (!s.employeeId) return null;
+    if (s.isStaff) {
+      return {};
+    }
+    if (!s.employeeId) {
+      return null;
+    }
     return { [field]: s.employeeId };
   };
 
@@ -69,12 +71,20 @@ const insertSuperAdmin = (s: Scope): string | null =>
 const insertStaffOrOwn =
   (field = 'employee_id', requiredFields: Record<string, unknown> = {}) =>
   (s: Scope, doc: Document): string | null => {
-    if (s.isStaff) return null;
-    if (!s.employeeId) return 'Your account is not linked to an employee record.';
-    if (doc[field] !== s.employeeId) return 'You can only file this for yourself.';
+    if (s.isStaff) {
+      return null;
+    }
+    if (!s.employeeId) {
+      return 'Your account is not linked to an employee record.';
+    }
+    if (doc[field] !== s.employeeId) {
+      return 'You can only file this for yourself.';
+    }
     for (const [key, value] of Object.entries(requiredFields)) {
       const supplied = doc[key] === undefined ? null : doc[key];
-      if (supplied !== value) return `${key} must be ${String(value)} on a new record.`;
+      if (supplied !== value) {
+        return `${key} must be ${String(value)} on a new record.`;
+      }
     }
     return null;
   };
@@ -83,8 +93,12 @@ const insertStaffOrOwn =
 const ownEmployeeInState =
   (field: string, states: string[], stateField = 'status') =>
   (s: Scope): ScopeFilter => {
-    if (s.isStaff) return {};
-    if (!s.employeeId) return null;
+    if (s.isStaff) {
+      return {};
+    }
+    if (!s.employeeId) {
+      return null;
+    }
     return { [field]: s.employeeId, [stateField]: { $in: states } };
   };
 
@@ -104,11 +118,8 @@ const staffManagedEmployeeReadable = (field = 'employee_id'): CollectionPolicy =
 });
 
 export const policies: Partial<Record<string, CollectionPolicy>> = {
-  // identity
-  // `select using (id = auth.uid() or is_staff())`, `update using (id = auth.uid())`,
-  // `all using (is_admin())`. Note the write rule is intentionally narrower than
-  // the read rule: you may edit your own row, but role and tab access are
-  // guarded again in lib/actions/users.ts, which is where privilege tiers live.
+  // Account reads are broader than writes. Users may edit their own profile; users.ts separately
+  // enforces role and tab-access privileges.
   [collections.users]: {
     read: (s) => (s.isStaff ? {} : { _id: s.userId }),
     write: (s) => (s.isAdminHr ? {} : { _id: s.userId }),
@@ -157,7 +168,9 @@ export const policies: Partial<Record<string, CollectionPolicy>> = {
     read: staffOrOwn(),
     write: ownEmployeeInState('employee_id', ['available', 'applied']),
     check: (s, fields) => {
-      if (s.isStaff) return null;
+      if (s.isStaff) {
+        return null;
+      }
       if (
         fields.status !== undefined &&
         fields.status !== 'available' &&
@@ -165,9 +178,12 @@ export const policies: Partial<Record<string, CollectionPolicy>> = {
       ) {
         return 'Only HR can mark a comp off used.';
       }
-      if (fields.is_applicable !== undefined) return 'Only HR can put a comp off on hold.';
-      if (fields.employee_id !== undefined)
+      if (fields.is_applicable !== undefined) {
+        return 'Only HR can put a comp off on hold.';
+      }
+      if (fields.employee_id !== undefined) {
         return 'A comp off cannot be moved to another employee.';
+      }
       return null;
     },
     insert: insertStaff,
@@ -232,7 +248,9 @@ export const policies: Partial<Record<string, CollectionPolicy>> = {
     read: staffOrOwn(),
     write: staffOrOwn(),
     check: (s, fields) => {
-      if (s.isStaff) return null;
+      if (s.isStaff) {
+        return null;
+      }
       if (fields.status !== undefined && fields.status !== 'open') {
         return 'You can only reopen your own ticket.';
       }
@@ -307,20 +325,13 @@ export const policies: Partial<Record<string, CollectionPolicy>> = {
 
   [collections.settings]: { read: authenticated, write: staffOnly, insert: insertStaff },
   [collections.activityLog]: { read: staffOnly, write: deny, insert: insertStaff },
-  // The scheduler's idempotency ledger. Readable by staff for support, and
-  // writable ONLY by the job runner: claiming a unit of work is an insert, and
-  // releasing a claim whose work then failed is a delete — see
-  // db/scheduler.ts. Denied outright to every account that can sign in, which
-  // is what it was before the release path needed to exist.
+  // Staff may read the scheduler ledger, but only system jobs can claim work or release failed
+  // claims.
   [collections.cronRunLog]: {
     read: staffOnly,
     write: systemOnly,
-    // systemOnly's shape, not insertSuperAdmin's: a super_admin is an account
-    // that can sign in, and letting one insert here is enough to stop the
-    // scheduler permanently. cronClaim() treats a duplicate run_key as "already
-    // done", so a single planted `{job:'auto_close_month', run_key:'2026-09-01'}`
-    // makes that month never close, its notices never purge and its leave year
-    // never provision — silently, with the job reporting success.
+    // Deny inserts from every signed-in role, including super admins. A forged completed claim
+    // could prevent a scheduled job from running.
     insert: (s) => (s.isSystem ? null : 'The cron ledger is written only by the scheduler.'),
   },
 };

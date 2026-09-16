@@ -51,9 +51,15 @@ export async function readBoard(): Promise<BoardData> {
       .order('punched_at', { ascending: true }),
   ]);
 
-  if (employees.error) throw new Error(employees.error.message);
-  if (days.error) throw new Error(days.error.message);
-  if (events.error) throw new Error(events.error.message);
+  if (employees.error) {
+    throw new Error(employees.error.message);
+  }
+  if (days.error) {
+    throw new Error(days.error.message);
+  }
+  if (events.error) {
+    throw new Error(events.error.message);
+  }
 
   const dayByEmployee = new Map((days.data ?? []).map((row) => [row.employee_id, row]));
 
@@ -63,7 +69,9 @@ export async function readBoard(): Promise<BoardData> {
     { kind: string; punched_at: Date | string; within_geofence: boolean | null }
   >();
   for (const event of events.data ?? []) {
-    if (dayOf(event.punched_at) !== date) continue;
+    if (dayOf(event.punched_at) !== date) {
+      continue;
+    }
     lastEvent.set(event.employee_id, event);
   }
 
@@ -75,10 +83,15 @@ export async function readBoard(): Promise<BoardData> {
     // A punch outranks the calendar: someone who came in on their week off is
     // on the floor, whatever the day's status says.
     let presence: Presence;
-    if (last) presence = last.kind === 'in' ? 'in' : 'out';
-    else if (dayStatus && leaveStauses.has(dayStatus)) presence = 'leave';
-    else if (dayStatus && offStauses.has(dayStatus)) presence = 'off';
-    else presence = 'awaited';
+    if (last) {
+      presence = last.kind === 'in' ? 'in' : 'out';
+    } else if (dayStatus && leaveStauses.has(dayStatus)) {
+      presence = 'leave';
+    } else if (dayStatus && offStauses.has(dayStatus)) {
+      presence = 'off';
+    } else {
+      presence = 'awaited';
+    }
 
     return {
       id: employee.id,

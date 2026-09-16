@@ -96,8 +96,11 @@ function NoticeItem({
   const toggle = () => {
     startTransition(async () => {
       const res = await setNoticePublished(notice.id, !notice.published);
-      if (!res.ok) toast(res.error ?? 'Could not update the notice.', 'error');
-      else toast(notice.published ? 'Notice unpublished.' : 'Notice published.', 'success');
+      if (!res.ok) {
+        toast(res.error ?? 'Could not update the notice.', 'error');
+      } else {
+        toast(notice.published ? 'Notice unpublished.' : 'Notice published.', 'success');
+      }
     });
   };
 
@@ -108,11 +111,16 @@ function NoticeItem({
       confirmLabel: 'Delete',
       danger: true,
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
     startTransition(async () => {
       const res = await deleteNotice(notice.id);
-      if (!res.ok) toast(res.error ?? 'Could not delete the notice.', 'error');
-      else toast('Notice deleted.', 'success');
+      if (!res.ok) {
+        toast(res.error ?? 'Could not delete the notice.', 'error');
+      } else {
+        toast('Notice deleted.', 'success');
+      }
     });
   };
 
@@ -170,7 +178,9 @@ function NoticeForm({
       const res = editing ? await updateNotice(editing.id, formData) : await createNotice(formData);
       if (res.ok) {
         toast(editing ? 'Notice updated.' : 'Notice published.', 'success');
-        if (editing) onDone();
+        if (editing) {
+          onDone();
+        }
       }
       return res;
     },

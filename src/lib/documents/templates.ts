@@ -37,18 +37,24 @@ interface DateParts {
 // Parses 'YYYY-MM-DD' string to calendar parts ({ y, m, d }), or null if invalid.
 function parseIsoDate(iso: string | null | undefined): DateParts | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec((iso ?? '').trim());
-  if (!m) return null;
+  if (!m) {
+    return null;
+  }
   const y = Number(m[1]);
   const mo = Number(m[2]);
   const d = Number(m[3]);
-  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) {
+    return null;
+  }
   return { y, m: mo, d };
 }
 
-// Formats ISO date to 'D Mon YYYY' (e.g. '27 Jul 2026'). Falls back to trimmed input if unparseable.
+// Formats ISO date to 'D Mon YYYY' (e.g. '27 Jul YYYY'). Falls back to trimmed input if unparseable.
 function formatDate(iso: string): string {
   const p = parseIsoDate(iso);
-  if (!p) return (iso ?? '').trim();
+  if (!p) {
+    return (iso ?? '').trim();
+  }
   return `${p.d} ${monthAbbr[p.m - 1]} ${p.y}`;
 }
 
@@ -62,8 +68,12 @@ function isLeapYear(y: number): boolean {
 /** Computes the successive calendar day arithmetically without timezone offset shifts. */
 function nextDay(p: DateParts): DateParts {
   const len = p.m === 2 && isLeapYear(p.y) ? 29 : daysInMonth[p.m - 1];
-  if (p.d < len) return { y: p.y, m: p.m, d: p.d + 1 };
-  if (p.m < 12) return { y: p.y, m: p.m + 1, d: 1 };
+  if (p.d < len) {
+    return { y: p.y, m: p.m, d: p.d + 1 };
+  }
+  if (p.m < 12) {
+    return { y: p.y, m: p.m + 1, d: 1 };
+  }
   return { y: p.y + 1, m: 1, d: 1 };
 }
 
@@ -79,22 +89,37 @@ function ordinal(p: DateParts): number {
 function formatTenure(fromIso: string, toIso: string): string | null {
   const a = parseIsoDate(fromIso);
   const last = parseIsoDate(toIso);
-  if (!a || !last) return null;
+  if (!a || !last) {
+    return null;
+  }
   // Check the inversion on the raw dates: after the +1 day an end date one day
   // before the start would otherwise round up into 'less than one month'.
-  if (ordinal(last) < ordinal(a)) return null;
+  if (ordinal(last) < ordinal(a)) {
+    return null;
+  }
 
   const b = nextDay(last);
   let months = (b.y - a.y) * 12 + (b.m - a.m);
-  if (b.d < a.d) months -= 1; // the final month is not yet complete
-  if (months < 0) return null;
-  if (months === 0) return 'less than one month';
+  if (b.d < a.d) {
+    // the final month is not yet complete
+    months -= 1;
+  }
+  if (months < 0) {
+    return null;
+  }
+  if (months === 0) {
+    return 'less than one month';
+  }
 
   const years = Math.floor(months / 12);
   const rest = months % 12;
   const parts: string[] = [];
-  if (years > 0) parts.push(`${years} ${years === 1 ? 'year' : 'years'}`);
-  if (rest > 0) parts.push(`${rest} ${rest === 1 ? 'month' : 'months'}`);
+  if (years > 0) {
+    parts.push(`${years} ${years === 1 ? 'year' : 'years'}`);
+  }
+  if (rest > 0) {
+    parts.push(`${rest} ${rest === 1 ? 'month' : 'months'}`);
+  }
   return parts.join(' and ');
 }
 

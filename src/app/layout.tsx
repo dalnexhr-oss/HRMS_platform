@@ -1,4 +1,7 @@
 import type { Metadata, Viewport } from 'next';
+/**
+ * The root layout for the application.
+ */
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -6,8 +9,9 @@ export const metadata: Metadata = {
   description: 'Attendance & payroll admin portal for Dalnex.',
 };
 
-// Use the device width and leave pinch zoom enabled. Mobile inputs use 16px text in globals.css to
-// avoid iOS zoom on focus.
+/**
+ * The viewport configuration for the application.
+ */
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,

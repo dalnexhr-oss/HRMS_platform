@@ -10,7 +10,7 @@
 // Missing host or sender configuration disables delivery with a warning. Load nodemailer only when
 // sending.
 
-// Escape the five XML entities for safe interpolation into an HTML email body. Anything that came out of the database goes through this. A person's own full_name is set by whoever created the account, and it was being pasted straight into the password-reset body — so an admin could store `</p><a href="https://evil">click here</a>` and have it render as live markup in a genuine reset email from this system's own domain, above the real link, in the one message a recipient is primed to click.
+// Escape database and user text before inserting it into HTML email bodies.
 export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -50,7 +50,9 @@ interface SmtpConfig {
 function smtpConfig(): SmtpConfig | null {
   const host = process.env.SMTP_HOST;
   const from = process.env.EMAIL_FROM;
-  if (!host || !from) return null;
+  if (!host || !from) {
+    return null;
+  }
   const port = Number(process.env.SMTP_PORT ?? 587) || 587;
   // Port 465 is implicit TLS; 587/25 use STARTTLS. SMTP_SECURE can force it.
   const secure = process.env.SMTP_SECURE === 'true' || port === 465;

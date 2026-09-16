@@ -4,16 +4,17 @@
 import 'server-only';
 import { headers } from 'next/headers';
 
-// The absolute base URL for links in outgoing email, or null when it cannot be established safely.
-// APP_URL IS REQUIRED IN PRODUCTION. The development fallback below reads the request's own Host /
-// X-Forwarded-Host, and both are supplied by whoever made the request — see the header. On a
-// developer's own machine there is no victim, and requiring configuration there would mean the
-// reset flow never gets tested locally.
+// Require APP_URL in production for outgoing email links. Development may fall back to request
+// host headers; return null if no usable origin is available.
 export async function appOrigin(): Promise<string | null> {
   const configured = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL;
-  if (configured) return configured.replace(/\/$/, '');
+  if (configured) {
+    return configured.replace(/\/$/, '');
+  }
 
-  if (process.env.NODE_ENV === 'production') return null;
+  if (process.env.NODE_ENV === 'production') {
+    return null;
+  }
 
   const h = await headers();
   const host = h.get('x-forwarded-host') ?? h.get('host') ?? 'localhost:3000';

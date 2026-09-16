@@ -49,14 +49,19 @@ export async function initiateExit(input: {
   reason?: string;
 }): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Starting an exit');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
-  if (!uuidRe.test(String(input.employeeId ?? '')))
+  if (!uuidRe.test(String(input.employeeId ?? ''))) {
     return { ok: false, error: 'Pick an employee.' };
-  if (!isoDate.test(input.resignationDate))
+  }
+  if (!isoDate.test(input.resignationDate)) {
     return { ok: false, error: 'Enter the resignation date.' };
-  if (!isoDate.test(input.lastWorkingDay))
+  }
+  if (!isoDate.test(input.lastWorkingDay)) {
     return { ok: false, error: 'Enter the last working day.' };
+  }
   if (input.lastWorkingDay < input.resignationDate) {
     return { ok: false, error: 'The last working day cannot be before the resignation date.' };
   }
@@ -82,13 +87,12 @@ export async function initiateExit(input: {
     }
     return { ok: false, error: error.message };
   }
-  if (wroteNothing(data))
+  if (wroteNothing(data)) {
     return { ok: false, error: 'The exit was not started — your role may lack permission.' };
+  }
 
-  // Mirror the dates onto the employee and mark them on notice. The login stays
-  // ACTIVE — see the file header. A failure here is a WARNING, not a rollback:
-  // the case exists, but the roster would silently keep showing "active", so it
-  // must never be swallowed.
+  // Keep the login active while marking the employee on notice. Report a failed roster update as a
+  // warning because the exit case is already saved.
   const noticeDays = Math.round(
     (Date.parse(`${input.lastWorkingDay}T00:00:00Z`) -
       Date.parse(`${input.resignationDate}T00:00:00Z`)) /
@@ -135,13 +139,14 @@ async function seedClearance(
 ): Promise<string | null> {
   const rows: Record<string, unknown>[] = [];
 
-  // A failed read must NOT seed an empty checklist — an empty checklist reads
-  // as "clearance complete" and lets the exit advance with assets outstanding.
+  // Propagate read failures so missing checklist data cannot be mistaken for completed clearance.
   const { data: assets, error: assetErr } = await dbc
     .from('assets')
     .select('id, desktop_name')
     .eq('assigned_employee_id', employeeId);
-  if (assetErr) return `the asset register could not be read for clearance: ${assetErr.message}`;
+  if (assetErr) {
+    return `the asset register could not be read for clearance: ${assetErr.message}`;
+  }
   for (const a of (assets ?? []) as any[]) {
     rows.push({
       exit_case_id: exitCaseId,
@@ -156,7 +161,9 @@ async function seedClearance(
     .select('id, quantity, items(item_name)')
     .eq('employee_id', employeeId)
     .eq('returned', false);
-  if (itemErr) return `the item register could not be read for clearance: ${itemErr.message}`;
+  if (itemErr) {
+    return `the item register could not be read for clearance: ${itemErr.message}`;
+  }
   for (const i of (items ?? []) as any[]) {
     rows.push({
       exit_case_id: exitCaseId,
@@ -166,13 +173,17 @@ async function seedClearance(
     });
   }
 
-  if (rows.length === 0) return null;
+  if (rows.length === 0) {
+    return null;
+  }
   // Ignore duplicate-key noise: re-seeding is the expected workflow.
   const { error: seedErr } = await dbc.from('exit_clearance_items').upsert(rows, {
     onConflict: 'exit_case_id,area,reference_id',
     ignoreDuplicates: true,
   });
-  if (seedErr) return `the clearance checklist could not be written: ${seedErr.message}`;
+  if (seedErr) {
+    return `the clearance checklist could not be written: ${seedErr.message}`;
+  }
   return null;
 }
 
@@ -201,7 +212,9 @@ const interviewQuestions: readonly string[] = [
  */
 export async function ensureExitInterview(exitCaseId: string): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Opening the exit interview');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const { count, error: countErr } = await dbc
@@ -211,7 +224,10 @@ export async function ensureExitInterview(exitCaseId: string): Promise<ActionRes
   if (countErr) {
     return { ok: false, error: countErr.message };
   }
-  if ((count ?? 0) > 0) return { ok: true }; // already open
+  if ((count ?? 0) > 0) {
+    // already open
+    return { ok: true };
+  }
 
   const rows = interviewQuestions.map((question) => ({
     exit_case_id: exitCaseId,
@@ -219,7 +235,9 @@ export async function ensureExitInterview(exitCaseId: string): Promise<ActionRes
     interviewer_id: gate.profileId,
   }));
   const { error } = await dbc.from('exit_interviews').insert(rows);
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
 
   revalidatePath('/exits');
   return { ok: true };
@@ -234,12 +252,16 @@ export async function saveExitInterview(
   answers: { id: string; answer: string }[],
 ): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Saving the exit interview');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const clean = (Array.isArray(answers) ? answers : []).filter((a) =>
     uuidRe.test(String(a?.id ?? '')),
   );
-  if (clean.length === 0) return { ok: false, error: 'Nothing to save.' };
+  if (clean.length === 0) {
+    return { ok: false, error: 'Nothing to save.' };
+  }
 
   const dbc = await createClient();
   const now = new Date();
@@ -255,20 +277,16 @@ export async function saveExitInterview(
         interviewer_id: gate.profileId,
       })
       .eq('id', a.id);
-    if (error) return { ok: false, error: error.message };
+    if (error) {
+      return { ok: false, error: error.message };
+    }
   }
 
   revalidatePath('/exits');
   return { ok: true };
 }
 
-/**
- * Client-callable interview fetch.
- *
- * The return type is explicit on purpose: without it, a resolution failure in
- * the underlying query degrades this to `any` and the error surfaces far away,
- * as an implicit-any on the caller's `.map()` callback rather than here.
- */
+/** Fetch interview rows for the client with an explicit return contract. */
 export async function fetchExitInterview(exitCaseId: string): Promise<ExitInterviewRow[]> {
   return readExitInterview(exitCaseId);
 }
@@ -283,12 +301,17 @@ export async function addKtItem(input: {
   notes?: string;
 }): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Adding a handover item');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const task = String(input.task ?? '').trim();
-  if (!uuidRe.test(String(input.exitCaseId ?? '')))
+  if (!uuidRe.test(String(input.exitCaseId ?? ''))) {
     return { ok: false, error: 'Unknown exit case.' };
-  if (!task) return { ok: false, error: 'Describe what needs handing over.' };
+  }
+  if (!task) {
+    return { ok: false, error: 'Describe what needs handing over.' };
+  }
 
   const handoverTo = input.handoverTo && uuidRe.test(input.handoverTo) ? input.handoverTo : null;
 
@@ -305,8 +328,9 @@ export async function addKtItem(input: {
   if (error) {
     return { ok: false, error: error.message };
   }
-  if (wroteNothing(data))
+  if (wroteNothing(data)) {
     return { ok: false, error: 'The item was not added — your role may lack permission.' };
+  }
 
   revalidatePath('/exits');
   return { ok: true };
@@ -315,7 +339,9 @@ export async function addKtItem(input: {
 /** Updates handover item status ('pending' | 'in_progress' | 'done'). */
 export async function setKtStatus(id: string, status: string): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Updating a handover item');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
   if (!['pending', 'in_progress', 'done'].includes(status)) {
     return { ok: false, error: `Invalid status: ${status || '(missing)'}` };
   }
@@ -326,8 +352,12 @@ export async function setKtStatus(id: string, status: string): Promise<ActionRes
     .update({ status })
     .eq('id', id)
     .select('id');
-  if (error) return { ok: false, error: error.message };
-  if (wroteNothing(data)) return { ok: false, error: 'That handover item no longer exists.' };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  if (wroteNothing(data)) {
+    return { ok: false, error: 'That handover item no longer exists.' };
+  }
 
   revalidatePath('/exits');
   return { ok: true };
@@ -336,7 +366,9 @@ export async function setKtStatus(id: string, status: string): Promise<ActionRes
 /** Remove a handover item. */
 export async function deleteKtItem(id: string): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Deleting a handover item');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -344,8 +376,12 @@ export async function deleteKtItem(id: string): Promise<ActionResult> {
     .delete()
     .eq('id', id)
     .select('id');
-  if (error) return { ok: false, error: error.message };
-  if (wroteNothing(data)) return { ok: false, error: 'That handover item no longer exists.' };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  if (wroteNothing(data)) {
+    return { ok: false, error: 'That handover item no longer exists.' };
+  }
 
   revalidatePath('/exits');
   return { ok: true };
@@ -359,7 +395,9 @@ export async function fetchKtItems(exitCaseId: string) {
 /** Re-scan the asset/item registers for this exit (HR hits this after returns). */
 export async function refreshExitClearance(exitCaseId: string): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Refreshing clearance');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const { data: kase } = await dbc
@@ -367,11 +405,14 @@ export async function refreshExitClearance(exitCaseId: string): Promise<ActionRe
     .select('id, employee_id')
     .eq('id', exitCaseId)
     .maybeSingle<{ id: string; employee_id: string }>();
-  if (!kase) return { ok: false, error: 'That exit case no longer exists.' };
+  if (!kase) {
+    return { ok: false, error: 'That exit case no longer exists.' };
+  }
 
   const seedProblem = await seedClearance(dbc, kase.id, kase.employee_id);
-  if (seedProblem)
+  if (seedProblem) {
     return { ok: false, error: `Clearance could not be refreshed — ${seedProblem}.` };
+  }
   revalidatePath('/exits');
   return { ok: true };
 }
@@ -379,7 +420,9 @@ export async function refreshExitClearance(exitCaseId: string): Promise<ActionRe
 /** Tick off one clearance line. */
 export async function setClearanceItemCleared(id: string, cleared: boolean): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Clearing an exit item');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -391,8 +434,12 @@ export async function setClearanceItemCleared(id: string, cleared: boolean): Pro
     })
     .eq('id', id)
     .select('id');
-  if (error) return { ok: false, error: error.message };
-  if (wroteNothing(data)) return { ok: false, error: 'That clearance item no longer exists.' };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  if (wroteNothing(data)) {
+    return { ok: false, error: 'That clearance item no longer exists.' };
+  }
 
   revalidatePath('/exits');
   return { ok: true };
@@ -404,7 +451,9 @@ export async function setExitStage(
   stage: 'initiated' | 'clearance' | 'settlement' | 'completed',
 ): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Changing the exit stage');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
 
@@ -461,8 +510,12 @@ export async function setExitStage(
     .update({ stage, completed_at: stage === 'completed' ? new Date() : null })
     .eq('id', exitCaseId)
     .select('id, employee_id');
-  if (error) return { ok: false, error: error.message };
-  if (wroteNothing(data)) return { ok: false, error: 'That exit case no longer exists.' };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  if (wroteNothing(data)) {
+    return { ok: false, error: 'That exit case no longer exists.' };
+  }
 
   // Deactivate login upon exit completion unless explicitly disabled by settings.
   let warning: string | undefined;
@@ -505,7 +558,9 @@ export async function setExitStage(
  */
 export async function prepareFullAndFinal(exitCaseId: string): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Preparing the settlement');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const { data: kase } = await dbc
@@ -513,7 +568,9 @@ export async function prepareFullAndFinal(exitCaseId: string): Promise<ActionRes
     .select('id, employee_id')
     .eq('id', exitCaseId)
     .maybeSingle<{ id: string; employee_id: string }>();
-  if (!kase) return { ok: false, error: 'That exit case no longer exists.' };
+  if (!kase) {
+    return { ok: false, error: 'That exit case no longer exists.' };
+  }
 
   // Approved but not yet paid reimbursements follow the employee out.
   const { data: claims } = await dbc
@@ -556,7 +613,9 @@ export async function prepareFullAndFinal(exitCaseId: string): Promise<ActionRes
     },
     { onConflict: 'exit_case_id' },
   );
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
 
   revalidatePath('/exits');
   return { ok: true };
@@ -574,7 +633,9 @@ export async function updateFullAndFinal(
   },
 ): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Updating the settlement');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const n = (v: unknown) => {
     const x = Number(v);
@@ -602,7 +663,9 @@ export async function updateFullAndFinal(
     .eq('exit_case_id', exitCaseId)
     .eq('status', 'draft')
     .select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return { ok: false, error: 'Only a draft settlement can be edited — prepare one first.' };
   }
@@ -617,7 +680,9 @@ export async function setFullAndFinalStatus(
   status: 'approved' | 'paid',
 ): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Updating the settlement');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const from = status === 'approved' ? 'draft' : 'approved';
   const dbc = await createClient();
@@ -633,7 +698,9 @@ export async function setFullAndFinalStatus(
     .eq('exit_case_id', exitCaseId)
     .eq('status', from)
     .select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return { ok: false, error: `Only a ${from} settlement can be marked ${status}.` };
   }
@@ -643,18 +710,17 @@ export async function setFullAndFinalStatus(
 }
 
 /**
- * Generate a relieving / experience / F&F PDF into the generated-documents
- * bucket and return a note of where it landed.
- *
- * Uses the SERVICE-role upload: the document is produced by HR about someone
- * else, so it is written into that employee's folder on their behalf.
+ * Generate the exit PDF under system scope and store it in the employee's generated-documents
+ * folder.
  */
 export async function generateExitDocument(
   exitCaseId: string,
   kind: 'relieving' | 'experience' | 'fnf',
 ): Promise<ActionResult & { path?: string }> {
   const gate = await requireRoles(exitRoles, 'Generating an exit document');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const { data: kase } = await dbc
@@ -664,7 +730,9 @@ export async function generateExitDocument(
     )
     .eq('id', exitCaseId)
     .maybeSingle<any>();
-  if (!kase) return { ok: false, error: 'That exit case no longer exists.' };
+  if (!kase) {
+    return { ok: false, error: 'That exit case no longer exists.' };
+  }
 
   const emp = kase.employees ?? {};
   const issuedOn = today();
@@ -699,8 +767,9 @@ export async function generateExitDocument(
       )
       .eq('exit_case_id', exitCaseId)
       .maybeSingle<any>();
-    if (!fnf)
+    if (!fnf) {
       return { ok: false, error: 'Prepare the settlement before generating its statement.' };
+    }
     spec = buildFullAndFinalStatement({
       employeeName: base.employeeName,
       employeeCode: base.employeeCode,
@@ -733,7 +802,9 @@ export async function generateExitDocument(
     bytes,
     'application/pdf',
   );
-  if (!up.ok) return { ok: false, error: up.error ?? 'The document could not be stored.' };
+  if (!up.ok) {
+    return { ok: false, error: up.error ?? 'The document could not be stored.' };
+  }
 
   // Store generated document in `generated-documents` bucket.
   const { data: docRow, error: docErr } = await dbc

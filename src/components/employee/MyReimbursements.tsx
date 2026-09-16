@@ -34,11 +34,15 @@ const statusLabel: Record<ReimbursementView['status'], string> = {
 };
 
 function statusPillStyle(status: ReimbursementView['status']): React.CSSProperties {
-  if (status === 'pending' || status === 'finance_review')
+  if (status === 'pending' || status === 'finance_review') {
     return { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' };
-  if (status === 'approved')
+  }
+  if (status === 'approved') {
     return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
-  if (status === 'rejected') return { borderColor: 'var(--line-2)', color: 'var(--hd)' };
+  }
+  if (status === 'rejected') {
+    return { borderColor: 'var(--line-2)', color: 'var(--hd)' };
+  }
   return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
 }
 
@@ -79,15 +83,20 @@ export function MyReimbursements({
       confirmLabel: 'Withdraw',
       danger: true,
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
     setBusy(c.id);
     startTransition(async () => {
       const res = await deleteReimbursement(c.id);
       setBusy(null);
-      if (!res.ok) toast(res.error ?? 'Could not withdraw the claim.', 'error');
-      else {
+      if (!res.ok) {
+        toast(res.error ?? 'Could not withdraw the claim.', 'error');
+      } else {
         toast('Claim withdrawn.', 'success');
-        if (editing?.id === c.id) setEditing(null);
+        if (editing?.id === c.id) {
+          setEditing(null);
+        }
         router.refresh();
       }
     });
@@ -171,7 +180,7 @@ export function MyReimbursements({
                               </button>
                             </>
                           )}
-                          {/* A rejection is no longer terminal (0035): correct it and resubmit — saving puts it back in the queue. */}
+                          {/* Editing a rejected claim returns it to the review queue. */}
                           {c.status === 'rejected' && (
                             <button
                               className="btn quiet"
@@ -437,15 +446,18 @@ function ReceiptUpload({
         disabled={busy}
         onChange={async (e) => {
           const file = e.target.files?.[0];
-          if (!file) return;
+          if (!file) {
+            return;
+          }
           setBusy(true);
           const fd = new FormData();
           fd.set('receipt', file);
           const res = await uploadReimbursementReceipt(claimId, fd);
           setBusy(false);
           e.target.value = '';
-          if (!res.ok) toast(res.error ?? 'The receipt could not be attached.', 'error');
-          else {
+          if (!res.ok) {
+            toast(res.error ?? 'The receipt could not be attached.', 'error');
+          } else {
             toast('Receipt attached.', 'success');
             router.refresh();
           }

@@ -35,20 +35,29 @@ export interface ActionResult {
  */
 export async function uploadEmployeeDocument(formData: FormData): Promise<ActionResult> {
   const db = requireDb('Uploading a document');
-  if (!db.ok) return db;
+  if (!db.ok) {
+    return db;
+  }
 
   const file = formData.get('file');
-  if (!(file instanceof File) || file.size === 0)
+  if (!(file instanceof File) || file.size === 0) {
     return { ok: false, error: 'Choose a file to upload.' };
-  if (file.size > maxBytes) return { ok: false, error: 'Documents must be 10 MB or smaller.' };
+  }
+  if (file.size > maxBytes) {
+    return { ok: false, error: 'Documents must be 10 MB or smaller.' };
+  }
   const fileType = resolveUploadType(file.name, 'document');
-  if (!fileType.ok) return fileType;
+  if (!fileType.ok) {
+    return fileType;
+  }
 
   const category = String(formData.get('category') ?? '').trim() || 'other';
   const title = String(formData.get('title') ?? '').trim() || file.name;
 
   const { profile } = await getSession();
-  if (!profile) return { ok: false, error: 'Your session has expired. Sign in again.' };
+  if (!profile) {
+    return { ok: false, error: 'Your session has expired. Sign in again.' };
+  }
 
   const filer = {
     id: profile.id,
@@ -57,7 +66,9 @@ export async function uploadEmployeeDocument(formData: FormData): Promise<Action
     employeeId: profile.employee_id ?? null,
   };
   const target = resolveTargetEmployee(filer, String(formData.get('employee_id') ?? '').trim());
-  if (!target.ok) return target;
+  if (!target.ok) {
+    return target;
+  }
 
   // The File is handed over whole rather than buffered here: putObject pipes a
   // Blob, so the bytes go to mongod a chunk at a time instead of being copied
@@ -92,14 +103,21 @@ export async function replaceEmployeeDocument(
   formData: FormData,
 ): Promise<ActionResult> {
   const gate = await requireRoles(verifyRoles, 'Replacing a document');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const file = formData.get('file');
-  if (!(file instanceof File) || file.size === 0)
+  if (!(file instanceof File) || file.size === 0) {
     return { ok: false, error: 'Choose the replacement file.' };
-  if (file.size > maxBytes) return { ok: false, error: 'Documents must be 10 MB or smaller.' };
+  }
+  if (file.size > maxBytes) {
+    return { ok: false, error: 'Documents must be 10 MB or smaller.' };
+  }
   const fileType = resolveUploadType(file.name, 'document');
-  if (!fileType.ok) return fileType;
+  if (!fileType.ok) {
+    return fileType;
+  }
 
   const note = String(formData.get('note') ?? '').trim();
   const dbc = await createClient();
@@ -118,8 +136,12 @@ export async function replaceEmployeeDocument(
       version: number | null;
       superseded_at: Date | null;
     }>();
-  if (readErr) return { ok: false, error: readErr.message };
-  if (!previous) return { ok: false, error: 'That document no longer exists.' };
+  if (readErr) {
+    return { ok: false, error: readErr.message };
+  }
+  if (!previous) {
+    return { ok: false, error: 'That document no longer exists.' };
+  }
 
   // Replacing history would fork the chain — two rows claiming to succeed the
   // same version, with no way to say which is current.
@@ -140,8 +162,7 @@ export async function replaceEmployeeDocument(
   }
 
   const title = String(formData.get('title') ?? '').trim() || previous.title || file.name;
-  // The category is carried over, not re-asked: a replacement is the SAME
-  // document, and letting it change category would break the chain's meaning.
+  // Keep the category when replacing a document so every version describes the same document.
   const category = previous.category ?? 'other';
 
   const up = await uploadFile(
@@ -151,7 +172,9 @@ export async function replaceEmployeeDocument(
     file,
     fileType.contentType,
   );
-  if (!up.ok) return { ok: false, error: up.error ?? 'The replacement could not be uploaded.' };
+  if (!up.ok) {
+    return { ok: false, error: up.error ?? 'The replacement could not be uploaded.' };
+  }
 
   const nextId = randomUUID();
   const { data: inserted, error: insErr } = await dbc
@@ -176,7 +199,9 @@ export async function replaceEmployeeDocument(
       verify_remark: note || null,
     })
     .select('id');
-  if (insErr) return { ok: false, error: insErr.message };
+  if (insErr) {
+    return { ok: false, error: insErr.message };
+  }
   if (wroteNothing(inserted)) {
     return {
       ok: false,
@@ -212,11 +237,8 @@ export async function replaceEmployeeDocument(
 }
 
 /**
- * HR verifies (or returns) a filed document.
- *
- * `verified` false CLEARS the stamp and records why, so a rejected document is
- * visibly unverified with a reason rather than silently deleted — the employee
- * cannot delete or replace it themselves (no employee UPDATE/DELETE policy).
+ * Verify a filed document or clear its verification with a return reason. Employee policies do not
+ * permit deleting or replacing it directly.
  */
 export async function verifyEmployeeDocument(
   id: string,
@@ -224,7 +246,9 @@ export async function verifyEmployeeDocument(
   remark?: string,
 ): Promise<ActionResult> {
   const gate = await requireRoles(verifyRoles, 'Verifying a document');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const cleanRemark = (remark ?? '').trim();
   if (!verified && !cleanRemark) {
@@ -241,8 +265,12 @@ export async function verifyEmployeeDocument(
     })
     .eq('id', id)
     .select('id, employee_id, title');
-  if (error) return { ok: false, error: error.message };
-  if (wroteNothing(data)) return { ok: false, error: 'That document no longer exists.' };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  if (wroteNothing(data)) {
+    return { ok: false, error: 'That document no longer exists.' };
+  }
 
   const row = data![0] as { employee_id: string; title: string | null };
   await notifyEmployee(row.employee_id, {
@@ -261,17 +289,14 @@ export async function verifyEmployeeDocument(
 }
 
 /**
- * Remove a filed document. Staff-only — the subject cannot erase their own record.
- *
- * Deleting the CURRENT version of a chain restores the one before it rather
- * than leaving the document with no live version. Without that, deleting a bad
- * replacement would take the whole document off the register while every
- * earlier version sat on file marked superseded — the file would still exist
- * and nothing would show it.
+ * Delete a document as staff. If it is the current version, restore the preceding version so the
+ * remaining chain stays visible.
  */
 export async function deleteEmployeeDocument(id: string): Promise<ActionResult> {
   const gate = await requireRoles(verifyRoles, 'Deleting a document');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -279,8 +304,12 @@ export async function deleteEmployeeDocument(id: string): Promise<ActionResult> 
     .delete()
     .eq('id', id)
     .select('id, replaces_id, superseded_at');
-  if (error) return { ok: false, error: error.message };
-  if (wroteNothing(data)) return { ok: false, error: 'That document no longer exists.' };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  if (wroteNothing(data)) {
+    return { ok: false, error: 'That document no longer exists.' };
+  }
 
   const removed = data![0] as { replaces_id: string | null; superseded_at: Date | null };
   if (!removed.superseded_at && removed.replaces_id) {
@@ -305,7 +334,9 @@ export async function deleteEmployeeDocument(id: string): Promise<ActionResult> 
 /** Client-callable history for one employee (queries.ts is server-only). */
 export async function fetchEmployeeDocumentHistory(employeeId: string) {
   const gate = await requireRoles(verifyRoles, 'Viewing an employee’s documents');
-  if (!gate.ok) return [];
+  if (!gate.ok) {
+    return [];
+  }
   return readEmployeeDocumentHistory(employeeId);
 }
 
@@ -314,7 +345,9 @@ export async function getDocumentUrl(
   id: string,
 ): Promise<{ ok: boolean; url?: string; error?: string }> {
   const db = requireDb('Opening a document');
-  if (!db.ok) return db;
+  if (!db.ok) {
+    return db;
+  }
 
   const dbc = await createClient();
   // The SELECT is policy-scoped (staff, or the owning employee), so a caller
@@ -325,8 +358,12 @@ export async function getDocumentUrl(
     .eq('id', id)
     .maybeSingle<{ storage_path: string; bucket: string | null }>();
   const { data, error } = res;
-  if (error) return { ok: false, error: error.message };
-  if (!data?.storage_path) return { ok: false, error: 'That document is not available to you.' };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  if (!data?.storage_path) {
+    return { ok: false, error: 'That document is not available to you.' };
+  }
 
   // Resolve storage bucket (defaults to 'employee-documents' for legacy uploads).
   const bucket = (data.bucket ?? uploadBucket) as StorageBucket;

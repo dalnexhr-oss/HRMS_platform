@@ -190,11 +190,16 @@ function HolidayRow({
       confirmLabel: 'Delete',
       danger: true,
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
     startTransition(async () => {
       const res = await deleteHoliday(holiday.id);
-      if (!res.ok) toast(res.error ?? 'Could not delete the holiday.', 'error');
-      else toast('Holiday deleted.', 'success');
+      if (!res.ok) {
+        toast(res.error ?? 'Could not delete the holiday.', 'error');
+      } else {
+        toast('Holiday deleted.', 'success');
+      }
     });
   };
 
@@ -238,7 +243,9 @@ function AddHolidayForm({
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
     async (_prev, formData) => {
       const res = await addHoliday(formData);
-      if (res.ok) toast('Holiday added.', 'success');
+      if (res.ok) {
+        toast('Holiday added.', 'success');
+      }
       return res;
     },
     {},

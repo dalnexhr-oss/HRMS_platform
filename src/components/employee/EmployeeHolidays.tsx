@@ -86,7 +86,9 @@ function weekOffSentence(policy: WeekOffPolicy): string {
     .filter((d) => d !== saturday)
     .map((d) => weekdayNames[d])
     .filter(Boolean);
-  if (otherOff.length) parts.push(`Every ${otherOff.join(' and ')} is off`);
+  if (otherOff.length) {
+    parts.push(`Every ${otherOff.join(' and ')} is off`);
+  }
 
   // Saturday clause only when Saturday is actually a week-off weekday.
   if (policy.weekOffWeekdays.includes(saturday)) {

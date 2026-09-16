@@ -48,15 +48,21 @@ export function EmployeeScreen({ initial }: { initial: BoardData }) {
   const poll = useCallback(async () => {
     try {
       const response = await fetch('/api/tv/board', { cache: 'no-store' });
-      if (!response.ok) throw new Error('board fetch failed');
+      if (!response.ok) {
+        throw new Error('board fetch failed');
+      }
       const next = (await response.json()) as BoardData;
-      if (!alive.current) return;
+      if (!alive.current) {
+        return;
+      }
       setBoard(next);
       setStaleSince(null);
     } catch {
       // Keep the last good board up. A wall screen showing yesterday's floor is
       // worse than useless, so record when we lost touch and surface it below.
-      if (alive.current) setStaleSince((since) => since ?? Date.now());
+      if (alive.current) {
+        setStaleSince((since) => since ?? Date.now());
+      }
     }
   }, []);
 
@@ -65,7 +71,9 @@ export function EmployeeScreen({ initial }: { initial: BoardData }) {
     // Coming back from a sleeping display: refresh immediately rather than
     // waiting out the remainder of the interval.
     const onVisible = () => {
-      if (document.visibilityState === 'visible') void poll();
+      if (document.visibilityState === 'visible') {
+        void poll();
+      }
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
@@ -143,7 +151,9 @@ export function EmployeeScreen({ initial }: { initial: BoardData }) {
         ) : (
           bands.map(({ key, label }) => {
             const rows = board.rows.filter((row) => row.presence === key);
-            if (rows.length === 0) return null;
+            if (rows.length === 0) {
+              return null;
+            }
             return (
               <section className="tv-band" key={key}>
                 <h2 className="tv-band-hd">

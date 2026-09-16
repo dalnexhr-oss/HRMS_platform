@@ -16,8 +16,12 @@ const statusLabel: Record<TicketStatus, string> = {
 
 // Colored pill per status: open=amber, in_progress=brand, resolved/closed=green.
 function statusPillStyle(status: TicketStatus): React.CSSProperties {
-  if (status === 'open') return { borderColor: 'var(--line-2)', color: 'var(--lm)' };
-  if (status === 'in_progress') return { borderColor: 'var(--line-2)', color: 'var(--brand)' };
+  if (status === 'open') {
+    return { borderColor: 'var(--line-2)', color: 'var(--lm)' };
+  }
+  if (status === 'in_progress') {
+    return { borderColor: 'var(--line-2)', color: 'var(--brand)' };
+  }
   return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
 }
 

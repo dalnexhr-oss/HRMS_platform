@@ -19,20 +19,20 @@ export interface ActionResult {
 
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
-// Statuses that mean "this was a day off". Working one of these earns a credit.
-// NOT exported: this file carries the 'use server' directive, and Next.js allows
-// a "use server" module to export only async functions — a `const` export throws
-// "A 'use server' file can only export async functions, found object" the moment
-// the module enters a client bundle. The constant is only used inside this file.
+// Keep this constant private: use-server modules may only export async functions.
 const offDayStatuses = ['WO', 'OH'] as const;
 
 // Grant a comp-off credit for an off day the employee worked. The unique (employee_id, earned_date)
 // constraint makes a double-grant a no-op error rather than a duplicate credit.
 export async function grantCompOff(employeeId: string, earnedDate: string): Promise<ActionResult> {
   const gate = await requireStaff('Granting a comp off');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
-  if (!isoDate.test(earnedDate)) return { ok: false, error: 'Invalid date for the comp off.' };
+  if (!isoDate.test(earnedDate)) {
+    return { ok: false, error: 'Invalid date for the comp off.' };
+  }
 
   const dbc = await createClient();
 
@@ -43,8 +43,12 @@ export async function grantCompOff(employeeId: string, earnedDate: string): Prom
     .eq('employee_id', employeeId)
     .eq('work_date', earnedDate)
     .maybeSingle<{ status: string; punch_in: string | null; worked_minutes: number }>();
-  if (dayErr) return { ok: false, error: `Could not read that day: ${dayErr.message}` };
-  if (!day) return { ok: false, error: 'No attendance is recorded for that day.' };
+  if (dayErr) {
+    return { ok: false, error: `Could not read that day: ${dayErr.message}` };
+  }
+  if (!day) {
+    return { ok: false, error: 'No attendance is recorded for that day.' };
+  }
 
   // A day is "off" either by its stamp (WO/OH) or by the schedule — a Sunday or
   // a 1st/3rd/5th Saturday. The schedule arm is what makes a worked non-working
@@ -107,18 +111,19 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
   const takeDate = String(formData.get('take_date') ?? '').trim();
   const reason = String(formData.get('reason') ?? '').trim() || null;
 
-  if (!isoDate.test(takeDate)) return { ok: false, error: 'Choose a valid date to take off.' };
-  // A comp off is time off still to be taken, so the day has to be ahead of the
-  // credit being spent on it. Approval stamps the register with 'CO', and doing
-  // that to a day already worked would overwrite what actually happened.
-  // ISO dates sort chronologically, and the floor is the IST calendar date
-  // rather than the server's own — see todayIST().
+  if (!isoDate.test(takeDate)) {
+    return { ok: false, error: 'Choose a valid date to take off.' };
+  }
+  // Comp-off must be today or later in IST. Approval stamps CO, so retrospective attendance
+  // corrections belong in the HR register.
   if (takeDate < todayIST()) {
     return { ok: false, error: 'That day has already passed — pick today or a later day.' };
   }
 
   const db = requireDb('Applying for a comp off');
-  if (!db.ok) return db;
+  if (!db.ok) {
+    return db;
+  }
 
   const { profile } = await getSession();
   const employeeId = profile?.employee_id ?? null;
@@ -147,9 +152,13 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
       .order('earned_date', { ascending: true })
       .limit(1)
       .maybeSingle<{ id: string }>();
-    if (fifoErr) return { ok: false, error: fifoErr.message };
+    if (fifoErr) {
+      return { ok: false, error: fifoErr.message };
+    }
     compOffId = oldest?.id ?? '';
-    if (!compOffId) return { ok: false, error: 'You have no usable comp off to apply for.' };
+    if (!compOffId) {
+      return { ok: false, error: 'You have no usable comp off to apply for.' };
+    }
   }
 
   // Claim the credit first: the status predicate means two concurrent
@@ -164,7 +173,9 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
     .eq('is_applicable', true)
     .select('id, earned_date');
   const { data: claimed, error: claimErr } = claim;
-  if (claimErr) return { ok: false, error: claimErr.message };
+  if (claimErr) {
+    return { ok: false, error: claimErr.message };
+  }
   if (wroteNothing(claimed)) {
     return {
       ok: false,
@@ -224,8 +235,12 @@ export async function setCompOffApplicability(
   applicable: boolean,
 ): Promise<ActionResult> {
   const gate = await requireStaff('Updating a comp off');
-  if (!gate.ok) return gate;
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return { ok: false, error: 'Unknown comp off.' };
+  if (!gate.ok) {
+    return gate;
+  }
+  if (!/^[0-9a-f-]{36}$/i.test(id)) {
+    return { ok: false, error: 'Unknown comp off.' };
+  }
 
   const dbc = await createClient();
   // Only an available credit can be toggled: an applied one is already in the
@@ -236,7 +251,9 @@ export async function setCompOffApplicability(
     .eq('id', id)
     .eq('status', 'available')
     .select('id, employee_id, earned_date');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,

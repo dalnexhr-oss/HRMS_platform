@@ -22,8 +22,7 @@ export interface ActionResult {
 // Roles allowed to administer users.
 const userAdminRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
-// Roles that may be assigned through this screen. NOT exported: a 'use server'
-// module may only export async functions, so the UI keeps its own display list.
+// Keep role constants private because use-server modules only permit async exports.
 const assignableRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr', 'employee', 'intern'];
 
 // A caller may grant roles and manage accounts only at or below their own tier. Enforce this on
@@ -83,7 +82,9 @@ async function assertMayActOnTarget(
 ): Promise<{ ok: true; target: UserDoc } | { ok: false; error: string }> {
   const users = await usersCollection();
   const target = await users.findOne({ _id: targetUserId });
-  if (!target) return { ok: false, error: 'That account no longer exists.' };
+  if (!target) {
+    return { ok: false, error: 'That account no longer exists.' };
+  }
   if (tierOf(target.role) > tierOf(callerRole)) {
     const label = tierLabel[target.role];
     return { ok: false, error: `Only a ${label} account can manage another ${label} account.` };
@@ -92,18 +93,16 @@ async function assertMayActOnTarget(
 }
 
 /**
- * Resolve employee code/name for the accounts that link to one.
- *
- * Reads the employees collection directly rather than $lookup: the set is one
- * page of users, so a single $in is cheaper than a pipeline, and it keeps
- * working while employees is still being ported — an absent collection simply
- * yields no names instead of failing the whole screen.
+ * Resolve employee names and codes in one query for the current page of accounts. Missing employee
+ * rows leave their account labels unchanged.
  */
 async function employeeLabels(
   ids: string[],
 ): Promise<Map<string, { code: string | null; name: string | null }>> {
   const out = new Map<string, { code: string | null; name: string | null }>();
-  if (ids.length === 0) return out;
+  if (ids.length === 0) {
+    return out;
+  }
 
   const database = await db();
   const rows = await database
@@ -122,8 +121,12 @@ export async function listUsers(): Promise<
   { ok: true; users: ManagedUser[] } | { ok: false; error: string }
 > {
   const gate = await requireRoles(userAdminRoles, 'Viewing user accounts');
-  if (!gate.ok) return { ok: false, error: gate.error };
-  if (!isMongoConfigured()) return databaseUnavailable() as { ok: false; error: string };
+  if (!gate.ok) {
+    return { ok: false, error: gate.error };
+  }
+  if (!isMongoConfigured()) {
+    return databaseUnavailable() as { ok: false; error: string };
+  }
 
   try {
     const users = await usersCollection();
@@ -170,8 +173,12 @@ export async function listUsers(): Promise<
  */
 export async function createUser(formData: FormData): Promise<ActionResult> {
   const gate = await requireRoles(userAdminRoles, 'Adding a user');
-  if (!gate.ok) return gate;
-  if (!isMongoConfigured()) return databaseUnavailable();
+  if (!gate.ok) {
+    return gate;
+  }
+  if (!isMongoConfigured()) {
+    return databaseUnavailable();
+  }
 
   const email = String(formData.get('email') ?? '')
     .trim()
@@ -181,11 +188,19 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
   const role = String(formData.get('role') ?? '').trim() as AppRole;
   const employeeId = String(formData.get('employee_id') ?? '').trim() || null;
 
-  if (!emailRe.test(email)) return { ok: false, error: 'Enter a valid email address.' };
+  if (!emailRe.test(email)) {
+    return { ok: false, error: 'Enter a valid email address.' };
+  }
   const weak = validatePassword(password);
-  if (weak) return { ok: false, error: weak };
-  if (!fullName) return { ok: false, error: 'Enter the person’s full name.' };
-  if (!assignableRoles.includes(role)) return { ok: false, error: 'Choose a role.' };
+  if (weak) {
+    return { ok: false, error: weak };
+  }
+  if (!fullName) {
+    return { ok: false, error: 'Enter the person’s full name.' };
+  }
+  if (!assignableRoles.includes(role)) {
+    return { ok: false, error: 'Choose a role.' };
+  }
 
   // No minting a role above your own tier: a super admin only by a super admin,
   // an admin by an admin or a super admin.
@@ -195,10 +210,8 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
       error: `Only a ${tierLabel[role]} account can create another ${tierLabel[role]} account.`,
     };
   }
-  // An employee login is useless without a record to read. Every OTHER role may
-  // carry one too and usually should: an admin or HR person is normally on the
-  // payroll as well, and the link is what gives them their own attendance,
-  // payslips and leave.
+  // Employees require a linked employee record. Other roles may link one for their own attendance,
+  // payslips, and leave.
   if (isEmployeeAreaRole(role) && !employeeId) {
     return { ok: false, error: 'Pick which employee this login belongs to.' };
   }
@@ -253,10 +266,16 @@ export async function updateUserRole(
   employeeId: string | null,
 ): Promise<ActionResult> {
   const gate = await requireRoles(userAdminRoles, 'Changing a user’s role');
-  if (!gate.ok) return gate;
-  if (!isMongoConfigured()) return databaseUnavailable();
+  if (!gate.ok) {
+    return gate;
+  }
+  if (!isMongoConfigured()) {
+    return databaseUnavailable();
+  }
 
-  if (!assignableRoles.includes(role)) return { ok: false, error: 'Choose a valid role.' };
+  if (!assignableRoles.includes(role)) {
+    return { ok: false, error: 'Choose a valid role.' };
+  }
   // No granting a role above your own tier. The absence of this check is what let
   // an HR account promote itself to super_admin.
   if (tierOf(role) > tierOf(gate.role)) {
@@ -268,11 +287,8 @@ export async function updateUserRole(
   if (isEmployeeAreaRole(role) && !employeeId) {
     return { ok: false, error: 'Pick which employee this login belongs to.' };
   }
-  // Nobody changes their OWN role — a super admin included. Other people's roles
-  // are exactly what this screen is for; your own is the one row you must not
-  // touch. Self-service is how an account either demotes itself into lockout or
-  // quietly rewrites its own privileges with no second party involved, and the
-  // tier rule above cannot catch the latter: a caller always outranks themselves.
+  // Disallow changes to the caller's own role to prevent self-demotion or privilege changes
+  // without another administrator.
   if (userId === gate.profileId && role !== gate.role) {
     return {
       ok: false,
@@ -283,19 +299,21 @@ export async function updateUserRole(
   try {
     // HR must not be able to demote or seize a higher-tier account.
     const allowed = await assertMayActOnTarget(userId, gate.role);
-    if (!allowed.ok) return allowed;
+    if (!allowed.ok) {
+      return allowed;
+    }
 
     const users = await usersCollection();
     const result = await users.updateOne(
       { _id: userId },
       { $set: { role, employee_id: employeeId, updated_at: new Date() } },
     );
-    if (result.matchedCount === 0) return { ok: false, error: 'That account no longer exists.' };
+    if (result.matchedCount === 0) {
+      return { ok: false, error: 'That account no longer exists.' };
+    }
 
-    // No token_version bump: getSession() reads the role from this document on
-    // every request, so a demotion takes effect on the target's very next page
-    // load without signing them out mid-task. The role in the JWT is carried for
-    // logging only and is never trusted for authorization.
+    // Role changes take effect on the next request because getSession reads the user document. The
+    // JWT role is for logging, so no token_version bump is needed.
 
     revalidatePath('/users');
     return { ok: true };
@@ -317,17 +335,25 @@ export async function updateUserRole(
  */
 export async function deleteUser(userId: string): Promise<ActionResult> {
   const gate = await requireRoles(userAdminRoles, 'Deleting a user');
-  if (!gate.ok) return gate;
-  if (!isMongoConfigured()) return databaseUnavailable();
+  if (!gate.ok) {
+    return gate;
+  }
+  if (!isMongoConfigured()) {
+    return databaseUnavailable();
+  }
 
-  if (!userId) return { ok: false, error: 'No account selected.' };
+  if (!userId) {
+    return { ok: false, error: 'No account selected.' };
+  }
   if (userId === gate.profileId) {
     return { ok: false, error: 'You cannot delete your own account.' };
   }
 
   try {
     const allowed = await assertMayActOnTarget(userId, gate.role);
-    if (!allowed.ok) return allowed;
+    if (!allowed.ok) {
+      return allowed;
+    }
     const target = allowed.target;
 
     const users = await usersCollection();
@@ -345,7 +371,9 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
     }
 
     const result = await users.deleteOne({ _id: userId });
-    if (result.deletedCount === 0) return { ok: false, error: 'That account no longer exists.' };
+    if (result.deletedCount === 0) {
+      return { ok: false, error: 'That account no longer exists.' };
+    }
 
     // Explicit cascade — see the note above.
     const database = await db();
@@ -359,16 +387,17 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
 }
 
 /**
- * Enable or disable an account's ability to sign in.
- *
- * New with the port, and the safer alternative to deleting: a year-long token
- * cannot be recalled, so `disabled` is how a departing employee's live session
- * is stopped without destroying the account and its audit trail.
+ * Enable or disable sign-in while retaining the account and its audit history. Session validation
+ * checks disabled on every request.
  */
 export async function setUserDisabled(userId: string, disabled: boolean): Promise<ActionResult> {
   const gate = await requireRoles(userAdminRoles, 'Changing sign-in access');
-  if (!gate.ok) return gate;
-  if (!isMongoConfigured()) return databaseUnavailable();
+  if (!gate.ok) {
+    return gate;
+  }
+  if (!isMongoConfigured()) {
+    return databaseUnavailable();
+  }
 
   if (userId === gate.profileId) {
     return { ok: false, error: 'You cannot disable your own account.' };
@@ -376,7 +405,9 @@ export async function setUserDisabled(userId: string, disabled: boolean): Promis
 
   try {
     const allowed = await assertMayActOnTarget(userId, gate.role);
-    if (!allowed.ok) return allowed;
+    if (!allowed.ok) {
+      return allowed;
+    }
 
     const users = await usersCollection();
     await users.updateOne(
@@ -399,8 +430,12 @@ export async function setUserDisabled(userId: string, disabled: boolean): Promis
 /** Admin-triggered password reset email (the user then sets their own). */
 export async function sendPasswordReset(email: string): Promise<ActionResult> {
   const gate = await requireRoles(userAdminRoles, 'Sending a password reset');
-  if (!gate.ok) return gate;
-  if (!isMongoConfigured()) return databaseUnavailable();
+  if (!gate.ok) {
+    return gate;
+  }
+  if (!isMongoConfigured()) {
+    return databaseUnavailable();
+  }
 
   try {
     const users = await usersCollection();
@@ -408,16 +443,18 @@ export async function sendPasswordReset(email: string): Promise<ActionResult> {
       { email: email.trim().toLowerCase() },
       { collation: emailCollation },
     );
-    // Unlike the public reset form, this one DOES report a missing account: the
-    // caller is an authenticated admin who can already list every address, so
-    // there is no enumeration to protect against, and silence would just look
-    // like a broken button.
-    if (!target) return { ok: false, error: 'No account exists for that email.' };
+    // Report missing accounts to authenticated admins, who can already list them. The public reset
+    // form still avoids account enumeration.
+    if (!target) {
+      return { ok: false, error: 'No account exists for that email.' };
+    }
 
     // A recovery link is an account-takeover primitive if it reaches the wrong
     // inbox, so the same tier rule applies as for setting a password outright.
     const allowed = await assertMayActOnTarget(target._id, gate.role);
-    if (!allowed.ok) return allowed;
+    if (!allowed.ok) {
+      return allowed;
+    }
 
     if (!isEmailConfigured()) {
       return {
@@ -428,12 +465,12 @@ export async function sendPasswordReset(email: string): Promise<ActionResult> {
       };
     }
 
-    // Resolved BEFORE the token is minted: an origin we cannot build a link
-    // from would otherwise burn a single-use token on an email nobody can act
-    // on. Falling back to '' produced exactly that — `href="/auth/…"` in an
-    // email client, which resolves against nothing.
+    // Resolve an absolute email origin before minting the reset token so the resulting link is
+    // usable.
     const origin = await appOrigin();
-    if (!origin) return { ok: false, error: originNotConfigured };
+    if (!origin) {
+      return { ok: false, error: originNotConfigured };
+    }
 
     const token = await createResetToken(target._id);
     const link = `${origin}/auth/update-password?token=${encodeURIComponent(token)}`;
@@ -454,7 +491,9 @@ export async function sendPasswordReset(email: string): Promise<ActionResult> {
         `<p><a href="${escapeHtml(link)}">Choose a new password</a></p>` +
         `<p>The link expires in ${resetTokenTtlMinutes} minutes and can be used once.</p>`,
     });
-    if (!result.ok) return { ok: false, error: result.error ?? 'The email could not be sent.' };
+    if (!result.ok) {
+      return { ok: false, error: result.error ?? 'The email could not be sent.' };
+    }
 
     return { ok: true };
   } catch (e) {
@@ -465,16 +504,24 @@ export async function sendPasswordReset(email: string): Promise<ActionResult> {
 /** Set a new password for an account directly (admin/HR, e.g. no email access). */
 export async function setUserPassword(userId: string, password: string): Promise<ActionResult> {
   const gate = await requireRoles(userAdminRoles, 'Setting a password');
-  if (!gate.ok) return gate;
-  if (!isMongoConfigured()) return databaseUnavailable();
+  if (!gate.ok) {
+    return gate;
+  }
+  if (!isMongoConfigured()) {
+    return databaseUnavailable();
+  }
 
   const weak = validatePassword(password);
-  if (weak) return { ok: false, error: weak };
+  if (weak) {
+    return { ok: false, error: weak };
+  }
 
   try {
     // The takeover primitive: setting a password IS signing in as that person.
     const allowed = await assertMayActOnTarget(userId, gate.role);
-    if (!allowed.ok) return allowed;
+    if (!allowed.ok) {
+      return allowed;
+    }
 
     const users = await usersCollection();
     const result = await users.updateOne(
@@ -487,7 +534,9 @@ export async function setUserPassword(userId: string, password: string): Promise
         $inc: { token_version: 1 },
       },
     );
-    if (result.matchedCount === 0) return { ok: false, error: 'That account no longer exists.' };
+    if (result.matchedCount === 0) {
+      return { ok: false, error: 'That account no longer exists.' };
+    }
 
     // Any outstanding reset link is now stale — drop it rather than leaving a
     // second, older credential live.

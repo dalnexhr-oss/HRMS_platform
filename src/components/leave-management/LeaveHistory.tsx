@@ -22,10 +22,12 @@ const kindLabel: Record<string, string> = {
   LWP: 'Leave without pay',
 };
 
-// '2026-07-16' -> '16 Jul 26'.
+// 'YYYY-07-16' -> '16 Jul 26'.
 function day(iso: string): string {
   const d = new Date(`${iso}T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) return iso;
+  if (Number.isNaN(d.getTime())) {
+    return iso;
+  }
   return d.toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'short',
@@ -36,9 +38,13 @@ function day(iso: string): string {
 
 /** ISO timestamp -> '12 Aug 26'; '—' when absent. */
 function stamp(iso: string | null): string {
-  if (!iso) return '—';
+  if (!iso) {
+    return '—';
+  }
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) {
+    return '—';
+  }
   return d.toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'short',
@@ -59,7 +65,9 @@ export function LeaveHistory({ requests }: { requests: RequestView[] }) {
       rejected: 0,
       cancelled: 0,
     };
-    for (const r of requests) c[r.status] += 1;
+    for (const r of requests) {
+      c[r.status] += 1;
+    }
     return c;
   }, [requests]);
 

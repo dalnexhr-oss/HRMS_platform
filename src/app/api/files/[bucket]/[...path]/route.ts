@@ -28,7 +28,9 @@ export async function GET(
 
   try {
     const file = await getObject(bucket as StorageBucket, key);
-    if (!file) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
+    if (!file) {
+      return NextResponse.json({ error: 'Not found.' }, { status: 404 });
+    }
 
     return new NextResponse(new Uint8Array(file.bytes), {
       headers: {

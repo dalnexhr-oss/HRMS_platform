@@ -9,9 +9,13 @@ const minutesPerDay = 1440;
 
 // 'HH:MM' (or 'HH:MM:SS') -> minutes since midnight, or null.
 export function clockToMinutes(value: unknown): number | null {
-  if (typeof value !== 'string') return null;
+  if (typeof value !== 'string') {
+    return null;
+  }
   const m = /^(\d{1,2}):(\d{2})/.exec(value.trim());
-  if (!m) return null;
+  if (!m) {
+    return null;
+  }
   const mins = Number(m[1]) * 60 + Number(m[2]);
   return Number.isFinite(mins) && mins >= 0 && mins < minutesPerDay ? mins : null;
 }
@@ -37,7 +41,9 @@ export function autoPunchOutMinutesFrom(value: unknown): number {
  * unparseable.
  */
 export async function getAutoPunchOutMinutes(): Promise<number> {
-  if (!isMongoConfigured()) return defaultPunchOutMin;
+  if (!isMongoConfigured()) {
+    return defaultPunchOutMin;
+  }
   try {
     const dbc = await createClient();
     const { data, error } = await dbc
@@ -45,7 +51,9 @@ export async function getAutoPunchOutMinutes(): Promise<number> {
       .select('value')
       .eq('key', 'auto_punch_out_time')
       .maybeSingle<{ value: unknown }>();
-    if (error || !data) return defaultPunchOutMin;
+    if (error || !data) {
+      return defaultPunchOutMin;
+    }
     return autoPunchOutMinutesFrom(data.value);
   } catch {
     return defaultPunchOutMin;
@@ -60,18 +68,17 @@ export interface ClosedDay {
 }
 
 /**
- * Close a day that has a punch-in but no punch-out.
- *
- * Returns null when nothing needs doing (no punch-in, or already punched out).
- * The worked span is out−in, guarding the case where the configured close time
- * is earlier than the punch-in (a night shift) by wrapping a day.
+ * Close a day with a punch-in and no punch-out. Return null when no closure is needed. If closing
+ * time precedes punch-in, wrap to the following day for night shifts.
  */
 export function autoCloseDay(
   inMin: number | null,
   outMin: number | null,
   autoOutMin: number,
 ): ClosedDay | null {
-  if (inMin === null || outMin !== null) return null;
+  if (inMin === null || outMin !== null) {
+    return null;
+  }
   const span = autoOutMin >= inMin ? autoOutMin - inMin : autoOutMin + minutesPerDay - inMin;
   return { outMin: autoOutMin, workedMin: Math.max(0, span), autoClosed: true };
 }

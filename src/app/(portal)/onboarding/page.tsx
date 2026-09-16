@@ -11,7 +11,9 @@ const onboardingRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 export default async function OnboardingPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
-  if (!role || !onboardingRoles.includes(role)) redirect('/today');
+  if (!role || !onboardingRoles.includes(role)) {
+    redirect('/today');
+  }
 
   const [tasks, templates, employees] = await Promise.all([
     getOnboardingBoard(),

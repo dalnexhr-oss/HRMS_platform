@@ -8,7 +8,7 @@ import { logoAspect, logoPngBytes } from '@/lib/brand/logo';
 export interface LetterSpec {
   // Heading, e.g. "Relieving Letter" or "Full & Final Settlement".
   title: string;
-  // Reference/date line under the title, e.g. "Ref: DN-REL-DN001 · 27 Jul 2026".
+  // Reference/date line under the title, e.g. "Ref: DN-REL-DN001 · 27 Jul YYYY".
   reference?: string;
   // Salutation, e.g. "Dear Meera Kulkarni,".
   salutation?: string;
@@ -39,7 +39,9 @@ function wrap(text: string, font: PDFFont, size: number, maxWidth: number): stri
       line = trial;
     }
   }
-  if (line) lines.push(line);
+  if (line) {
+    lines.push(line);
+  }
   return lines;
 }
 
@@ -73,7 +75,9 @@ export async function renderLetterPdf(spec: LetterSpec): Promise<Uint8Array> {
   };
 
   const drawParagraph = (text: string, size = 11) => {
-    for (const l of wrap(text, font, size, contentWidth)) drawLine(l, font, size, ink, 4);
+    for (const l of wrap(text, font, size, contentWidth)) {
+      drawLine(l, font, size, ink, 4);
+    }
     y -= 8; // paragraph spacing
   };
 
@@ -90,14 +94,18 @@ export async function renderLetterPdf(spec: LetterSpec): Promise<Uint8Array> {
   });
   y -= 22;
   drawLine(spec.title, bold, 13, ink, 6);
-  if (spec.reference) drawLine(spec.reference, font, 9, muted, 12);
+  if (spec.reference) {
+    drawLine(spec.reference, font, 9, muted, 12);
+  }
   y -= 6;
 
   if (spec.salutation) {
     drawLine(spec.salutation, font, 11, ink, 10);
   }
 
-  for (const p of spec.paragraphs) drawParagraph(p);
+  for (const p of spec.paragraphs) {
+    drawParagraph(p);
+  }
 
   if (spec.lines?.length) {
     y -= 4;
@@ -120,7 +128,9 @@ export async function renderLetterPdf(spec: LetterSpec): Promise<Uint8Array> {
     y -= 24;
     drawLine('For Dalnex LLP', font, 11, ink, 22);
     drawLine(spec.signatoryName, bold, 11, ink, 2);
-    if (spec.signatoryTitle) drawLine(spec.signatoryTitle, font, 9, muted, 2);
+    if (spec.signatoryTitle) {
+      drawLine(spec.signatoryTitle, font, 9, muted, 2);
+    }
   }
 
   // Footer on every page — a multi-page F&F would otherwise have bare pages.

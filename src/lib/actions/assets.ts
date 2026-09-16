@@ -9,6 +9,7 @@ import { requireRoles, wroteNothing } from './guards';
 import type { AppRole } from '@/types/database';
 import { todayIST } from '@/lib/format';
 import { toMoney } from '@/lib/db/money';
+import { parseAssetLink } from '@/lib/asset-link';
 
 // Client-callable wrappers for the per-asset drawer (queries.ts is server-only).
 export async function fetchAssetAssignments(assetId: string) {
@@ -40,7 +41,9 @@ function checkAssetDates(fields: {
     [upto, 'warranty date'],
     [renew, 'warranty renewal date'],
   ] as const) {
-    if (value && !isoDate.test(value)) return `Enter a valid ${label}.`;
+    if (value && !isoDate.test(value)) {
+      return `Enter a valid ${label}.`;
+    }
   }
 
   if (purchase && purchase > todayIST()) {
@@ -91,16 +94,31 @@ function assetFields(formData: FormData) {
 
 export async function createAsset(formData: FormData) {
   const gate = await requireRoles(assetAdminRoles, 'Adding an asset');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const fields = assetFields(formData);
-  if (!fields.desktop_name) return { ok: false, error: 'Desktop name is required.' };
+  if (!fields.desktop_name) {
+    return { ok: false, error: 'Desktop name is required.' };
+  }
   const badDate = checkAssetDates(fields);
-  if (badDate) return { ok: false, error: badDate };
+  if (badDate) {
+    return { ok: false, error: badDate };
+  }
+  const link = parseAssetLink(formData.get('qr_url'));
+  if (!link.ok) {
+    return link;
+  }
 
   const dbc = await createClient();
-  const { data, error } = await dbc.from('assets').insert(fields).select('id');
-  if (error) return { ok: false, error: error.message };
+  const { data, error } = await dbc
+    .from('assets')
+    .insert({ ...fields, qr_url: link.url })
+    .select('id');
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return { ok: false, error: 'The asset was not added — your account may not have permission.' };
   }
@@ -110,19 +128,37 @@ export async function createAsset(formData: FormData) {
 
 export async function updateAsset(formData: FormData) {
   const gate = await requireRoles(assetAdminRoles, 'Updating an asset');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const id = String(formData.get('id') ?? '').trim();
-  if (!id) return { ok: false, error: 'Which asset to update is missing.' };
+  if (!id) {
+    return { ok: false, error: 'Which asset to update is missing.' };
+  }
 
   const fields = assetFields(formData);
-  if (!fields.desktop_name) return { ok: false, error: 'Desktop name is required.' };
+  if (!fields.desktop_name) {
+    return { ok: false, error: 'Desktop name is required.' };
+  }
   const badDate = checkAssetDates(fields);
-  if (badDate) return { ok: false, error: badDate };
+  if (badDate) {
+    return { ok: false, error: badDate };
+  }
+  const link = parseAssetLink(formData.get('qr_url'));
+  if (!link.ok) {
+    return link;
+  }
 
   const dbc = await createClient();
-  const { data, error } = await dbc.from('assets').update(fields).eq('id', id).select('id');
-  if (error) return { ok: false, error: error.message };
+  const { data, error } = await dbc
+    .from('assets')
+    .update({ ...fields, qr_url: link.url })
+    .eq('id', id)
+    .select('id');
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,
@@ -133,15 +169,53 @@ export async function updateAsset(formData: FormData) {
   return { ok: true };
 }
 
+export async function updateAssetQrLink(
+  assetId: string,
+  value: string,
+): Promise<{ ok: true; url: string | null } | { ok: false; error: string }> {
+  const gate = await requireRoles(assetAdminRoles, 'Updating an asset QR link');
+  if (!gate.ok) {
+    return gate;
+  }
+  if (!assetId.trim()) {
+    return { ok: false, error: 'Choose an asset to update.' };
+  }
+  const link = parseAssetLink(value);
+  if (!link.ok) {
+    return link;
+  }
+
+  const dbc = await createClient();
+  const { data, error } = await dbc
+    .from('assets')
+    .update({ qr_url: link.url })
+    .eq('id', assetId)
+    .select('id');
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  if (wroteNothing(data)) {
+    return { ok: false, error: 'This asset is no longer available.' };
+  }
+  revalidatePath('/assets');
+  return link;
+}
+
 // Assign an asset to an employee (single holder). Snapshots name/code + notifies them.
 export async function assignAsset(formData: FormData) {
   const gate = await requireRoles(assetAdminRoles, 'Assigning an asset');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const assetId = String(formData.get('asset_id') ?? '').trim();
   const employeeId = String(formData.get('employee_id') ?? '').trim();
-  if (!assetId) return { ok: false, error: 'Which asset to assign is missing.' };
-  if (!employeeId) return { ok: false, error: 'Choose an employee to assign to.' };
+  if (!assetId) {
+    return { ok: false, error: 'Which asset to assign is missing.' };
+  }
+  if (!employeeId) {
+    return { ok: false, error: 'Choose an employee to assign to.' };
+  }
 
   const dbc = await createClient();
 
@@ -151,8 +225,12 @@ export async function assignAsset(formData: FormData) {
     .select('code, full_name')
     .eq('id', employeeId)
     .maybeSingle<{ code: string; full_name: string }>();
-  if (empErr) return { ok: false, error: empErr.message };
-  if (!emp) return { ok: false, error: 'That employee no longer exists.' };
+  if (empErr) {
+    return { ok: false, error: empErr.message };
+  }
+  if (!emp) {
+    return { ok: false, error: 'That employee no longer exists.' };
+  }
 
   const { profile } = await getSession();
 
@@ -168,7 +246,9 @@ export async function assignAsset(formData: FormData) {
     })
     .eq('id', assetId)
     .select('id, desktop_name, brand');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,
@@ -176,9 +256,8 @@ export async function assignAsset(formData: FormData) {
     };
   }
 
-  // Record the transfer in the history trail (0034). Best-effort: the snapshot
-  // on the asset row is the source of truth for the CURRENT holder; a failed
-  // history insert must not fail the assignment, so it is logged, not fatal.
+  // The asset row is the current-holder record. Log a history failure without undoing the saved
+  // assignment.
   const remarks = String(formData.get('remarks') ?? '').trim() || null;
   const { error: histErr } = await dbc.from('asset_assignments').insert({
     asset_id: assetId,
@@ -189,7 +268,9 @@ export async function assignAsset(formData: FormData) {
     assigned_by: profile?.full_name ?? null,
     remarks,
   });
-  if (histErr) console.warn('[dalnex-hrms] asset history insert failed:', histErr.message);
+  if (histErr) {
+    console.warn('[dalnex-hrms] asset history insert failed:', histErr.message);
+  }
 
   const row = data![0] as { desktop_name: string; brand: string | null };
   await notifyEmployee(employeeId, {
@@ -206,11 +287,13 @@ export async function assignAsset(formData: FormData) {
 // Clear an asset's assignment (return/unassign) and notify the prior holder.
 export async function unassignAsset(id: string) {
   const gate = await requireRoles(assetAdminRoles, 'Unassigning an asset');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
 
-  // Read the prior holder BEFORE clearing it — the update would null it out.
+  // Read the current holder before clearing the assignment.
   const { data: before, error: readErr } = await dbc
     .from('assets')
     .select('assigned_employee_id, desktop_name, brand')
@@ -220,8 +303,12 @@ export async function unassignAsset(id: string) {
       desktop_name: string;
       brand: string | null;
     }>();
-  if (readErr) return { ok: false, error: readErr.message };
-  if (!before) return { ok: false, error: 'That asset no longer exists.' };
+  if (readErr) {
+    return { ok: false, error: readErr.message };
+  }
+  if (!before) {
+    return { ok: false, error: 'That asset no longer exists.' };
+  }
   if (!before.assigned_employee_id) {
     return { ok: false, error: 'Nothing to unassign — the asset is not assigned.' };
   }
@@ -237,7 +324,9 @@ export async function unassignAsset(id: string) {
     })
     .eq('id', id)
     .select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return { ok: false, error: 'The asset was not unassigned — your role may lack permission.' };
   }
@@ -249,7 +338,9 @@ export async function unassignAsset(id: string) {
     .eq('asset_id', id)
     .eq('employee_id', before.assigned_employee_id)
     .eq('returned', false);
-  if (histErr) console.warn('[dalnex-hrms] asset history return failed:', histErr.message);
+  if (histErr) {
+    console.warn('[dalnex-hrms] asset history return failed:', histErr.message);
+  }
 
   await notifyEmployee(before.assigned_employee_id, {
     kind: 'asset',
@@ -265,23 +356,29 @@ export async function unassignAsset(id: string) {
 // Log a maintenance/service event for an asset (admin/HR).
 export async function createAssetMaintenance(formData: FormData) {
   const gate = await requireRoles(assetAdminRoles, 'Logging maintenance');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const assetId = String(formData.get('asset_id') ?? '').trim();
-  if (!assetId) return { ok: false, error: 'Which asset is missing.' };
+  if (!assetId) {
+    return { ok: false, error: 'Which asset is missing.' };
+  }
 
   const text = (k: string) => String(formData.get(k) ?? '').trim() || null;
   const costRaw = String(formData.get('cost') ?? '').trim();
   const cost = costRaw ? Number(costRaw) : null;
-  if (cost != null && !Number.isFinite(cost)) return { ok: false, error: 'Cost must be a number.' };
+  if (cost != null && !Number.isFinite(cost)) {
+    return { ok: false, error: 'Cost must be a number.' };
+  }
 
-  // A maintenance row is a record of work already carried out, so its date
-  // looks backwards (ceiling of today, no floor) while the next service it
-  // schedules looks forwards from that same day. Together they are one
-  // interval, and it cannot run in reverse.
+  // Maintenance dates cannot be future-dated, and the next service cannot precede the recorded
+  // maintenance.
   const maintDate = text('maint_date') ?? todayIST();
   const nextDue = text('next_due');
-  if (!isoDate.test(maintDate)) return { ok: false, error: 'Enter a valid maintenance date.' };
+  if (!isoDate.test(maintDate)) {
+    return { ok: false, error: 'Enter a valid maintenance date.' };
+  }
   if (maintDate > todayIST()) {
     return {
       ok: false,
@@ -289,7 +386,9 @@ export async function createAssetMaintenance(formData: FormData) {
     };
   }
   if (nextDue) {
-    if (!isoDate.test(nextDue)) return { ok: false, error: 'Enter a valid next-due date.' };
+    if (!isoDate.test(nextDue)) {
+      return { ok: false, error: 'Enter a valid next-due date.' };
+    }
     if (nextDue < maintDate) {
       return { ok: false, error: 'The next service cannot be due before the one being logged.' };
     }
@@ -310,7 +409,9 @@ export async function createAssetMaintenance(formData: FormData) {
       created_by: profile?.full_name ?? null,
     })
     .select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,
@@ -323,11 +424,15 @@ export async function createAssetMaintenance(formData: FormData) {
 
 export async function deleteAsset(id: string) {
   const gate = await requireRoles(assetAdminRoles, 'Deleting an asset');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc.from('assets').delete().eq('id', id).select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,

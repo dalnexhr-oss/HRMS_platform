@@ -12,9 +12,8 @@ export function isStaffRole(role: AppRole | null | undefined): boolean {
   return !!role && staffRoles.includes(role);
 }
 
-// True for the roles that live on /me. Every "is this an employee?" test has to ask this rather
-// than compare against 'employee': a bare `role !== 'employee'` reads an intern as staff, which is
-// how an intern would have ended up posting helpdesk replies carrying a staff badge.
+// Recognize both employee and intern roles for /me access. Do not classify interns as staff by
+// checking only for employee.
 export function isEmployeeAreaRole(role: AppRole | null | undefined): boolean {
   return !!role && employeeAreaRoles.includes(role);
 }

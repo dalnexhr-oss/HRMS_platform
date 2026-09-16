@@ -21,10 +21,7 @@ import { deleteAsset } from '@/lib/actions/assets';
 import { inr } from '@/lib/format';
 import type { AssetRow, EmployeeOption, AssetSummaryRow } from '@/lib/queries';
 
-// One entry per data column, in display order (Actions excluded). `get` yields
-// the string each header menu sorts and filters on; '—' stands in for blank so
-// "no value" is itself pickable in the filter. `kind` picks the compare order —
-// date columns must not fall back to the A → Z text sort.
+/** Combine column filters with AND; selected values within a column use OR. */
 type ColKey =
   | 'purchased'
   | 'cost'
@@ -88,7 +85,9 @@ export function AssetsScreen({
   // one column never hides another column's choices.
   const options = useMemo(() => {
     const out = {} as Record<ColKey, string[]>;
-    for (const c of cols) out[c.key] = distinctValues(assets.map(c.get), c.kind);
+    for (const c of cols) {
+      out[c.key] = distinctValues(assets.map(c.get), c.kind);
+    }
     return out;
   }, [assets]);
 
@@ -109,15 +108,21 @@ export function AssetsScreen({
     for (const c of cols) {
       if (c.kind === 'date') {
         const r = ranges[c.key];
-        if (rangeActive(r)) rows = rows.filter((a) => inDateRange(c.get(a), r));
+        if (rangeActive(r)) {
+          rows = rows.filter((a) => inDateRange(c.get(a), r));
+        }
         continue;
       }
       const sel = filters[c.key];
-      if (sel?.length) rows = rows.filter((a) => sel.includes(c.get(a)));
+      if (sel?.length) {
+        rows = rows.filter((a) => sel.includes(c.get(a)));
+      }
     }
     if (sort) {
       const col = cols.find((c) => c.key === sort.key);
-      if (col) rows = sortRows(rows, col.get, col.kind ?? 'text', sort.dir);
+      if (col) {
+        rows = sortRows(rows, col.get, col.kind ?? 'text', sort.dir);
+      }
     }
     return rows;
   }, [q, assets, filters, ranges, sort]);
@@ -149,7 +154,9 @@ export function AssetsScreen({
       confirmLabel: 'Delete',
       danger: true,
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
     setBusyId(a.id);
     startTransition(async () => {
       const res = await deleteAsset(a.id);
@@ -352,7 +359,7 @@ export function AssetsScreen({
         }}
       />
       <AssignAssetDrawer
-        asset={assigning}
+        asset={assigning ? (assets.find((asset) => asset.id === assigning.id) ?? null) : null}
         employees={employees}
         onClose={() => setAssigning(null)}
       />
@@ -367,7 +374,9 @@ export function AssetsScreen({
  * line and columns keep their alignment with the headers.
  */
 function Trunc({ v, w = 150 }: { v: string | null; w?: number }) {
-  if (!v) return <span className="muted">—</span>;
+  if (!v) {
+    return <span className="muted">—</span>;
+  }
   return (
     <span
       title={v}

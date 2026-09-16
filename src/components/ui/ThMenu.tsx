@@ -78,14 +78,20 @@ function sameRange(a: DateRange, b: DateRange): boolean {
 
 /** Human sentence for the active filter, announced to screen readers. */
 function rangeLabel(r: DateRange): string {
-  if (r.blank) return 'Showing rows with no date';
+  if (r.blank) {
+    return 'Showing rows with no date';
+  }
   if (r.from && r.to) {
     return r.from === r.to
       ? `Showing ${formatDate(r.from)}`
       : `Showing ${formatDate(r.from)} → ${formatDate(r.to)}`;
   }
-  if (r.from) return `Showing on or after ${formatDate(r.from)}`;
-  if (r.to) return `Showing on or before ${formatDate(r.to)}`;
+  if (r.from) {
+    return `Showing on or after ${formatDate(r.from)}`;
+  }
+  if (r.to) {
+    return `Showing on or before ${formatDate(r.to)}`;
+  }
   return '';
 }
 
@@ -96,13 +102,23 @@ export function rangeActive(r?: DateRange): boolean {
 
 /** Does a cell's date fall inside the filter? Inclusive at both ends. */
 export function inDateRange(value: string, r?: DateRange): boolean {
-  if (!r || !rangeActive(r)) return true;
+  if (!r || !rangeActive(r)) {
+    return true;
+  }
   const blank = blankTokens.has(value);
-  if (r.blank) return blank;
-  if (blank) return false;
+  if (r.blank) {
+    return blank;
+  }
+  if (blank) {
+    return false;
+  }
   const v = dateValue(value);
-  if (r.from && v < dateValue(r.from)) return false;
-  if (r.to && v > dateValue(r.to)) return false;
+  if (r.from && v < dateValue(r.from)) {
+    return false;
+  }
+  if (r.to && v > dateValue(r.to)) {
+    return false;
+  }
   return true;
 }
 
@@ -153,7 +169,9 @@ export function ThMenu({
   // which presets are worth showing.
   const span = useMemo(() => {
     const days = options.filter((o) => !blankTokens.has(o)).map((o) => o.slice(0, 10));
-    if (days.length === 0) return null;
+    if (days.length === 0) {
+      return null;
+    }
     return {
       min: days.reduce((a, b) => (a < b ? a : b)),
       max: days.reduce((a, b) => (a > b ? a : b)),
@@ -179,10 +197,7 @@ export function ThMenu({
     setOpen((o) => !o);
   }
 
-  // Moving one end past the other clears the other end, rather than leaving
-  // the pair in a state that can match nothing. AG Grid instead paints the
-  // input red and quietly stops filtering, which strands the user in a table
-  // that no longer answers to its own header.
+  // Clear the opposite bound when the range reverses so the filter can still match rows.
   function setFrom(v: string) {
     onRange?.({ from: v, to: range.to && v && v > range.to ? '' : range.to });
   }
@@ -192,20 +207,28 @@ export function ThMenu({
   }
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
     function onDown(e: MouseEvent) {
       const t = e.target as Node;
-      if (popRef.current?.contains(t) || btnRef.current?.contains(t)) return;
+      if (popRef.current?.contains(t) || btnRef.current?.contains(t)) {
+        return;
+      }
       setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') {
+        setOpen(false);
+      }
     }
     // The pop is position:fixed, so scrolling the page or the table's
     // horizontal wrapper would leave it floating detached — just close it.
     // Scrolls inside the pop's own option list are fine.
     function onScroll(e: Event) {
-      if (popRef.current?.contains(e.target as Node)) return;
+      if (popRef.current?.contains(e.target as Node)) {
+        return;
+      }
       setOpen(false);
     }
     document.addEventListener('mousedown', onDown);
@@ -426,12 +449,8 @@ export function ThMenu({
 // sorts
 
 /**
- * Sort rows by one column, the way that column's kind demands.
- *
- * Date columns compare as instants, never as text — an A → Z sort on a date
- * orders by the leading character, so '02 Jan' lands before '15 Dec' of the
- * year before. Blanks sink to the bottom in BOTH directions: flipping the sort
- * should not fill the top of the table with rows that have no value here.
+ * Sort by the column's value type. Compare dates as instants and keep blanks last in both
+ * directions.
  */
 export function sortRows<T>(
   rows: T[],
@@ -445,8 +464,12 @@ export function sortRows<T>(
     const b = value(y);
     const blankA = blankTokens.has(a);
     const blankB = blankTokens.has(b);
-    if (blankA || blankB) return blankA && blankB ? 0 : blankA ? 1 : -1;
-    if (kind === 'date') return sign * (dateValue(a) - dateValue(b));
+    if (blankA || blankB) {
+      return blankA && blankB ? 0 : blankA ? 1 : -1;
+    }
+    if (kind === 'date') {
+      return sign * (dateValue(a) - dateValue(b));
+    }
     return sign * a.localeCompare(b, undefined, { numeric: true });
   });
 }

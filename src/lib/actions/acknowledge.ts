@@ -19,17 +19,17 @@ export interface ActionResult {
 const kinds = ['policy', 'offer_letter', 'handbook', 'asset_declaration', 'fnf'] as const;
 const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Record the signed-in employee's acknowledgement of a document. `documentId` is optional — some
-// acknowledgements (a handbook with no row of its own) are free-standing. The unique index only
-// applies when it is present, so a genuinely re-issued document gets a new id and can be signed
-// again.
+// Record the signed-in employee's signature. documentId is optional; when present, the unique
+// index prevents signing the same document twice. Reissued documents use a new ID.
 export async function acknowledgeDocument(input: {
   kind: string;
   documentId?: string | null;
   signedName: string;
 }): Promise<ActionResult> {
   const db = requireDb('Signing an acknowledgement');
-  if (!db.ok) return db;
+  if (!db.ok) {
+    return db;
+  }
 
   const kind = String(input.kind ?? '').trim();
   if (!(kinds as readonly string[]).includes(kind)) {
@@ -56,10 +56,8 @@ export async function acknowledgeDocument(input: {
     };
   }
 
-  // A typed signature should be the signer's own name. Warn rather than block on
-  // a mismatch — legal names and portal names differ often enough (initials,
-  // married names) that refusing would be wrong more than it would be right.
-  // Recorded either way; HR can see both fields.
+  // Warn on a signature-name mismatch without blocking; initials and name changes may differ from
+  // the profile. Store both for HR review.
 
   const h = await headers();
   // x-forwarded-for can carry a proxy chain; the column is text precisely so the

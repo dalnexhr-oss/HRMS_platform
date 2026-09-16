@@ -28,11 +28,17 @@ const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
 // Parse a 'YYYY-MM-DD' form value into a UTC-midnight Date, or null if unusable.
 function parseISODate(value: string): Date | null {
-  if (!isoDate.test(value)) return null;
+  if (!isoDate.test(value)) {
+    return null;
+  }
   const d = new Date(`${value}T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) return null;
-  // Reject roll-overs like 2026-02-31, which Date silently normalises.
-  if (d.toISOString().slice(0, 10) !== value) return null;
+  if (Number.isNaN(d.getTime())) {
+    return null;
+  }
+  // Reject roll-overs like YYYY-02-31, which Date silently normalises.
+  if (d.toISOString().slice(0, 10) !== value) {
+    return null;
+  }
   return d;
 }
 
@@ -97,7 +103,9 @@ function enumerateDays(startISO: string, endISO: string): string[] {
   const out: string[] = [];
   const cursor = new Date(`${startISO}T00:00:00Z`);
   const end = new Date(`${endISO}T00:00:00Z`);
-  if (Number.isNaN(cursor.getTime()) || Number.isNaN(end.getTime())) return out;
+  if (Number.isNaN(cursor.getTime()) || Number.isNaN(end.getTime())) {
+    return out;
+  }
   while (cursor.getTime() <= end.getTime() && out.length < 1000) {
     out.push(cursor.toISOString().slice(0, 10));
     cursor.setUTCDate(cursor.getUTCDate() + 1);
@@ -117,7 +125,9 @@ async function stampLeaveOnRegister(
   endISO: string,
 ): Promise<string | null> {
   const days = enumerateDays(startISO, endISO);
-  if (days.length === 0) return null;
+  if (days.length === 0) {
+    return null;
+  }
 
   let policy: Awaited<ReturnType<typeof getWeekOffPolicy>>;
   let holidaySet: Set<string>;
@@ -149,7 +159,9 @@ async function stampLeaveOnRegister(
   const lockedMonths = new Set<string>();
   for (const month of new Set(days.map((d) => d.slice(0, 7)))) {
     const gate = await requireOpenPayrollMonthShim(dbc, `${month}-01`);
-    if (!gate.ok) lockedMonths.add(month);
+    if (!gate.ok) {
+      lockedMonths.add(month);
+    }
   }
 
   const toUpdate: string[] = []; // existing 'AB' rows
@@ -161,8 +173,9 @@ async function stampLeaveOnRegister(
       continue;
     }
     const status = statusByDate.get(day);
-    if (status === 'AB') toUpdate.push(day);
-    else if (status == null && !isScheduledWeekOff(day, policy) && !holidaySet.has(day)) {
+    if (status === 'AB') {
+      toUpdate.push(day);
+    } else if (status == null && !isScheduledWeekOff(day, policy) && !holidaySet.has(day)) {
       toInsert.push(day);
     }
   }
@@ -175,7 +188,9 @@ async function stampLeaveOnRegister(
       .eq('employee_id', employeeId)
       .eq('status', 'AB')
       .in('work_date', toUpdate);
-    if (error) problems.push(`could not restamp AB day(s): ${error.message}`);
+    if (error) {
+      problems.push(`could not restamp AB day(s): ${error.message}`);
+    }
   }
   if (toInsert.length > 0) {
     const { error } = await dbc
@@ -207,9 +222,16 @@ async function requireOpenPayrollMonthShim(
     .eq('period_month', periodMonth)
     // month_closed_at is a BSON date; only its presence is tested below.
     .maybeSingle<{ status: string; month_closed_at: Date | null }>();
-  if (error) return { ok: false }; // fail closed — don't stamp a month we can't check
-  if (data?.status === 'locked' || data?.status === 'paid') return { ok: false };
-  if (data?.month_closed_at) return { ok: false };
+  if (error) {
+    // fail closed — don't stamp a month we can't check
+    return { ok: false };
+  }
+  if (data?.status === 'locked' || data?.status === 'paid') {
+    return { ok: false };
+  }
+  if (data?.month_closed_at) {
+    return { ok: false };
+  }
   return { ok: true };
 }
 
@@ -220,15 +242,8 @@ type ChainOutcome =
   | { ok: false; error: string };
 
 /**
- * Decide the current step of a request's approval chain.
- *
- * Returns 'none' when the request has no chain (nothing to do — the caller keeps
- * its original one-shot behaviour), 'intermediate' when more approvals remain,
- * and 'final' when this decision should carry the whole request.
- *
- * The step UPDATE is predicated on `status = 'pending'`, so two approvers racing
- * on the same step cannot both claim it — the loser is told, exactly as the
- * request-level guard does.
+ * Decide one pending approval step. Return none without a chain, intermediate while steps remain,
+ * or final for the overall decision. A conditional update prevents concurrent decisions.
  */
 async function decideApprovalStep(
   dbc: Awaited<ReturnType<typeof createClient>>,
@@ -243,8 +258,12 @@ async function decideApprovalStep(
     .eq('request_id', requestId)
     .order('step_no', { ascending: true });
 
-  if (error) return { ok: false, error: error.message };
-  if (!steps || steps.length === 0) return { ok: true, stage: 'none' };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  if (!steps || steps.length === 0) {
+    return { ok: true, stage: 'none' };
+  }
 
   const rows = steps as { id: string; step_no: number; status: string }[];
   const current = rows.find((s) => s.status === 'pending');
@@ -264,7 +283,9 @@ async function decideApprovalStep(
     .eq('id', current.id)
     .eq('status', 'pending')
     .select('id');
-  if (claimErr) return { ok: false, error: claimErr.message };
+  if (claimErr) {
+    return { ok: false, error: claimErr.message };
+  }
   if (!claimed || claimed.length === 0) {
     return {
       ok: false,
@@ -273,7 +294,9 @@ async function decideApprovalStep(
   }
 
   // A rejection at ANY level ends the chain — the request is rejected outright.
-  if (decision === 'rejected') return { ok: true, stage: 'final', decidedStep: current.step_no };
+  if (decision === 'rejected') {
+    return { ok: true, stage: 'final', decidedStep: current.step_no };
+  }
 
   const next = rows.find((s) => s.step_no > current.step_no && s.status === 'pending');
   return next
@@ -282,13 +305,8 @@ async function decideApprovalStep(
 }
 
 /**
- * Approve or reject a pending leave / duty request.
- *
- * `status='pending'` is part of the predicate so two reviewers racing on the
- * same request cannot silently overwrite each other's decision — the loser gets
- * an error instead of a green tick. As in `cancelRequest`, the updated rows are
- * selected back because a policy-blocked update and an already-reviewed one
- * both match zero rows, which is reported as a success rather than an error.
+ * Decide a pending request. Select the updated row to distinguish a saved decision from an
+ * already-reviewed or policy-blocked request.
  */
 export async function reviewRequest(
   id: string,
@@ -298,7 +316,9 @@ export async function reviewRequest(
 ): Promise<ActionResult> {
   // Staff-only, DB required. requireStaff also covers the no-database refusal.
   const gate = await requireStaff(`Marking a request ${decision}`);
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const cleanRemark =
     String(remark ?? '')
@@ -309,7 +329,9 @@ export async function reviewRequest(
 
   // Multi-tier approval chain handling: resolve next pending step or final decision.
   const chain = await decideApprovalStep(dbc, id, decision, gate.profileId, cleanRemark);
-  if (!chain.ok) return { ok: false, error: chain.error };
+  if (!chain.ok) {
+    return { ok: false, error: chain.error };
+  }
   if (chain.stage === 'intermediate') {
     // More approvals to go: the request stays pending on purpose.
     await notifyApprovers(
@@ -337,7 +359,9 @@ export async function reviewRequest(
     .eq('status', 'pending')
     .select('id, type, leave_kind, days, employee_id, start_date, end_date');
   const { data, error } = res;
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
 
   if (!data || data.length === 0) {
     return {
@@ -356,17 +380,18 @@ export async function reviewRequest(
     end_date: string;
   };
 
-  // Side-effects run after the decision is committed. A side-effect failure is
-  // reported as a warning rather than reverting a saved approval. The pending
-  // guard above means each transition (and its side-effect) fires at most once,
-  // so a leave balance can't be double-deducted by re-approving.
+  // The decision is committed before side effects. Report follow-up failures as warnings; the
+  // pending-status guard prevents applying a transition twice.
   let warning: string | null = null;
 
   // Comp-off: approving spends the credit and stamps the day 'CO'; rejecting
   // releases it back to the employee.
   if (reviewed.type === 'comp_off') {
-    if (decision === 'approved') warning = await settleApprovedCompOff(id);
-    else await releaseCompOff(id);
+    if (decision === 'approved') {
+      warning = await settleApprovedCompOff(id);
+    } else {
+      await releaseCompOff(id);
+    }
   }
 
   // Leave: approving a paid leave (PL/CL/SL — not LWP) draws it down from the
@@ -379,10 +404,8 @@ export async function reviewRequest(
     reviewed.leave_kind !== 'LWP'
   ) {
     const year = Number(reviewed.start_date.slice(0, 4));
-    // Compare-and-swap drawdown: the UPDATE is predicated on the balance we
-    // read, so two approvals racing on the same employee cannot both apply
-    // against the same starting balance — the loser re-reads and retries.
-    // (A plain read-modify-write silently lost one deduction.)
+    // Deduct only if the balance still matches the value read. Retry concurrent changes to
+    // preserve each deduction.
     let deducted = false;
     for (let attempt = 0; attempt < 3 && !deducted; attempt++) {
       const { data: bal, error: balReadErr } = await dbc
@@ -409,8 +432,8 @@ export async function reviewRequest(
         .from('leave_balances')
         .update({ balance: toDecimal(next) })
         .eq('id', bal.id)
-        // The compare-and-swap is against the value as READ, unconverted: it
-        // has to match what is stored, not a re-rounded version of it.
+        // Compare against the stored value exactly; rounding or converting it can break the
+        // conditional update.
         .eq('balance', bal.balance)
         .select('id');
       if (balErr) {
@@ -440,7 +463,9 @@ export async function reviewRequest(
       reviewed.start_date,
       reviewed.end_date ?? reviewed.start_date,
     );
-    if (stampWarning) warning = warning ? `${warning} ${stampWarning}` : stampWarning;
+    if (stampWarning) {
+      warning = warning ? `${warning} ${stampWarning}` : stampWarning;
+    }
   }
 
   // Tell the employee the outcome. Look the owner up rather than trusting the
@@ -476,12 +501,8 @@ export async function reviewRequest(
 }
 
 /**
- * Raise a leave / duty request for the signed-in employee.
- *
- * Employee-only: the employee_id comes from the session profile, never from the
- * form, so one employee cannot file against another. The requests insert rule
- * enforces the same thing underneath, comparing employee_id against the caller's
- * own rather than trusting the payload.
+ * Create a request for the signed-in employee. Derive employee_id from the session; the collection
+ * policy also enforces ownership.
  */
 export async function createRequest(formData: FormData): Promise<ActionResult> {
   // validate the form before touching auth or the network
@@ -504,18 +525,18 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
   const endRaw = String(formData.get('end_date') ?? '').trim();
   const start = parseISODate(startRaw);
   const end = parseISODate(endRaw);
-  if (!start) return { ok: false, error: 'Enter a valid start date.' };
-  if (!end) return { ok: false, error: 'Enter a valid end date.' };
-  // A day that has already been worked (or missed) is not something to ask
-  // permission for — backdating is how an absence gets laundered into approved
-  // leave after the fact, and stampLeaveOnRegister would rewrite the register
-  // behind it. Retrospective days are HR's to enter from the register instead.
-  // Compared as ISO strings, which sort chronologically, against the IST
-  // calendar date — the server's own timezone is not the business one.
+  if (!start) {
+    return { ok: false, error: 'Enter a valid start date.' };
+  }
+  if (!end) {
+    return { ok: false, error: 'Enter a valid end date.' };
+  }
+  // Requests must start today or later in IST. HR handles retrospective changes through the
+  // attendance register.
   if (startRaw < todayIST()) {
     return { ok: false, error: 'The start date has already passed — pick today or a later day.' };
   }
-  // A single-day request is start === end, so only an end BEFORE the start fails.
+  // Allow equal dates for a single-day request.
   if (end.getTime() < start.getTime()) {
     return { ok: false, error: 'The end date cannot be before the start date.' };
   }
@@ -576,13 +597,17 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
       status: 'pending',
     })
     .select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
 
   // Initialize multi-tier approval chain if configured (best-effort).
   const newId = (inserted?.[0] as { id: string } | undefined)?.id;
   if (newId) {
     const { error: chainErr } = await dbc.rpc('fn_init_approval_steps', { p_request_id: newId });
-    if (chainErr) console.warn('[dalnex-hrms] approval chain seed failed:', chainErr.message);
+    if (chainErr) {
+      console.warn('[dalnex-hrms] approval chain seed failed:', chainErr.message);
+    }
   }
 
   // Put it in front of the approvers rather than waiting for them to check.
@@ -602,13 +627,8 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
 }
 
 /**
- * Withdraw one of your own still-pending requests.
- *
- * The `employee_id` / `status` predicates are belt-and-braces: they scope the
- * write even if the collection policy is permissive. We ask for the updated
- * rows back so a no-op UPDATE (wrong owner, already reviewed, or refused by the
- * policy — all of which read as a silent success) is surfaced as an error
- * instead of a green tick over an unchanged row.
+ * Withdraw an owned, pending request. Check the returned row so wrong-owner, reviewed, and
+ * policy-blocked updates cannot report success.
  */
 export async function cancelRequest(id: string): Promise<ActionResult> {
   if (!isMongoConfigured()) {
@@ -632,7 +652,9 @@ export async function cancelRequest(id: string): Promise<ActionResult> {
     .eq('employee_id', employeeId)
     .eq('status', 'pending')
     .select('id, type');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
 
   if (!data || data.length === 0) {
     return {
@@ -643,7 +665,9 @@ export async function cancelRequest(id: string): Promise<ActionResult> {
   }
 
   // Withdrawing a comp-off application returns the credit to the balance.
-  if ((data[0] as { type?: string }).type === 'comp_off') await releaseCompOff(id);
+  if ((data[0] as { type?: string }).type === 'comp_off') {
+    await releaseCompOff(id);
+  }
 
   revalidateRequestViews();
   return { ok: true };

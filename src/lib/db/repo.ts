@@ -35,8 +35,12 @@ function and<T extends Document>(scope: Document, query: Filter<T>): Filter<T> {
   // whenever the caller happens to filter on the same field, which is exactly
   // the case that matters (`{ employee_id: someoneElse }`).
   const clauses = [scope, query].filter((c) => c && Object.keys(c).length > 0);
-  if (clauses.length === 0) return {} as Filter<T>;
-  if (clauses.length === 1) return clauses[0] as Filter<T>;
+  if (clauses.length === 0) {
+    return {} as Filter<T>;
+  }
+  if (clauses.length === 1) {
+    return clauses[0] as Filter<T>;
+  }
   return { $and: clauses } as Filter<T>;
 }
 
@@ -45,10 +49,8 @@ export class ScopedCollection<T extends Document> {
     private readonly name: string,
     private readonly policy: CollectionPolicy,
     private readonly scope: Scope,
-    // The transaction this handle takes part in, if any. withTransaction() hands `fn` a session,
-    // but until this existed there was no way to give it to a repository — so every read and write
-    // inside a "transaction" ran on the normal pool, outside it, and a rollback rolled back
-    // nothing. Obtain a session-bound handle with `.inSession(session)`.
+    // Use inSession(session) to bind repository operations to the transaction supplied by
+    // withTransaction.
     private readonly session?: ClientSession,
   ) {}
 
@@ -58,14 +60,18 @@ export class ScopedCollection<T extends Document> {
 
   // Merge the transaction session into a driver options object.
   private opts<O extends object>(options?: O): O {
-    if (!this.session) return (options ?? {}) as O;
+    if (!this.session) {
+      return (options ?? {}) as O;
+    }
     return { ...(options ?? {}), session: this.session } as O;
   }
 
   // The same collection and scope, enlisted in `session`. The policy is carried over unchanged:
   // joining a transaction must never widen what the caller may see or write.
   inSession(session: ClientSession | undefined): ScopedCollection<T> {
-    if (!session) return this;
+    if (!session) {
+      return this;
+    }
     return new ScopedCollection<T>(this.name, this.policy, this.scope, session);
   }
 
@@ -83,15 +89,17 @@ export class ScopedCollection<T extends Document> {
     return filter;
   }
 
-  // Apply the policy's WITH CHECK, if it declares one, to the row this update would produce. Only
-  // $set is inspected: it is the operator every write in this codebase uses to change a field a
-  // policy cares about. An update that does not set the checked field leaves it as it was, and
-  // writeFilter() has already limited which rows that can be.
+  // Apply the policy's update check to $set fields. Other operators must not modify checked fields
+  // without extending this validation.
   private assertCheck(update: UpdateFilter<T>): void {
-    if (!this.policy.check) return;
+    if (!this.policy.check) {
+      return;
+    }
     const fields = ((update as Document).$set ?? {}) as Document;
     const refusal = this.policy.check(this.scope, fields);
-    if (refusal) throw new ScopeError(refusal);
+    if (refusal) {
+      throw new ScopeError(refusal);
+    }
   }
 
   // reads
@@ -121,11 +129,8 @@ export class ScopedCollection<T extends Document> {
     return collection.distinct(key, and(this.readFilter(), query) as Filter<T>, this.opts());
   }
 
-  // Aggregate with the scope filter prepended as a $match. The caller's pipeline runs AFTER it, so
-  // it can only narrow further. This scopes the BASE collection only. A $lookup inside the pipeline
-  // reads a different collection, with a policy this cannot reach, so the pipeline must carry that
-  // filter itself — readFilterFor() is how, and postgrest-compat's embedStages() does exactly that for
-  // every embedded select.
+  // Prepend the base collection's scope filter. Each $lookup must apply the joined collection's
+  // policy separately using readFilterFor.
   async aggregate<R extends Document = Document>(
     pipeline: Document[],
     options?: AggregateOptions,
@@ -149,7 +154,9 @@ export class ScopedCollection<T extends Document> {
 
   async insertOne(doc: OptionalUnlessRequiredId<T>): Promise<string> {
     const refusal = this.policy.insert(this.scope, doc as Document);
-    if (refusal) throw new ScopeError(refusal);
+    if (refusal) {
+      throw new ScopeError(refusal);
+    }
     const collection = await this.raw();
     const result = await collection.insertOne(doc, this.opts());
     return String(result.insertedId);
@@ -158,7 +165,9 @@ export class ScopedCollection<T extends Document> {
   async insertMany(docs: OptionalUnlessRequiredId<T>[]): Promise<number> {
     for (const doc of docs) {
       const refusal = this.policy.insert(this.scope, doc as Document);
-      if (refusal) throw new ScopeError(refusal);
+      if (refusal) {
+        throw new ScopeError(refusal);
+      }
     }
     const collection = await this.raw();
     const result = await collection.insertMany(docs, this.opts());
@@ -197,14 +206,13 @@ export class ScopedCollection<T extends Document> {
     return result.deletedCount;
   }
 
-  // Update if present, insert if not. Both gates apply: the write filter decides which existing row
-  // may be touched, and the insert rule decides whether the row that would be created is allowed.
-  // Checking only one is how an employee ends up able to conjure a row for somebody else by picking
-  // an id that does not exist yet. The write filter is FOLDED into the query rather than ANDed —
-  // see upsertFilter() for why and() is the wrong tool for this one operation.
+  // Upserts require both write and insert permission. Merge the policy into the conflict key with
+  // upsertFilter so MongoDB can infer inserted fields correctly.
   async upsertOne(query: Filter<T>, update: UpdateFilter<T>, insertShape: Document): Promise<void> {
     const refusal = this.policy.insert(this.scope, insertShape);
-    if (refusal) throw new ScopeError(refusal);
+    if (refusal) {
+      throw new ScopeError(refusal);
+    }
     const filter = upsertFilter(this.writeFilter(), query as Document, insertShape);
     this.assertCheck(update);
     const collection = await this.raw();
@@ -247,20 +255,30 @@ function upsertFilter(policy: Document, query: Document, insertShape: Document):
 
 // Whether one policy constraint — an equality or an operator object — admits `value`.
 function admits(constraint: unknown, value: unknown): boolean {
-  if (!isOperatorObject(constraint)) return same(constraint, value);
+  if (!isOperatorObject(constraint)) {
+    return same(constraint, value);
+  }
   for (const [op, operand] of Object.entries(constraint as Document)) {
     switch (op) {
       case '$eq':
-        if (!same(operand, value)) return false;
+        if (!same(operand, value)) {
+          return false;
+        }
         break;
       case '$ne':
-        if (same(operand, value)) return false;
+        if (same(operand, value)) {
+          return false;
+        }
         break;
       case '$in':
-        if (!(operand as unknown[]).some((o) => same(o, value))) return false;
+        if (!(operand as unknown[]).some((o) => same(o, value))) {
+          return false;
+        }
         break;
       case '$nin':
-        if ((operand as unknown[]).some((o) => same(o, value))) return false;
+        if ((operand as unknown[]).some((o) => same(o, value))) {
+          return false;
+        }
         break;
       default:
         throw new Error(`repo: cannot fold policy operator '${op}' into an upsert key`);
@@ -270,7 +288,9 @@ function admits(constraint: unknown, value: unknown): boolean {
 }
 
 function isOperatorObject(v: unknown): boolean {
-  if (v === null || typeof v !== 'object' || v instanceof Date || Array.isArray(v)) return false;
+  if (v === null || typeof v !== 'object' || v instanceof Date || Array.isArray(v)) {
+    return false;
+  }
   const keys = Object.keys(v as Document);
   return keys.length > 0 && keys.every((k) => k.startsWith('$'));
 }
@@ -300,10 +320,14 @@ export class NotSignedInError extends Error {
 // return a filter matching nothing.
 export function readFilterFor(collection: string, scope: Scope, viaParent?: string): Document {
   const policy = policyFor(collection);
-  if (!policy) return matchNothing;
+  if (!policy) {
+    return matchNothing;
+  }
   // Inherits reachability via an authorized parent collection.
   // See CollectionPolicy.readableVia.
-  if (viaParent && policy.readableVia?.includes(viaParent)) return {};
+  if (viaParent && policy.readableVia?.includes(viaParent)) {
+    return {};
+  }
   return policy.read(scope) ?? matchNothing;
 }
 
@@ -331,7 +355,9 @@ export async function scoped<T extends Document>(
   session?: ClientSession,
 ): Promise<ScopedCollection<T>> {
   const scope = await currentScope();
-  if (!scope) throw new NotSignedInError();
+  if (!scope) {
+    throw new NotSignedInError();
+  }
   return build<T>(name, scope, session);
 }
 

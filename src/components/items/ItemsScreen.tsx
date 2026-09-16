@@ -76,7 +76,9 @@ export function ItemsScreen({
   // one column never hides another column's choices.
   const options = useMemo(() => {
     const out = {} as Record<ColKey, string[]>;
-    for (const c of cols) out[c.key] = distinctValues(items.map(c.get), c.kind);
+    for (const c of cols) {
+      out[c.key] = distinctValues(items.map(c.get), c.kind);
+    }
     return out;
   }, [items]);
 
@@ -94,11 +96,15 @@ export function ItemsScreen({
     }
     for (const c of cols) {
       const sel = filters[c.key];
-      if (sel?.length) rows = rows.filter((i) => sel.includes(c.get(i)));
+      if (sel?.length) {
+        rows = rows.filter((i) => sel.includes(c.get(i)));
+      }
     }
     if (sort) {
       const col = cols.find((c) => c.key === sort.key);
-      if (col) rows = sortRows(rows, col.get, col.kind ?? 'text', sort.dir);
+      if (col) {
+        rows = sortRows(rows, col.get, col.kind ?? 'text', sort.dir);
+      }
     }
     return rows;
   }, [q, items, filters, sort]);
@@ -129,7 +135,9 @@ export function ItemsScreen({
       confirmLabel: 'Delete',
       danger: true,
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
     setBusyId(i.id);
     startTransition(async () => {
       const res = await deleteItem(i.id);
@@ -287,7 +295,9 @@ export function ItemsScreen({
  * line and columns keep their alignment with the headers.
  */
 function Trunc({ v, w = 150 }: { v: string | null; w?: number }) {
-  if (!v) return <span className="muted">—</span>;
+  if (!v) {
+    return <span className="muted">—</span>;
+  }
   return (
     <span
       title={v}

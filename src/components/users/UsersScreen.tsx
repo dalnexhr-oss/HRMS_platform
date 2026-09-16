@@ -43,17 +43,25 @@ function rolePillStyle(role: AppRole | null): React.CSSProperties {
   if (role === 'super_admin') {
     return { borderColor: 'var(--brand)', color: '#fff', background: 'var(--brand)' };
   }
-  if (role === 'admin') return { borderColor: 'var(--brand)', color: 'var(--brand)' };
-  if (role === 'hr') return { borderColor: 'var(--brass)', color: 'var(--brass)' };
-  if (role === 'employee')
+  if (role === 'admin') {
+    return { borderColor: 'var(--brand)', color: 'var(--brand)' };
+  }
+  if (role === 'hr') {
+    return { borderColor: 'var(--brass)', color: 'var(--brass)' };
+  }
+  if (role === 'employee') {
     return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
-  if (role === 'intern')
+  }
+  if (role === 'intern') {
     return { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' };
+  }
   return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
 }
 
 function stamp(iso: string | null): string {
-  if (!iso) return 'never';
+  if (!iso) {
+    return 'never';
+  }
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? '—'
@@ -92,8 +100,9 @@ export function UsersScreen({
     startTransition(async () => {
       const res = await fn();
       setBusy(null);
-      if (!res.ok) toast(res.error ?? 'The action failed.', 'error');
-      else {
+      if (!res.ok) {
+        toast(res.error ?? 'The action failed.', 'error');
+      } else {
         toast(okMsg, 'success');
         router.refresh();
       }
@@ -116,9 +125,14 @@ export function UsersScreen({
             ? null
             : `No active employee with code “${v.trim()}”.`,
       });
-      if (code === null) return;
+      if (code === null) {
+        return;
+      }
       const match = employees.find((e) => e.code.toLowerCase() === code.trim().toLowerCase());
-      if (!match) return; // validate() blocks this, but keep the type narrow.
+      if (!match) {
+        // validate() blocks this, but keep the type narrow.
+        return;
+      }
       employeeId = match.id;
     }
     run(u.id, () => updateUserRole(u.id, role, employeeId), `Role updated for ${u.email}.`);
@@ -132,7 +146,9 @@ export function UsersScreen({
       confirmLabel: 'Set password',
       validate: (v) => (v.length >= 8 ? null : 'Password must be at least 8 characters.'),
     });
-    if (pw === null) return;
+    if (pw === null) {
+      return;
+    }
     run(u.id, () => setUserPassword(u.id, pw), `Password updated for ${u.email}.`);
   }
 
@@ -151,7 +167,9 @@ export function UsersScreen({
       danger: true,
       matchToken: u.email,
     });
-    if (typed === null) return;
+    if (typed === null) {
+      return;
+    }
     run(u.id, () => deleteUser(u.id), `Deleted the login for ${u.email}.`);
   }
 
@@ -227,10 +245,7 @@ export function UsersScreen({
                     <div
                       style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}
                     >
-                      {/* Your own role is the one row you cannot edit — mirrors
-                          the server guard, so the control never offers a change
-                          that would come back as a refusal. Everyone else's row
-                          stays editable. */}
+                      {/* Match the server guard: users cannot change their own role. */}
                       <select
                         value={u.role ?? ''}
                         disabled={(pending && busy === u.id) || u.id === selfId}
@@ -256,11 +271,10 @@ export function UsersScreen({
                           </option>
                         ))}
                       </select>
-                      {/* Tab access is a super-admin power, and only an admin or
-                          HR account has anything to configure — every other role
-                          reaches the portal through its own static gate. Hidden
-                          rather than disabled: a control you can never use is
-                          noise. setUserTabAccess re-checks both conditions. */}
+                      {/*
+                       * Only super admins can configure tab access, and only for admin or HR
+                       * accounts. setUserTabAccess enforces both conditions.
+                       */}
                       {callerRole === 'super_admin' && isConfigurableRole(u.role) && (
                         <button
                           className="btn quiet"
@@ -414,7 +428,9 @@ function AddUserDrawer({
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
     async (_prev, formData) => {
       const res = await createUser(formData);
-      if (res.ok) onCreated();
+      if (res.ok) {
+        onCreated();
+      }
       return res;
     },
     {},

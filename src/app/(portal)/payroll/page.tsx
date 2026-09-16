@@ -22,9 +22,13 @@ const runStatusLabel: Record<PayrollRunView['status'], string> = {
 
 // timestamptz -> '30 Jun, 00:30'. null when the milestone hasn't happened.
 function stamp(iso: string | null): string | null {
-  if (!iso) return null;
+  if (!iso) {
+    return null;
+  }
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
+  if (Number.isNaN(d.getTime())) {
+    return null;
+  }
   return d.toLocaleString('en-GB', {
     day: '2-digit',
     month: 'short',
@@ -35,21 +39,22 @@ function stamp(iso: string | null): string | null {
   });
 }
 
-// '2026-06-01' -> 'June 2026'.
+/** 'yyyy-MM-dd' -> 'month  name'. */
 function monthLabel(periodMonth: string): string {
   const d = new Date(periodMonth + 'T00:00:00Z');
-  if (Number.isNaN(d.getTime())) return periodMonth;
+  if (Number.isNaN(d.getTime())) {
+    return periodMonth;
+  }
   return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
 
 const monthRe = /^\d{4}-(0[1-9]|1[0-2])$/;
-
-// '?m=2026-05' -> '2026-05-01'. Anything unparseable falls back to the current month (IST).
+// Return a 'YYYY-MM-01' string for the ?m= param, defaulting to the current month.
 function periodFromParam(m: string | undefined): string {
   return m && monthRe.test(m) ? `${m}-01` : currentPeriodMonth();
 }
 
-/** Shift a 'YYYY-MM-01' by ±n months, returning the '?m=' param form 'YYYY-MM'. */
+/** Shift a 'YYYY-MM-DD' by ±n months, returning the '?m=' param form 'YYYY-MM'. */
 function shiftMonthParam(periodMonth: string, delta: number): string {
   const year = Number(periodMonth.slice(0, 4));
   const month = Number(periodMonth.slice(5, 7));
@@ -59,9 +64,13 @@ function shiftMonthParam(periodMonth: string, delta: number): string {
 
 /** 'YYYY-MM-DD' -> '1 Jul'. Null for a null/unparseable date column. */
 function dayLabel(date: string | null): string | null {
-  if (!date) return null;
+  if (!date) {
+    return null;
+  }
   const d = new Date(date + 'T00:00:00Z');
-  if (Number.isNaN(d.getTime())) return null;
+  if (Number.isNaN(d.getTime())) {
+    return null;
+  }
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
@@ -72,7 +81,9 @@ function dayLabel(date: string | null): string | null {
 async function loadAdjustmentWindow(
   runId: string | null,
 ): Promise<{ open: string | null; close: string | null }> {
-  if (!isMongoConfigured() || !runId) return { open: null, close: null };
+  if (!isMongoConfigured() || !runId) {
+    return { open: null, close: null };
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -106,7 +117,9 @@ interface AdjustmentRow {
  * prompt duplicate adjustments.
  */
 async function loadAdjustments(payslipIds: string[]): Promise<Record<string, PayslipAdjustments>> {
-  if (!isMongoConfigured() || payslipIds.length === 0) return {};
+  if (!isMongoConfigured() || payslipIds.length === 0) {
+    return {};
+  }
 
   const dbc = await createClient();
   // Select all adjustment fields; missing values default to 0 during normalization below.

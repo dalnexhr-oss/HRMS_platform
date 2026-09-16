@@ -4,7 +4,7 @@
 // current holder.
 import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { QRCodeSVG } from 'qrcode.react';
+import { AssetQrEditor } from './AssetQrEditor';
 import {
   assignAsset,
   unassignAsset,
@@ -42,10 +42,8 @@ export function AssignAssetDrawer({
 
   // Today in IST, not on the device clock — the same ceiling the action applies.
   const today = todayIST();
-  // The maintenance interval is controlled so "Next due" can take the logged
-  // date as its floor. maintKey remounts the form's UNCONTROLLED fields after a
-  // save; these two are controlled, so they are cleared by hand alongside it —
-  // and again whenever a different asset is opened.
+  // Reset controlled dates alongside the keyed maintenance form. Next due cannot precede the
+  // maintenance date.
   const [maintDate, setMaintDate] = useState('');
   const [nextDue, setNextDue] = useState('');
 
@@ -53,7 +51,9 @@ export function AssignAssetDrawer({
   // rather than leaving an interval that runs backwards on screen.
   const onMaintDateChange = (value: string) => {
     setMaintDate(value);
-    if (nextDue && value && nextDue < value) setNextDue(value);
+    if (nextDue && value && nextDue < value) {
+      setNextDue(value);
+    }
   };
 
   const [state, formAction, submitting] = useActionState<State, FormData>(
@@ -64,20 +64,22 @@ export function AssignAssetDrawer({
   async function reload(id: string) {
     latestId.current = id;
     const [h, m] = await Promise.all([fetchAssetAssignments(id), fetchAssetMaintenance(id)]);
-    if (latestId.current !== id) return; // a newer asset opened meanwhile
+    if (latestId.current !== id) {
+      // a newer asset opened meanwhile
+      return;
+    }
     setHistory(h);
     setMaint(m);
   }
 
-  // Load history/maintenance whenever the target asset changes. The drawer
-  // itself is never unmounted — AssetsScreen keeps one and swaps `asset` — so
-  // anything held in state here has to be cleared by hand, including the
-  // maintenance dates below.
+  // The drawer stays mounted between assets, so clear its local history and dates when the
+  // selection changes.
   useEffect(() => {
     if (asset) {
       setRowError(null);
       reload(asset.id);
     } else {
+      latestId.current = null;
       setHistory([]);
       setMaint([]);
     }
@@ -110,7 +112,9 @@ export function AssignAssetDrawer({
   }, [maintState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function onUnassign() {
-    if (!asset) return;
+    if (!asset) {
+      return;
+    }
     setRowError(null);
     startTransition(async () => {
       const res = await unassignAsset(asset.id);
@@ -122,10 +126,6 @@ export function AssignAssetDrawer({
       reload(asset.id);
     });
   }
-
-  // What the QR encodes: a stable identifier for scan-to-lookup. Prefer the
-  // serial, then device id, then the asset's row id.
-  const qrValue = asset ? asset.serial_no || asset.device_id || asset.id : '';
 
   return (
     <>
@@ -308,27 +308,13 @@ export function AssignAssetDrawer({
                 </div>
               )}
 
-              {/* QR label */}
               <div className="fold">Asset label</div>
-              <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-                <div
-                  style={{
-                    background: '#fff',
-                    padding: 8,
-                    borderRadius: 8,
-                    border: '1px solid var(--line-2)',
-                  }}
-                >
-                  <QRCodeSVG value={qrValue} size={96} />
-                </div>
-                <div style={{ fontSize: 12 }} className="muted">
-                  <div>
-                    <b>{asset.desktop_name}</b>
-                  </div>
-                  {asset.serial_no && <div className="mono">SN {asset.serial_no}</div>}
-                  <div>Scan to look up this asset.</div>
-                </div>
-              </div>
+              <AssetQrEditor
+                key={`${asset.id}:${asset.qr_url ?? ''}`}
+                assetId={asset.id}
+                name={asset.desktop_name}
+                url={asset.qr_url}
+              />
             </div>
             <div className="dft">
               <button type="button" className="btn" onClick={onClose}>

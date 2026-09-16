@@ -19,7 +19,9 @@ export default async function EmployeeLayout({ children }: { children: React.Rea
   if (!profile) {
     redirect('/login?error=Your+account+is+not+provisioned+yet.+Ask+HR+to+set+up+your+access.');
   }
-  if (isStaffRole(profile.role)) redirect('/today');
+  if (isStaffRole(profile.role)) {
+    redirect('/today');
+  }
 
   const name = profile.full_name ?? 'Employee';
 

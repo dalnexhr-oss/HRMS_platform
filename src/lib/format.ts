@@ -2,8 +2,8 @@
 
 // Today as YYYY-MM-DD in IST. UTC is still the previous day before 05:30 IST, so business-date
 // defaults must use this helper.
-export function todayIST(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+export function todayIST(date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(date);
 }
 
 // The current calendar year in IST.
@@ -37,7 +37,9 @@ export function formatDate(iso: string): string {
 
 /** Formats time string to 'HH:MM' (e.g. '09:20:00' -> '09:20'). */
 export function trimTime(t: string | null): string | null {
-  if (!t) return null;
+  if (!t) {
+    return null;
+  }
   return t.slice(0, 5);
 }
 
@@ -50,16 +52,15 @@ export function trimTime(t: string | null): string | null {
  */
 export function monthLabelUTC(periodMonth: string): string {
   const d = new Date(`${periodMonth.slice(0, 7)}-01T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) return periodMonth;
+  if (Number.isNaN(d.getTime())) {
+    return periodMonth;
+  }
   return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
 
 /**
- * A window of period months around `currentMonth`, newest first: `ahead` future
- * months, then the current one, then `back` past ones.
- *
- * Date.UTC normalises out-of-range months on its own (month -1 rolls to the
- * previous December), so no year arithmetic is needed here.
+ * Return period months newest first: ahead future months, the current month, then back previous
+ * months. Date.UTC handles year boundaries.
  */
 export function monthOptionsAround(currentMonth: string, back = 12, ahead = 1): string[] {
   const year = Number(currentMonth.slice(0, 4));

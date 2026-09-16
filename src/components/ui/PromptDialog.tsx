@@ -54,7 +54,9 @@ function PromptDialog({
   const matched = matchToken == null || value.trim().toLowerCase() === matchToken.toLowerCase();
 
   const submit = useCallback(() => {
-    if (!matched) return;
+    if (!matched) {
+      return;
+    }
     const err = validate?.(value);
     if (err) {
       setError(err);
@@ -65,16 +67,23 @@ function PromptDialog({
 
   // Escape cancels, Enter submits — only while open.
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onCancel();
-      else if (e.key === 'Enter') submit();
+      if (e.key === 'Escape') {
+        onCancel();
+      } else if (e.key === 'Enter') {
+        submit();
+      }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onCancel, submit]);
 
-  if (!open) return null;
+  if (!open) {
+    return null;
+  }
 
   return (
     <>
@@ -109,7 +118,9 @@ function PromptDialog({
               autoFocus
               onChange={(e) => {
                 setValue(e.target.value);
-                if (error) setError(null);
+                if (error) {
+                  setError(null);
+                }
               }}
               style={{
                 width: '100%',

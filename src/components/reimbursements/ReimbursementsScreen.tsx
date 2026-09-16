@@ -31,11 +31,15 @@ const statusLabel: Record<ReimbursementView['status'], string> = {
 };
 
 function statusPillStyle(status: ReimbursementView['status']): React.CSSProperties {
-  if (status === 'pending' || status === 'finance_review')
+  if (status === 'pending' || status === 'finance_review') {
     return { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' };
-  if (status === 'approved')
+  }
+  if (status === 'approved') {
     return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
-  if (status === 'rejected') return { borderColor: 'var(--line-2)', color: 'var(--hd)' };
+  }
+  if (status === 'rejected') {
+    return { borderColor: 'var(--line-2)', color: 'var(--hd)' };
+  }
   return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
 }
 
@@ -78,12 +82,16 @@ export function ReimbursementsScreen({
     startTransition(async () => {
       const res = await fn();
       setBusy(null);
-      if (!res.ok) toast(res.error ?? 'The action failed.', 'error');
-      else {
+      if (!res.ok) {
+        toast(res.error ?? 'The action failed.', 'error');
+      } else {
         // A warning means the decision stood but payroll needs a human — the
         // row must still refresh (it DID change status).
-        if (res.warning) toast(res.warning, 'info');
-        else toast(okMsg, 'success');
+        if (res.warning) {
+          toast(res.warning, 'info');
+        } else {
+          toast(okMsg, 'success');
+        }
         router.refresh();
       }
     });
@@ -99,11 +107,13 @@ export function ReimbursementsScreen({
       danger: true,
       validate: (v) => (v.trim() ? null : 'Enter a reason for rejecting the claim.'),
     });
-    if (reason === null) return;
+    if (reason === null) {
+      return;
+    }
     run(id, () => reviewReimbursement(id, 'rejected', reason.trim()), 'Claim rejected.');
   }
 
-  // Finance stage (0035): the second, final approval — this is what credits payroll.
+  // Finance approval is the final stage and credits payroll.
   async function financeReject(id: string) {
     const reason = await prompt({
       title: 'Finance rejection',
@@ -113,7 +123,9 @@ export function ReimbursementsScreen({
       danger: true,
       validate: (v) => (v.trim() ? null : 'Enter a reason for rejecting the claim.'),
     });
-    if (reason === null) return;
+    if (reason === null) {
+      return;
+    }
     run(
       id,
       () => financeReviewReimbursement(id, 'rejected', reason.trim()),
@@ -129,7 +141,9 @@ export function ReimbursementsScreen({
       placeholder: 'e.g. UTR2026072700123',
       confirmLabel: 'Mark paid',
     });
-    if (ref === null) return;
+    if (ref === null) {
+      return;
+    }
     run(id, () => markReimbursementPaid(id, ref.trim()), 'Claim marked paid.');
   }
 

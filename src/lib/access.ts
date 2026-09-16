@@ -11,7 +11,10 @@ export type TabAccess = Record<string, boolean>;
 // Check the static role gate before applying per-account restrictions.
 export function staticallyAllowed(role: AppRole | null | undefined, slug: string): boolean {
   const allowed = tabRoleAccess[slug];
-  if (!allowed) return true; // ungated tab — every staff role reaches it
+  if (!allowed) {
+    // ungated tab — every staff role reaches it
+    return true;
+  }
   return role != null && allowed.includes(role);
 }
 
@@ -26,9 +29,15 @@ export function canAccessTab(
   slug: string,
   access: TabAccess,
 ): boolean {
-  if (role === 'super_admin') return true;
-  if (!staticallyAllowed(role, slug)) return false;
-  if (!isConfigurableRole(role)) return true;
+  if (role === 'super_admin') {
+    return true;
+  }
+  if (!staticallyAllowed(role, slug)) {
+    return false;
+  }
+  if (!isConfigurableRole(role)) {
+    return true;
+  }
   // Keep existing restrictions until the account saves the renamed tab's setting.
   const allowed =
     slug === 'leave-management' ? (access[slug] ?? access.leaveManagment) : access[slug];

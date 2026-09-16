@@ -28,8 +28,11 @@ function groupByDay(punches: PunchRecord[]): [string, PunchRecord[]][] {
   for (const punch of punches) {
     const key = dayKey(punch.timestamp);
     const bucket = groups.get(key);
-    if (bucket) bucket.push(punch);
-    else groups.set(key, [punch]);
+    if (bucket) {
+      bucket.push(punch);
+    } else {
+      groups.set(key, [punch]);
+    }
   }
   return [...groups.entries()];
 }
@@ -44,13 +47,19 @@ export function PunchHistory({ refreshKey = 0 }: { refreshKey?: number }) {
     setError(null);
     getPunchHistory()
       .then(({ punches: next }) => {
-        if (alive) setPunches(next);
+        if (alive) {
+          setPunches(next);
+        }
       })
       .catch((reason: unknown) => {
-        if (alive) setError(reason instanceof Error ? reason.message : 'Unable to load history.');
+        if (alive) {
+          setError(reason instanceof Error ? reason.message : 'Unable to load history.');
+        }
       })
       .finally(() => {
-        if (alive) setLoading(false);
+        if (alive) {
+          setLoading(false);
+        }
       });
     return () => {
       alive = false;

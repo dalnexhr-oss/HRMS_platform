@@ -23,6 +23,8 @@ Shared client-safe types belong in `src/types`. Database document types stay in 
 
 Prettier is the formatting source of truth: two spaces, single quotes in JavaScript and TypeScript, semicolons, trailing commas, and a 100-column target. JSX attributes use double quotes. EditorConfig and Git attributes keep text files UTF-8 with LF endings.
 
+Use braces for every conditional and loop body, including one-line guards. Keep imports together at the top, after any framework directive, and separate them from declarations with a blank line. ESLint enforces these rules. Import shared client/server contracts from `src/types` instead of defining parallel copies.
+
 Run `npm run format` before submitting a change. Generated Next.js files, dependencies, the lockfile, build output, and environment files are excluded. Both schema files are maintained by hand and are formatted with the source.
 
 ## Comments

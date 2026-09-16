@@ -4,19 +4,27 @@ import { inr } from '@/lib/format';
 import type { PayslipRow } from '@/types/domain';
 import { company } from '@/lib/brand/company';
 
-// 'YYYY-MM-01' -> 'June 2026'; falls back gracefully.
+// 'YYYY-MM-01' -> 'June YYYY'; falls back gracefully.
 function monthLabel(periodMonth: string | null): string {
-  if (!periodMonth) return 'Pay period';
+  if (!periodMonth) {
+    return 'Pay period';
+  }
   const d = new Date(`${periodMonth.slice(0, 7)}-01T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) return periodMonth;
+  if (Number.isNaN(d.getTime())) {
+    return periodMonth;
+  }
   return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
 
 /** Calendar days in the pay period, or null when there is no usable period. */
 function daysInPeriod(periodMonth: string | null): number | null {
-  if (!periodMonth) return null;
+  if (!periodMonth) {
+    return null;
+  }
   const m = /^(\d{4})-(\d{2})/.exec(periodMonth);
-  if (!m) return null;
+  if (!m) {
+    return null;
+  }
   // Day 0 of the next month === last day of this one.
   return new Date(Date.UTC(Number(m[1]), Number(m[2]), 0)).getUTCDate();
 }
@@ -45,12 +53,7 @@ function totalAdditions(p: PayslipRow): number {
   return p.bonus + p.reimbursementBonus + Math.max(0, p.lastMonthBalance);
 }
 
-/**
- * Escape user-supplied text before injecting into the print document. Coerces
- * first: mapPayslip leaves `state` undefined when a branch has none, and a
- * `.replace` on that threw before a single line of the document was written,
- * so one missing field blanked the whole payslip window.
- */
+/** Escape printable user text after coercing missing values to an empty string. */
 function esc(v: unknown): string {
   const s = v === null || v === undefined ? '—' : String(v);
   return s.replace(/[&<>"']/g, (c) =>
@@ -74,10 +77,8 @@ function payslipHtml(p: PayslipRow, logoUrl: string): string {
   const lmbDed = Math.max(0, -p.lastMonthBalance); // negative carry-over → deduction line
   const lmbAdd = Math.max(0, p.lastMonthBalance); //  positive carry-over → earnings line
   const totalDays = daysInPeriod(p.periodMonth);
-  // Loss of pay is not stored on the payslip — it is the gap left by pro-rating.
-  // fn_compute_payslip earns basic/HRA/special as (monthly / days_in_month *
-  // payable_days), so the unpaid remainder is exactly the days not paid for, at
-  // the per-day rate. Same quantity the PF ECR reports as NCP days.
+  // Loss of pay is the unpaid portion of prorated monthly earnings. Derive it from non-payable
+  // days at the daily rate, matching the PF ECR's NCP day count.
   const lopDays = totalDays === null ? null : Math.max(0, totalDays - p.payableDays);
   const lopAmount = lopDays === null ? null : lopDays * p.perDayRate;
   return `<!doctype html>
@@ -189,7 +190,9 @@ function payslipHtml(p: PayslipRow, logoUrl: string): string {
  */
 export function printPayslip(p: PayslipRow): boolean {
   const w = window.open('', '_blank', 'width=820,height=1000');
-  if (!w) return false;
+  if (!w) {
+    return false;
+  }
   // The popup is about:blank, so a relative /logo.png would not resolve —
   // hand it an absolute URL. The full-size artwork keeps print output crisp.
   const logoUrl = new URL('/logo.png', window.location.origin).href;

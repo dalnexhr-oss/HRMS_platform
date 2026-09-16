@@ -27,10 +27,8 @@ export function AddItemDrawer({
     {},
   );
 
-  // Close + refresh once per successful submit. Keyed on the `state` object
-  // identity (useActionState returns a fresh object each dispatch) so it fires
-  // exactly once per submit — not again when the parent re-renders with a new
-  // onClose identity (which would snap a reopened drawer shut).
+  // React to each successful action result once. Keep onClose identity changes from closing a
+  // subsequently reopened drawer.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   useEffect(() => {

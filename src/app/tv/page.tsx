@@ -16,7 +16,9 @@ export default async function TvPage() {
   }
 
   const access = await getMyTabAccess(profile?.id ?? null);
-  if (!canAccessTab(profile?.role, 'tv', access)) redirect('/today');
+  if (!canAccessTab(profile?.role, 'tv', access)) {
+    redirect('/today');
+  }
 
   const board = await readBoard();
   return <EmployeeScreen initial={board} />;

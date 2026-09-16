@@ -20,16 +20,22 @@ function totalDeductions(p: PayslipRow): number {
   );
 }
 
-// 'YYYY-MM-01' -> 'June 2026'.
+// 'YYYY-MM-DD' -> 'Month YYYY'.
 function monthLabel(periodMonth: string | null): string | null {
-  if (!periodMonth) return null;
+  if (!periodMonth) {
+    return null;
+  }
   const d = new Date(`${periodMonth.slice(0, 7)}-01T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) return null;
+  if (Number.isNaN(d.getTime())) {
+    return null;
+  }
   return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
 
 function downloadPayslip(p: PayslipRow, onBlocked: () => void) {
-  if (!printPayslip(p)) onBlocked();
+  if (!printPayslip(p)) {
+    onBlocked();
+  }
 }
 
 const popupBlocked =

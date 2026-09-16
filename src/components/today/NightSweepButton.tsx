@@ -4,14 +4,25 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { runNightSweep } from '@/lib/actions/sweep';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 
 export function NightSweepButton({ date }: { date: string }) {
   const router = useRouter();
+  const { confirm, confirmDialog } = useConfirm();
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const onClick = () =>
+  const onClick = async () => {
+    const confirmed = await confirm({
+      title: 'Run night sweep manually?',
+      message: `This closes open attendance for ${date} at the configured auto punch-out time and changes worked hours. Employees still working should punch out themselves. Continue only after checking the open sessions.`,
+      confirmLabel: 'Run sweep',
+      danger: true,
+    });
+    if (!confirmed) {
+      return;
+    }
     start(async () => {
       setError(null);
       setMessage(null);
@@ -27,9 +38,11 @@ export function NightSweepButton({ date }: { date: string }) {
       );
       router.refresh();
     });
+  };
 
   return (
     <>
+      {confirmDialog}
       <button
         type="button"
         className="btn"

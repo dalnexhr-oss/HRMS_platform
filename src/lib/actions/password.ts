@@ -31,7 +31,9 @@ export async function requestPasswordReset(
   const email = String(formData.get('email') ?? '')
     .trim()
     .toLowerCase();
-  if (!email) return { error: 'Enter your email.' };
+  if (!email) {
+    return { error: 'Enter your email.' };
+  }
   if (!isMongoConfigured()) {
     return { error: 'The database is not configured, so password reset is unavailable.' };
   }
@@ -40,7 +42,9 @@ export async function requestPasswordReset(
   // are resolved first — and no token is minted for a link that could not have
   // been built or sent.
   const origin = await appOrigin();
-  if (!origin) return { error: originNotConfigured };
+  if (!origin) {
+    return { error: originNotConfigured };
+  }
 
   const emailConfigured = isEmailConfigured();
   if (!emailConfigured && process.env.NODE_ENV === 'production') {
@@ -51,7 +55,9 @@ export async function requestPasswordReset(
   const user = await users.findOne({ email }, { collation: { locale: 'en', strength: 2 } });
 
   // A disabled account gets the same silent treatment as a missing one.
-  if (!user || user.disabled) return { sent: true };
+  if (!user || user.disabled) {
+    return { sent: true };
+  }
 
   const h = await headers();
   const token = await createResetToken(
@@ -99,11 +105,17 @@ export async function resetPassword(
   const password = String(formData.get('password') ?? '');
   const confirm = String(formData.get('confirm') ?? '');
 
-  if (!token) return { error: 'That reset link is missing its token. Request a new one.' };
-  if (password !== confirm) return { error: 'The two passwords do not match.' };
+  if (!token) {
+    return { error: 'That reset link is missing its token. Request a new one.' };
+  }
+  if (password !== confirm) {
+    return { error: 'The two passwords do not match.' };
+  }
 
   const invalid = validatePassword(password);
-  if (invalid) return { error: invalid };
+  if (invalid) {
+    return { error: invalid };
+  }
 
   // Atomic: spends the token, so a replayed link fails here.
   const userId = await consumeResetToken(token);
@@ -124,11 +136,11 @@ export async function resetPassword(
     { returnDocument: 'after' },
   );
 
-  if (!result) return { error: 'That account no longer exists.' };
+  if (!result) {
+    return { error: 'That account no longer exists.' };
+  }
 
-  // Deliberately does NOT sign them in. Typing the new password once proves it
-  // was stored as intended, and catches a password-manager mismatch now rather
-  // than at the next sign-in.
+  // Require a fresh sign-in with the new password after resetting it.
   await destroySession();
   return { done: true };
 }
@@ -144,15 +156,23 @@ export async function changePassword(
   const confirm = String(formData.get('confirm') ?? '');
 
   const { userId } = await getSession();
-  if (!userId) redirect('/login');
+  if (!userId) {
+    redirect('/login');
+  }
 
-  if (password !== confirm) return { error: 'The two passwords do not match.' };
+  if (password !== confirm) {
+    return { error: 'The two passwords do not match.' };
+  }
   const invalid = validatePassword(password);
-  if (invalid) return { error: invalid };
+  if (invalid) {
+    return { error: invalid };
+  }
 
   const users = await usersCollection();
   const user = await users.findOne({ _id: userId });
-  if (!user) return { error: 'That account no longer exists.' };
+  if (!user) {
+    return { error: 'That account no longer exists.' };
+  }
 
   // Proving the current password is what stops a borrowed unlocked laptop from
   // becoming a permanent account takeover.
@@ -172,7 +192,9 @@ export async function changePassword(
   // The bump above just invalidated this browser's cookie too. Re-issue it so
   // the person who made the change stays signed in while every other device is
   // signed out — which is what "change my password" is expected to do.
-  if (updated) await createSession(updated as UserDoc);
+  if (updated) {
+    await createSession(updated as UserDoc);
+  }
 
   return { done: true };
 }
@@ -180,7 +202,9 @@ export async function changePassword(
 /** Sign every device out of an account. Used by the account page. */
 export async function signOutEverywhere(): Promise<void> {
   const { userId } = await getSession();
-  if (userId) await revokeAllSessions(userId);
+  if (userId) {
+    await revokeAllSessions(userId);
+  }
   await destroySession();
   redirect('/login');
 }

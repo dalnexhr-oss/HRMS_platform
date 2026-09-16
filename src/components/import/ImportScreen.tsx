@@ -57,12 +57,8 @@ export function ImportScreen({
   const preview: ImportPreview | null = state?.ok ? state.preview : null;
   const previewError = state && !state.ok ? state.error : null;
 
-  // `!previewing` matters: useActionState holds the PREVIOUS state while the
-  // next action is in flight. Without it, submitting a second file flips
-  // straight to the first file's preview — stale numbers presented as if they
-  // described the new upload, and no loading feedback at all. Staying on the
-  // upload step keeps the "Reading the sheet…" button visible until the fresh
-  // preview actually lands.
+  // Hide the previous preview while the next upload is being parsed; useActionState retains the
+  // previous result until it completes.
   const step: 'upload' | 'preview' | 'done' =
     result !== null ? 'done' : preview && !cancelled && !previewing ? 'preview' : 'upload';
 
@@ -74,7 +70,9 @@ export function ImportScreen({
   }
 
   function onCommit() {
-    if (!file) return;
+    if (!file) {
+      return;
+    }
     // The file is re-uploaded and re-parsed by commitImport (it re-resolves the
     // roster so the write reflects current employees, not a stale preview). For a
     // static monthly sheet this is correct; the cost is one extra parse.
@@ -88,13 +86,17 @@ export function ImportScreen({
   // The single reason the Import button cannot run, or null if it can. Drives
   // both the disabled state and its tooltip, so the two can never disagree.
   function blockedReason(p: ImportPreview): string | null {
-    if (!canImport)
+    if (!canImport) {
       return `Importing the register needs an admin or HR account${
         role ? ` — yours is “${role}”.` : '.'
       }`;
-    if (!file) return 'Choose the register file again before importing.';
-    if (p.totalRows === 0)
+    }
+    if (!file) {
+      return 'Choose the register file again before importing.';
+    }
+    if (p.totalRows === 0) {
       return 'No rows in this sheet could be matched to an employee, so there is nothing to write.';
+    }
     return null;
   }
 

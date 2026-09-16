@@ -17,14 +17,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ ticketId
   const { ticketId } = await params;
 
   const scope = await currentScope();
-  if (!scope) return new Response('Not signed in.', { status: 401 });
+  if (!scope) {
+    return new Response('Not signed in.', { status: 401 });
+  }
 
   // The ticket must be visible to this caller under the collection's policy.
   // Checking here means the stream cannot be used to read a ticket the drawer
   // would never have opened.
   const tickets = await scoped<{ _id: string; status: string }>(collections.helpdeskTickets);
   const ticket = await tickets.findOne({ _id: ticketId });
-  if (!ticket) return new Response('Not found.', { status: 404 });
+  if (!ticket) {
+    return new Response('Not found.', { status: 404 });
+  }
 
   const live = await supportsTransactions(); // replica set => change streams
   const encoder = new TextEncoder();
@@ -36,14 +40,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ ticketId
     async start(controller) {
       let closed = false;
       const send = (event: string, data: unknown) => {
-        if (closed) return;
+        if (closed) {
+          return;
+        }
         controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
       };
 
       send('open', { transport: live ? 'change-stream' : 'poll' });
 
       const heartbeat = setInterval(() => {
-        if (!closed) controller.enqueue(encoder.encode(': ping\n\n'));
+        if (!closed) {
+          controller.enqueue(encoder.encode(': ping\n\n'));
+        }
       }, heartbeatMs);
 
       let cleanup = () => {};
@@ -51,7 +59,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ ticketId
       // Idempotent: abort, a change-stream error and a normal close all reach
       // it, sometimes more than once.
       const stop = () => {
-        if (closed) return;
+        if (closed) {
+          return;
+        }
         closed = true;
         clearInterval(heartbeat);
         cleanup();
@@ -66,14 +76,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ ticketId
       // or change streams running. stop() reads the latest cleanup callback.
       stopRef = stop;
       req.signal.addEventListener('abort', stop);
-      if (req.signal.aborted) return stop();
+      if (req.signal.aborted) {
+        return stop();
+      }
 
       const database = await db();
       const comments = database.collection(collections.helpdeskTicketComments);
 
       // The client may have gone during the await; opening a change stream or
       // a poll timer now would leak exactly what the listener above prevents.
-      if (closed || req.signal.aborted) return stop();
+      if (closed || req.signal.aborted) {
+        return stop();
+      }
 
       if (live) {
         const changeStream = comments.watch(
@@ -82,15 +96,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ ticketId
         );
         changeStream.on('change', (change) => {
           const doc = (change as { fullDocument?: Record<string, unknown> }).fullDocument;
-          if (doc) send('comment', { ...doc, id: doc._id });
+          if (doc) {
+            send('comment', { ...doc, id: doc._id });
+          }
         });
         changeStream.on('error', () => {
-          // ENDING the response is what makes this recoverable. After a
-          // failover or a dropped cursor the change stream is dead and nothing
-          // will ever arrive on it again — but the heartbeat kept ticking, so
-          // the connection looked healthy to EventSource, which therefore never
-          // reconnected and the drawer went quiet with nothing on screen to say
-          // so. Closing is what triggers the browser's automatic retry.
+          // Close the response when the change stream fails so EventSource reconnects. A heartbeat
+          // alone would leave a dead stream looking healthy.
           send('error', { message: 'The live connection dropped. Reconnecting…' });
           stop();
         });
@@ -100,7 +112,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ ticketId
         // where one message is deleted as another arrives.
         let since = new Date();
         const timer = setInterval(async () => {
-          if (closed) return;
+          if (closed) {
+            return;
+          }
           try {
             const fresh = await comments
               .find({ ticket_id: ticketId, created_at: { $gt: since } })

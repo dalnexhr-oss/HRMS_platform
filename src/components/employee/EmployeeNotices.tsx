@@ -6,16 +6,15 @@ import { markNoticeRead } from '@/lib/actions/notices';
 import { openNoticePdf } from '@/components/notices/open-pdf';
 import type { NoticeView } from '@/lib/queries';
 
-// Employee notices with read receipts and collapsible bodies.
+// Show employee notices and their read receipts. canMark controls receipt actions; the server
+// checks permission when saving.
 export function EmployeeNotices({
   notices,
   readIds = [],
   canMark = false,
 }: {
   notices: NoticeView[];
-  // Ids the employee has already marked read.
   readIds?: string[];
-  // False when the login isn't linked to an employee (can't record a read).
   canMark?: boolean;
 }) {
   if (!notices.length) {
@@ -59,8 +58,11 @@ function NoticeItem({
     setError(null);
     startTransition(async () => {
       const res = await markNoticeRead(notice.id);
-      if (res.ok) setRead(true);
-      else setError(res.error ?? 'Could not mark as read.');
+      if (res.ok) {
+        setRead(true);
+      } else {
+        setError(res.error ?? 'Could not mark as read.');
+      }
     });
   };
 

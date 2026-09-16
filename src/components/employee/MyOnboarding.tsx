@@ -13,7 +13,10 @@ const ownerLabel: Record<string, string> = {
 };
 
 export function MyOnboarding({ tasks, id }: { tasks: OnboardingTaskRow[]; id?: string }) {
-  if (tasks.length === 0) return null; // nothing in flight — don't show an empty card
+  if (tasks.length === 0) {
+    // nothing in flight — don't show an empty card
+    return null;
+  }
 
   const open = tasks.filter((t) => t.status !== 'done');
   const done = tasks.length - open.length;

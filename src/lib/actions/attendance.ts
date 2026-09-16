@@ -44,10 +44,16 @@ type TimeParse = { ok: true; value: string | null } | { ok: false };
 
 function timeField(v: FormDataEntryValue | null): TimeParse {
   const s = String(v ?? '').trim();
-  if (!s) return { ok: true, value: null };
-  if (!/^\d{1,2}:\d{2}(:\d{2})?$/.test(s)) return { ok: false };
+  if (!s) {
+    return { ok: true, value: null };
+  }
+  if (!/^\d{1,2}:\d{2}(:\d{2})?$/.test(s)) {
+    return { ok: false };
+  }
   const [h, m] = s.split(':').map(Number);
-  if (h > 23 || m > 59) return { ok: false };
+  if (h > 23 || m > 59) {
+    return { ok: false };
+  }
   return { ok: true, value: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}` };
 }
 
@@ -59,10 +65,8 @@ const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const dateRe = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * Apply a manual correction to one employee/day and record it in the audit log.
- * Restricted to writeRoles (super admin / admin / HR); the attendance_days
- * write policy enforces the identical rule underneath — this is the fast,
- * friendly rejection, not the security boundary.
+ * Correct one employee's attendance and record an audit entry. Limit callers to writeRoles; the
+ * collection policy enforces the same restriction.
  */
 export async function correctAttendance(formData: FormData): Promise<CorrectionState> {
   // inputs
@@ -154,7 +158,9 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
 
   // Prevent corrections to months with locked/paid payroll runs or sealed attendance periods.
   const open = await requireOpenPayrollMonth(dbc, workDate);
-  if (!open.ok) return open;
+  if (!open.ok) {
+    return open;
+  }
 
   // write
   const { data: saved, error: saveError } = await dbc
@@ -170,6 +176,8 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
         is_corrected: true,
         correction_reason: reason,
         corrected_by: session.profile.id,
+        auto_close_source: null,
+        auto_closed_at: null,
       },
       { onConflict: 'employee_id,work_date' },
     )
@@ -251,7 +259,10 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
   // with no transaction around them. Surface the audit failure as a WARNING on a
   // success — the correction itself is saved, and screens must show it as such.
   revalidatePath('/register');
-  if (status === 'CO') revalidatePath('/me'); // the employee's balance moved
+  if (status === 'CO') {
+    // the employee's balance moved
+    revalidatePath('/me');
+  }
   const warnings = [
     compOffWarning,
     logError ? `Attendance was updated, but the audit-log entry failed: ${logError.message}` : null,
@@ -281,12 +292,18 @@ export async function correctAttendanceBulk(input: {
   const status = String(input.status ?? '').trim();
   const targets = Array.isArray(input.targets) ? input.targets : [];
 
-  if (!reason) return { ok: false, error: 'A correction reason is required.' };
-  if (!isAllowedStatus(status))
+  if (!reason) {
+    return { ok: false, error: 'A correction reason is required.' };
+  }
+  if (!isAllowedStatus(status)) {
     return { ok: false, error: `Invalid status: ${status || '(missing)'}` };
-  if (targets.length === 0) return { ok: false, error: 'Select at least one day to correct.' };
-  if (targets.length > 2000)
+  }
+  if (targets.length === 0) {
+    return { ok: false, error: 'Select at least one day to correct.' };
+  }
+  if (targets.length > 2000) {
     return { ok: false, error: 'Too many cells at once — narrow the selection.' };
+  }
 
   for (const t of targets) {
     if (!uuidRe.test(t.employeeId) || !dateRe.test(t.workDate)) {
@@ -295,7 +312,9 @@ export async function correctAttendanceBulk(input: {
   }
 
   const gate = await requireStaff('Bulk-correcting attendance');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
 
@@ -303,7 +322,9 @@ export async function correctAttendanceBulk(input: {
   const months = [...new Set(targets.map((t) => t.workDate.slice(0, 7)))];
   for (const month of months) {
     const open = await requireOpenPayrollMonth(dbc, `${month}-01`);
-    if (!open.ok) return open;
+    if (!open.ok) {
+      return open;
+    }
   }
 
   const rows = targets.map((t) => ({
@@ -316,14 +337,17 @@ export async function correctAttendanceBulk(input: {
     is_corrected: true,
     correction_reason: reason,
     corrected_by: gate.profileId,
+    auto_close_source: null,
+    auto_closed_at: null,
   }));
 
   const { data: saved, error: saveError } = await dbc
     .from('attendance_days')
     .upsert(rows, { onConflict: 'employee_id,work_date' })
     .select('id');
-  if (saveError)
+  if (saveError) {
     return { ok: false, error: `Could not save the corrections: ${saveError.message}` };
+  }
   if (!saved || saved.length === 0) {
     return {
       ok: false,

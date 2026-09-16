@@ -34,7 +34,9 @@ function connect(): Promise<MongoClient> {
 // Returns the shared MongoClient instance. Rejections are evicted immediately to avoid caching
 // transient connection failures across hot reloads.
 export function client(): Promise<MongoClient> {
-  if (globalForMongo.__dalnexMongo) return globalForMongo.__dalnexMongo;
+  if (globalForMongo.__dalnexMongo) {
+    return globalForMongo.__dalnexMongo;
+  }
   const pending = connect().catch((err) => {
     if (globalForMongo.__dalnexMongo === pending) {
       globalForMongo.__dalnexMongo = undefined;
@@ -65,11 +67,9 @@ export async function supportsTransactions(): Promise<boolean> {
 let warnedStandalone = false;
 
 /**
- * Executes an operation within a multi-document transaction with snapshot isolation.
- *
- * All operations within `fn` must use the passed ClientSession to participate in the transaction.
- * In standalone development environments lacking replica set support, falls back to non-transactional
- * execution with a single warning.
+ * Run fn with snapshot isolation when transactions are supported. Every repository must use the
+ * supplied session. Standalone development databases execute without a transaction and emit a
+ * warning.
  */
 export async function withTransaction<T>(
   fn: (session: ClientSession | undefined) => Promise<T>,

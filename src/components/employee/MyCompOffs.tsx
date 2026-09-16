@@ -21,15 +21,19 @@ function pillStyle(c: CompOffRow): React.CSSProperties {
   if (c.status === 'available' && !c.isApplicable) {
     return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
   }
-  if (c.status === 'available')
+  if (c.status === 'available') {
     return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
-  if (c.status === 'applied')
+  }
+  if (c.status === 'applied') {
     return { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' };
+  }
   return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
 }
 
 function pillLabel(c: CompOffRow): string {
-  if (c.status === 'available' && !c.isApplicable) return 'Not applicable (on hold by HR)';
+  if (c.status === 'available' && !c.isApplicable) {
+    return 'Not applicable (on hold by HR)';
+  }
   return statusLabel[c.status];
 }
 
@@ -92,7 +96,9 @@ function ApplyForm({ available }: { available: CompOffRow[] }) {
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
     async (_prev, formData) => {
       const res = await applyCompOff(formData);
-      if (res.ok) router.refresh();
+      if (res.ok) {
+        router.refresh();
+      }
       return res;
     },
     {},

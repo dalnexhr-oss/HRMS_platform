@@ -41,9 +41,13 @@ function isFrozen(run: PayrollRunView | null): boolean {
 // Use the run month's actual calendar-day count as the denominator. Omit it when no run is
 // available.
 function daysInPeriod(periodMonth: string | null | undefined): number | null {
-  if (!periodMonth) return null;
+  if (!periodMonth) {
+    return null;
+  }
   const m = /^(\d{4})-(\d{2})/.exec(periodMonth);
-  if (!m) return null;
+  if (!m) {
+    return null;
+  }
   // Day 0 of the next month === last day of this one.
   const d = new Date(Date.UTC(Number(m[1]), Number(m[2]), 0));
   return Number.isNaN(d.getTime()) ? null : d.getUTCDate();
@@ -76,7 +80,9 @@ export function RunActions({
             setError(null);
             startTransition(async () => {
               const res = await openRun(periodMonth);
-              if (!res.ok) setError(res.error ?? 'Could not start the payroll run.');
+              if (!res.ok) {
+                setError(res.error ?? 'Could not start the payroll run.');
+              }
             });
           }}
         >
@@ -92,13 +98,14 @@ export function RunActions({
   }
 
   const frozen = isFrozen(run);
-  // Locking is irreversible — there is no unlock function in the schema, and
-  // fn_compute_run raises on a locked run. Locking a run with no payslips would
-  // therefore freeze the month into a state where payslips can NEVER be built.
+  // Require payslips before locking. A locked run cannot be unlocked or recomputed, so an empty
+  // run would prevent payroll for the month.
   const nothingToLock = payslipCount === 0;
 
   const call = async (fn: (runId: string) => Promise<ActionResult>, confirmMessage?: string) => {
-    if (!run) return;
+    if (!run) {
+      return;
+    }
     if (confirmMessage) {
       const ok = await confirm({
         title: 'Please confirm',
@@ -106,12 +113,16 @@ export function RunActions({
         confirmLabel: 'Confirm',
         danger: true,
       });
-      if (!ok) return;
+      if (!ok) {
+        return;
+      }
     }
     setError(null);
     startTransition(async () => {
       const res = await fn(run.id);
-      if (!res.ok) setError(res.error ?? 'The action failed for an unknown reason.');
+      if (!res.ok) {
+        setError(res.error ?? 'The action failed for an unknown reason.');
+      }
     });
   };
 

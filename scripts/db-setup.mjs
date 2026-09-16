@@ -12,9 +12,8 @@ import { buildSchema } from './schema.mjs';
 
 const scryptAsync = promisify(scrypt);
 
-// These MUST match src/lib/auth/password.ts, or the admin created here cannot
-// sign in. Duplicated rather than imported because that module is TypeScript
-// and uses path aliases; the encoding format is the contract between them.
+// Keep the password encoding compatible with auth/password.ts. This standalone script cannot
+// import the TypeScript module directly.
 const N = 65_536,
   R = 8,
   P = 1,
@@ -109,7 +108,9 @@ console.log(
 );
 if (problems.length) {
   console.log(`\n${problems.length} problem(s):`);
-  for (const p of problems) console.log('  ' + p);
+  for (const p of problems) {
+    console.log('  ' + p);
+  }
 }
 
 if (values.admin) {

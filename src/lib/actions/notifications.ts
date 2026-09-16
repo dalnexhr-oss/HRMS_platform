@@ -14,8 +14,12 @@ export interface ActionResult {
 // Mark one notification read. The write policy ensures it can only be your own.
 export async function markNotificationRead(id: string): Promise<ActionResult> {
   const db = requireDb('Marking a notification read');
-  if (!db.ok) return db;
-  if (!id) return { ok: false, error: 'No notification selected.' };
+  if (!db.ok) {
+    return db;
+  }
+  if (!id) {
+    return { ok: false, error: 'No notification selected.' };
+  }
 
   const dbc = await createClient();
   const { error } = await dbc
@@ -23,7 +27,9 @@ export async function markNotificationRead(id: string): Promise<ActionResult> {
     .update({ read_at: new Date() })
     .eq('id', id)
     .is('read_at', null);
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
 
   revalidatePath('/', 'layout');
   return { ok: true };
@@ -32,14 +38,18 @@ export async function markNotificationRead(id: string): Promise<ActionResult> {
 // Mark every unread notification read.
 export async function markAllNotificationsRead(): Promise<ActionResult> {
   const db = requireDb('Marking notifications read');
-  if (!db.ok) return db;
+  if (!db.ok) {
+    return db;
+  }
 
   const dbc = await createClient();
   const { error } = await dbc
     .from('notifications')
     .update({ read_at: new Date() })
     .is('read_at', null);
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
 
   revalidatePath('/', 'layout');
   return { ok: true };

@@ -10,7 +10,9 @@ const itemAdminRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 export default async function ItemsPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
-  if (!role || !itemAdminRoles.includes(role)) redirect('/today');
+  if (!role || !itemAdminRoles.includes(role)) {
+    redirect('/today');
+  }
 
   const [items, employees] = await Promise.all([getItems(), getEmployeeOptions()]);
   return <ItemsScreen items={items} employees={employees} />;

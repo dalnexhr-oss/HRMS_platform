@@ -29,10 +29,8 @@ export function EmployeesScreen({
   const [showInactive, setShowInactive] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const [editing, setEditing] = useState<EmployeeEditRow | null>(null);
-  // Bumped on every OPEN, never on close. The drawer folds this into its form
-  // key, so each open starts from freshly loaded values — without it, reopening
-  // the SAME employee reuses the mounted form and shows whatever was typed and
-  // abandoned last time. Re-keying on close is what the comment below rules out.
+  // Increment on open so reopening the same employee discards abandoned edits. Keep the key stable
+  // while closing.
   const [openSeq, setOpenSeq] = useState(0);
   const [busyCode, setBusyCode] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -54,8 +52,12 @@ export function EmployeesScreen({
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return rows.filter((e) => {
-      if (!showInactive && !e.active) return false;
-      if (!term) return true;
+      if (!showInactive && !e.active) {
+        return false;
+      }
+      if (!term) {
+        return true;
+      }
       return (
         e.name.toLowerCase().includes(term) ||
         e.code.toLowerCase().includes(term) ||
@@ -92,13 +94,16 @@ export function EmployeesScreen({
       confirmLabel: 'Deactivate',
       danger: true,
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
     setBusyCode(code);
     startTransition(async () => {
       const res = await deactivateEmployee(code);
       setBusyCode(null);
-      if (!res.ok) toast(res.error ?? 'Could not deactivate the employee.', 'error');
-      else {
+      if (!res.ok) {
+        toast(res.error ?? 'Could not deactivate the employee.', 'error');
+      } else {
         toast(`${name} deactivated.`, 'success');
         router.refresh();
       }
@@ -111,13 +116,16 @@ export function EmployeesScreen({
       message: `Reactivate ${name} (${code})? They will return to the active roster, and their login will be re-enabled.`,
       confirmLabel: 'Reactivate',
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
     setBusyCode(code);
     startTransition(async () => {
       const res = await reactivateEmployee(code);
       setBusyCode(null);
-      if (!res.ok) toast(res.error ?? 'Could not reactivate the employee.', 'error');
-      else {
+      if (!res.ok) {
+        toast(res.error ?? 'Could not reactivate the employee.', 'error');
+      } else {
         toast(`${name} reactivated.`, 'success');
         router.refresh();
       }

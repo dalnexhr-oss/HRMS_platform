@@ -60,8 +60,12 @@ function col(name: string): string {
 
 // Documents come back with `_id`; callers expect `id`. Both are provided.
 function outward<T extends Document>(doc: T | null): T | null {
-  if (!doc) return null;
-  if ('_id' in doc && !('id' in doc)) return { ...doc, id: doc._id } as T;
+  if (!doc) {
+    return null;
+  }
+  if ('_id' in doc && !('id' in doc)) {
+    return { ...doc, id: doc._id } as T;
+  }
   return doc;
 }
 
@@ -94,8 +98,12 @@ function splitFields(select: string): string[] {
   let depth = 0;
   let current = '';
   for (const ch of select) {
-    if (ch === '(') depth++;
-    if (ch === ')') depth--;
+    if (ch === '(') {
+      depth++;
+    }
+    if (ch === ')') {
+      depth--;
+    }
     if (ch === ',' && depth === 0) {
       parts.push(current);
       current = '';
@@ -103,7 +111,9 @@ function splitFields(select: string): string[] {
       current += ch;
     }
   }
-  if (current.trim()) parts.push(current);
+  if (current.trim()) {
+    parts.push(current);
+  }
   return parts;
 }
 
@@ -117,7 +127,9 @@ function parseSelect(select: string, parentTable: string): { fields: string[]; e
 
   for (const raw of splitFields(select)) {
     const part = raw.trim();
-    if (!part) continue;
+    if (!part) {
+      continue;
+    }
 
     const open = part.indexOf('(');
     if (open === -1) {
@@ -176,17 +188,17 @@ function parseSelect(select: string, parentTable: string): { fields: string[]; e
 function embedStages(embed: Embed, scope: Scope, parent: string): Document[] {
   const sub: Document[] = [];
 
-  // The joined collection's own read policy, first — before the nested embeds,
-  // the projection and any $count, so none of them can see a row it excludes.
-  // `parent` lets a collection that the SQL made readable THROUGH this join say
-  // so (readableVia); without it, items and payslip_adjustments would vanish
-  // from the employee's own dashboard, which is the opposite of what their SQL
-  // policies granted.
+  // Apply the joined collection's read policy before embeds, projections, and counts. parent
+  // enables policies that grant access through an owned parent row.
   const child = collectionFor(embed.table);
   const joined = readFilterFor(child, scope, parent);
-  if (Object.keys(joined).length > 0) sub.push({ $match: joined });
+  if (Object.keys(joined).length > 0) {
+    sub.push({ $match: joined });
+  }
 
-  for (const nested of embed.embeds) sub.push(...embedStages(nested, scope, child));
+  for (const nested of embed.embeds) {
+    sub.push(...embedStages(nested, scope, child));
+  }
 
   if (embed.count) {
     // PostgREST returns `[{ count: n }]`, and $count produces exactly that —
@@ -195,17 +207,19 @@ function embedStages(embed: Embed, scope: Scope, parent: string): Document[] {
     sub.push({ $count: 'count' });
   } else if (embed.fields.length > 0 && !embed.fields.includes('*')) {
     const projection: Document = {};
-    for (const f of embed.fields) projection[col(f)] = 1;
+    for (const f of embed.fields) {
+      projection[col(f)] = 1;
+    }
     // Callers read `.id` on an embedded row (leave_salary_workings selects
     // `employees(id, …)`), and the document only carries `_id`.
     projection.id = '$_id';
-    for (const child of embed.embeds) projection[child.alias] = 1;
+    for (const child of embed.embeds) {
+      projection[child.alias] = 1;
+    }
     sub.push({ $project: projection });
   } else {
-    // `(*)` means every column. It must NOT become `$project: {'*': 1}`, which
-    // projects a field literally named '*' and returns nothing but _id — the
-    // reason `payslip_adjustments(*)` came back empty even once its join key
-    // was right.
+    // A wildcard selects all fields, so omit projection rather than projecting a literal '*'
+    // field.
     sub.push({ $addFields: { id: '$_id' } });
   }
 
@@ -257,7 +271,9 @@ interface SortKey {
  * ascending, LAST descending. `_id` is never null, so it never needs help.
  */
 function nullRankNeeded(k: SortKey): boolean {
-  if (k.field === '_id') return false;
+  if (k.field === '_id') {
+    return false;
+  }
   const nativeNullsLast = k.dir === -1;
   return nativeNullsLast !== k.nullsLast;
 }
@@ -265,7 +281,9 @@ function nullRankNeeded(k: SortKey): boolean {
 /** Sort spec for a plain find() — only valid when no key needs a null rank. */
 function nativeSortSpec(keys: SortKey[]): Record<string, 1 | -1> {
   const spec: Record<string, 1 | -1> = {};
-  for (const k of keys) spec[k.field] = k.dir;
+  for (const k of keys) {
+    spec[k.field] = k.dir;
+  }
   return spec;
 }
 
@@ -333,9 +351,13 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
 
   /** Who this query runs as. Same rule as repo(), as a scope rather than a handle. */
   private async currentScope(): Promise<Scope> {
-    if (this.asSystem) return systemScope;
+    if (this.asSystem) {
+      return systemScope;
+    }
     const scope = await currentScope();
-    if (!scope) throw new NotSignedInError();
+    if (!scope) {
+      throw new NotSignedInError();
+    }
     return scope;
   }
 
@@ -350,10 +372,16 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
     opts?: { count?: 'exact' | 'planned'; head?: boolean },
   ): QueryBuilder<S> {
     this.selectStr = select;
-    if (opts?.count) this.wantCount = opts.count;
-    if (opts?.head) this.headOnly = true;
+    if (opts?.count) {
+      this.wantCount = opts.count;
+    }
+    if (opts?.head) {
+      this.headOnly = true;
+    }
     // After insert/update/delete, .select() means "return the affected rows".
-    if (this.mode !== 'select') this.returning = true;
+    if (this.mode !== 'select') {
+      this.returning = true;
+    }
     return this as unknown as QueryBuilder<S>;
   }
 
@@ -449,7 +477,9 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
 
   match(criteria: Document): this {
     const clause: Document = {};
-    for (const [k, v] of Object.entries(criteria)) clause[col(k)] = v;
+    for (const [k, v] of Object.entries(criteria)) {
+      clause[col(k)] = v;
+    }
     return this.push(clause);
   }
 
@@ -500,8 +530,12 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
   }
 
   private where(): Filter<Document> {
-    if (this.filters.length === 0) return {};
-    if (this.filters.length === 1) return this.filters[0];
+    if (this.filters.length === 0) {
+      return {};
+    }
+    if (this.filters.length === 1) {
+      return this.filters[0];
+    }
     return { $and: this.filters };
   }
 
@@ -549,14 +583,8 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
   }
 
   /**
-   * A view is materialised in full, then filtered in memory.
-   *
-   * That is a deliberate simplification and it is only safe because of what
-   * these five views are: per-branch counts, today's celebrations, per-category
-   * asset totals, one row per open exit case. All are bounded by headcount, so
-   * "fetch then filter" costs nothing measurable. A view that grew with
-   * TRANSACTIONS rather than people would need its filters pushed into the
-   * pipeline instead.
+   * Materialize bounded summary views before filtering in memory. Views that grow with transaction
+   * volume need their filters pushed into the aggregation pipeline.
    */
   private async runView(): Promise<PgResult<T>> {
     // Pass system scope to views explicitly because this branch runs before repo() is called.
@@ -571,11 +599,15 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
           const aNull = av === null || av === undefined;
           const bNull = bv === null || bv === undefined;
           if (aNull || bNull) {
-            if (aNull && bNull) continue;
+            if (aNull && bNull) {
+              continue;
+            }
             // Absolute null placement: nullsLast overrides sort direction.
             return aNull ? (nullsLast ? 1 : -1) : nullsLast ? -1 : 1;
           }
-          if (av === bv) continue;
+          if (av === bv) {
+            continue;
+          }
           return (av < bv ? -1 : 1) * dir;
         }
         return 0;
@@ -583,14 +615,22 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
     }
 
     const count = this.wantCount ? rows.length : null;
-    if (this.headOnly) return { data: null as T, error: null, count: rows.length };
+    if (this.headOnly) {
+      return { data: null as T, error: null, count: rows.length };
+    }
 
-    if (this.skipN) rows = rows.slice(this.skipN);
-    if (this.limitN != null) rows = rows.slice(0, this.limitN);
+    if (this.skipN) {
+      rows = rows.slice(this.skipN);
+    }
+    if (this.limitN != null) {
+      rows = rows.slice(0, this.limitN);
+    }
 
     if (this.wantSingle) {
       if (rows.length === 0) {
-        if (this.wantSingle === 'maybe') return { data: null as T, error: null, count };
+        if (this.wantSingle === 'maybe') {
+          return { data: null as T, error: null, count };
+        }
         return {
           data: null as T,
           error: {
@@ -622,8 +662,12 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
       // repo.aggregate() prepends the scope filter, exactly as find() ANDs it.
       const { pre, sort, helpers } = sortStages(this.sortKeys);
       const pipeline: Document[] = [{ $match: this.where() }, ...pre, { $sort: sort }];
-      if (this.skipN) pipeline.push({ $skip: this.skipN });
-      if (this.limitN != null) pipeline.push({ $limit: this.limitN });
+      if (this.skipN) {
+        pipeline.push({ $skip: this.skipN });
+      }
+      if (this.limitN != null) {
+        pipeline.push({ $limit: this.limitN });
+      }
       const projection = buildProjection(fields);
       // An inclusive $project drops the helpers by omission; a `*` select has
       // no $project, so the helpers are stripped explicitly.
@@ -644,7 +688,9 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
 
     if (this.wantSingle) {
       if (mapped.length === 0) {
-        if (this.wantSingle === 'maybe') return { data: null as T, error: null, count };
+        if (this.wantSingle === 'maybe') {
+          return { data: null as T, error: null, count };
+        }
         return {
           data: null as T,
           error: {
@@ -672,7 +718,9 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
     // own policy rather than inheriting the base collection's.
     const scope = await this.currentScope();
     const base = collectionFor(this.table);
-    for (const e of embeds) pipeline.push(...embedStages(e, scope, base));
+    for (const e of embeds) {
+      pipeline.push(...embedStages(e, scope, base));
+    }
 
     let helperFields: string[] = [];
     if (this.sortKeys.length) {
@@ -680,12 +728,18 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
       helperFields = helpers;
       pipeline.push(...pre, { $sort: sort });
     }
-    if (this.skipN) pipeline.push({ $skip: this.skipN });
-    if (this.limitN != null) pipeline.push({ $limit: this.limitN });
+    if (this.skipN) {
+      pipeline.push({ $skip: this.skipN });
+    }
+    if (this.limitN != null) {
+      pipeline.push({ $limit: this.limitN });
+    }
 
     const projection = buildProjection(fields);
     if (projection) {
-      for (const e of embeds) projection[e.alias] = 1;
+      for (const e of embeds) {
+        projection[e.alias] = 1;
+      }
       pipeline.push({ $project: projection });
     } else if (helperFields.length) {
       // No $project to drop them by omission, so the rank helpers go here.
@@ -720,33 +774,40 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
     for (const provided of inputs) {
       const doc = withDefaults(this.table, provided);
       const key: Document = {};
-      for (const k of this.conflictKeys) key[k] = doc[k];
+      for (const k of this.conflictKeys) {
+        key[k] = doc[k];
+      }
 
       if (this.ignoreDuplicates) {
         // DO NOTHING on conflict: everything moves to $setOnInsert, so an
         // existing row is matched and left exactly as it was.
         await repo.upsertOne(key, { $setOnInsert: doc }, doc);
       } else {
-        // A default describes a NEW row only. Putting one in $set would stamp
-        // created_at — and reset status — on every existing row this matches, so
-        // the generated fields go to $setOnInsert alongside the key.
+        // Apply defaults with $setOnInsert so existing rows keep created_at and their current
+        // status.
         const { _id, ...rest } = provided;
         const set = touched(this.table, rest);
         const onInsert: Document = { _id };
         for (const [field, value] of Object.entries(doc)) {
           // Remove $set fields from $setOnInsert. MongoDB rejects overlapping paths, including
           // updated_at supplied by both defaults and touched().
-          if (field in set) continue;
+          if (field in set) {
+            continue;
+          }
           onInsert[field] = value;
         }
         await repo.upsertOne(key, { $set: set, $setOnInsert: onInsert }, doc);
       }
 
-      if (!this.returning) continue;
+      if (!this.returning) {
+        continue;
+      }
       // Read back the stored row. An upsert into an existing document retains its ID, so echoing
       // the insertion payload would return an unused ID and misreport filtered writes.
       const saved = await repo.findOne(key);
-      if (saved) out.push(outward(saved) as Document);
+      if (saved) {
+        out.push(outward(saved) as Document);
+      }
     }
     return {
       data: (this.wantSingle ? (out[0] ?? null) : out) as T,
@@ -782,10 +843,8 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
 
   private async runDelete(repo: ScopedCollection<Document>): Promise<PgResult<T>> {
     const where = this.where();
-    // Read before deleting when the caller wants the rows back — afterwards
-    // there is nothing left to return. Through the WRITE policy, for the same
-    // reason as runUpdate: reading with the wider read policy handed back rows
-    // as "deleted" for a delete that removed none of them.
+    // Read returned rows through the write policy before deleting, so the response cannot claim
+    // inaccessible rows were deleted.
     const doomed = this.returning ? await repo.findForWrite(where) : [];
     const removed = await repo.deleteMany(where);
     const data = removed > 0 ? doomed.map((r) => outward(r)) : [];
@@ -800,7 +859,9 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
 // helpers
 
 function withId(doc: Document): Document {
-  if (doc._id) return doc;
+  if (doc._id) {
+    return doc;
+  }
   if (doc.id) {
     const { id, ...rest } = doc;
     return { _id: id, ...rest };
@@ -809,13 +870,19 @@ function withId(doc: Document): Document {
 }
 
 function resolveDefault(value: DefaultValue): unknown {
-  if (value === now) return new Date();
+  if (value === now) {
+    return new Date();
+  }
   // `current_date` meant the IST calendar date to this app; todayIST() is the
   // single definition of it. See the note on the import.
-  if (value === today) return todayIST();
+  if (value === today) {
+    return todayIST();
+  }
   // A fresh object per document — sharing one literal would let two rows alias
   // the same jsonb value, so mutating one would change the other.
-  if (value !== null && typeof value === 'object' && value.constructor === Object) return {};
+  if (value !== null && typeof value === 'object' && value.constructor === Object) {
+    return {};
+  }
   return value;
 }
 
@@ -825,30 +892,38 @@ function resolveDefault(value: DefaultValue): unknown {
  */
 function withDefaults(table: string, doc: Document): Document {
   const defaults = columnDefaults[collectionFor(table)];
-  if (!defaults) return doc;
+  if (!defaults) {
+    return doc;
+  }
   const out = { ...doc };
   for (const [field, value] of Object.entries(defaults)) {
-    if (out[field] === undefined) out[field] = resolveDefault(value);
+    if (out[field] === undefined) {
+      out[field] = resolveDefault(value);
+    }
   }
   return out;
 }
 
 /**
- * The `set_updated_at()` BEFORE UPDATE trigger, which 12 tables carried.
- *
- * Applied to any collection whose DDL declared an `updated_at` default — the
- * same set the trigger covered. A caller that sets `updated_at` itself wins.
+ * Stamp updated_at on collections that declare the default, unless the caller supplies an explicit
+ * value.
  */
 function touched(table: string, payload: Document): Document {
   const defaults = columnDefaults[collectionFor(table)];
-  if (!defaults?.updated_at || payload.updated_at !== undefined) return payload;
+  if (!defaults?.updated_at || payload.updated_at !== undefined) {
+    return payload;
+  }
   return { ...payload, updated_at: new Date() };
 }
 
 function buildProjection(fields: string[]): Document | null {
-  if (fields.length === 0 || fields.includes('*')) return null;
+  if (fields.length === 0 || fields.includes('*')) {
+    return null;
+  }
   const p: Document = {};
-  for (const f of fields) p[col(f)] = 1;
+  for (const f of fields) {
+    p[col(f)] = 1;
+  }
   return p;
 }
 
@@ -859,40 +934,36 @@ function likeToRegex(pattern: string): string {
 }
 
 /**
- * Evaluate a filter against one in-memory document.
- *
- * Supports only the operators the view call sites actually use — equality,
- * $in, $ne and the comparisons. Anything else throws rather than quietly
- * matching everything, because a filter that silently does nothing on a view is
- * how a screen ends up showing another branch's rows.
+ * Evaluate supported filters against an in-memory view row. Reject unsupported operators instead
+ * of silently widening the result.
  */
 function matches(row: Document, filter: Document): boolean {
   for (const [key, cond] of Object.entries(filter)) {
     if (key === '$and') {
-      if (!(cond as Document[]).every((c) => matches(row, c))) return false;
+      if (!(cond as Document[]).every((c) => matches(row, c))) {
+        return false;
+      }
       continue;
     }
     if (key === '$or') {
-      if (!(cond as Document[]).some((c) => matches(row, c))) return false;
+      if (!(cond as Document[]).some((c) => matches(row, c))) {
+        return false;
+      }
       continue;
     }
-    // parseFilterNode emits $nor for every negation — `not.and(...)`,
-    // `not.or(...)` and `field.not.<op>.<value>`. Without this case the key fell
-    // through to `row['$nor']`, which is undefined, and the comparison at the
-    // bottom then rejected EVERY row: a view query carrying any negation
-    // returned nothing at all.
+    // The parser represents group and field negation as $nor; evaluate its children before
+    // ordinary field filters.
     if (key === '$nor') {
-      if ((cond as Document[]).some((c) => matches(row, c))) return false;
+      if ((cond as Document[]).some((c) => matches(row, c))) {
+        return false;
+      }
       continue;
     }
 
     const value = row[key === '_id' ? 'id' : key] ?? row[key];
     if (cond !== null && typeof cond === 'object' && !Array.isArray(cond)) {
-      // $options belongs to $regex and has to be read BEFORE it, not skipped
-      // when the loop reaches it. Dropping it made ilike() case-SENSITIVE on a
-      // view while the identical call against a collection was not — so
-      // filtering v_items for 'laptop' found nothing when the row said
-      // 'Laptop', and only on the screens backed by a view.
+      // Read regex options with the pattern so ilike remains case-insensitive for views as well as
+      // collections.
       const regexFlags =
         typeof (cond as Document).$options === 'string'
           ? ((cond as Document).$options as string)
@@ -900,34 +971,54 @@ function matches(row: Document, filter: Document): boolean {
       for (const [op, operand] of Object.entries(cond as Document)) {
         switch (op) {
           case '$eq':
-            if (value !== operand) return false;
+            if (value !== operand) {
+              return false;
+            }
             break;
           case '$ne':
-            if (value === operand) return false;
+            if (value === operand) {
+              return false;
+            }
             break;
           case '$in':
-            if (!(operand as unknown[]).includes(value)) return false;
+            if (!(operand as unknown[]).includes(value)) {
+              return false;
+            }
             break;
           case '$nin':
-            if ((operand as unknown[]).includes(value)) return false;
+            if ((operand as unknown[]).includes(value)) {
+              return false;
+            }
             break;
           case '$gt':
-            if (!(value > (operand as never))) return false;
+            if (!(value > (operand as never))) {
+              return false;
+            }
             break;
           case '$gte':
-            if (!(value >= (operand as never))) return false;
+            if (!(value >= (operand as never))) {
+              return false;
+            }
             break;
           case '$lt':
-            if (!(value < (operand as never))) return false;
+            if (!(value < (operand as never))) {
+              return false;
+            }
             break;
           case '$lte':
-            if (!(value <= (operand as never))) return false;
+            if (!(value <= (operand as never))) {
+              return false;
+            }
             break;
           case '$regex':
-            if (!new RegExp(operand as string, regexFlags).test(String(value))) return false;
+            if (!new RegExp(operand as string, regexFlags).test(String(value))) {
+              return false;
+            }
             break;
           case '$not':
-            if (matches(row, { [key]: operand as Document })) return false;
+            if (matches(row, { [key]: operand as Document })) {
+              return false;
+            }
             break;
           case '$options':
             break; // read above, alongside $regex
@@ -937,7 +1028,9 @@ function matches(row: Document, filter: Document): boolean {
       }
       continue;
     }
-    if (value !== cond) return false;
+    if (value !== cond) {
+      return false;
+    }
   }
   return true;
 }
@@ -950,8 +1043,11 @@ function splitTop(expression: string): string[] {
   let depth = 0;
   let current = '';
   for (const ch of expression) {
-    if (ch === '(') depth++;
-    else if (ch === ')') depth--;
+    if (ch === '(') {
+      depth++;
+    } else if (ch === ')') {
+      depth--;
+    }
     if (ch === ',' && depth === 0) {
       parts.push(current);
       current = '';
@@ -959,7 +1055,9 @@ function splitTop(expression: string): string[] {
     }
     current += ch;
   }
-  if (current.trim()) parts.push(current);
+  if (current.trim()) {
+    parts.push(current);
+  }
   return parts.map((p) => p.trim()).filter(Boolean);
 }
 
@@ -969,8 +1067,12 @@ function parseFilterNode(part: string): Document {
   if (group) {
     const [, kind, inner] = group;
     const clauses = splitTop(inner).map(parseFilterNode);
-    if (kind === 'and') return { $and: clauses };
-    if (kind === 'or') return { $or: clauses };
+    if (kind === 'and') {
+      return { $and: clauses };
+    }
+    if (kind === 'or') {
+      return { $or: clauses };
+    }
     // Logical negation groups (e.g., not.and / not.or).
     return { $nor: [kind === 'not.and' ? { $and: clauses } : { $or: clauses }] };
   }
@@ -985,7 +1087,9 @@ function parseFilterNode(part: string): Document {
   // Negation prefix parsing: `field.not.<op>.<value>`.
   if (op === 'not') {
     const [innerOp, ...innerRest] = rest;
-    if (!innerOp) throw new Error(`postgrest-compat: cannot parse filter expression '${part}'`);
+    if (!innerOp) {
+      throw new Error(`postgrest-compat: cannot parse filter expression '${part}'`);
+    }
     return { $nor: [operatorClause(field, innerOp, innerRest.join('.'))] };
   }
 
@@ -1031,11 +1135,8 @@ export interface PgClient {
 }
 
 /**
- * A client with the surface the app already calls.
- *
- * Not async and takes no cookies: the session is resolved per query inside
- * scoped(), so there is nothing to construct up front. It stays a function so
- * `const dbc = await createClient()` keeps working unchanged.
+ * Construct the query adapter synchronously. Each query resolves its session through scoped();
+ * existing await createClient() callers remain supported.
  */
 export function pgClient(asSystem = false): PgClient {
   return {

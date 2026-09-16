@@ -37,13 +37,17 @@ export { isMongoConfigured };
 // Normalizes BSON Date or string timestamp to an ISO string for client serialization.
 // Calendar date strings (YYYY-MM-DD) are preserved as-is.
 function iso(value: unknown): string {
-  if (value instanceof Date) return value.toISOString();
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
   return (value as string | null) ?? '';
 }
 
 // Normalizes date values while preserving null/undefined for nullable fields.
 function isoOrNull(value: unknown): string | null {
-  if (value === null || value === undefined) return null;
+  if (value === null || value === undefined) {
+    return null;
+  }
   return iso(value);
 }
 
@@ -66,7 +70,7 @@ function fail(context: string, error: QueryError): never {
   throw new Error(`${context}: ${detail}${code}`);
 }
 
-/** '2026-06-01' -> { start: '2026-06-01', end: '2026-06-30' } */
+/** 'YYYY-06-01' -> { start: 'YYYY-06-01', end: 'YYYY-06-30' } */
 function monthRange(periodMonth: string): { start: string; end: string } {
   const start = periodMonth.slice(0, 8) + '01';
   const d = new Date(start + 'T00:00:00Z');
@@ -168,11 +172,17 @@ export async function getRegister(
     .select('id, code, full_name, gender, date_of_joining, branches(name)')
     .eq('status', 'active')
     .order('code');
-  if (branchId) employeeQuery = employeeQuery.eq('branch_id', branchId);
+  if (branchId) {
+    employeeQuery = employeeQuery.eq('branch_id', branchId);
+  }
 
   const { data: employees, error } = await employeeQuery;
-  if (error) fail('getRegister: could not load employees', error);
-  if (!employees?.length) return [];
+  if (error) {
+    fail('getRegister: could not load employees', error);
+  }
+  if (!employees?.length) {
+    return [];
+  }
 
   const { data: days, error: daysError } = await dbc
     .from('attendance_days')
@@ -180,7 +190,9 @@ export async function getRegister(
     .gte('work_date', start)
     .lte('work_date', end)
     .order('work_date');
-  if (daysError) fail('getRegister: could not load attendance', daysError);
+  if (daysError) {
+    fail('getRegister: could not load attendance', daysError);
+  }
 
   // The run carries the month's target minutes; without one there is no target.
   const { data: run, error: runError } = await dbc
@@ -188,13 +200,18 @@ export async function getRegister(
     .select('target_minutes')
     .eq('period_month', start)
     .maybeSingle();
-  if (runError) fail('getRegister: could not load the payroll run', runError);
+  if (runError) {
+    fail('getRegister: could not load the payroll run', runError);
+  }
 
   const byEmployee = new Map<string, any[]>();
   for (const d of days ?? []) {
     const list = byEmployee.get((d as any).employee_id);
-    if (list) list.push(d);
-    else byEmployee.set((d as any).employee_id, [d]);
+    if (list) {
+      list.push(d);
+    } else {
+      byEmployee.set((d as any).employee_id, [d]);
+    }
   }
 
   return employees.map((e: any) => {
@@ -288,8 +305,12 @@ export async function getLeaveRegisterMismatches(
     .eq('status', 'approved')
     .lte('start_date', end)
     .gte('end_date', start);
-  if (reqErr) fail('getLeaveRegisterMismatches: could not load approved leave', reqErr);
-  if (!reqs?.length) return [];
+  if (reqErr) {
+    fail('getLeaveRegisterMismatches: could not load approved leave', reqErr);
+  }
+  if (!reqs?.length) {
+    return [];
+  }
 
   // Register rows for the month, keyed employee|date.
   const { data: days, error: dayErr } = await dbc
@@ -297,7 +318,9 @@ export async function getLeaveRegisterMismatches(
     .select('employee_id, work_date, status')
     .gte('work_date', start)
     .lte('work_date', end);
-  if (dayErr) fail('getLeaveRegisterMismatches: could not load attendance', dayErr);
+  if (dayErr) {
+    fail('getLeaveRegisterMismatches: could not load attendance', dayErr);
+  }
 
   const byKey = new Map<string, string>();
   for (const d of days ?? []) {
@@ -309,10 +332,14 @@ export async function getLeaveRegisterMismatches(
 
   const out: LeaveRegisterMismatch[] = [];
   for (const r of reqs as any[]) {
-    if (branch && r.employees?.branches?.name !== branch) continue;
+    if (branch && r.employees?.branches?.name !== branch) {
+      continue;
+    }
     for (const date of isoDaysInRange(r.start_date, r.end_date, start, end)) {
       const status = byKey.get(`${r.employee_id}|${date}`) ?? null;
-      if (status && covered.has(status)) continue;
+      if (status && covered.has(status)) {
+        continue;
+      }
       out.push({
         employeeId: r.employee_id,
         code: r.employees?.code ?? '',
@@ -337,11 +364,8 @@ export interface AcknowledgementRow {
 }
 
 /**
- * One employee's e-signatures.
- *
- * Distinct from `policy_acknowledgements` (0004), which is a lightweight
- * read-receipt: these carry a typed name, a server-clock timestamp and the
- * request's IP, and are append-only evidence.
+ * Append-only employee signatures, including typed name, server timestamp, and request IP. Policy
+ * read receipts are stored separately.
  */
 export async function getMyAcknowledgements(employeeId: string): Promise<AcknowledgementRow[]> {
   const dbc = await createClient();
@@ -365,22 +389,15 @@ export async function getMyAcknowledgements(employeeId: string): Promise<Acknowl
 // documents
 
 /**
- * Where a document's file came from.
- *
- * 'issued' rows are the relieving / experience / F&F PDFs generateExitDocument
- * produces into the generated-documents bucket. They are already verified, they
- * are never replaced through the register, and 'experience' means a different
- * thing on one than on an upload — see generatedDocumentCategories.
+ * Issued documents come from generateExitDocument and are already verified. They cannot be
+ * replaced through uploads; use source to distinguish issued experience letters from uploaded
+ * certificates.
  */
 export type DocumentSource = 'uploaded' | 'issued';
 
 /**
- * What the register shows in its Status column.
- *
- *   awaiting   filed, not yet looked at
- *   returned   HR sent it back with a remark; the employee must replace it
- *   verified   accepted
- *   superseded a newer version exists — history, not a live document
+ * Document status: awaiting review, returned with an HR remark, verified, or superseded by a newer
+ * version.
  */
 export type DocumentStatus = 'awaiting' | 'returned' | 'verified' | 'superseded';
 
@@ -409,8 +426,12 @@ const documentFields =
   'doc_group, version, replaces_id, replaced_by_id, superseded_at, employees(code, full_name)';
 
 function documentStatus(r: any): DocumentStatus {
-  if (r.superseded_at) return 'superseded';
-  if (r.verified_at) return 'verified';
+  if (r.superseded_at) {
+    return 'superseded';
+  }
+  if (r.verified_at) {
+    return 'verified';
+  }
   return r.verify_remark ? 'returned' : 'awaiting';
 }
 
@@ -436,11 +457,8 @@ function mapDocument(r: any): EmployeeDocumentRow {
 }
 
 /**
- * One employee's CURRENT documents, newest first. Never returns storage paths.
- *
- * Superseded versions are excluded: this feeds the employee's own dashboard,
- * where showing three copies of an ID proof they replaced twice is noise. The
- * staff drill-down uses getEmployeeDocumentHistory() to see everything.
+ * Return the employee's current documents, newest first, without storage paths. Staff can read
+ * superseded versions through getEmployeeDocumentHistory.
  */
 export async function getEmployeeDocuments(employeeId: string): Promise<EmployeeDocumentRow[]> {
   const dbc = await createClient();
@@ -477,10 +495,8 @@ export async function getEmployeeDocumentHistory(
 }
 
 /**
- * The register: the CURRENT version of every document, for every employee.
- *
- * Superseded rows are left out — the register is what the company holds now,
- * and history belongs behind the document it belongs to.
+ * Return current document versions for the register. Keep superseded versions in each document's
+ * history.
  */
 export async function getDocumentRegister(): Promise<EmployeeDocumentRow[]> {
   const dbc = await createClient();
@@ -496,11 +512,8 @@ export async function getDocumentRegister(): Promise<EmployeeDocumentRow[]> {
 }
 
 /**
- * Documents awaiting HR verification, across everyone — the review queue.
- *
- * CURRENT versions only. A superseded row is unverified for ever by
- * definition — it was replaced before anyone got to it — and leaving those in
- * would grow the queue with work that can never be done.
+ * Return current documents awaiting HR verification. Superseded versions are excluded from the
+ * review queue.
  */
 export async function getUnverifiedDocuments(): Promise<EmployeeDocumentRow[]> {
   const dbc = await createClient();
@@ -533,14 +546,7 @@ export interface DocumentStats {
   employeesMissing: number;
 }
 
-/**
- * The KPI band on /documents.
- *
- * Derived from the register rather than counted with five round trips: the
- * register is already loaded for the table on the same request, but this is
- * exported separately so a caller that only wants the numbers does not have to
- * know that.
- */
+/** Derive document KPIs from the same register data used by the table. */
 export function documentStats(
   register: EmployeeDocumentRow[],
   activeEmployeeIds: string[],
@@ -551,14 +557,22 @@ export function documentStats(
   const heldByEmployee = new Map<string, Set<string>>();
 
   for (const d of register) {
-    if (d.source === 'issued') issued++;
-    if (d.status === 'awaiting') awaiting++;
-    if (d.status === 'returned') returned++;
+    if (d.source === 'issued') {
+      issued++;
+    }
+    if (d.status === 'awaiting') {
+      awaiting++;
+    }
+    if (d.status === 'returned') {
+      returned++;
+    }
     // Only a VERIFIED upload counts as held: an unverified or returned scan is
     // exactly the gap the missing count is meant to surface.
     if (d.status === 'verified' && d.category) {
       let held = heldByEmployee.get(d.employeeId);
-      if (!held) heldByEmployee.set(d.employeeId, (held = new Set()));
+      if (!held) {
+        heldByEmployee.set(d.employeeId, (held = new Set()));
+      }
       held.add(d.category);
     }
   }
@@ -568,7 +582,9 @@ export function documentStats(
   for (const id of activeEmployeeIds) {
     const held = heldByEmployee.get(id);
     const gaps = requiredDocumentCategories.filter((c) => !held?.has(c)).length;
-    if (gaps > 0) employeesMissing++;
+    if (gaps > 0) {
+      employeesMissing++;
+    }
     missing += gaps;
   }
 
@@ -611,13 +627,7 @@ function mapOnboardingTask(r: any): OnboardingTaskRow {
   };
 }
 
-/**
- * Every joiner's onboarding tasks — the HR board.
- *
- * Ordered by due date so the most overdue work sorts to the top; nulls last,
- * because a task with no date is the one nobody has committed to yet and should
- * not outrank a step that is actually late.
- */
+/** Return onboarding tasks by due date, with undated tasks last so overdue work appears first. */
 export async function getOnboardingBoard(): Promise<OnboardingTaskRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -646,13 +656,7 @@ export async function getMyOnboardingTasks(employeeId: string): Promise<Onboardi
   return (data ?? []).map(mapOnboardingTask);
 }
 
-/**
- * The reusable checklists, with their step count.
- *
- * `steps` comes from an embedded count rather than a second round-trip; a
- * template whose items are missing reads as 0 steps, which is exactly what the
- * "(0 steps)" label in the picker should say.
- */
+/** Load reusable checklists with an embedded step count. Templates without items have zero steps. */
 export async function getOnboardingTemplates(): Promise<OnboardingTemplateRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -703,7 +707,9 @@ export async function getExitCases(): Promise<ExitCaseRow[]> {
     fail('getExitCases: could not load exit cases', error);
   }
   const cases = (data ?? []) as any[];
-  if (cases.length === 0) return [];
+  if (cases.length === 0) {
+    return [];
+  }
 
   // Query clearance view and settlement records in parallel with graceful fallbacks.
   const [{ data: pending }, { data: fnfs }] = await Promise.all([
@@ -873,17 +879,14 @@ export interface LeaveSalaryWorkingRow {
   remarks: string | null;
   paidAt: string | null;
   updatedAt: string;
-  /** HR-typed calendar-day denominators (0041); null = real calendar days. */
+  /** Calendar-day overrides entered by HR; null uses the actual calendar count. */
   calendarDaysP1Override: number | null;
   calendarDaysP2Override: number | null;
 }
 
 /**
- * Saved leave-salary workings for a year.
- *
- * Returns NULL — not [] — when the table is missing, so the page can tell
- * "the collection does not exist" apart from "no rows saved yet"; the two demand
- * different messages and only one of them is fixable from the UI.
+ * Return saved leave-salary workings, or null when the collection is unavailable. An empty array
+ * means no workings have been saved.
  */
 export async function getLeaveSalaryWorkings(
   year: number,
@@ -898,7 +901,9 @@ export async function getLeaveSalaryWorkings(
        calendar_days_p1_override, calendar_days_p2_override`,
     )
     .eq('year', year);
-  if (res.error) fail('getLeaveSalaryWorkings: could not load workings', res.error);
+  if (res.error) {
+    fail('getLeaveSalaryWorkings: could not load workings', res.error);
+  }
   return (res.data ?? []).map((r: any) => ({
     id: r.id,
     employeeId: r.employee_id,
@@ -946,7 +951,9 @@ export async function getLeaveSalaryRoster(year: number): Promise<LeaveSalaryEmp
     .select('id, code, full_name, gross_monthly, date_of_joining, status')
     .in('status', ['active', 'on_notice'])
     .order('code');
-  if (error) fail('getLeaveSalaryRoster: could not load employees', error);
+  if (error) {
+    fail('getLeaveSalaryRoster: could not load employees', error);
+  }
 
   const rows = new Map<string, any>((data ?? []).map((e: any) => [e.id, e]));
 
@@ -955,9 +962,13 @@ export async function getLeaveSalaryRoster(year: number): Promise<LeaveSalaryEmp
     .from('leave_salary_workings')
     .select('employee_id, employees(id, code, full_name, gross_monthly, date_of_joining, status)')
     .eq('year', year);
-  if (savedError) fail('getLeaveSalaryRoster: could not load saved workings', savedError);
+  if (savedError) {
+    fail('getLeaveSalaryRoster: could not load saved workings', savedError);
+  }
   for (const r of (saved ?? []) as any[]) {
-    if (r.employees && !rows.has(r.employees.id)) rows.set(r.employees.id, r.employees);
+    if (r.employees && !rows.has(r.employees.id)) {
+      rows.set(r.employees.id, r.employees);
+    }
   }
 
   return [...rows.values()]
@@ -973,11 +984,8 @@ export async function getLeaveSalaryRoster(year: number): Promise<LeaveSalaryEmp
 }
 
 /**
- * Credit-weighted presence per employee per month for a whole year, in ONE
- * paged sweep of attendance_days. A full roster-year (~210 × 365 ≈ 77k rows)
- * far exceeds any single page, so this pages exactly like the importer:
- * ordered by the unique key — without an ORDER BY, .range() may repeat and
- * omit rows between pages, silently corrupting the presence sums.
+ * Aggregate annual presence across paged attendance rows. Use unique-key ordering so page
+ * boundaries cannot repeat or omit attendance.
  */
 export async function getLeaveSalaryPresence(year: number): Promise<Record<string, number[]>> {
   const dbc = await createClient();
@@ -993,7 +1001,9 @@ export async function getLeaveSalaryPresence(year: number): Promise<Record<strin
       .order('employee_id', { ascending: true })
       .order('work_date', { ascending: true })
       .range(offset, offset + pageSize - 1);
-    if (error) fail('getLeaveSalaryPresence: could not load attendance', error);
+    if (error) {
+      fail('getLeaveSalaryPresence: could not load attendance', error);
+    }
 
     const page = (data ?? []) as { employee_id: string; work_date: string; status: string }[];
     for (const r of page) {
@@ -1003,7 +1013,9 @@ export async function getLeaveSalaryPresence(year: number): Promise<Record<strin
         months[month - 1] += presentCredit[r.status as keyof typeof presentCredit] ?? 0;
       }
     }
-    if (page.length < pageSize) break;
+    if (page.length < pageSize) {
+      break;
+    }
   }
   return byEmployee;
 }
@@ -1028,7 +1040,9 @@ export async function getAttendanceAudit(limit = 200): Promise<AuditEntry[]> {
     { event_type: { $in: ['attendance_correction', 'register_import', 'night_sweep'] } },
     { sort: { occurred_at: -1 }, limit },
   );
-  if (rows.length === 0) return [];
+  if (rows.length === 0) {
+    return [];
+  }
 
   // Resolve actor and employee names in batched lookups so older audit entries without cached names
   // remain readable.
@@ -1083,14 +1097,21 @@ export async function getPayslips(
     .select('id')
     .eq('period_month', start)
     .maybeSingle();
-  if (runError) fail('getPayslips: could not load the payroll run', runError);
-  if (!run) return []; // no run for this month yet — a real empty state
+  if (runError) {
+    fail('getPayslips: could not load the payroll run', runError);
+  }
+  if (!run) {
+    // no run for this month yet — a real empty state
+    return [];
+  }
 
   const { data, error } = await dbc
     .from('payslips')
     .select(`${payslipFields}, employees(code, full_name, branches(name, state))`)
     .eq('payroll_run_id', run.id);
-  if (error) fail('getPayslips: could not load payslips', error);
+  if (error) {
+    fail('getPayslips: could not load payslips', error);
+  }
 
   return (
     (data ?? [])
@@ -1149,11 +1170,8 @@ export interface BranchRow {
   id: string;
   name: string;
   state: string;
-  // Where this branch physically IS. Postal address for people; the point and
-  // radius for the punch geofence, which classifies a punch as on-site or
-  // remote (it never blocks one — see lib/punch.ts). Null coordinates mean the
-  // branch has no office location set and its employees fall back to the
-  // company-wide office_lat / office_lng settings.
+  // Branch location and radius classify punches without blocking off-site work. Missing
+  // coordinates fall back to company geofence settings.
   address: string | null;
   geofenceLat: number | null;
   geofenceLng: number | null;
@@ -1182,10 +1200,7 @@ export async function getBranches(): Promise<BranchRow[]> {
     name: b.name,
     state: b.state,
     address: b.address ?? null,
-    // Coordinates are `decimal` columns, so they arrive as Decimal128 rather
-    // than as numbers. numberOrNull() is the display edge for all three — a
-    // Decimal128 crossing into a client component would serialise as an object
-    // the form could not put in an <input>.
+    // Convert Decimal128 coordinates to numbers before passing them to client form fields.
     geofenceLat: numberOrNull(b.geofence_lat),
     geofenceLng: numberOrNull(b.geofence_lng),
     geofenceRadiusM: numberOrNull(b.geofence_radius_m),
@@ -1194,7 +1209,9 @@ export async function getBranches(): Promise<BranchRow[]> {
 
 /** A stored numeric (number, Decimal128 or string) as a plain number, or null. */
 function numberOrNull(value: unknown): number | null {
-  if (value === null || value === undefined) return null;
+  if (value === null || value === undefined) {
+    return null;
+  }
   const parsed = typeof value === 'number' ? value : Number(String(value));
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -1207,7 +1224,9 @@ export async function getTodayBoard(): Promise<TodayKpis> {
     .from('v_today_board')
     .select('branch, headcount, present, field, absent')
     .order('branch');
-  if (error) fail('getTodayBoard: could not load the today board', error);
+  if (error) {
+    fail('getTodayBoard: could not load the today board', error);
+  }
 
   const rows = data ?? [];
   const sum = (k: string) => rows.reduce((a: number, r: any) => a + Number(r[k] ?? 0), 0);
@@ -1235,7 +1254,9 @@ export async function getPunchLogToday(): Promise<PunchLogRow[]> {
       'status, punch_in, punch_out, worked_minutes, employees(code, full_name, branches(name))',
     )
     .eq('work_date', todayISO());
-  if (error) fail("getPunchLogToday: could not load today's attendance", error);
+  if (error) {
+    fail("getPunchLogToday: could not load today's attendance", error);
+  }
 
   const nowMinutes = (() => {
     const parts = new Intl.DateTimeFormat('en-GB', {
@@ -1259,7 +1280,9 @@ export async function getPunchLogToday(): Promise<PunchLogRow[]> {
         // Still on the clock — show elapsed time since the punch-in.
         const [h, m] = punchIn.split(':');
         const elapsed = nowMinutes - (Number(h) * 60 + Number(m));
-        if (elapsed > 0) active = hoursMinutes(elapsed);
+        if (elapsed > 0) {
+          active = hoursMinutes(elapsed);
+        }
       }
       return {
         code: d.employees?.code ?? '',
@@ -1281,7 +1304,9 @@ export async function getCelebrationsToday(): Promise<Celebration[]> {
   const { data, error } = await dbc
     .from('v_celebrations')
     .select('id, full_name, branch, department, kind, years');
-  if (error) fail('getCelebrationsToday: could not load celebrations', error);
+  if (error) {
+    fail('getCelebrationsToday: could not load celebrations', error);
+  }
 
   return (data ?? []).map((c: any) => ({
     id: c.id,
@@ -1330,7 +1355,9 @@ export async function getMyAttendance(
     .gte('work_date', start)
     .lte('work_date', end)
     .order('work_date');
-  if (error) fail('getMyAttendance: could not load attendance', error);
+  if (error) {
+    fail('getMyAttendance: could not load attendance', error);
+  }
 
   return (data ?? []).map((d: any) => ({
     day: Number(d.work_date.slice(8, 10)),
@@ -1352,7 +1379,9 @@ export async function getMyPayslips(employeeId: string): Promise<PayslipRow[]> {
        employees(code, full_name, branches(name, state))`,
     )
     .eq('employee_id', employeeId);
-  if (error) fail('getMyPayslips: could not load payslips', error);
+  if (error) {
+    fail('getMyPayslips: could not load payslips', error);
+  }
 
   return (data ?? [])
     .sort((a: any, b: any) =>
@@ -1372,7 +1401,9 @@ export async function getMyRequests(employeeId: string): Promise<RequestView[]> 
     .eq('employee_id', employeeId)
     .order('created_at', { ascending: false });
   // review_remark arrives with 0041 — retry without it until then.
-  if (res.error) fail('getMyRequests: could not load requests', res.error);
+  if (res.error) {
+    fail('getMyRequests: could not load requests', res.error);
+  }
   return (res.data ?? []).map(mapRequest);
 }
 
@@ -1387,7 +1418,9 @@ export async function getMyTickets(employeeId: string): Promise<TicketView[]> {
     .select(ticketCols)
     .eq('employee_id', employeeId)
     .order('created_at', { ascending: false });
-  if (res.error) fail('getMyTickets: could not load tickets', res.error);
+  if (res.error) {
+    fail('getMyTickets: could not load tickets', res.error);
+  }
   return (res.data ?? []).map(mapTicket);
 }
 
@@ -1491,7 +1524,9 @@ export async function getMyNotifications(limit = 20): Promise<NotificationRow[]>
       createdAt: iso(n.created_at),
     }));
   } catch (error) {
-    if (error instanceof NotSignedInError) return [];
+    if (error instanceof NotSignedInError) {
+      return [];
+    }
     throw error;
   }
 }
@@ -1502,17 +1537,17 @@ export async function getUnreadNotificationCount(): Promise<number> {
     const notifications = await scoped(collections.notifications);
     return await notifications.countDocuments({ read_at: null });
   } catch (error) {
-    if (error instanceof NotSignedInError) return 0;
+    if (error instanceof NotSignedInError) {
+      return 0;
+    }
     throw error;
   }
 }
 
 // week-off policy
 /**
- * The scheduled week-off rule (settings-driven). Falls back to
- * the documented default — Sundays off, Saturdays off except the 2nd and 4th —
- * whenever the settings are absent or unreadable, so the register never loses
- * its week-off columns over a missing row.
+ * Read the configured week-off schedule. Missing or unreadable settings default to Sundays and
+ * Saturdays other than the second and fourth.
  */
 export async function getWeekOffPolicy(): Promise<WeekOffPolicy> {
   const dbc = await createClient();
@@ -1520,7 +1555,9 @@ export async function getWeekOffPolicy(): Promise<WeekOffPolicy> {
     .from('settings')
     .select('key, value')
     .in('key', ['week_off_weekdays', 'working_saturdays']);
-  if (error || !data) return defaultWeekOffPolicy;
+  if (error || !data) {
+    return defaultWeekOffPolicy;
+  }
 
   const byKey = new Map(data.map((r: any) => [r.key, r.value]));
   return policyFromSettings(byKey.get('week_off_weekdays'), byKey.get('working_saturdays'));
@@ -1561,7 +1598,7 @@ export interface ReimbursementView {
   reviewRemark: string | null;
   status: 'pending' | 'finance_review' | 'approved' | 'rejected' | 'paid';
   createdAt: string;
-  /** Receipt object path in the private bucket (0035); null when none attached. */
+  /** Receipt path in private storage, or null when no receipt is attached. */
   receiptPath: string | null;
   paidAt: string | null;
   paymentRef: string | null;
@@ -1666,7 +1703,9 @@ export async function getReimbursementRate(): Promise<number> {
     .select('value')
     .eq('key', 'reimbursement_rate_per_km')
     .maybeSingle<{ value: unknown }>();
-  if (error || !data) return fallback;
+  if (error || !data) {
+    return fallback;
+  }
   const n = Number(data.value);
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
@@ -1808,8 +1847,12 @@ export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow 
 
   const res = await dbc.from('employees').select(fullCols).eq('code', code).maybeSingle();
   const { data, error } = res;
-  if (error) fail('getEmployeeForEdit: could not load employee', error);
-  if (!data) return null;
+  if (error) {
+    fail('getEmployeeForEdit: could not load employee', error);
+  }
+  if (!data) {
+    return null;
+  }
   const e: any = data;
   return {
     code: e.code,
@@ -1921,6 +1964,7 @@ export async function getItemAssignments(itemId: string): Promise<ItemAssignment
 /** One row of the IT asset register. Admin/HR only. */
 export interface AssetRow {
   id: string;
+  qr_url: string | null;
   purchase_date: string | null;
   purchase_cost: number | null;
   desktop_name: string;
@@ -1945,7 +1989,7 @@ export interface AssetRow {
 
 const assetCols = `id, purchase_date, purchase_cost, desktop_name, asset_category, brand, serial_no, model_no,
    warranty_upto, warranty_renew, product_id, device_id, processor, ram, graphics_card, storage,
-   antivirus, assigned_employee_id, assigned_person_name, assigned_employee_code, assigned_date`;
+   antivirus, qr_url, assigned_employee_id, assigned_person_name, assigned_employee_code, assigned_date`;
 
 export async function getAssets(): Promise<AssetRow[]> {
   const dbc = await createClient();
@@ -1961,6 +2005,7 @@ export async function getAssets(): Promise<AssetRow[]> {
   })[];
   return rows.map((r) => ({
     ...r,
+    qr_url: r.qr_url ?? null,
     purchase_cost: r.purchase_cost == null ? null : Number(String(r.purchase_cost)),
   }));
 }
@@ -2067,7 +2112,7 @@ export async function getMyAssets(employeeId: string): Promise<MyAssetRow[]> {
     .eq('assigned_employee_id', employeeId)
     .order('desktop_name');
   if (error) {
-    // Table/column not migrated yet, or no read access — show nothing, don't crash.
+    // Return an empty list when maintenance history is unavailable.
     fail('getMyAssets: could not load assigned assets', error);
   }
   return (data ?? []) as unknown as MyAssetRow[];
@@ -2159,8 +2204,12 @@ export async function getEmployeeOverview(
     .select('code, full_name, branches(name)')
     .eq('id', employeeId)
     .maybeSingle();
-  if (empError) fail('getEmployeeOverview: could not load the employee', empError);
-  if (!emp) throw new Error(`getEmployeeOverview: no employee with id ${employeeId}`);
+  if (empError) {
+    fail('getEmployeeOverview: could not load the employee', empError);
+  }
+  if (!emp) {
+    throw new Error(`getEmployeeOverview: no employee with id ${employeeId}`);
+  }
 
   const { data: days, error: daysError } = await dbc
     .from('attendance_days')
@@ -2168,25 +2217,29 @@ export async function getEmployeeOverview(
     .eq('employee_id', employeeId)
     .gte('work_date', start)
     .lte('work_date', end);
-  if (daysError) fail('getEmployeeOverview: could not load attendance', daysError);
+  if (daysError) {
+    fail('getEmployeeOverview: could not load attendance', daysError);
+  }
 
   const rows = days ?? [];
   const count = (s: string) => rows.filter((d: any) => d.status === s).length;
   const workedMin = rows.reduce((a: number, d: any) => a + (d.worked_minutes ?? 0), 0);
 
-  // Pending hours, month to date. Mirrors fn_compute_payslip's target rule:
-  // working days = P+CO+OH+T+S+LM (+ 0.5·HD), each owing full_day_minutes.
-  // Only days up to today count — tomorrow's shift is not yet "pending".
-  // settings is readable by every authenticated user (0003), so this works for
-  // employees too; the seeded default stands in if the row is missing.
+  // Calculate pending hours through today using the payroll target: P+CO+OH+T+S+LM+0.5×HD,
+  // multiplied by full_day_minutes. Use the default when the setting is missing.
   const today = todayISO();
   const workingStatuses = ['P', 'CO', 'OH', 'T', 'S', 'LM'];
   let workingCredit = 0;
   let workedToDate = 0;
   for (const d of rows as { work_date: string; status: string; worked_minutes: number | null }[]) {
-    if (String(d.work_date) > today) continue;
-    if (workingStatuses.includes(d.status)) workingCredit += 1;
-    else if (d.status === 'HD') workingCredit += 0.5;
+    if (String(d.work_date) > today) {
+      continue;
+    }
+    if (workingStatuses.includes(d.status)) {
+      workingCredit += 1;
+    } else if (d.status === 'HD') {
+      workingCredit += 0.5;
+    }
     workedToDate += d.worked_minutes ?? 0;
   }
   let fullDayMin = 555;
@@ -2196,7 +2249,9 @@ export async function getEmployeeOverview(
     .eq('key', 'full_day_minutes')
     .maybeSingle<{ value: unknown }>();
   const fdmNum = Number(fdm?.value);
-  if (Number.isFinite(fdmNum) && fdmNum > 0) fullDayMin = fdmNum;
+  if (Number.isFinite(fdmNum) && fdmNum > 0) {
+    fullDayMin = fdmNum;
+  }
   const targetMin = Math.round(workingCredit * fullDayMin);
   const pendingMin = Math.max(0, targetMin - workedToDate);
 
@@ -2206,7 +2261,9 @@ export async function getEmployeeOverview(
     .eq('employee_id', employeeId)
     .eq('payroll_runs.period_month', start)
     .maybeSingle();
-  if (slipError) fail('getEmployeeOverview: could not load the payslip', slipError);
+  if (slipError) {
+    fail('getEmployeeOverview: could not load the payslip', slipError);
+  }
 
   return {
     name: (emp as any).full_name,
@@ -2243,7 +2300,9 @@ export async function getEmployeePolicies(employeeId: string | null): Promise<Po
     .select('id, title, category, version, effective_date, body, published')
     .eq('published', true)
     .order('category');
-  if (error) fail('getEmployeePolicies: could not load policies', error);
+  if (error) {
+    fail('getEmployeePolicies: could not load policies', error);
+  }
 
   let acked = new Set<string>();
   if (employeeId) {
@@ -2251,19 +2310,17 @@ export async function getEmployeePolicies(employeeId: string | null): Promise<Po
       .from('policy_acknowledgements')
       .select('policy_id')
       .eq('employee_id', employeeId);
-    if (acksError) fail('getEmployeePolicies: could not load acknowledgements', acksError);
+    if (acksError) {
+      fail('getEmployeePolicies: could not load acknowledgements', acksError);
+    }
     acked = new Set((acks ?? []).map((a: any) => a.policy_id));
   }
   return (data ?? []).map((p: any) => ({ ...p, acknowledged: acked.has(p.id) }));
 }
 
 /**
- * policy_id -> how many employees have filed a read receipt.
- *
- * Staff-only in practice: acks_portal_read (0004) lets staff see every row, an
- * employee only their own. Until this existed nothing in the app ever read
- * policy_acknowledgements except the employee's own dashboard, so HR had no way
- * to see the receipts the policies screen promises are being recorded.
+ * Count policy receipts by policy ID. Collection policies let staff see all receipts and employees
+ * see only their own.
  */
 export async function getPolicyAckCounts(): Promise<Record<string, number>> {
   const acks = await scoped(collections.policyAcknowledgements);
@@ -2346,13 +2403,17 @@ export async function getNotices(): Promise<NoticeView[]> {
 
 /** The ids of notices this employee has marked read (for the dashboard). */
 export async function getReadNoticeIds(employeeId: string | null): Promise<string[]> {
-  if (!employeeId) return [];
+  if (!employeeId) {
+    return [];
+  }
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('notice_reads')
     .select<{ notice_id: string }[]>('notice_id')
     .eq('employee_id', employeeId);
-  if (error) fail('getReadNoticeIds: could not load read receipts', error);
+  if (error) {
+    fail('getReadNoticeIds: could not load read receipts', error);
+  }
   return (data ?? []).map((r: { notice_id: string }) => r.notice_id);
 }
 
@@ -2402,7 +2463,9 @@ export async function getTickets(): Promise<TicketView[]> {
     .from('helpdesk_tickets')
     .select(ticketCols)
     .order('created_at', { ascending: false });
-  if (res.error) fail('getTickets: could not load tickets', res.error);
+  if (res.error) {
+    fail('getTickets: could not load tickets', res.error);
+  }
   // Open tickets first, otherwise preserve newest-first ordering.
   return (res.data ?? [])
     .map(mapTicket)
@@ -2440,22 +2503,24 @@ function mapComment(c: any): TicketComment {
 }
 
 /**
- * Follow-up comments for the given tickets, grouped by ticket id and ordered
- * oldest-first. Staff read every thread; an employee reads the threads of the
- * tickets they raised. That scoping is done by the parent-ticket check below,
- * not by the comment collection's own policy — see the comment there.
+ * Group ticket comments oldest first. Check parent-ticket ownership before reading; the comment
+ * collection alone does not enforce thread access.
  */
 export async function getTicketComments(
   ticketIds: string[],
 ): Promise<Record<string, TicketComment[]>> {
-  if (ticketIds.length === 0) return {};
+  if (ticketIds.length === 0) {
+    return {};
+  }
 
   // Filter by tickets the caller can access before reading comments. Scoping comments by author
   // would hide staff replies and would not establish ticket access.
   const tickets = await scoped<{ _id: string }>(collections.helpdeskTickets);
   const visible = await tickets.find({ _id: { $in: ticketIds } }, { projection: { _id: 1 } });
   const allowed = visible.map((t) => String(t._id));
-  if (allowed.length === 0) return {};
+  if (allowed.length === 0) {
+    return {};
+  }
 
   // Unscoped, because the rule above IS the collection's access rule and it has
   // just been applied. afterParentCheck() rather than systemCollection(): this
@@ -2485,11 +2550,17 @@ export interface SettingView {
 // topbar
 // '23:00' (or a JSON-quoted "23:00") -> '11:00 PM'. Null when unparseable.
 function prettyClock(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
+  if (typeof value !== 'string') {
+    return null;
+  }
   const m = /^"?(\d{1,2}):(\d{2})/.exec(value);
-  if (!m) return null;
+  if (!m) {
+    return null;
+  }
   const h = Number(m[1]);
-  if (!Number.isFinite(h) || h > 23) return null;
+  if (!Number.isFinite(h) || h > 23) {
+    return null;
+  }
   const suffix = h >= 12 ? 'PM' : 'AM';
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${h12}:${m[2]} ${suffix}`;
@@ -2516,7 +2587,9 @@ export async function getTopbarStats(): Promise<TopbarStats> {
     nightSweep: null,
   };
 
-  if (!isMongoConfigured()) return base;
+  if (!isMongoConfigured()) {
+    return base;
+  }
 
   try {
     const dbc = await createClient();
@@ -2556,7 +2629,9 @@ export async function getSettings(): Promise<SettingView[]> {
     .from('settings')
     .select('key, value, label, description')
     .order('key');
-  if (error) fail('getSettings: could not load settings', error);
+  if (error) {
+    fail('getSettings: could not load settings', error);
+  }
   return (data ?? []).map((s: any) => ({
     key: s.key,
     value: s.value,
@@ -2579,7 +2654,7 @@ export interface RequestView {
   reason: string | null;
   status: 'pending' | 'approved' | 'rejected' | 'cancelled';
   balanceAfter: number | null;
-  /** The approver's reason for the decision (0041), shown to the employee. */
+  /** Decision reason shown to the employee. */
   reviewRemark: string | null;
   /** When the request was submitted (ISO timestamp). */
   createdAt: string;
@@ -2616,7 +2691,9 @@ export async function getRequests(): Promise<RequestView[]> {
     .from('requests')
     .select(requestFields)
     .order('created_at', { ascending: false });
-  if (res.error) fail('getRequests: could not load requests', res.error);
+  if (res.error) {
+    fail('getRequests: could not load requests', res.error);
+  }
   // Pending first, otherwise preserve newest-first ordering.
   return (res.data ?? [])
     .map(mapRequest)
@@ -2633,9 +2710,8 @@ export interface OnLeaveTodayRow {
 }
 
 /**
- * Employees on APPROVED leave today (IST), via SECURITY DEFINER
- * fn_on_leave_today (0041) so ordinary employees can see colleagues' names.
- * Returns [] when the function is not installed yet.
+ * Return colleagues on approved leave today in IST through fn_on_leave_today. Return an empty list
+ * when the function is unavailable.
  */
 export async function getOnLeaveToday(): Promise<OnLeaveTodayRow[]> {
   const dbc = await createClient();
@@ -2643,7 +2719,9 @@ export async function getOnLeaveToday(): Promise<OnLeaveTodayRow[]> {
   // An unregistered rpc comes back with a MESSAGE and no code (postgrest-compat.rpc),
   // so there is no "function not installed" code to branch on any more — and
   // fn_on_leave_today is registered by db/server.ts regardless.
-  if (error) fail('getOnLeaveToday: could not load who is on leave', error);
+  if (error) {
+    fail('getOnLeaveToday: could not load who is on leave', error);
+  }
   return ((data ?? []) as any[]).map((r) => ({
     employeeId: r.employee_id,
     name: r.full_name ?? '',
@@ -2659,11 +2737,11 @@ export async function getOnLeaveToday(): Promise<OnLeaveTodayRow[]> {
  * gate; a missing map behaves as an empty map.
  */
 export async function getMyTabAccess(userId: string | null): Promise<TabAccess> {
-  if (!userId) return {};
-  // user_tab_access was a row-per-(user, slug) table. It is now a map embedded
-  // on the user document, because the portal layout reads it on EVERY request —
-  // as a table that was a second query per page load, and as an embedded field
-  // it costs nothing beyond the session lookup that was happening anyway.
+  if (!userId) {
+    return {};
+  }
+  // Read tab-access overrides from the session's user document to avoid a separate query on every
+  // portal request.
   const users = await scoped<UserDoc>(collections.users);
   const user = await users.findOne({ _id: userId }, { projection: { tab_access: 1 } });
   return (user?.tab_access as TabAccess) ?? {};

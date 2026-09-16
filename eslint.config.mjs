@@ -11,6 +11,13 @@ const config = [
   },
   ...compat.extends('next/core-web-vitals'),
   {
+    rules: {
+      curly: ['error', 'all'],
+      'import/first': 'error',
+      'import/newline-after-import': 'error',
+    },
+  },
+  {
     // App Router's root layout loads these fonts for every page.
     files: ['src/app/layout.tsx'],
     rules: { '@next/next/no-page-custom-font': 'off' },

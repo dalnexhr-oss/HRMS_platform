@@ -24,7 +24,9 @@ const timeFmt: Intl.DateTimeFormatOptions = {
 };
 
 export function clock(value: string | null): string {
-  if (!value) return '—';
+  if (!value) {
+    return '—';
+  }
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? '—'
@@ -81,12 +83,12 @@ export function usePunchClock(
   const [pending, setPending] = useState(false);
   const [openFor, setOpenFor] = useState(0);
   const [version, setVersion] = useState(0);
-  // Browser permission, checked WITHOUT prompting, so a blocked site can say so
-  // before the button is pressed rather than after.
+  // Check permission without prompting so blocked location access can be shown before a punch.
   const [permission, setPermission] = useState<PermissionState | 'unsupported' | null>(null);
   const [blocked, setBlocked] = useState<LocationFailure | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const alive = useRef(true);
+  const warnedSweep = useRef<string | null>(null);
 
   useEffect(() => {
     alive.current = true;
@@ -107,12 +109,28 @@ export function usePunchClock(
         setLoadError(reason instanceof Error ? reason.message : 'Could not load your clock.');
       }
     } finally {
-      if (alive.current) setLoading(false);
+      if (alive.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     void load();
+    // Refresh a tab left open overnight and tabs returning from the background.
+    const refresh = () => {
+      if (document.visibilityState === 'visible') {
+        void load();
+      }
+    };
+    const timer = setInterval(refresh, 60_000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
   }, [load]);
 
   // A punch made from the *other* control: re-read the status and refresh the
@@ -132,9 +150,13 @@ export function usePunchClock(
     let stop: (() => void) | undefined;
     void (async () => {
       const current = await locationPermission();
-      if (!alive.current) return;
+      if (!alive.current) {
+        return;
+      }
       setPermission(current);
-      if (current === 'granted' || current === 'prompt') setBlocked(null);
+      if (current === 'granted' || current === 'prompt') {
+        setBlocked(null);
+      }
 
       if (typeof navigator !== 'undefined' && navigator.permissions?.query) {
         try {
@@ -142,9 +164,13 @@ export function usePunchClock(
             name: 'geolocation' as PermissionName,
           });
           const onChange = () => {
-            if (!alive.current) return;
+            if (!alive.current) {
+              return;
+            }
             setPermission(status.state);
-            if (status.state !== 'denied') setBlocked(null);
+            if (status.state !== 'denied') {
+              setBlocked(null);
+            }
           };
           status.addEventListener('change', onChange);
           stop = () => status.removeEventListener('change', onChange);
@@ -174,18 +200,27 @@ export function usePunchClock(
   const isIn = state?.status === 'in';
 
   const punch = useCallback(async () => {
-    if (!state || pending) return;
+    if (!state || pending) {
+      return;
+    }
     setPending(true);
     try {
       // Called straight out of the click so the browser will actually raise its
       // permission prompt — outside a user gesture it silently refuses to.
-      const fix = await requestCoords();
-      if (!alive.current) return;
+      const [fix, current] = await Promise.all([requestCoords(), getPunchStatus()]);
+      if (!alive.current) {
+        return;
+      }
+      setState(current);
+      if (current.lastNightSweep && warnedSweep.current !== current.lastNightSweep.closedAt) {
+        toast(current.lastNightSweep.message, 'info');
+        warnedSweep.current = current.lastNightSweep.closedAt;
+      }
 
       if (!fix.ok) {
         setBlocked(fix.reason);
-        if (state.requireLocation) {
-          // The refusal the user asked for: no punch, and a reason on screen.
+        if (current.requireLocation) {
+          // Required location is unavailable; keep the punch unsaved and explain how to retry.
           toast(failureText[fix.reason], 'error');
           return;
         }
@@ -195,8 +230,10 @@ export function usePunchClock(
       }
 
       const coords = fix.ok ? fix.coords : null;
-      const result = state.status === 'in' ? await punchOut(coords) : await punchIn(coords);
-      if (!alive.current) return;
+      const result = current.status === 'in' ? await punchOut(coords) : await punchIn(coords);
+      if (!alive.current) {
+        return;
+      }
 
       const at = clock(result.punchedAt);
       if (result.withinGeofence === false) {
@@ -215,14 +252,18 @@ export function usePunchClock(
       // The month strip and today's totals elsewhere on /me are server-rendered.
       router.refresh();
     } catch (reason) {
-      if (!alive.current) return;
+      if (!alive.current) {
+        return;
+      }
       const message = reason instanceof Error ? reason.message : 'Could not record the punch.';
       toast(message, 'error');
       // A 409 means our view of in/out was stale — resync rather than leave the
       // button pointing the wrong way.
       void load();
     } finally {
-      if (alive.current) setPending(false);
+      if (alive.current) {
+        setPending(false);
+      }
     }
   }, [state, pending, toast, load, router, source]);
 

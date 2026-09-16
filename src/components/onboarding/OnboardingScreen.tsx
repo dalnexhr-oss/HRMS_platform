@@ -55,8 +55,11 @@ export function OnboardingScreen({
     for (const t of visible) {
       const key = t.assigneeRole ?? 'unassigned';
       const list = m.get(key);
-      if (list) list.push(t);
-      else m.set(key, [t]);
+      if (list) {
+        list.push(t);
+      } else {
+        m.set(key, [t]);
+      }
     }
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [visible]);
@@ -67,8 +70,9 @@ export function OnboardingScreen({
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) {
     startTransition(async () => {
       const res = await fn();
-      if (!res.ok) toast(res.error ?? 'The action failed.', 'error');
-      else {
+      if (!res.ok) {
+        toast(res.error ?? 'The action failed.', 'error');
+      } else {
         toast(okMsg, 'success');
         router.refresh();
       }
@@ -82,7 +86,9 @@ export function OnboardingScreen({
       confirmLabel: 'Delete',
       danger: true,
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
     run(() => deleteOnboardingTask(t.id), 'Task removed.');
   }
 
@@ -101,8 +107,9 @@ export function OnboardingScreen({
             templates={templates}
             disabled={pending}
             onDone={(res, created) => {
-              if (!res.ok) toast(res.error ?? 'Could not start onboarding.', 'error');
-              else {
+              if (!res.ok) {
+                toast(res.error ?? 'Could not start onboarding.', 'error');
+              } else {
                 toast(`Checklist created — ${created} step(s).`, 'success');
                 router.refresh();
               }
@@ -245,8 +252,9 @@ export function OnboardingScreen({
             employees={employees}
             disabled={pending}
             onDone={(res) => {
-              if (!res.ok) toast(res.error ?? 'Could not add the task.', 'error');
-              else {
+              if (!res.ok) {
+                toast(res.error ?? 'Could not add the task.', 'error');
+              } else {
                 toast('Task added.', 'success');
                 router.refresh();
               }
@@ -306,7 +314,9 @@ function StartForm({
           setBusy(true);
           const res = await startOnboarding(employeeId, templateId);
           setBusy(false);
-          if (res.ok) setEmployeeId('');
+          if (res.ok) {
+            setEmployeeId('');
+          }
           onDone(res, res.created ?? 0);
         }}
       >
@@ -374,7 +384,9 @@ function AddTaskForm({
           setBusy(true);
           const res = await addOnboardingTask({ employeeId, title, assigneeRole, dueDate });
           setBusy(false);
-          if (res.ok) setTitle('');
+          if (res.ok) {
+            setTitle('');
+          }
           onDone(res);
         }}
       >

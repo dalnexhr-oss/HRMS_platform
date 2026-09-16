@@ -14,17 +14,11 @@ const timeZone = 'Asia/Kolkata';
 
 const secondsPerDay = 86_400;
 
-// Land just *after* midnight rather than exactly on it. The job derives its
-// target date from todayIST(), so firing at 00:00:00.000 risks a few
-// milliseconds of clock skew leaving todayIST() on the old day — which would
-// sweep the day *before* the one that just ended.
+// Run just after midnight to avoid clock skew selecting the day before yesterday.
 const graceSeconds = 30;
 
-// The server may well have been off at midnight — a Windows box that reboots
-// overnight is the normal case here, not the exception. Re-running on boot
-// closes yesterday if the timer never got the chance; `cron_run_log` makes it a
-// no-op if it already did. Delayed a little so the sweep is not racing mongod
-// and the HTTP listener for the first seconds of startup.
+// Retry yesterday's sweep on startup after a short database warm-up delay. cron_run_log prevents
+// repeating a completed sweep.
 const catchUpDelayMs = 10_000;
 
 // Survives dev hot-reloads, which re-run instrumentation and would otherwise
@@ -87,7 +81,9 @@ function scheduleNext(): void {
   // Do not hold the process open on our account; the HTTP listener is what
   // keeps the server alive, and a shutdown should not wait on a sleeping timer.
   timer.unref?.();
-  if (globalForSweep.__dalnexMidnightSweep) globalForSweep.__dalnexMidnightSweep.timer = timer;
+  if (globalForSweep.__dalnexMidnightSweep) {
+    globalForSweep.__dalnexMidnightSweep.timer = timer;
+  }
 }
 
 /**
@@ -107,7 +103,9 @@ export function startMidnightSweep(): void {
     console.warn('[midnight-sweep] MONGO_URI is not set — the nightly sweep will not run.');
     return;
   }
-  if (globalForSweep.__dalnexMidnightSweep) return;
+  if (globalForSweep.__dalnexMidnightSweep) {
+    return;
+  }
   globalForSweep.__dalnexMidnightSweep = { timer: null };
 
   const catchUp = setTimeout(() => void sweep('startup catch-up'), catchUpDelayMs);

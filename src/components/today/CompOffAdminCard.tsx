@@ -30,8 +30,9 @@ export function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; err
     startTransition(async () => {
       const res = await setCompOffApplicability(credit.id, !credit.isApplicable);
       setBusyId(null);
-      if (!res.ok) toast(res.error ?? 'The comp off could not be updated.', 'error');
-      else {
+      if (!res.ok) {
+        toast(res.error ?? 'The comp off could not be updated.', 'error');
+      } else {
         toast(
           !credit.isApplicable
             ? 'Comp off is applicable again — the employee can use it.'

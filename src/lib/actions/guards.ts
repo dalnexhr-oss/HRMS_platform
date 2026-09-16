@@ -23,7 +23,9 @@ export async function requireStaff(action = 'This action'): Promise<StaffGate> {
     };
   }
   const { profile } = await getSession();
-  if (!profile) return { ok: false, error: 'You are not signed in.' };
+  if (!profile) {
+    return { ok: false, error: 'You are not signed in.' };
+  }
   if (!writeRoles.includes(profile.role)) {
     return {
       ok: false,
@@ -49,7 +51,9 @@ export async function requireRoles(
     };
   }
   const { profile } = await getSession();
-  if (!profile) return { ok: false, error: 'You are not signed in.' };
+  if (!profile) {
+    return { ok: false, error: 'You are not signed in.' };
+  }
   if (!roles.includes(profile.role)) {
     return {
       ok: false,

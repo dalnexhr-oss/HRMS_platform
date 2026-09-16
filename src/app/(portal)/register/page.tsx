@@ -22,18 +22,15 @@ import type { RegisterEmployee } from '@/types/domain';
 
 const monthRe = /^\d{4}-(0[1-9]|1[0-2])$/;
 
-// Roles offered the correction UI — must match writeRoles in src/lib/actions/attendance.ts, which
-// in turn matches is_staff() behind the attendance_days write policy. NOT isStaffRole(): that is
-// the portal READ set, so using it here would open the drawer for someone whose save is then
-// refused.
+// Match attendance.ts writeRoles. Portal read access alone does not permit attendance corrections.
 const correctionRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
-// '?m=2026-05' -> '2026-05-01'. Anything unparseable falls back to the current month (IST).
+// '?m=YYYY-05' -> 'YYYY-05-01'. Anything unparseable falls back to the current month (IST).
 function periodFromParam(m: string | undefined): string {
   return m && monthRe.test(m) ? `${m}-01` : currentPeriodMonth();
 }
 
-/** '2026-06-01' -> 'JUNE 2026'. */
+/** 'YYYY-06-01' -> 'JUNE YYYY'. */
 function monthLabel(periodMonth: string): string {
   return new Date(`${periodMonth}T00:00:00`)
     .toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })

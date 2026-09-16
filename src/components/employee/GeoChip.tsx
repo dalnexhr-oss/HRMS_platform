@@ -16,13 +16,17 @@ export function GeoChip({
   lat?: number | null;
   lng?: number | null;
 }) {
-  if (withinGeofence == null) return null;
+  if (withinGeofence == null) {
+    return null;
+  }
 
   const tone = withinGeofence ? 'at-office' : 'off-site';
   const label = withinGeofence ? 'At office' : 'Off-site';
   const hasPoint = typeof lat === 'number' && typeof lng === 'number';
 
-  if (!hasPoint) return <span className={`punch-geo ${tone}`}>{label}</span>;
+  if (!hasPoint) {
+    return <span className={`punch-geo ${tone}`}>{label}</span>;
+  }
 
   return (
     <a

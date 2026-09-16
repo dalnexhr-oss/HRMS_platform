@@ -12,11 +12,17 @@ export async function addHoliday(formData: FormData) {
   const name = String(formData.get('name') ?? '').trim();
   const branch = String(formData.get('branch') ?? '').trim();
 
-  if (!holiday_date) return { ok: false, error: 'Please choose a date.' };
-  if (!name) return { ok: false, error: 'Please enter a holiday name.' };
+  if (!holiday_date) {
+    return { ok: false, error: 'Please choose a date.' };
+  }
+  if (!name) {
+    return { ok: false, error: 'Please enter a holiday name.' };
+  }
 
   const gate = await requireStaff('Adding a holiday');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const scope = await resolveBranchScope(dbc, branch);
@@ -24,7 +30,9 @@ export async function addHoliday(formData: FormData) {
     .from('holidays')
     .insert({ holiday_date, name, ...scope })
     .select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,
@@ -40,13 +48,13 @@ export type ImportHolidaysResult =
   | { ok: true; imported: number; skipped: number; tentative: string[]; year: number }
   | { ok: false; error: string };
 
-// Import a year's public holidays from Google's published India calendar. Imported as ALL-BRANCH
-// holidays (branch_id null). Existing dates are skipped rather than overwritten, so a holiday HR
-// has already added or renamed — or a branch-specific one — is never clobbered, and the import is
-// safe to re-run.
+// Import company-wide holidays from Google's India calendar. Skip existing dates to preserve HR
+// edits and branch-specific holidays on repeat imports.
 export async function importHolidaysFromGoogle(year: number): Promise<ImportHolidaysResult> {
   const gate = await requireStaff('Importing holidays');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   if (!Number.isInteger(year) || year < 2000 || year > 2100) {
     return { ok: false, error: 'Choose a valid year.' };
@@ -67,8 +75,9 @@ export async function importHolidaysFromGoogle(year: number): Promise<ImportHoli
       .select<{ holiday_date: string }[]>('holiday_date')
       .gte('holiday_date', `${year}-01-01`)
       .lte('holiday_date', `${year}-12-31`);
-    if (readErr)
+    if (readErr) {
       return { ok: false, error: `Could not read existing holidays: ${readErr.message}` };
+    }
 
     const taken = new Set(
       (existing ?? []).map((h: { holiday_date: string }) => String(h.holiday_date).slice(0, 10)),
@@ -85,7 +94,9 @@ export async function importHolidaysFromGoogle(year: number): Promise<ImportHoli
     }
 
     const { data, error } = await dbc.from('holidays').insert(rows).select('id');
-    if (error) return { ok: false, error: error.message };
+    if (error) {
+      return { ok: false, error: error.message };
+    }
     if (wroteNothing(data)) {
       return { ok: false, error: 'No holidays were added — your role may lack permission.' };
     }
@@ -104,11 +115,15 @@ export async function importHolidaysFromGoogle(year: number): Promise<ImportHoli
 /** Delete a holiday by id. */
 export async function deleteHoliday(id: string) {
   const gate = await requireStaff('Deleting a holiday');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc.from('holidays').delete().eq('id', id).select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,

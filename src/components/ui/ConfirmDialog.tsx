@@ -32,16 +32,23 @@ function ConfirmDialog({
 }) {
   // Escape cancels, Enter confirms — only while open.
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onCancel();
-      else if (e.key === 'Enter') onConfirm();
+      if (e.key === 'Escape') {
+        onCancel();
+      } else if (e.key === 'Enter') {
+        onConfirm();
+      }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onConfirm, onCancel]);
 
-  if (!open) return null;
+  if (!open) {
+    return null;
+  }
 
   return (
     <>

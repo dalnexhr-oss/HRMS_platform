@@ -16,13 +16,8 @@ const typeLabel: Record<RequestType, string> = {
   comp_off: 'Comp off',
 };
 
-// 'comp_off' is deliberately NOT offered here: a comp off must be applied for
-// against a specific earned credit, which the CompOffs card handles.
+// The leave_type enum is a subset of the leave_kind enum, so the labels are not identical.
 const typeOptions: RequestType[] = ['leave', 'site_visit', 'outdoor_duty', 'wfh'];
-
-// The leave_kind enum is a superset of the leave_type enum, so the labels are not identical.
-//  The leave_type enum is used in the requests table, but comp off is absent from it because a comp off is not a leave kind: it is an application against an earned credit.
-//  The leave_kind enum is used in the leave_balances view, which includes comp off.
 const leaveKindLabel: Record<LeaveBalanceRow['type'], string> = {
   PL: 'Paid leave',
   CL: 'Casual leave',
@@ -30,10 +25,8 @@ const leaveKindLabel: Record<LeaveBalanceRow['type'], string> = {
   LWP: 'Leave without pay',
 };
 
-// What a NEW leave request may be filed as. 'CO' is deliberately not a LeaveType: comp off is
-// absent from the leave_type enum, so createRequest rejects it as a leave_kind. Picking it here
-// files a comp-off application against an earned credit via applyCompOff instead — the only way a
-// comp off can be taken, because the credit has to be claimed so it cannot be spent twice.
+// CO uses applyCompOff to reserve an earned credit. It is not a leave_type and must not go through
+// createRequest.
 const leaveKindOptions = [
   { value: 'CO', label: 'Comp off' },
   { value: 'LWP', label: 'Leave without pay' },
@@ -49,18 +42,27 @@ const statusLabel: Record<RequestView['status'], string> = {
 };
 
 function statusPillStyle(status: RequestView['status']): React.CSSProperties {
-  if (status === 'pending') return { borderColor: 'var(--line-2)', color: 'var(--lm)' };
-  if (status === 'approved')
+  if (status === 'pending') {
+    return { borderColor: 'var(--line-2)', color: 'var(--lm)' };
+  }
+  if (status === 'approved') {
     return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
-  if (status === 'rejected') return { borderColor: 'var(--line-2)', color: 'var(--hd)' };
+  }
+  if (status === 'rejected') {
+    return { borderColor: 'var(--line-2)', color: 'var(--hd)' };
+  }
   return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
 }
 
-// ISO timestamp -> '12 Aug 2026'; null-safe.
+// ISO timestamp -> 'DD MMM YYYY'; null-safe.
 function stampDate(iso: string | null): string | null {
-  if (!iso) return null;
+  if (!iso) {
+    return null;
+  }
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
+  if (Number.isNaN(d.getTime())) {
+    return null;
+  }
   return d.toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'short',
@@ -69,7 +71,7 @@ function stampDate(iso: string | null): string | null {
   });
 }
 
-// '2026-07-16' -> '16 Jul'; collapses a same-day range.
+// 'DD MMM YYYY' -> 'DD MMM YYYY'; collapses a same-day range.
 function dateRange(startIso: string, endIso: string): string {
   const fmt = (iso: string) =>
     new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', {
@@ -77,7 +79,9 @@ function dateRange(startIso: string, endIso: string): string {
       month: 'short',
       timeZone: 'UTC',
     });
-  if (startIso === endIso) return fmt(startIso);
+  if (startIso === endIso) {
+    return fmt(startIso);
+  }
   return `${fmt(startIso)} – ${fmt(endIso)}`;
 }
 
@@ -180,8 +184,11 @@ function RequestItem({ request }: { request: RequestView }) {
     startTransition(async () => {
       setError(null);
       const res = await cancelRequest(request.id);
-      if (!res.ok) setError(res.error ?? 'Could not cancel the request.');
-      else router.refresh();
+      if (!res.ok) {
+        setError(res.error ?? 'Could not cancel the request.');
+      } else {
+        router.refresh();
+      }
     });
 
   return (
@@ -230,39 +237,31 @@ function RequestItem({ request }: { request: RequestView }) {
   );
 }
 
+// The parent gates this form with canApply. Keep date bounds in state; read the remaining fields
+// from FormData on submit.
+
 function NewRequestForm({ compOffBalance }: { compOffBalance: number }) {
   const router = useRouter();
   const [type, setType] = useState<RequestType>('leave');
   const [leaveKind, setLeaveKind] = useState<LeaveKindChoice>('CO');
-  // The earliest day that can be applied for. IST, not the device clock: a
-  // phone set to a western timezone would otherwise offer yesterday as "today".
-  // createRequest and applyCompOff re-check this — the attribute only keeps the
-  // picker from offering a day the server is going to refuse.
   const today = todayIST();
-  // The range is controlled so "To" can track "From": its own floor is the
-  // chosen start, and a start moved past an already-picked end drags the end
-  // with it rather than leaving an invalid pair on screen.
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
   const onStartChange = (value: string) => {
     setStartDate(value);
-    if (endDate && value && endDate < value) setEndDate(value);
+    if (endDate && value && endDate < value) {
+      setEndDate(value);
+    }
   };
 
+  // The form action is async and returns a JSON object with { ok: boolean, error?: string }.
+  // The state is preserved until the drawer is closed, so the user can fix errors and resubmit.
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
     async (_prev, formData) => {
-      // A comp off is an application against an earned credit, not a leave kind,
-      // so it goes to applyCompOff. The intent is read off the FormData rather
-      // than component state so a submit can never race a re-render.
       const takingCompOff = formData.get('type') === 'leave' && formData.get('leave_kind') === 'CO';
       const res = takingCompOff ? await applyCompOff(formData) : await createRequest(formData);
-      // The actions revalidate /me, but refresh keeps the list in step even
-      // when this form is rendered inside an unchanged cached segment.
       if (res.ok) {
-        // React empties the UNCONTROLLED fields after a successful action; the
-        // date range is controlled, so it has to be cleared here or the filed
-        // dates stay in the picker and get resubmitted on the next request.
         setStartDate('');
         setEndDate('');
         router.refresh();
@@ -313,8 +312,6 @@ function NewRequestForm({ compOffBalance }: { compOffBalance: number }) {
         </div>
       )}
 
-      {/* One credit buys one day off, so a comp off takes a single date rather
-          than a range — matching what applyCompOff accepts. */}
       {takingCompOff ? (
         <div className="f">
           <label>Take this day off</label>
@@ -335,8 +332,6 @@ function NewRequestForm({ compOffBalance }: { compOffBalance: number }) {
           </div>
           <div className="f">
             <label>To</label>
-            {/* Floor is the chosen start, so a single-day leave (To === From)
-                is allowed and an end before the start cannot be picked. */}
             <input
               name="end_date"
               type="date"

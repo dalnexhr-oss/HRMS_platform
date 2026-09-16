@@ -6,58 +6,23 @@
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { toCoordinate } from '@/lib/db/money';
+import type { PunchKind, PunchCoords, PunchStatus, PunchRecord, PunchResult } from '@/types/punch';
+import { lastNightSweepNotice, previousWorkDate, type SweepClosure } from '@/lib/night-sweep';
 
-const bussinessTimeZone = 'Asia/Kolkata';
+const businessTimeZone = 'Asia/Kolkata';
 
 // Fallback radius when an office point is set without one. A branch's own
 // geofence_radius_m, or the geofence_radius_m setting, overrides it.
 const defaultGeoRadius = 100;
 
-export type PunchKind = 'in' | 'out';
-
-// Browser coordinates, or null when the device would not give them.
-export interface PunchCoords {
-  latitude: number;
-  longitude: number;
-  // GPS accuracy in metres, if the browser reported it.
-  accuracy?: number | null;
-}
-
-export interface PunchStatus {
-  status: 'in' | 'out';
-  // ISO timestamp of the most recent punch today, or null if none yet.
-  lastPunchAt: string | null;
-  lastKind: PunchKind | null;
-  // true / false / null — null means "not classified" (no coords or no office).
-  lastWithinGeofence: boolean | null;
-  // Where that punch was taken, when the device shared it. Drives the map link.
-  lastLat: number | null;
-  lastLng: number | null;
-  // Minutes closed out today. An open session is not counted until punch out.
-  workedMinutes: number;
-  // Whether an office location applies to THIS employee at all — their own
-  // branch's, or the company-wide fallback. False means a punch cannot be
-  // classified and its on-site stamp will be null.
-  geofenceConfigured: boolean;
-  // Whether the server will refuse a punch that shares no location.
-  requireLocation: boolean;
-}
-
-export interface PunchRecord {
-  type: PunchKind;
-  timestamp: string;
-  withinGeofence: boolean | null;
-  // Coordinates of the punch, or null when the device shared none.
-  lat: number | null;
-  lng: number | null;
-}
+export type { PunchKind, PunchCoords, PunchStatus, PunchRecord, PunchResult } from '@/types/punch';
 
 // time helpers --
 
 // Today's date and wall-clock time in the business timezone, not the server's.
 function localParts(date = new Date()): { date: string; time: string } {
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: bussinessTimeZone,
+    timeZone: businessTimeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -110,7 +75,9 @@ export function distanceMetres(aLat: number, aLng: number, bLat: number, bLng: n
 
 /** settings.value is jsonb, so a number may arrive as 50 or as "50". */
 function numericSetting(value: unknown): number | null {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
   if (typeof value === 'string') {
     const parsed = Number(value.replace(/^"|"$/g, ''));
     return Number.isFinite(parsed) ? parsed : null;
@@ -131,23 +98,25 @@ export const locationRequired =
 export interface PunchPolicy {
   office: OfficeGeofence | null;
   /**
-   * Whether a punch is refused when the browser shares NO location at all.
-   *
-   * This is about whether location is SHARED, not about where the person is —
-   * being off-site never blocks a punch. Enforced here on the server, not only
-   * in the UI: the route accepts a JSON body, and a client that simply omitted
-   * the coordinates would otherwise walk straight past a browser-side check.
+   * Require coordinates when enabled. Enforce this on the server; an off-site location remains a
+   * valid punch.
    */
   requireLocation: boolean;
 }
 
 /** settings.value is jsonb: true, "true" and 'true' all have to mean true. */
 function booleanSetting(value: unknown, fallback: boolean): boolean {
-  if (typeof value === 'boolean') return value;
+  if (typeof value === 'boolean') {
+    return value;
+  }
   if (typeof value === 'string') {
     const trimmed = value.replace(/^"|"$/g, '').toLowerCase();
-    if (trimmed === 'true') return true;
-    if (trimmed === 'false') return false;
+    if (trimmed === 'true') {
+      return true;
+    }
+    if (trimmed === 'false') {
+      return false;
+    }
   }
   return fallback;
 }
@@ -167,17 +136,23 @@ async function readBranchGeofence(employeeId: string): Promise<OfficeGeofence | 
       .select('id, branches(geofence_lat, geofence_lng, geofence_radius_m)')
       .eq('id', employeeId)
       .maybeSingle();
-    if (error || !data) return null;
+    if (error || !data) {
+      return null;
+    }
 
     const branch = (data as { branches?: Record<string, unknown> | null }).branches;
-    if (!branch) return null;
+    if (!branch) {
+      return null;
+    }
 
     // finite(), because the columns are `decimal` and come back as Decimal128 —
     // neither a number nor a string, so a plain typeof test drops every one.
     const latitude = finite(branch.geofence_lat);
     const longitude = finite(branch.geofence_lng);
     // Both or neither: a branch with one coordinate cannot be measured against.
-    if (latitude == null || longitude == null) return null;
+    if (latitude == null || longitude == null) {
+      return null;
+    }
 
     const radius = finite(branch.geofence_radius_m);
     return {
@@ -206,18 +181,24 @@ export async function readPunchPolicy(employeeId?: string | null): Promise<Punch
   const { data, error } = settings;
   // Fail CLOSED on a settings read error: defaulting to "location optional"
   // would quietly turn the requirement off the moment the table hiccups.
-  if (error) return { office: branchOffice, requireLocation: true };
+  if (error) {
+    return { office: branchOffice, requireLocation: true };
+  }
 
   const byKey = new Map((data ?? []).map((row) => [row.key, row.value]));
   const requireLocation = booleanSetting(byKey.get('punch_require_location'), true);
 
   // The branch's own office wins. It is the more specific answer, and it is the
   // one a punch at that branch has to be measured against.
-  if (branchOffice) return { office: branchOffice, requireLocation };
+  if (branchOffice) {
+    return { office: branchOffice, requireLocation };
+  }
 
   const latitude = numericSetting(byKey.get('office_lat'));
   const longitude = numericSetting(byKey.get('office_lng'));
-  if (latitude == null || longitude == null) return { office: null, requireLocation };
+  if (latitude == null || longitude == null) {
+    return { office: null, requireLocation };
+  }
 
   const radius = numericSetting(byKey.get('geofence_radius_m'));
   return {
@@ -238,13 +219,13 @@ export async function readOfficeGeofence(
 }
 
 /**
- * true inside the fence, false outside, null when we cannot say — no
- * coordinates from the device, or no office configured. null is a real answer
- * and is stored as such; it must not collapse to false, which would read as
- * "this person punched from somewhere else".
+ * Return true inside the fence, false outside, and null when coordinates or office configuration
+ * are unavailable. Null must not be recorded as off-site.
  */
 function classify(coords: PunchCoords | null, office: OfficeGeofence | null): boolean | null {
-  if (!coords || !office) return null;
+  if (!coords || !office) {
+    return null;
+  }
   const metres = distanceMetres(
     coords.latitude,
     coords.longitude,
@@ -261,32 +242,33 @@ function classify(coords: PunchCoords | null, office: OfficeGeofence | null): bo
 
 async function employeeContext() {
   const { profile } = await getSession();
-  if (!profile?.employee_id) throw new Error('Your login is not linked to an employee record.');
+  if (!profile?.employee_id) {
+    throw new Error('Your login is not linked to an employee record.');
+  }
   return { profile, employeeId: profile.employee_id };
 }
 
-/**
- * A stored coordinate, or null.
- *
- * lat/lng are stored as numbers, but a driver or view that returned them as
- * strings would sail straight into the
- * Google Maps URL and produce a broken link, so the read is narrowed here once
- * rather than guarded at every call site.
- */
+/** Normalize stored coordinates to finite numbers for client display and map links. */
 function finite(value: unknown): number | null {
-  if (value === null || value === undefined) return null;
-  // String() rather than a typeof test: lat/lng come back as Decimal128, which
-  // is neither a number nor a string, so the old form returned null for every
-  // stored coordinate and silently dropped the map link.
+  if (value === null || value === undefined) {
+    return null;
+  }
+  // Decimal128 is an object; convert through its string value before checking finiteness.
   const parsed = typeof value === 'number' ? value : Number(String(value));
   return Number.isFinite(parsed) ? parsed : null;
 }
 
 function validCoords(coords: PunchCoords | null): PunchCoords | null {
-  if (!coords) return null;
+  if (!coords) {
+    return null;
+  }
   const { latitude, longitude } = coords;
-  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) return null;
-  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) return null;
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+    return null;
+  }
+  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    return null;
+  }
   return coords;
 }
 
@@ -295,9 +277,10 @@ function validCoords(coords: PunchCoords | null): PunchCoords | null {
 export async function readPunchStatus(): Promise<PunchStatus> {
   const { employeeId } = await employeeContext();
   const dbc = await createClient();
-  const today = localParts().date;
+  const now = new Date();
+  const today = localParts(now).date;
 
-  const [events, policy] = await Promise.all([
+  const [events, policy, previousDay] = await Promise.all([
     dbc
       .from('punch_events')
       .select<DayEvent[]>('kind, punched_at, within_geofence, lat, lng')
@@ -305,8 +288,19 @@ export async function readPunchStatus(): Promise<PunchStatus> {
       .gte('punched_at', dayFloorUtc(today))
       .order('punched_at', { ascending: true }),
     readPunchPolicy(employeeId),
+    dbc
+      .from('attendance_days')
+      .select('work_date, punch_in, punch_out, auto_close_source, auto_closed_at')
+      .eq('employee_id', employeeId)
+      .eq('work_date', previousWorkDate(today))
+      .maybeSingle<SweepClosure>(),
   ]);
-  if (events.error) throw new Error(events.error.message);
+  if (events.error) {
+    throw new Error(events.error.message);
+  }
+  if (previousDay.error) {
+    throw new Error(previousDay.error.message);
+  }
 
   // Filter in the business timezone: the >= bound above is a coarse cut in UTC,
   // which for IST (UTC+5:30) can drag in the tail of the previous local day.
@@ -325,6 +319,7 @@ export async function readPunchStatus(): Promise<PunchStatus> {
     workedMinutes: sumWorkedMinutes(todays),
     geofenceConfigured: policy.office != null,
     requireLocation: policy.requireLocation,
+    lastNightSweep: lastNightSweepNotice(previousDay.data, now),
   };
 }
 
@@ -337,7 +332,9 @@ export async function readPunchHistory(): Promise<PunchRecord[]> {
     .eq('employee_id', employeeId)
     .order('punched_at', { ascending: false })
     .limit(100);
-  if (error) throw new Error(error.message);
+  if (error) {
+    throw new Error(error.message);
+  }
   return (data ?? []).map((punch) => ({
     type: punch.kind as PunchKind,
     timestamp: punchedAt(punch).toISOString(),
@@ -352,12 +349,8 @@ export async function readPunchHistory(): Promise<PunchRecord[]> {
 // write --
 
 /**
- * One punch row.
- *
- * Only `kind` and `punched_at` are always selected — sumWorkedMinutes needs
- * nothing else. The location columns are optional because the status query
- * reads them and the session-pairing query does not, and marking them so is
- * what lets one type serve both without a cast.
+ * Punch queries always select kind and punched_at. Status and history queries also select optional
+ * location fields.
  */
 interface DayEvent {
   kind: string;
@@ -403,13 +396,6 @@ function sumWorkedMinutes(events: DayEvent[]): number {
   return total;
 }
 
-export interface PunchResult {
-  kind: PunchKind;
-  punchedAt: string;
-  withinGeofence: boolean | null;
-  workedMinutes: number;
-}
-
 export async function recordPunch(
   kind: PunchKind,
   coords: PunchCoords | null,
@@ -426,20 +412,27 @@ export async function recordPunch(
     .eq('employee_id', employeeId)
     .gte('punched_at', dayFloorUtc(date))
     .order('punched_at', { ascending: true });
-  if (priorError) throw new Error(priorError.message);
+  if (priorError) {
+    throw new Error(priorError.message);
+  }
 
   const prior = (priorRaw ?? []).filter((event) => localParts(punchedAt(event)).date === date);
   const openNow = prior.length > 0 && prior[prior.length - 1].kind === 'in';
 
-  if (kind === 'in' && openNow) throw new Error('You are already punched in.');
-  if (kind === 'out' && !openNow) throw new Error('There is no open punch to close.');
+  if (kind === 'in' && openNow) {
+    throw new Error('You are already punched in.');
+  }
+  if (kind === 'out' && !openNow) {
+    throw new Error('There is no open punch to close.');
+  }
 
   const point = validCoords(coords);
   const { office, requireLocation } = await readPunchPolicy(employeeId);
 
-  // Refused for SHARING nothing, never for being somewhere else. Off-site is a
-  // stamp, not a veto — see PunchPolicy.requireLocation.
-  if (requireLocation && !point) throw new Error(locationRequired);
+  // A required location must be present; being outside the office does not block a punch.
+  if (requireLocation && !point) {
+    throw new Error(locationRequired);
+  }
 
   const withinGeofence = classify(point, office);
 
@@ -454,7 +447,9 @@ export async function recordPunch(
     within_geofence: withinGeofence,
     source: 'web_app',
   });
-  if (eventError) throw new Error(eventError.message);
+  if (eventError) {
+    throw new Error(eventError.message);
+  }
 
   const workedMinutes = await resolveDay(employeeId, date, [...prior, { kind, punched_at: now }]);
 
@@ -462,12 +457,8 @@ export async function recordPunch(
 }
 
 /**
- * Rewrite today's attendance_days row from the full event trail.
- *
- * The status is deliberately NOT forced to 'P' when a row already exists: HR
- * may have set L, WO, OH, HD or CO for the day, and a punch is not grounds to
- * overwrite that decision. Only 'AB' — nobody showed up — is upgraded, because
- * a punch is direct evidence to the contrary.
+ * Rebuild the attendance summary from the day's events. Preserve HR-set statuses; only missing or
+ * AB attendance becomes P after a punch.
  */
 async function resolveDay(
   employeeId: string,
@@ -503,9 +494,13 @@ async function resolveDay(
       punch_in: firstIn,
       punch_out: lastOut,
       worked_minutes: workedMinutes,
+      auto_close_source: null,
+      auto_closed_at: null,
     },
     { onConflict: 'employee_id,work_date' },
   );
-  if (error) throw new Error(error.message);
+  if (error) {
+    throw new Error(error.message);
+  }
   return workedMinutes;
 }

@@ -12,10 +12,14 @@ type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 // Raise a new support ticket (status defaults to 'open'). Employee-facing.
 export async function createTicket(formData: FormData) {
   const subject = String(formData.get('subject') ?? '').trim();
-  if (!subject) return { ok: false, error: 'Subject is required.' };
+  if (!subject) {
+    return { ok: false, error: 'Subject is required.' };
+  }
 
   const db = requireDb('Raising a ticket');
-  if (!db.ok) return db;
+  if (!db.ok) {
+    return db;
+  }
 
   const { profile } = await getSession();
   const dbc = await createClient();
@@ -30,7 +34,9 @@ export async function createTicket(formData: FormData) {
     })
     .select('id');
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,
@@ -62,7 +68,9 @@ export async function createTicket(formData: FormData) {
  */
 export async function setTicketStatus(id: string, status: TicketStatus, note?: string) {
   const gate = await requireStaff('Updating a ticket');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const reply = (note ?? '').trim();
   const dbc = await createClient();
@@ -71,7 +79,9 @@ export async function setTicketStatus(id: string, status: TicketStatus, note?: s
   // Only touch resolution_note when a reply is actually written, so a plain
   // status change does not blank out the note left with an earlier one.
   const patch: Record<string, unknown> = { status, resolved_at };
-  if (reply) patch.resolution_note = reply;
+  if (reply) {
+    patch.resolution_note = reply;
+  }
 
   const { data, error } = await dbc
     .from('helpdesk_tickets')
@@ -103,22 +113,24 @@ export async function setTicketStatus(id: string, status: TicketStatus, note?: s
 }
 
 /**
- * Post a follow-up comment on a ticket. Either side may post: staff on any
- * ticket, an employee on their own — enforced by the parent-ticket read below,
- * NOT by the collection's insert rule, which only checks that you are claiming
- * to be yourself. When the employee owner follows up on a resolved/closed
- * ticket, it is REOPENED. The author name and staff flag are stored on the
- * comment so the thread renders without reading another user's profile.
+ * Allow follow-ups from staff or the ticket owner, checking the parent ticket before insertion. An
+ * owner's reply reopens resolved tickets. Snapshot author details for display.
  */
 export async function addTicketComment(ticketId: string, body: string) {
   const text = (body ?? '').trim();
-  if (!text) return { ok: false, error: 'Write a message first.' };
+  if (!text) {
+    return { ok: false, error: 'Write a message first.' };
+  }
 
   const db = requireDb('Posting a follow-up');
-  if (!db.ok) return db;
+  if (!db.ok) {
+    return db;
+  }
 
   const { profile } = await getSession();
-  if (!profile?.id) return { ok: false, error: 'You must be signed in to post a follow-up.' };
+  if (!profile?.id) {
+    return { ok: false, error: 'You must be signed in to post a follow-up.' };
+  }
   const isStaff = isStaffRole(profile.role);
 
   const dbc = await createClient();
@@ -130,7 +142,9 @@ export async function addTicketComment(ticketId: string, body: string) {
     .select('id, status, subject, employee_id')
     .eq('id', ticketId)
     .maybeSingle<{ status: TicketStatus; subject: string; employee_id: string | null }>();
-  if (ticketError) return { ok: false, error: ticketError.message };
+  if (ticketError) {
+    return { ok: false, error: ticketError.message };
+  }
   if (!ticket) {
     // Deliberately the same answer for "no such ticket" and "not yours": the
     // difference would confirm that someone else's ticket id exists.

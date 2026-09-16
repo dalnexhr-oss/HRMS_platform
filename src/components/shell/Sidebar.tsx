@@ -159,9 +159,13 @@ export function Sidebar({
 
   // Escape closes it, matching every other overlay in the app.
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -215,17 +219,17 @@ export function Sidebar({
             than a bare heading. */}
           {groupOrder.map((group) => {
             const rows = items.filter((n) => n.group === group);
-            if (rows.length === 0) return null;
+            if (rows.length === 0) {
+              return null;
+            }
 
             return (
               <div key={group}>
                 <div className="group">{group}</div>
-                {/* prefetch={false}: every nav target is fully dynamic and
-                  auth-gated, so a prefetched payload is barely reusable — but
-                  all ~19 links sit in the viewport at once, so prefetching them
-                  fires 19 full layout renders against a free-tier pooler and
-                  starves the click the user actually made. staleTimes in
-                  next.config.mjs is what keeps revisits feeling instant. */}
+                {/*
+                 * Disable prefetch for dynamic, authenticated routes to avoid loading every
+                 * sidebar destination at once. staleTimes caches revisits.
+                 */}
                 {rows.map((item) => (
                   <Link
                     key={item.slug}

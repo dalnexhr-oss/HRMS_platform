@@ -22,12 +22,8 @@ function bad(error: string, status = 400) {
 }
 
 /**
- * Stop a body that runs past the cap, mid-flight.
- *
- * Content-Length is checked first because it is far cheaper to refuse before
- * reading anything — but it is a CLAIM, sent by the client, and a chunked
- * request need not send one at all. So the count is enforced again over the
- * real bytes, which is what actually bounds what can be written.
+ * Enforce the size limit while reading. Content-Length is optional and supplied by the client, so
+ * it cannot replace a byte count.
  */
 function capped(body: ReadableStream<Uint8Array>, limit: number): ReadableStream<Uint8Array> {
   let seen = 0;
@@ -53,27 +49,34 @@ export async function POST(req: Request) {
   }
 
   const { profile } = await getSession();
-  if (!profile) return bad('Your session has expired. Sign in again.', 401);
+  if (!profile) {
+    return bad('Your session has expired. Sign in again.', 401);
+  }
 
   const params = new URL(req.url).searchParams;
   const filename = (params.get('filename') ?? '').trim();
-  if (!filename) return bad('The file name is missing.');
+  if (!filename) {
+    return bad('The file name is missing.');
+  }
 
   // Extension whitelist, exactly as the action applies it: the stored
   // content-type is derived from the name, never from what the client claims.
   const fileType = resolveUploadType(filename, 'document');
-  if (!fileType.ok) return bad(fileType.error);
+  if (!fileType.ok) {
+    return bad(fileType.error);
+  }
 
-  // The cheap refusal: reject an oversize upload before reading its body
-  // rather than after. ABSENT is not the same as zero — a chunked request
-  // sends no Content-Length at all, and reading the missing header as 0 would
-  // refuse it as an empty file. An unstated length just means the cap has to
-  // be enforced over the bytes instead, which capped() does regardless.
+  // Reject a declared oversize body early. Missing Content-Length is allowed; capped() enforces
+  // the limit on the incoming bytes.
   const header = req.headers.get('content-length');
   const declared = header === null ? null : Number(header);
   if (declared !== null && Number.isFinite(declared)) {
-    if (declared > maxBytes) return bad('Documents must be 10 MB or smaller.', 413);
-    if (declared === 0) return bad('Choose a file to upload.');
+    if (declared > maxBytes) {
+      return bad('Documents must be 10 MB or smaller.', 413);
+    }
+    if (declared === 0) {
+      return bad('Choose a file to upload.');
+    }
   }
 
   const target = resolveTargetEmployee(
@@ -85,9 +88,13 @@ export async function POST(req: Request) {
     },
     (params.get('employee_id') ?? '').trim(),
   );
-  if (!target.ok) return bad(target.error, 403);
+  if (!target.ok) {
+    return bad(target.error, 403);
+  }
 
-  if (!req.body) return bad('Choose a file to upload.');
+  if (!req.body) {
+    return bad('Choose a file to upload.');
+  }
 
   let stored;
   try {
@@ -99,7 +106,9 @@ export async function POST(req: Request) {
       fileType.contentType,
     );
   } catch (e) {
-    if (e instanceof StorageAccessError) return bad(e.message, 403);
+    if (e instanceof StorageAccessError) {
+      return bad(e.message, 403);
+    }
     if (e instanceof Error && e.message.includes('too-large')) {
       return bad('Documents must be 10 MB or smaller.', 413);
     }
@@ -135,7 +144,9 @@ export async function POST(req: Request) {
     title,
     storagePath: stored.path,
   });
-  if (!recorded.ok) return bad(recorded.error ?? 'The document was not filed.', 500);
+  if (!recorded.ok) {
+    return bad(recorded.error ?? 'The document was not filed.', 500);
+  }
 
   return NextResponse.json({ ok: true });
 }

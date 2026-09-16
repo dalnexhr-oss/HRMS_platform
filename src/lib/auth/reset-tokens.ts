@@ -29,9 +29,8 @@ async function tokens() {
   return (await db()).collection<ResetTokenDoc>(resetTokensCollection);
 }
 
-// Issue a reset token for a user and return the RAW value to put in the link. Any token the user
-// already held is discarded first, so requesting a second link invalidates the first — otherwise
-// every request would widen the window of live tokens.
+// Return the raw reset token for the email link. Remove existing tokens first so a new request
+// invalidates earlier links.
 export async function createResetToken(
   userId: string,
   requestedIp: string | null = null,
@@ -52,12 +51,12 @@ export async function createResetToken(
   return raw;
 }
 
-// Redeem a token, returning the user id it belongs to, or null. The delete is the validation:
-// findOneAndDelete is atomic, so two requests racing on the same link cannot both succeed.
-// `expires_at` is still checked in the filter because the TTL monitor only runs about once a minute
-// — the index is the cleanup, this is the guarantee.
+// Atomically consume a valid reset token and return its user ID. Check expires_at in the query
+// because TTL cleanup is asynchronous.
 export async function consumeResetToken(raw: string): Promise<string | null> {
-  if (!raw) return null;
+  if (!raw) {
+    return null;
+  }
   const collection = await tokens();
   const doc = await collection.findOneAndDelete({
     token_hash: hashToken(raw),
@@ -68,7 +67,9 @@ export async function consumeResetToken(raw: string): Promise<string | null> {
 
 // True when a token would be accepted, without spending it.
 export async function peekResetToken(raw: string): Promise<boolean> {
-  if (!raw) return false;
+  if (!raw) {
+    return false;
+  }
   const collection = await tokens();
   const count = await collection.countDocuments(
     { token_hash: hashToken(raw), expires_at: { $gt: new Date() } },

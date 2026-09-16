@@ -215,7 +215,9 @@ export function buildSchema() {
 
   for (const [name, gen] of Object.entries(BASE_SCHEMA)) {
     const o = OVERRIDES[name] ?? {};
-    if (o.drop) continue;
+    if (o.drop) {
+      continue;
+    }
 
     const jsonSchema = {
       ...gen.validator.$jsonSchema,
@@ -233,6 +235,8 @@ export function buildSchema() {
     };
   }
 
-  for (const [name, def] of Object.entries(EXTRA_COLLECTIONS)) schema[name] = def;
+  for (const [name, def] of Object.entries(EXTRA_COLLECTIONS)) {
+    schema[name] = def;
+  }
   return schema;
 }

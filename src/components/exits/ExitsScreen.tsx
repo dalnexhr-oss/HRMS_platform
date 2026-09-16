@@ -56,8 +56,9 @@ export function ExitsScreen({
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) {
     startTransition(async () => {
       const res = await fn();
-      if (!res.ok) toast(res.error ?? 'The action failed.', 'error');
-      else {
+      if (!res.ok) {
+        toast(res.error ?? 'The action failed.', 'error');
+      } else {
         toast(okMsg, 'success');
         router.refresh();
       }
@@ -74,7 +75,9 @@ export function ExitsScreen({
       confirmLabel: 'Complete exit',
       danger: true,
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
     run(() => setExitStage(c.id, 'completed'), `${c.name}'s exit is complete.`);
   }
 
@@ -92,8 +95,9 @@ export function ExitsScreen({
             employees={employees}
             disabled={pending}
             onDone={(res) => {
-              if (!res.ok) toast(res.error ?? 'Could not start the exit.', 'error');
-              else {
+              if (!res.ok) {
+                toast(res.error ?? 'Could not start the exit.', 'error');
+              } else {
                 toast('Exit started — the employee is now on notice.', 'success');
                 router.refresh();
               }
@@ -316,8 +320,11 @@ function DocMenu({
     setBusy(true);
     const res = await generateExitDocument(caseId, kind);
     setBusy(false);
-    if (!res.ok) toast(res.error ?? 'The document could not be generated.', 'error');
-    else toast('Document generated and filed.', 'success');
+    if (!res.ok) {
+      toast(res.error ?? 'The document could not be generated.', 'error');
+    } else {
+      toast('Document generated and filed.', 'success');
+    }
   };
   return (
     <>
@@ -357,7 +364,9 @@ function ClearanceDrawer({
     let live = true;
     setItems(null);
     fetchClearanceItems(exitCase.id).then((rows) => {
-      if (live) setItems(rows);
+      if (live) {
+        setItems(rows);
+      }
     });
     return () => {
       live = false;
@@ -404,8 +413,9 @@ function ClearanceDrawer({
                     setBusy(it.id);
                     const res = await setClearanceItemCleared(it.id, next);
                     setBusy(null);
-                    if (!res.ok) toast(res.error ?? 'Could not update the item.', 'error');
-                    else {
+                    if (!res.ok) {
+                      toast(res.error ?? 'Could not update the item.', 'error');
+                    } else {
                       setItems((prev) =>
                         (prev ?? []).map((p) => (p.id === it.id ? { ...p, cleared: next } : p)),
                       );
@@ -458,7 +468,9 @@ function InterviewSection({
     let live = true;
     setRows(null);
     fetchExitInterview(exitCaseId).then((r) => {
-      if (!live) return;
+      if (!live) {
+        return;
+      }
       setRows(r);
       setDraft(Object.fromEntries(r.map((x) => [x.id, x.answer ?? ''])));
     });
@@ -487,8 +499,11 @@ function InterviewSection({
             onClick={async () => {
               setBusy(true);
               const res = await ensureExitInterview(exitCaseId);
-              if (res.ok) setRows(await fetchExitInterview(exitCaseId));
-              else toast(res.error ?? 'Could not open the interview.', 'error');
+              if (res.ok) {
+                setRows(await fetchExitInterview(exitCaseId));
+              } else {
+                toast(res.error ?? 'Could not open the interview.', 'error');
+              }
               setBusy(false);
             }}
           >
@@ -525,8 +540,9 @@ function InterviewSection({
                 rows.map((r) => ({ id: r.id, answer: draft[r.id] ?? '' })),
               );
               setBusy(false);
-              if (!res.ok) toast(res.error ?? 'Could not save the interview.', 'error');
-              else {
+              if (!res.ok) {
+                toast(res.error ?? 'Could not save the interview.', 'error');
+              } else {
                 toast('Interview saved.', 'success');
                 setRows(await fetchExitInterview(exitCaseId));
               }
@@ -561,7 +577,9 @@ function KtSection({
     let live = true;
     setRows(null);
     fetchKtItems(exitCaseId).then((r) => {
-      if (live) setRows(r);
+      if (live) {
+        setRows(r);
+      }
     });
     return () => {
       live = false;
@@ -636,8 +654,11 @@ function KtSection({
                         setBusy(true);
                         const res = await setKtStatus(r.id, nextStatus[r.status]);
                         setBusy(false);
-                        if (!res.ok) toast(res.error ?? 'Could not update the item.', 'error');
-                        else await reload();
+                        if (!res.ok) {
+                          toast(res.error ?? 'Could not update the item.', 'error');
+                        } else {
+                          await reload();
+                        }
                       }}
                       title="Click to advance"
                     >
@@ -652,8 +673,11 @@ function KtSection({
                         setBusy(true);
                         const res = await deleteKtItem(r.id);
                         setBusy(false);
-                        if (!res.ok) toast(res.error ?? 'Could not remove the item.', 'error');
-                        else await reload();
+                        if (!res.ok) {
+                          toast(res.error ?? 'Could not remove the item.', 'error');
+                        } else {
+                          await reload();
+                        }
                       }}
                     >
                       ✕

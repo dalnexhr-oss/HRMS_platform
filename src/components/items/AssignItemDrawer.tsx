@@ -44,7 +44,9 @@ export function AssignItemDrawer({
     setLoading(true);
     const rows = await fetchItemAssignments(itemId);
     // Drop the result if a newer load (different item) started meanwhile.
-    if (latestId.current !== itemId) return;
+    if (latestId.current !== itemId) {
+      return;
+    }
     setLog(rows);
     setLoading(false);
   }
@@ -80,7 +82,9 @@ export function AssignItemDrawer({
   const remaining = item ? item.total_quantity - activeAssigned : 0;
 
   function onReturn(a: ItemAssignmentRow) {
-    if (!item) return;
+    if (!item) {
+      return;
+    }
     setRowError(null);
     setBusyId(a.id);
     startTransition(async () => {
@@ -98,14 +102,18 @@ export function AssignItemDrawer({
   }
 
   async function onDeleteAssignment(a: ItemAssignmentRow) {
-    if (!item) return;
+    if (!item) {
+      return;
+    }
     const ok = await confirm({
       title: 'Delete assignment',
       message: `Remove this record${a.person_name ? ` for ${a.person_name}` : ''} (${a.quantity})? If it wasn't returned, the stock is freed.`,
       confirmLabel: 'Delete',
       danger: true,
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
     setRowError(null);
     setBusyId(a.id);
     startTransition(async () => {
@@ -171,11 +179,10 @@ export function AssignItemDrawer({
                   </div>
                   <div className="f">
                     <label>Assigned date</label>
-                    {/* Floor is today (IST), because handing stock over is an
-                        act, not a record: a back-dated assignment claims the
-                        item left the store on a day the log can no longer
-                        corroborate. Left blank the column default — also
-                        today — applies. assignItem re-checks the floor. */}
+                    {/*
+                     * Assignments cannot be backdated. Blank uses today's date; assignItem
+                     * validates the same bound.
+                     */}
                     <input
                       name="assigned_date"
                       type="date"

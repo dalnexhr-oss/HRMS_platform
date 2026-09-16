@@ -43,8 +43,12 @@ export async function getStatutoryRows(periodMonth: string): Promise<StatutoryRo
     .select('id')
     .eq('period_month', start)
     .maybeSingle<{ id: string }>();
-  if (runErr) throw new Error(`Statutory: could not load the payroll run: ${runErr.message}`);
-  if (!run) return [];
+  if (runErr) {
+    throw new Error(`Statutory: could not load the payroll run: ${runErr.message}`);
+  }
+  if (!run) {
+    return [];
+  }
 
   const { data, error } = await dbc
     .from('payslips')
@@ -54,7 +58,9 @@ export async function getStatutoryRows(periodMonth: string): Promise<StatutoryRo
        employees(code, full_name, pf_uan, esic_number, branches(state))`,
     )
     .eq('payroll_run_id', run.id);
-  if (error) throw new Error(`Statutory: could not load payslips: ${error.message}`);
+  if (error) {
+    throw new Error(`Statutory: could not load payslips: ${error.message}`);
+  }
 
   return (data ?? [])
     .map((p: any): StatutoryRow => ({
@@ -84,13 +90,8 @@ export async function getStatutoryRows(periodMonth: string): Promise<StatutoryRo
  * A DRAFT — reconcile against the EPFO portal before uploading.
  */
 /**
- * Make a value safe to place in a #~#-delimited, newline-separated ECR record.
- *
- * employees.full_name is free text that any staff role can set. A name
- * containing '#~#' would shift every later field of that member's row (moving
- * wages into the contribution columns), and an embedded newline would inject an
- * entire extra member row into a statutory filing uploaded to EPFO. Strip the
- * delimiter and all line breaks rather than trusting the input.
+ * Strip the ECR delimiter and line breaks from free text so one field cannot shift columns or
+ * inject another member record.
  */
 function ecrField(v: unknown): string {
   return String(v ?? '')
@@ -104,7 +105,10 @@ export function buildPfEcr(rows: StatutoryRow[], periodMonth: string): string {
   const nDays = daysInMonth(periodMonth);
   const lines: string[] = [];
   for (const r of rows) {
-    if (r.pfEmployee <= 0) continue; // not a PF member this month
+    if (r.pfEmployee <= 0) {
+      // not a PF member this month
+      continue;
+    }
     const epfWages = Math.round(r.basicEarned);
     const epsWages = Math.min(epfWages, epsCeiling);
     const eps = Math.round(epsWages * epsRate);
@@ -176,7 +180,9 @@ export async function buildEsicXlsx(
   header(hr);
   ws.views = [{ state: 'frozen', ySplit: headerRow }];
   for (const r of rows) {
-    if (r.esicEmployee <= 0) continue;
+    if (r.esicEmployee <= 0) {
+      continue;
+    }
     ws.addRow({
       ip: safeText(r.esicNumber ?? ''),
       name: safeText(r.name),
@@ -186,7 +192,9 @@ export async function buildEsicXlsx(
       erc: Math.round(r.esicEmployer),
     });
   }
-  for (const c of [4, 5, 6]) ws.getColumn(c).numFmt = '#,##0';
+  for (const c of [4, 5, 6]) {
+    ws.getColumn(c).numFmt = '#,##0';
+  }
   return bytes(wb);
 }
 

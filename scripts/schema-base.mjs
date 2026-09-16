@@ -392,6 +392,12 @@ export const BASE_SCHEMA = {
           corrected_by: {
             bsonType: ['string', 'null'],
           },
+          auto_close_source: {
+            enum: ['scheduled', 'manual', null],
+          },
+          auto_closed_at: {
+            bsonType: ['date', 'null'],
+          },
           created_at: {
             bsonType: 'date',
           },
@@ -1661,6 +1667,11 @@ export const BASE_SCHEMA = {
           },
           antivirus: {
             bsonType: ['string', 'null'],
+          },
+          qr_url: {
+            bsonType: ['string', 'null'],
+            pattern: '^https?://',
+            maxLength: 1024,
           },
           created_at: {
             bsonType: 'date',

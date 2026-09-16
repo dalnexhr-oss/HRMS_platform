@@ -131,7 +131,9 @@ function BranchManageRow({
       confirmLabel: 'Delete',
       danger: true,
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
     startTransition(async () => {
       const res = await deleteBranch(branch.id);
       if (!res.ok) {
@@ -269,10 +271,7 @@ function BranchLocationRow({
         />
       </div>
 
-      {/* Three across, not .f-row's two. auto-fit rather than a fixed count so
-          it collapses on a phone on its own — an inline grid-template-columns
-          would otherwise beat the 640px rule in globals.css that does that for
-          .f-row. */}
+      {/* Use auto-fit so this three-column layout also collapses on narrow screens. */}
       <div
         className="f-row"
         style={{
@@ -325,10 +324,8 @@ function BranchLocationRow({
   );
 }
 
-// Settings are jsonb — the stored TYPE must survive the round trip. Saving
-// week_off_weekdays ([0,6]) back as the string "0,6" breaks numberList() in
-// week-off.ts and silently reverts the whole week-off schedule to defaults,
-// so each row edits in the shape it was stored in.
+// Preserve each setting's JSON type. For example, week_off_weekdays must remain a number array,
+// not a comma-separated string.
 type SettingKind = 'number' | 'boolean' | 'number-list' | 'json' | 'text';
 
 /**
@@ -359,18 +356,30 @@ const knownKinds: Record<string, SettingKind> = {
 };
 
 function kindOf(value: unknown): SettingKind {
-  if (typeof value === 'number') return 'number';
-  if (typeof value === 'boolean') return 'boolean';
-  if (Array.isArray(value) && value.every((v) => typeof v === 'number')) return 'number-list';
-  if (value !== null && typeof value === 'object') return 'json';
+  if (typeof value === 'number') {
+    return 'number';
+  }
+  if (typeof value === 'boolean') {
+    return 'boolean';
+  }
+  if (Array.isArray(value) && value.every((v) => typeof v === 'number')) {
+    return 'number-list';
+  }
+  if (value !== null && typeof value === 'object') {
+    return 'json';
+  }
   return 'text';
 }
 
 function displayValue(value: unknown, kind: SettingKind): string {
   // A known-kind override may disagree with a corrupted stored value — render
   // what is there and let parseBack() coerce it right on the next save.
-  if (kind === 'number-list' && Array.isArray(value)) return value.join(', ');
-  if (kind === 'json' && value !== null && typeof value === 'object') return JSON.stringify(value);
+  if (kind === 'number-list' && Array.isArray(value)) {
+    return value.join(', ');
+  }
+  if (kind === 'json' && value !== null && typeof value === 'object') {
+    return JSON.stringify(value);
+  }
   return String(value ?? '');
 }
 
@@ -382,13 +391,17 @@ function parseBack(
   switch (kind) {
     case 'number': {
       const n = Number(trimmed);
-      if (trimmed === '' || !Number.isFinite(n)) return { ok: false, error: 'Enter a number.' };
+      if (trimmed === '' || !Number.isFinite(n)) {
+        return { ok: false, error: 'Enter a number.' };
+      }
       return { ok: true, value: n };
     }
     case 'boolean':
       return { ok: true, value: trimmed === 'true' };
     case 'number-list': {
-      if (trimmed === '') return { ok: true, value: [] };
+      if (trimmed === '') {
+        return { ok: true, value: [] };
+      }
       const parts = trimmed.split(',').map((p) => Number(p.trim()));
       if (parts.some((n) => !Number.isInteger(n))) {
         return { ok: false, error: 'Enter whole numbers separated by commas, e.g. 0, 6.' };

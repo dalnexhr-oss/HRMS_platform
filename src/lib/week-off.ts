@@ -18,7 +18,9 @@ const saturday = 6;
 
 // Parse a settings jsonb value into a number[], or null when unusable.
 function numberList(value: unknown): number[] | null {
-  if (!Array.isArray(value)) return null;
+  if (!Array.isArray(value)) {
+    return null;
+  }
   const out = value.map(Number).filter((n) => Number.isFinite(n));
   return out.length === value.length ? out : null;
 }
@@ -47,7 +49,9 @@ function utcDate(dateISO: string): Date | null {
  */
 export function weekdayOrdinal(dateISO: string): number | null {
   const d = utcDate(dateISO);
-  if (!d) return null;
+  if (!d) {
+    return null;
+  }
   return Math.floor((d.getUTCDate() - 1) / 7) + 1;
 }
 
@@ -63,13 +67,19 @@ export function isScheduledWeekOff(
   policy: WeekOffPolicy = defaultWeekOffPolicy,
 ): boolean {
   const d = utcDate(dateISO);
-  if (!d) return false;
+  if (!d) {
+    return false;
+  }
   const dow = d.getUTCDay();
-  if (!policy.weekOffWeekdays.includes(dow)) return false;
+  if (!policy.weekOffWeekdays.includes(dow)) {
+    return false;
+  }
 
   if (dow === saturday) {
     const ordinal = weekdayOrdinal(dateISO);
-    if (ordinal !== null && policy.workingSaturdays.includes(ordinal)) return false;
+    if (ordinal !== null && policy.workingSaturdays.includes(ordinal)) {
+      return false;
+    }
   }
   return true;
 }
@@ -92,7 +102,9 @@ export function countLeaveDays(
 
   const start = utcDate(startISO);
   const end = utcDate(endISO);
-  if (!start || !end || end.getTime() < start.getTime()) return 0;
+  if (!start || !end || end.getTime() < start.getTime()) {
+    return 0;
+  }
 
   // Enumerate the span, flagging which days are non-working.
   const days: { iso: string; off: boolean }[] = [];
@@ -104,15 +116,21 @@ export function countLeaveDays(
   }
 
   const workingCount = days.filter((d) => !d.off).length;
-  if (!sandwich) return workingCount;
+  if (!sandwich) {
+    return workingCount;
+  }
 
   // Sandwich: charge every day from the FIRST to the LAST working day inclusive,
   // so interior non-working days are bridged and the edges are still free. When
   // the span contains no working day at all there is nothing to bridge.
   const first = days.findIndex((d) => !d.off);
-  if (first === -1) return 0;
+  if (first === -1) {
+    return 0;
+  }
   let last = days.length - 1;
-  while (last > first && days[last].off) last -= 1;
+  while (last > first && days[last].off) {
+    last -= 1;
+  }
   return last - first + 1;
 }
 
@@ -123,14 +141,18 @@ export function weekOffDaysInMonth(
 ): number[] {
   const ym = periodMonth.slice(0, 7);
   const first = utcDate(`${ym}-01`);
-  if (!first) return [];
+  if (!first) {
+    return [];
+  }
   const daysInMonth = new Date(
     Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0),
   ).getUTCDate();
 
   const out: number[] = [];
   for (let day = 1; day <= daysInMonth; day++) {
-    if (isScheduledWeekOff(`${ym}-${String(day).padStart(2, '0')}`, policy)) out.push(day);
+    if (isScheduledWeekOff(`${ym}-${String(day).padStart(2, '0')}`, policy)) {
+      out.push(day);
+    }
   }
   return out;
 }
@@ -140,7 +162,9 @@ export function describePolicy(policy: WeekOffPolicy = defaultWeekOffPolicy): st
   const names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const off = policy.weekOffWeekdays.filter((d) => d !== saturday).map((d) => names[d] ?? d);
   const parts: string[] = [];
-  if (off.length) parts.push(`${off.join(', ')} off`);
+  if (off.length) {
+    parts.push(`${off.join(', ')} off`);
+  }
   if (policy.weekOffWeekdays.includes(saturday)) {
     parts.push(
       policy.workingSaturdays.length

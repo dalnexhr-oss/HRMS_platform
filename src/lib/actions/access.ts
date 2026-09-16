@@ -28,8 +28,12 @@ async function targetRole(
     .select('role')
     .eq('id', userId)
     .maybeSingle<{ role: AppRole }>();
-  if (error) return { ok: false, error: `Could not read that account: ${error.message}` };
-  if (!data) return { ok: false, error: 'That account no longer exists.' };
+  if (error) {
+    return { ok: false, error: `Could not read that account: ${error.message}` };
+  }
+  if (!data) {
+    return { ok: false, error: 'That account no longer exists.' };
+  }
   return { ok: true, role: data.role };
 }
 
@@ -38,12 +42,16 @@ export async function fetchUserTabAccess(
   userId: string,
 ): Promise<{ ok: true; access: TabAccess } | { ok: false; error: string }> {
   const gate = await requireRoles(accessAdminRoles, 'Viewing tab access');
-  if (!gate.ok) return { ok: false, error: gate.error };
+  if (!gate.ok) {
+    return { ok: false, error: gate.error };
+  }
 
   try {
     const users = await usersCollection();
     const user = await users.findOne({ _id: userId }, { projection: { tab_access: 1 } });
-    if (!user) return { ok: false, error: 'That account no longer exists.' };
+    if (!user) {
+      return { ok: false, error: 'That account no longer exists.' };
+    }
     return { ok: true, access: (user.tab_access as TabAccess) ?? {} };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Could not read tab access.' };
@@ -60,13 +68,19 @@ export async function setUserTabAccess(
   allowed: boolean,
 ): Promise<ActionResult> {
   const gate = await requireRoles(accessAdminRoles, 'Changing tab access');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
-  if (!navItems.some((n) => n.slug === slug)) return { ok: false, error: 'That is not a tab.' };
+  if (!navItems.some((n) => n.slug === slug)) {
+    return { ok: false, error: 'That is not a tab.' };
+  }
 
   const dbc = await createClient();
   const target = await targetRole(dbc, userId);
-  if (!target.ok) return target;
+  if (!target.ok) {
+    return target;
+  }
 
   if (!isConfigurableRole(target.role)) {
     return {
@@ -105,7 +119,9 @@ export async function setUserTabAccess(
 /** Restore one account to every tab its role is statically entitled to. */
 export async function resetUserTabAccess(userId: string): Promise<ActionResult> {
   const gate = await requireRoles(accessAdminRoles, 'Resetting tab access');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   try {
     const users = await usersCollection();

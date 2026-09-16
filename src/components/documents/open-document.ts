@@ -6,7 +6,9 @@ import { getDocumentUrl } from '@/lib/actions/documents';
 // the noopener feature because it makes window.open return null; clear opener manually instead.
 export async function openDocument(id: string, onError: (message: string) => void): Promise<void> {
   const win = window.open('about:blank', '_blank');
-  if (win) win.opener = null;
+  if (win) {
+    win.opener = null;
+  }
 
   const res = await getDocumentUrl(id);
   if (!res.ok || !res.url) {
@@ -15,6 +17,10 @@ export async function openDocument(id: string, onError: (message: string) => voi
     return;
   }
 
-  if (win) win.location.href = res.url;
-  else window.location.href = res.url; // popup blocked outright — navigate in place
+  if (win) {
+    win.location.href = res.url;
+  } else {
+    // popup blocked outright — navigate in place
+    window.location.href = res.url;
+  }
 }

@@ -97,8 +97,11 @@ function PolicyItem({
   const toggle = () => {
     startTransition(async () => {
       const res = await setPolicyPublished(policy.id, !policy.published);
-      if (!res.ok) toast(res.error ?? 'Could not update the policy.', 'error');
-      else toast(policy.published ? 'Policy unpublished.' : 'Policy published.', 'success');
+      if (!res.ok) {
+        toast(res.error ?? 'Could not update the policy.', 'error');
+      } else {
+        toast(policy.published ? 'Policy unpublished.' : 'Policy published.', 'success');
+      }
     });
   };
 
@@ -109,11 +112,16 @@ function PolicyItem({
       confirmLabel: 'Delete',
       danger: true,
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
     startTransition(async () => {
       const res = await deletePolicy(policy.id);
-      if (!res.ok) toast(res.error ?? 'Could not delete the policy.', 'error');
-      else toast('Policy deleted.', 'success');
+      if (!res.ok) {
+        toast(res.error ?? 'Could not delete the policy.', 'error');
+      } else {
+        toast('Policy deleted.', 'success');
+      }
     });
   };
 
@@ -180,7 +188,9 @@ function PolicyForm({
       const res = editing ? await updatePolicy(editing.id, formData) : await createPolicy(formData);
       if (res.ok) {
         toast(editing ? 'Policy updated.' : 'Policy saved.', 'success');
-        if (editing) onDone();
+        if (editing) {
+          onDone();
+        }
       }
       return res;
     },

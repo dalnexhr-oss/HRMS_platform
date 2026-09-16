@@ -28,12 +28,18 @@ export async function provisionLeaveYear(
   year: number,
 ): Promise<ActionResult & { created?: number }> {
   const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Provisioning leave balances');
-  if (!gate.ok) return gate;
-  if (!validYear(year)) return { ok: false, error: 'Enter a valid year.' };
+  if (!gate.ok) {
+    return gate;
+  }
+  if (!validYear(year)) {
+    return { ok: false, error: 'Enter a valid year.' };
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc.rpc('fn_provision_leave_balances', { p_year: year });
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
 
   const created = Number(data ?? 0);
   const { profile } = await getSession();
@@ -60,19 +66,28 @@ export async function adjustLeaveBalance(input: {
   reason: string;
 }): Promise<ActionResult> {
   const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Adjusting a leave balance');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const reason = String(input.reason ?? '').trim();
   const delta = Number(input.delta);
 
-  if (!uuidRe.test(String(input.employeeId ?? '')))
+  if (!uuidRe.test(String(input.employeeId ?? ''))) {
     return { ok: false, error: 'Pick an employee.' };
-  if (!validYear(Number(input.year))) return { ok: false, error: 'Enter a valid year.' };
+  }
+  if (!validYear(Number(input.year))) {
+    return { ok: false, error: 'Enter a valid year.' };
+  }
   if (!Number.isFinite(delta) || delta === 0) {
     return { ok: false, error: 'Enter a non-zero number of days (negative to debit).' };
   }
-  if (Math.abs(delta) > 365) return { ok: false, error: 'That adjustment is implausibly large.' };
-  if (!reason) return { ok: false, error: 'A reason is required for a manual adjustment.' };
+  if (Math.abs(delta) > 365) {
+    return { ok: false, error: 'That adjustment is implausibly large.' };
+  }
+  if (!reason) {
+    return { ok: false, error: 'A reason is required for a manual adjustment.' };
+  }
 
   const dbc = await createClient();
   const year = Number(input.year);

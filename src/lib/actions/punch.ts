@@ -1,42 +1,19 @@
 // Browser-side wrappers for the /api/punch routes.
 // Server work lives in @/lib/punch — this file only speaks HTTP.
 
-export interface PunchStatusResponse {
-  status: 'in' | 'out';
-  lastPunchAt: string | null;
-  lastKind: 'in' | 'out' | null;
-  lastWithinGeofence: boolean | null;
-  // Where that punch was taken, when the device shared it.
-  lastLat: number | null;
-  lastLng: number | null;
-  workedMinutes: number;
-  geofenceConfigured: boolean;
-  // Server policy: refuse a punch that shares no location at all.
-  requireLocation: boolean;
-}
+import type {
+  PunchStatus as PunchStatusResponse,
+  PunchRecord,
+  PunchResult,
+  PunchCoords,
+} from '@/types/punch';
 
-export interface PunchRecord {
-  type: 'in' | 'out';
-  timestamp: string;
-  withinGeofence: boolean | null;
-  // Coordinates of the punch, or null when the device shared none.
-  lat: number | null;
-  lng: number | null;
-}
-
-export interface PunchResult {
-  kind: 'in' | 'out';
-  punchedAt: string;
-  withinGeofence: boolean | null;
-  workedMinutes: number;
-}
-
-// Coordinates are optional everywhere — a punch without them is still valid.
-export interface PunchCoords {
-  latitude: number;
-  longitude: number;
-  accuracy?: number | null;
-}
+export type {
+  PunchStatus as PunchStatusResponse,
+  PunchRecord,
+  PunchResult,
+  PunchCoords,
+} from '@/types/punch';
 
 async function unwrap<T>(response: Response, fallback: string): Promise<T> {
   if (!response.ok) {
@@ -93,8 +70,12 @@ export type LocationResult =
  * prompt and let the location request determine the result.
  */
 export async function locationPermission(): Promise<PermissionState | 'unsupported'> {
-  if (typeof navigator === 'undefined' || !navigator.geolocation) return 'unsupported';
-  if (!navigator.permissions?.query) return 'prompt';
+  if (typeof navigator === 'undefined' || !navigator.geolocation) {
+    return 'unsupported';
+  }
+  if (!navigator.permissions?.query) {
+    return 'prompt';
+  }
   try {
     const status = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
     return status.state;

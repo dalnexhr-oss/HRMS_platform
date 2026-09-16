@@ -6,20 +6,28 @@ export type MoneyInput = Decimal128 | number | string | null | undefined;
 
 // Paise for a stored/typed value. Exact; throws on nonsense rather than NaN.
 export function toPaise(value: MoneyInput): number {
-  if (value === null || value === undefined) return 0;
+  if (value === null || value === undefined) {
+    return 0;
+  }
 
   const text = typeof value === 'string' ? value.trim() : value.toString();
-  if (text === '') return 0;
+  if (text === '') {
+    return 0;
+  }
 
   const match = /^(-)?(\d*)(?:\.(\d*))?$/.exec(text);
-  if (!match) throw new TypeError(`Not a money value: ${text}`);
+  if (!match) {
+    throw new TypeError(`Not a money value: ${text}`);
+  }
 
   const [, sign, whole = '0', frac = ''] = match;
 
   // Round to two decimal places using symmetric half-away-from-zero rounding.
   const digits = (frac + '000').slice(0, 3);
   let amount = Number(whole || '0') * 100 + Number(digits.slice(0, 2));
-  if (Number(digits[2]) >= 5) amount += 1;
+  if (Number(digits[2]) >= 5) {
+    amount += 1;
+  }
 
   return sign === '-' ? -amount : amount;
 }
@@ -54,7 +62,9 @@ export const toDecimal = toMoney;
  * Returns null for absent or non-finite values.
  */
 export function toCoordinate(value: number | null | undefined): Decimal128 | null {
-  if (value === null || value === undefined || !Number.isFinite(value)) return null;
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return null;
+  }
   return Decimal128.fromString(value.toFixed(6));
 }
 
@@ -94,7 +104,9 @@ export function subPaise(from: MoneyInput, ...values: MoneyInput[]): number {
  * half-away-from-zero rounding to preserve sign-agnostic symmetry on deductions.
  */
 export function scalePaise(value: MoneyInput, ratio: number): number {
-  if (!Number.isFinite(ratio)) throw new TypeError(`Ratio must be finite, got ${ratio}`);
+  if (!Number.isFinite(ratio)) {
+    throw new TypeError(`Ratio must be finite, got ${ratio}`);
+  }
   const exact = toPaise(value) * ratio;
   return exact < 0 ? -Math.round(-exact) : Math.round(exact);
 }
@@ -109,7 +121,9 @@ export function roundToRupee(paise: number): number {
 
 /** Split proportionally without losing a paisa — the remainder goes to the first. */
 export function dividePaise(total: number, parts: number): number[] {
-  if (parts <= 0) return [];
+  if (parts <= 0) {
+    return [];
+  }
   const base = Math.floor(total / parts);
   const out = new Array<number>(parts).fill(base);
   out[0] += total - base * parts;

@@ -47,7 +47,9 @@ export async function hashPassword(password: string): Promise<string> {
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   try {
     const [scheme, n, r, p, saltB64, hashB64] = stored.split('$');
-    if (scheme !== 'scrypt') return false;
+    if (scheme !== 'scrypt') {
+      return false;
+    }
 
     const salt = Buffer.from(saltB64, 'base64');
     const expected = Buffer.from(hashB64, 'base64');
@@ -69,8 +71,12 @@ export async function verifyPassword(password: string, stored: string): Promise<
 // measurably helps; character-class rules push people towards "Password1!" and were dropped
 // deliberately.
 export function validatePassword(password: string): string | null {
-  if (password.length < 10) return 'Use at least 10 characters.';
-  if (password.length > 200) return 'That password is too long.';
+  if (password.length < 10) {
+    return 'Use at least 10 characters.';
+  }
+  if (password.length > 200) {
+    return 'That password is too long.';
+  }
   return null;
 }
 

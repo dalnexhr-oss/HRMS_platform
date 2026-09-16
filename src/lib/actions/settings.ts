@@ -8,7 +8,9 @@ import { requireRoles, wroteNothing } from '@/lib/actions/guards';
 // and reimbursement settings.
 export async function updateSetting(key: string, value: unknown) {
   const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Changing a setting');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -16,7 +18,9 @@ export async function updateSetting(key: string, value: unknown) {
     .upsert({ key, value }, { onConflict: 'key' })
     .select('key');
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,

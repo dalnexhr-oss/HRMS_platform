@@ -17,15 +17,15 @@ import { startOnboarding } from '@/lib/actions/onboarding';
 // Transient failures worth a second try; a missing account is not one.
 const loginUpdateAttempts = 3;
 
-// Enable or disable sign-in for every login account linked to an employee. Reversible by design: it
-// mirrors deactivate/reactivate and leaves the login → employee link intact for when they come
-// back. A real failure to update an existing account IS reported, so the caller never claims to
-// have removed access it could not remove.
+// Enable or disable every login linked to the employee. Preserve links for reactivation and report
+// failures to update existing accounts.
 async function setEmployeeLoginAccess(
   employeeId: string,
   enabled: boolean,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (!isServiceRoleConfigured()) return { ok: true };
+  if (!isServiceRoleConfigured()) {
+    return { ok: true };
+  }
 
   try {
     const admin = createServiceClient();
@@ -54,14 +54,8 @@ async function setEmployeeLoginAccess(
 
       for (let attempt = 1; attempt <= loginUpdateAttempts; attempt++) {
         try {
-          // Access is users.disabled, which getSession() re-checks on every
-          // request.
-          //
-          // Disabling ALSO bumps token_version, and that half matters more here
-          // than the flag does: these sessions last a year, so without the bump
-          // a revoked employee would keep a working cookie long after their
-          // access was withdrawn. Enabling does not bump — restoring access
-          // should not sign the person out of a device they still hold.
+          // Disabling bumps token_version to revoke existing cookies. Re-enabling preserves the
+          // current version; getSession rechecks disabled on every request.
           const result = await users.updateOne(
             { _id: p.id as string },
             enabled
@@ -74,10 +68,7 @@ async function setEmployeeLoginAccess(
             break;
           }
 
-          // TERMINAL, not transient: the account is gone, and asking again
-          // twice more cannot bring it back. The retry loop is here for a
-          // dropped connection, and treating "no such row" as retryable just
-          // spent three seconds arriving at the same answer.
+          // A missing account is not retryable; reserve retries for transient database failures.
           lastError = 'That login account no longer exists.';
           break;
         } catch (e) {
@@ -90,7 +81,9 @@ async function setEmployeeLoginAccess(
         }
       }
 
-      if (lastError) return { ok: false, error: lastError };
+      if (lastError) {
+        return { ok: false, error: lastError };
+      }
     }
 
     return { ok: true };
@@ -111,10 +104,14 @@ async function setEmployeeLoginAccess(
  */
 function moneyPaise(v: FormDataEntryValue | null): number | null {
   const cleaned = String(v ?? '').replace(/[^0-9.-]/g, '');
-  if (cleaned === '' || cleaned === '-' || cleaned === '.') return 0;
+  if (cleaned === '' || cleaned === '-' || cleaned === '.') {
+    return 0;
+  }
   // toPaise() accepts only this shape; anything else throws, and a thrown
   // TypeError inside a Server Action reaches the user as an unhandled 500.
-  if (!/^-?\d*(?:\.\d*)?$/.test(cleaned)) return null;
+  if (!/^-?\d*(?:\.\d*)?$/.test(cleaned)) {
+    return null;
+  }
   return toPaise(cleaned);
 }
 
@@ -128,9 +125,12 @@ function parseAadhaar(
   const raw = String(v ?? '')
     .replace(/[\s-]/g, '')
     .trim();
-  if (!raw) return { ok: true, value: null };
-  if (!/^\d{12}$/.test(raw))
+  if (!raw) {
+    return { ok: true, value: null };
+  }
+  if (!/^\d{12}$/.test(raw)) {
     return { ok: false, error: 'Aadhaar number must be exactly 12 digits.' };
+  }
   return { ok: true, value: raw };
 }
 
@@ -146,7 +146,9 @@ function parseIfsc(
     .replace(/\s/g, '')
     .toUpperCase()
     .trim();
-  if (!raw) return { ok: true, value: null };
+  if (!raw) {
+    return { ok: true, value: null };
+  }
   if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(raw)) {
     return {
       ok: false,
@@ -158,14 +160,8 @@ function parseIfsc(
 }
 
 /**
- * Normalise a PAN: strip spaces, upper-case, require the standard 10-char shape
- * (5 letters + 4 digits + 1 letter). Empty is allowed (null).
- *
- * Mirrors the format check the employees validator
- * enforces as `^[A-Z]{5}[0-9]{4}[A-Z]$`. Without this the raw field went
- * straight to the database, so a lower-case or half-typed PAN — 'abcde1234f',
- * or a stray trailing space — was refused there and surfaced as the unhelpful
- * "new row violates check constraint".
+ * Normalize PAN by removing spaces and uppercasing. Accept blank as null; otherwise require five
+ * letters, four digits, and one letter, matching the collection validator.
  */
 function parsePan(
   v: FormDataEntryValue | null,
@@ -174,7 +170,9 @@ function parsePan(
     .replace(/\s/g, '')
     .toUpperCase()
     .trim();
-  if (!raw) return { ok: true, value: null };
+  if (!raw) {
+    return { ok: true, value: null };
+  }
   if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(raw)) {
     return {
       ok: false,
@@ -215,7 +213,9 @@ function parseBankAndEmergency(formData: FormData):
     }
   | { ok: false; error: string } {
   const ifsc = parseIfsc(formData.get('bank_ifsc'));
-  if (!ifsc.ok) return ifsc;
+  if (!ifsc.ok) {
+    return ifsc;
+  }
   return {
     ok: true,
     fields: {
@@ -247,7 +247,9 @@ function parseSalary(
       error: 'Enter the salary amounts as plain numbers, e.g. 30000 or 30000.50.',
     };
   }
-  if (gross <= 0) return { ok: false, error: 'Gross monthly must be greater than zero.' };
+  if (gross <= 0) {
+    return { ok: false, error: 'Gross monthly must be greater than zero.' };
+  }
   if (basic + hra > gross) {
     return {
       ok: false,
@@ -266,23 +268,22 @@ function parseSalary(
 }
 
 /**
- * Load one employee's full editable fields for the edit drawer. Although this
- * is a read, it returns Aadhaar, PAN, bank details and salary — so it is gated
- * like the write that follows it, not left to the employees read policy alone
- * (which lets every portal reader read all employees).
+ * The edit form includes identity, bank, and salary details. Require write-level access even
+ * though this operation only reads.
  */
 export async function fetchEmployeeForEdit(code: string): Promise<EmployeeEditRow | null> {
   const gate = await requireStaff('Loading an employee for editing');
-  if (!gate.ok) return null;
+  if (!gate.ok) {
+    return null;
+  }
   return getEmployeeForEdit(code);
 }
 
 type DbClient = Awaited<ReturnType<typeof createClient>>;
 
 /**
- * Resolve a department NAME (from the combobox) to its id within the given branch,
- * creating the department if it doesn't exist yet. Empty name → null (optional field).
- * Matches case-insensitively first so 'sales'/'Sales' don't spawn duplicates.
+ * Resolve a department within a branch, creating it if necessary. Match names case-insensitively;
+ * blank means no department.
  */
 
 /**
@@ -302,7 +303,9 @@ async function resolveBranch(
   const selected = String(formData.get('branch') ?? '').trim();
 
   if (selected !== newBranch) {
-    if (!selected) return { ok: false, error: 'Pick a branch.' };
+    if (!selected) {
+      return { ok: false, error: 'Pick a branch.' };
+    }
     // Match branch names case-insensitively and use the stored canonical name in the employee
     // record.
     const { data, error } = await dbc
@@ -310,14 +313,20 @@ async function resolveBranch(
       .select('id, name')
       .ilike('name', selected)
       .maybeSingle();
-    if (error) return { ok: false, error: error.message };
-    if (!data) return { ok: false, error: `Unknown branch: ${selected}` };
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+    if (!data) {
+      return { ok: false, error: `Unknown branch: ${selected}` };
+    }
     return { ok: true, id: data.id, name: data.name };
   }
 
   const name = String(formData.get('branch_new_name') ?? '').trim();
   const state = String(formData.get('branch_new_state') ?? '').trim();
-  if (!name) return { ok: false, error: 'Enter the new branch name.' };
+  if (!name) {
+    return { ok: false, error: 'Enter the new branch name.' };
+  }
   // States mirrors the branches validator's state enum; the validator
   // still has the final word — a mismatch surfaces as a DB error below.
   if (!(States as readonly string[]).includes(state)) {
@@ -331,8 +340,12 @@ async function resolveBranch(
     .select('id, name')
     .ilike('name', name)
     .maybeSingle();
-  if (findError) return { ok: false, error: findError.message };
-  if (found) return { ok: true, id: found.id, name: found.name };
+  if (findError) {
+    return { ok: false, error: findError.message };
+  }
+  if (found) {
+    return { ok: true, id: found.id, name: found.name };
+  }
 
   const { data: created, error } = await dbc
     .from('branches')
@@ -347,7 +360,9 @@ async function resolveBranch(
         .select('id, name')
         .ilike('name', name)
         .maybeSingle();
-      if (raced) return { ok: true, id: raced.id, name: raced.name };
+      if (raced) {
+        return { ok: true, id: raced.id, name: raced.name };
+      }
     }
     return { ok: false, error: `Could not create the branch: ${error.message}` };
   }
@@ -360,20 +375,26 @@ async function resolveDepartment(
   branchId: string,
 ): Promise<{ id: string; name: string } | null> {
   const dept = name.trim();
-  if (!dept) return null;
+  if (!dept) {
+    return null;
+  }
   const { data: found } = await dbc
     .from('departments')
     .select('id, name')
     .eq('branch_id', branchId)
     .ilike('name', dept)
     .maybeSingle();
-  if (found) return { id: found.id, name: found.name };
+  if (found) {
+    return { id: found.id, name: found.name };
+  }
   const { data: created, error } = await dbc
     .from('departments')
     .insert({ name: dept, branch_id: branchId })
     .select('id, name')
     .single();
-  if (error) throw error;
+  if (error) {
+    throw error;
+  }
   return { id: created!.id, name: created!.name };
 }
 
@@ -396,34 +417,52 @@ async function provisionCurrentLeaveYear(
 
 export async function createEmployee(formData: FormData) {
   const gate = await requireStaff('Adding an employee');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   // required fields (fail before touching the network)
   const code = String(formData.get('code') ?? '').trim();
   const fullName = String(formData.get('full_name') ?? '').trim();
   const dateOfJoining = String(formData.get('date_of_joining') ?? '').trim();
-  if (!code) return { ok: false, error: 'Employee code is required.' };
-  if (!fullName) return { ok: false, error: 'Full name is required.' };
-  if (!dateOfJoining) return { ok: false, error: 'Date of joining is required.' };
+  if (!code) {
+    return { ok: false, error: 'Employee code is required.' };
+  }
+  if (!fullName) {
+    return { ok: false, error: 'Full name is required.' };
+  }
+  if (!dateOfJoining) {
+    return { ok: false, error: 'Date of joining is required.' };
+  }
 
   const salary = parseSalary(formData);
-  if (!salary.ok) return salary;
+  if (!salary.ok) {
+    return salary;
+  }
 
   const aadhaar = parseAadhaar(formData.get('aadhaar'));
-  if (!aadhaar.ok) return aadhaar;
+  if (!aadhaar.ok) {
+    return aadhaar;
+  }
 
   const pan = parsePan(formData.get('pan'));
-  if (!pan.ok) return pan;
+  if (!pan.ok) {
+    return pan;
+  }
 
   const extra = parseBankAndEmergency(formData);
-  if (!extra.ok) return extra;
+  if (!extra.ok) {
+    return extra;
+  }
 
   const dbc = await createClient();
 
   // The branch arrives as a NAME (or the add-new sentinel); resolve to an id,
   // creating the branch when that was explicitly requested.
   const branch = await resolveBranch(dbc, formData);
-  if (!branch.ok) return branch;
+  if (!branch.ok) {
+    return branch;
+  }
 
   let department: { id: string; name: string } | null;
   try {
@@ -485,9 +524,8 @@ export async function createEmployee(formData: FormData) {
     };
   }
 
-  // Kick off the onboarding checklist from the newest active template. BEST-EFFORT:
-  // a template that does not exist yet must not fail
-  // a saved employee — HR can start it by hand from /onboarding.
+  // Start onboarding from the newest active template when available. A missing template does not
+  // undo the employee; HR can start the checklist later.
   const newEmployeeId = (data![0] as { id: string }).id;
   await startOnboarding(newEmployeeId).catch(() => undefined);
 
@@ -495,10 +533,8 @@ export async function createEmployee(formData: FormData) {
   // real balance instead of warning "no balance on record".
   await provisionCurrentLeaveYear(dbc).catch(() => undefined);
 
-  // Welcome email — BEST-EFFORT and last: it is sent through our own SMTP
-  // (src/lib/email.ts) and a mail failure must never undo a saved employee. When
-  // SMTP is unconfigured this no-ops with a console warning, exactly like
-  // notifications without a service key.
+  // Send the welcome email after saving. Missing SMTP configuration or delivery failure must not
+  // undo the employee record.
   const welcomeTo =
     (formData.get('email_official') as string) || (formData.get('email_personal') as string) || '';
   if (welcomeTo.trim() && isEmailConfigured()) {
@@ -529,31 +565,49 @@ export async function createEmployee(formData: FormData) {
  */
 export async function updateEmployee(formData: FormData) {
   const gate = await requireStaff('Updating an employee');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const originalCode = String(formData.get('original_code') ?? '').trim();
   const fullName = String(formData.get('full_name') ?? '').trim();
   const dateOfJoining = String(formData.get('date_of_joining') ?? '').trim();
-  if (!originalCode) return { ok: false, error: 'Which employee to update is missing.' };
-  if (!fullName) return { ok: false, error: 'Full name is required.' };
-  if (!dateOfJoining) return { ok: false, error: 'Date of joining is required.' };
+  if (!originalCode) {
+    return { ok: false, error: 'Which employee to update is missing.' };
+  }
+  if (!fullName) {
+    return { ok: false, error: 'Full name is required.' };
+  }
+  if (!dateOfJoining) {
+    return { ok: false, error: 'Date of joining is required.' };
+  }
 
   const salary = parseSalary(formData);
-  if (!salary.ok) return salary;
+  if (!salary.ok) {
+    return salary;
+  }
 
   const aadhaar = parseAadhaar(formData.get('aadhaar'));
-  if (!aadhaar.ok) return aadhaar;
+  if (!aadhaar.ok) {
+    return aadhaar;
+  }
 
   const pan = parsePan(formData.get('pan'));
-  if (!pan.ok) return pan;
+  if (!pan.ok) {
+    return pan;
+  }
 
   const extra = parseBankAndEmergency(formData);
-  if (!extra.ok) return extra;
+  if (!extra.ok) {
+    return extra;
+  }
 
   const dbc = await createClient();
 
   const branch = await resolveBranch(dbc, formData);
-  if (!branch.ok) return branch;
+  if (!branch.ok) {
+    return branch;
+  }
 
   let department: { id: string; name: string } | null;
   try {
@@ -622,7 +676,9 @@ export async function updateEmployee(formData: FormData) {
 /** Deactivate an employee (status -> 'inactive'). Keyed by code. */
 export async function deactivateEmployee(code: string) {
   const gate = await requireStaff('Deactivating an employee');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -631,7 +687,9 @@ export async function deactivateEmployee(code: string) {
     .eq('code', code)
     .select('id');
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,
@@ -659,7 +717,9 @@ export async function deactivateEmployee(code: string) {
 /** Bring a deactivated employee back onto the active roster. */
 export async function reactivateEmployee(code: string) {
   const gate = await requireStaff('Reactivating an employee');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -668,7 +728,9 @@ export async function reactivateEmployee(code: string) {
     .eq('code', code)
     .select('id');
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,

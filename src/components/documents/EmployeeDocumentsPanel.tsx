@@ -24,16 +24,17 @@ interface DocumentChain {
   history: EmployeeDocumentRow[];
 }
 
-// Group flat rows into chains by doc_group. The row with no supersession is the current one. A
-// chain can legitimately have none for a moment — replaceEmployeeDocument inserts the new version
-// before stamping the old one — so the newest version stands in rather than the whole document
-// disappearing from the panel.
+// Group versions by doc_group. During replacement, fall back to the newest row if the chain
+// temporarily has no current version.
 function toChains(rows: EmployeeDocumentRow[]): DocumentChain[] {
   const byGroup = new Map<string, EmployeeDocumentRow[]>();
   for (const r of rows) {
     const list = byGroup.get(r.docGroup);
-    if (list) list.push(r);
-    else byGroup.set(r.docGroup, [r]);
+    if (list) {
+      list.push(r);
+    } else {
+      byGroup.set(r.docGroup, [r]);
+    }
   }
   const chains: DocumentChain[] = [];
   for (const versions of byGroup.values()) {
@@ -72,7 +73,9 @@ export function EmployeeDocumentsPanel({
     }
     setRows(null);
     fetchEmployeeDocumentHistory(employee.id).then((r) => {
-      if (live) setRows(r);
+      if (live) {
+        setRows(r);
+      }
     });
     return () => {
       live = false;
@@ -88,7 +91,9 @@ export function EmployeeDocumentsPanel({
   const missing = requiredDocumentCategories.filter((c) => !heldVerified.has(c));
 
   function reload() {
-    if (!employee) return;
+    if (!employee) {
+      return;
+    }
     fetchEmployeeDocumentHistory(employee.id).then(setRows);
     router.refresh();
   }
@@ -98,8 +103,9 @@ export function EmployeeDocumentsPanel({
     startTransition(async () => {
       const res = await fn();
       setBusy(null);
-      if (!res.ok) toast(res.error ?? 'The action failed.', 'error');
-      else {
+      if (!res.ok) {
+        toast(res.error ?? 'The action failed.', 'error');
+      } else {
         toast(okMsg, 'success');
         reload();
       }
@@ -115,7 +121,9 @@ export function EmployeeDocumentsPanel({
       danger: true,
       validate: (v) => (v.trim() ? null : 'Enter what needs fixing.'),
     });
-    if (reason === null) return;
+    if (reason === null) {
+      return;
+    }
     run(
       d.id,
       () => verifyEmployeeDocument(d.id, false, reason.trim()),
@@ -132,7 +140,9 @@ export function EmployeeDocumentsPanel({
       confirmLabel: 'Delete',
       danger: true,
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
     run(d.id, () => deleteEmployeeDocument(d.id), 'Version deleted.');
   }
 

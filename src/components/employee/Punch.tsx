@@ -22,6 +22,11 @@ export function Punch({ id }: { id?: string }) {
         <span className="folio">Today</span>
       </div>
       <div className="bd">
+        {state?.lastNightSweep && (
+          <p className="punch-alert is-warn" role="alert">
+            <b>Missed punch-out.</b> {state.lastNightSweep.message}
+          </p>
+        )}
         {loading ? (
           <div className="punch-face">
             <div className="bone bone-stamp" />

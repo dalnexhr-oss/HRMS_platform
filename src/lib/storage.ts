@@ -18,11 +18,8 @@ function safeName(filename: string): string {
   return base.replace(/[^\w.\-]+/g, '_').slice(0, 120) || 'file';
 }
 
-// Upload-type whitelist. The browser's file.type is attacker-controlled: an
-// HTML file uploaded with type text/html would be SERVED as a rendered page
-// from the file URL (stored XSS on the storage origin, reachable by HR via
-// the verification queue). So the stored contentType is derived from the file
-// EXTENSION against this whitelist, and file.type is never trusted.
+// Derive stored content types from the extension allowlist. Do not trust file.type, which could
+// cause uploaded HTML to be served as an executable page.
 const extensionTypes: Record<string, string> = {
   pdf: 'application/pdf',
   png: 'image/png',
@@ -129,11 +126,8 @@ export async function uploadSharedFile(
 }
 
 /**
- * System upload for generated files, where no employee is signed in.
- *
- * Runs under systemScope — the equivalent of the old service-role key, and the
- * only way to write into generated-documents, which the employee it concerns
- * must never be able to author.
+ * Upload generated documents under system scope. Employees must not be able to author files in
+ * generated-documents.
  */
 export async function uploadFileService(
   bucket: StorageBucket,
@@ -163,12 +157,12 @@ export async function signedUrl(
   path: string,
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
   try {
-    // statObject, not getObject: both run the same assertMayRead check and the
-    // same existence lookup, but getObject concatenates every GridFS chunk into
-    // a Buffer that is then thrown away. A document list resolving N URLs was
-    // pulling N whole PDFs through the server on each render.
+    // Use statObject for authorization and existence checks without reading every GridFS chunk
+    // into memory.
     const file = await statObject(bucket, path);
-    if (!file) return { ok: false, error: 'That file is no longer stored.' };
+    if (!file) {
+      return { ok: false, error: 'That file is no longer stored.' };
+    }
     return { ok: true, url: objectUrl(bucket, path) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Could not open the file.' };

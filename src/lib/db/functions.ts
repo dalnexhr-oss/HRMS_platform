@@ -25,7 +25,9 @@ export const scheduled: Invocation = { isScheduler: true };
 // The signed-in caller, or a refusal. Never falls back to the system.
 async function requireCaller(fn: string): Promise<Scope> {
   const scope = await currentScope();
-  if (!scope) throw new NotPermitted(`${fn}: not signed in`);
+  if (!scope) {
+    throw new NotPermitted(`${fn}: not signed in`);
+  }
   return scope;
 }
 
@@ -64,7 +66,9 @@ export interface OnLeaveRow {
  */
 async function onLeaveToday(): Promise<OnLeaveRow[]> {
   const scope = await currentScope();
-  if (!scope) throw new NotPermitted('fn_on_leave_today: not signed in');
+  if (!scope) {
+    throw new NotPermitted('fn_on_leave_today: not signed in');
+  }
 
   const today = todayIST();
   const requests = scopedFor<BaseDoc>(collections.requests, systemScope);
@@ -116,7 +120,9 @@ async function onLeaveToday(): Promise<OnLeaveRow[]> {
  */
 async function initApprovalSteps(args: { p_request_id?: string }): Promise<number> {
   const requestId = args.p_request_id;
-  if (!requestId) return 0;
+  if (!requestId) {
+    return 0;
+  }
 
   const scope = await requireCaller('fn_init_approval_steps');
 
@@ -144,7 +150,9 @@ async function initApprovalSteps(args: { p_request_id?: string }): Promise<numbe
   for (let n = 1; n <= levels; n++) {
     // Idempotently skip steps that have already been created.
     const existing = await steps.countDocuments({ request_id: requestId, step_no: n });
-    if (existing > 0) continue;
+    if (existing > 0) {
+      continue;
+    }
     await steps.insertOne({
       _id: randomUUID(),
       request_id: requestId,
@@ -207,7 +215,10 @@ async function provisionLeaveBalances(
   let created = 0;
   for (const e of staff) {
     const exists = await balances.countDocuments({ employee_id: e._id, year, type: 'PL' });
-    if (exists > 0) continue; // Idempotent skip if balance already exists
+    if (exists > 0) {
+      // Idempotent skip if balance already exists
+      continue;
+    }
 
     const carried = Math.min(Math.max(previous.get(e._id as string) ?? 0, 0), cap);
     await balances.insertOne({
@@ -244,7 +255,9 @@ let registered = false;
 
 /** Wire the TypeScript implementations into the `.rpc()` surface. Idempotent. */
 export function registerDbFunctions(): void {
-  if (registered) return;
+  if (registered) {
+    return;
+  }
   registered = true;
   registerRpc('fn_on_leave_today', () => onLeaveToday());
   registerRpc('fn_init_approval_steps', (a) => initApprovalSteps(a as { p_request_id?: string }));

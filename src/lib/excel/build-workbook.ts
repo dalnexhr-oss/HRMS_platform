@@ -18,10 +18,12 @@ import type { LeaveSalaryViewRow } from '@/lib/leave-salary-view';
 // Pure module (no server deps) — safe here for the same reason inr/minutesToHHMM are.
 import { effectiveFigures } from '@/lib/leave-salary';
 
-// 'YYYY-MM-01' -> 'June 2026'.
+// 'YYYY-MM-01' -> 'June YYYY'.
 export function monthTitle(periodMonth: string): string {
   const d = new Date(`${periodMonth.slice(0, 7)}-01T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) return periodMonth;
+  if (Number.isNaN(d.getTime())) {
+    return periodMonth;
+  }
   return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
 
@@ -46,12 +48,8 @@ function paint(cell: ExcelJS.Cell, argb: string, bold = true): void {
 }
 
 /**
- * Neutralise spreadsheet formula injection.
- *
- * Excel executes any cell whose text begins with = + - @ (or a leading tab/CR),
- * so an employee named `=HYPERLINK("http://evil","click")` — or a reimbursement
- * remark — becomes a live formula in whatever HR opens. Prefixing a single quote
- * makes Excel treat it as literal text; the visible value is unchanged.
+ * Prefix formula-like text with an apostrophe so spreadsheet exports cannot execute user-supplied
+ * values as formulas.
  */
 function safeText(v: unknown): string {
   const s = v === null || v === undefined ? '' : String(v);
@@ -90,9 +88,13 @@ function emplIdOf(code: string): number | string {
 /** Count each status across the employee's day cells. */
 function countStatuses(days: DayCell[]): Record<string, number> {
   const counts: Record<string, number> = {};
-  for (const key of countOrder) counts[key] = 0;
+  for (const key of countOrder) {
+    counts[key] = 0;
+  }
   for (const d of days) {
-    if (d.status in counts) counts[d.status] += 1;
+    if (d.status in counts) {
+      counts[d.status] += 1;
+    }
   }
   return counts;
 }
@@ -206,8 +208,12 @@ function writeReferenceSheet(
   // Column widths: narrow day columns, wider identity columns.
   ws.getColumn(colEmplId).width = 9;
   ws.getColumn(colLabel).width = 22;
-  for (let c = colFirstDay; c <= lastDayCol; c++) ws.getColumn(c).width = 7;
-  for (let i = 0; i < countOrder.length; i++) ws.getColumn(bandStart + i).width = 5;
+  for (let c = colFirstDay; c <= lastDayCol; c++) {
+    ws.getColumn(c).width = 7;
+  }
+  for (let i = 0; i < countOrder.length; i++) {
+    ws.getColumn(bandStart + i).width = 5;
+  }
   ws.getColumn(bandStart + countOrder.length).width = 12;
   ws.getColumn(bandStart + countOrder.length + 1).width = 14;
   ws.views = [{ state: 'frozen', xSplit: 2, ySplit: rowDayNumbers }];
@@ -261,7 +267,9 @@ function writeFlatSummarySheet(
       worked: minutesToHHMM(e.workedMinutes),
       target: minutesToHHMM(e.targetMinutes),
     };
-    for (const d of days) row[`d${d}`] = byDay.get(d) ?? '';
+    for (const d of days) {
+      row[`d${d}`] = byDay.get(d) ?? '';
+    }
     ws.addRow(row);
   }
 }
@@ -312,11 +320,8 @@ export function writeDailyPunchSheet(
 }
 
 /**
- * Float the logo over the reference sheet WITHOUT moving anything. The layout
- * is parsed back by parse-register.ts (B1 year, B2 month, row 4 day numbers,
- * blocks from row 6), so no row may be inserted and no cell written. A floating
- * drawing lives in the sheet's drawing part, not sheetData, and row heights are
- * cosmetic — the parser reads neither.
+ * Float the logo without inserting rows or changing data cells; parse-register.ts depends on their
+ * fixed positions. Drawing geometry is safe to adjust.
  */
 function brandReferenceSheet(wb: ExcelJS.Workbook, ws: ExcelJS.Worksheet): void {
   ws.getRow(rowYear).height = 22;
@@ -346,12 +351,8 @@ export async function registerWorkbook(
   return toBytes(wb);
 }
 
-// register IMPORT template
-// A blank version of the register above, for HR/Admin to fill in and upload
-// back through the Import tab. It is built by the SAME writeReferenceSheet() the
-// register export uses — the one parse-register.ts round-trips against — so the
-// template's structure can never drift from what the importer expects. It is a
-// run of empty employee blocks (labelled In/Out/Total rows) ready to complete.
+// Build the blank import template with writeReferenceSheet, sharing the register export's four-row
+// employee blocks and parser-compatible layout.
 
 /** Days-of-month [1..N] for a 'YYYY-MM-01'. Local mirror of export.ts's daysOf. */
 function daysOfMonth(periodMonth: string): number[] {
@@ -470,14 +471,18 @@ function writeTemplateGuideSheet(
 
   for (const [k, v] of lines) {
     const row = ws.addRow([k, v]);
-    if (k) row.getCell(1).font = { bold: true };
+    if (k) {
+      row.getCell(1).font = { bold: true };
+    }
     row.getCell(2).alignment = { wrapText: true, vertical: 'top' };
   }
 
   for (const [code, label] of statusLegend) {
     const row = ws.addRow([code, label]);
     row.getCell(1).font = { bold: true };
-    if (statusFill[code]) paint(row.getCell(1), statusFill[code]);
+    if (statusFill[code]) {
+      paint(row.getCell(1), statusFill[code]);
+    }
   }
 }
 
@@ -493,9 +498,8 @@ function safeSheetName(name: string, fallback: string): string {
 }
 
 /**
- * A monthly attendance template — ONE worksheet per employee, the pay period
- * day-by-day (Date/Day/Status/In/Out/Hours) with a summary footer. Intended to
- * be handed out from /payroll alongside the payslips.
+ * Build a monthly attendance worksheet per employee with daily punches and summary totals, for
+ * distribution alongside payslips.
  */
 export async function attendanceTemplateWorkbook(
   employees: RegisterEmployee[],
@@ -528,7 +532,9 @@ export async function attendanceTemplateWorkbook(
     ws.getCell('B6').value = safeText(e.code);
     ws.getCell('D6').value = 'Month';
     ws.getCell('E6').value = title;
-    for (const addr of ['A5', 'D5', 'A6', 'D6']) ws.getCell(addr).font = { bold: true };
+    for (const addr of ['A5', 'D5', 'A6', 'D6']) {
+      ws.getCell(addr).font = { bold: true };
+    }
 
     const headerRowIx = 8;
     const header = ws.getRow(headerRowIx);
@@ -613,7 +619,7 @@ export async function reimbursementsWorkbook(claims: ReimbursementView[]): Promi
   styleHeader(hr);
   ws.views = [{ state: 'frozen', ySplit: headerRow }];
 
-  /** '2026-07-27T10:20:00Z' -> '2026-07-27'; blank when absent. */
+  /** 'YYYY-07-27T10:20:00Z' -> 'YYYY-07-27'; blank when absent. */
   const day = (iso: string | null | undefined) => (iso ? String(iso).slice(0, 10) : '');
 
   claims.forEach((c, ix) => {
@@ -724,7 +730,9 @@ export async function payrollWorkbook(
     netPayable: sum('netPayable'),
   });
   totals.font = { bold: true };
-  for (let c = 6; c <= 16; c++) ws.getColumn(c).numFmt = '#,##0';
+  for (let c = 6; c <= 16; c++) {
+    ws.getColumn(c).numFmt = '#,##0';
+  }
 
   // Each day's login/logout alongside the payroll figures, for verification.
   if (register.length > 0) {
@@ -752,10 +760,8 @@ const monthShort = [
 ];
 
 /**
- * The annual leave-salary working, one row per employee — the owner's sheet
- * shape, widened from one employee to the roster. Finalized/paid rows carry
- * their frozen snapshot, drafts the live figures (effectiveFigures — the same
- * rule the page table renders by, so the sheet always equals the screen).
+ * Export one annual leave-salary row per employee. effectiveFigures uses frozen snapshots for
+ * finalized/paid rows and live values for drafts, matching the screen.
  */
 export async function leaveSalaryWorkbook(
   rows: LeaveSalaryViewRow[],
@@ -842,7 +848,9 @@ export async function leaveSalaryWorkbook(
   ]) {
     ws.getColumn(key).numFmt = '#,##0.00';
   }
-  for (const key of ['presentP1', 'presentP2']) ws.getColumn(key).numFmt = '#,##0.0';
+  for (const key of ['presentP1', 'presentP2']) {
+    ws.getColumn(key).numFmt = '#,##0.0';
+  }
 
   return toBytes(wb);
 }

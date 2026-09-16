@@ -28,9 +28,8 @@ function revalidateBranchSurfaces(): void {
   revalidatePath('/today');
 }
 
-// Fallback radius for a branch whose office is set without one. Matches the
-// column default in lib/db/defaults.ts; the column is NOT NULL, so a blank
-// field has to resolve to a number rather than to null.
+// Use the same fallback radius as db/defaults.ts. This required numeric field cannot be saved as
+// null.
 const defaultGeofenceRadiusM = 150;
 
 /**
@@ -39,8 +38,12 @@ const defaultGeofenceRadiusM = 150;
  */
 export async function updateBranchLocation(id: string, formData: FormData): Promise<ActionResult> {
   const gate = await requireRoles(branchAdminRoles, 'Setting a branch office location');
-  if (!gate.ok) return gate;
-  if (!id) return { ok: false, error: 'Which branch to update is missing.' };
+  if (!gate.ok) {
+    return gate;
+  }
+  if (!id) {
+    return { ok: false, error: 'Which branch to update is missing.' };
+  }
 
   const address = String(formData.get('address') ?? '').trim() || null;
   const latRaw = String(formData.get('geofence_lat') ?? '').trim();
@@ -121,12 +124,18 @@ function isDuplicateKey(e: unknown): boolean {
 // Rename a branch and/or move it to another state. Admin/HR, like /settings itself.
 export async function updateBranch(id: string, formData: FormData): Promise<ActionResult> {
   const gate = await requireRoles(branchAdminRoles, 'Updating a branch');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const name = String(formData.get('name') ?? '').trim();
   const state = String(formData.get('state') ?? '').trim();
-  if (!id) return { ok: false, error: 'Which branch to update is missing.' };
-  if (!name) return { ok: false, error: 'Enter the branch name.' };
+  if (!id) {
+    return { ok: false, error: 'Which branch to update is missing.' };
+  }
+  if (!name) {
+    return { ok: false, error: 'Enter the branch name.' };
+  }
   if (!(States as readonly string[]).includes(state)) {
     return { ok: false, error: 'Pick the branch state or union territory.' };
   }
@@ -140,7 +149,9 @@ export async function updateBranch(id: string, formData: FormData): Promise<Acti
       const employees = await scoped<EmployeeDoc>(collections.employees, session);
 
       const count = await branches.updateOne({ _id: id }, { $set: { name, state } });
-      if (count === 0) return 0;
+      if (count === 0) {
+        return 0;
+      }
       // Every collection that keeps a copy of the branch name. Miss one and it
       // goes on showing a name the branch no longer has.
       await employees.updateMany({ branch_id: id }, { $set: { branch_name: name } });
@@ -171,8 +182,12 @@ export async function updateBranch(id: string, formData: FormData): Promise<Acti
 /** Delete a branch only when no employees reference it. */
 export async function deleteBranch(id: string): Promise<ActionResult> {
   const gate = await requireRoles(branchAdminRoles, 'Deleting a branch');
-  if (!gate.ok) return gate;
-  if (!id) return { ok: false, error: 'Which branch to delete is missing.' };
+  if (!gate.ok) {
+    return gate;
+  }
+  if (!id) {
+    return { ok: false, error: 'Which branch to delete is missing.' };
+  }
 
   try {
     const employees = await scoped<EmployeeDoc>(collections.employees);

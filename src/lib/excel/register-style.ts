@@ -34,15 +34,19 @@ export const headerFill = {
 // The reference sheet formats every punch/duration cell as h:mm.
 export const timeFormat = 'h:mm';
 
-// 'HH:MM' -> an Excel serial time (fraction of a day), or null. The reference stores punches as
-// REAL time values formatted h:mm, not text. Writing them the same way keeps the export visually
-// identical AND keeps it re-importable: parseRegister's excelValueToMinutes() multiplies a numeric
-// cell by 1440 to recover minutes.
+// Convert HH:MM to an Excel day fraction. Native time cells preserve formatting and round-trip
+// through excelValueToMinutes.
 export function clockToExcelTime(clock: string | null): number | null {
-  if (!clock) return null;
+  if (!clock) {
+    return null;
+  }
   const m = /^(\d{1,2}):(\d{2})/.exec(clock.trim());
-  if (!m) return null;
+  if (!m) {
+    return null;
+  }
   const mins = Number(m[1]) * 60 + Number(m[2]);
-  if (!Number.isFinite(mins) || mins < 0) return null;
+  if (!Number.isFinite(mins) || mins < 0) {
+    return null;
+  }
   return mins / 1440;
 }

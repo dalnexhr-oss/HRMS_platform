@@ -14,12 +14,8 @@ import type { EmployeeDocumentRow } from '@/lib/queries';
 const maxBytes = 10 * 1024 * 1024;
 
 /**
- * Send the file to the streaming upload route, reporting progress.
- *
- * XMLHttpRequest rather than fetch: it is still the only API that reports
- * UPLOAD progress in every browser this runs on. The file is the raw body
- * (the route reads its metadata from the query string), so nothing has to be
- * buffered into a multipart envelope on either side.
+ * Use XMLHttpRequest for upload progress. Send the file as a raw body, with metadata in the query
+ * string, to avoid multipart buffering.
  */
 function uploadWithProgress(
   file: File,
@@ -33,7 +29,9 @@ function uploadWithProgress(
     xhr.responseType = 'json';
 
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      if (e.lengthComputable) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
     };
     // The bytes are gone but the server is still storing and filing them; show
     // the bar full rather than stalled at 99%.
@@ -41,8 +39,11 @@ function uploadWithProgress(
 
     xhr.onload = () => {
       const body = xhr.response as { ok?: boolean; error?: string } | null;
-      if (xhr.status >= 200 && xhr.status < 300 && body?.ok) resolve({ ok: true });
-      else resolve({ ok: false, error: body?.error ?? `The upload failed (${xhr.status}).` });
+      if (xhr.status >= 200 && xhr.status < 300 && body?.ok) {
+        resolve({ ok: true });
+      } else {
+        resolve({ ok: false, error: body?.error ?? `The upload failed (${xhr.status}).` });
+      }
     };
     xhr.onerror = () => resolve({ ok: false, error: 'The upload failed — check your connection.' });
     xhr.onabort = () => resolve({ ok: false, error: 'The upload was cancelled.' });
@@ -75,22 +76,24 @@ export function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[
   const { toast, toastNode } = useToast();
 
   async function open(id: string) {
-    // Claim the tab INSIDE the click gesture. Signing needs a server round trip,
-    // and a window.open() after that await has lost its user activation — browsers
-    // then swallow it silently, so the button looks dead.
-    // No 'noopener' in the features string: with it, window.open() returns null
-    // by spec, so every successful open fell through to the else branch and
-    // navigated THIS tab away to the signed URL. Sever the opener link by hand.
+    // Open the tab before awaiting the signed URL to retain user activation. Clear opener manually
+    // because the noopener feature makes window.open return null.
     const win = window.open('about:blank', '_blank');
-    if (win) win.opener = null;
+    if (win) {
+      win.opener = null;
+    }
     const res = await getDocumentUrl(id);
     if (!res.ok || !res.url) {
       win?.close();
       toast(res.error ?? 'Could not open the document.', 'error');
       return;
     }
-    if (win) win.location.href = res.url;
-    else window.location.href = res.url; // popup blocked outright — navigate in place
+    if (win) {
+      win.location.href = res.url;
+    } else {
+      // popup blocked outright — navigate in place
+      window.location.href = res.url;
+    }
   }
 
   const verified = documents.filter((d) => d.verifiedAt).length;
@@ -132,7 +135,9 @@ export function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[
               disabled={busy}
               onChange={async (e) => {
                 const file = e.target.files?.[0];
-                if (!file) return;
+                if (!file) {
+                  return;
+                }
                 // Refuse before sending anything. The server checks again — it
                 // has to, the route is reachable directly — but finding out
                 // after a full upload is the worst place to learn it.
@@ -150,13 +155,12 @@ export function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[
                 setBusy(false);
                 setProgress(null);
                 e.target.value = '';
-                if (!res.ok) toast(res.error ?? 'The upload failed.', 'error');
-                else {
+                if (!res.ok) {
+                  toast(res.error ?? 'The upload failed.', 'error');
+                } else {
                   toast('Document filed — HR will verify it.', 'success');
-                  // The route revalidates /me server-side, but this component
-                  // was not rendered by a Server Action, so nothing pushes the
-                  // fresh tree down on its own — unlike an action call, which
-                  // carries the re-render in its own response.
+                  // Uploads use a route handler, so explicitly refresh the server-rendered
+                  // document list.
                   startTransition(() => router.refresh());
                 }
               }}

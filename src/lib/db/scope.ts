@@ -50,6 +50,8 @@ export function scopeForRole(userId: string, role: AppRole, employeeId: string |
 // have no scope.
 export async function currentScope(): Promise<Scope | null> {
   const user = await getSessionUser();
-  if (!user) return null;
+  if (!user) {
+    return null;
+  }
   return scopeForRole(user._id, user.role, user.employee_id);
 }

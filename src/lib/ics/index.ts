@@ -30,19 +30,16 @@ export interface CalendarEvent {
   end?: string | null;
   summary: string;
   description?: string | null;
-  // Defaults to true. Our event model carries dates only — no clock time — so all-day is the
-  // correct and normal shape for holidays, leave and WFH. Passing false emits a *floating*
-  // midnight-to-midnight DATE-TIME instead (no TZID, so each client renders it in its own local
-  // time), which is occasionally what an importer expects.
+  // All-day defaults to true. False emits floating midnight-to-midnight DATE-TIME values without
+  // TZID, interpreted in each calendar client's timezone.
   allDay?: boolean;
 }
 
 export interface BuildIcsOptions {
   // Shown as the calendar's name in most clients via X-WR-CALNAME.
   calName?: string;
-  // DTSTAMP for every VEVENT, as 'YYYYMMDDTHHMMSSZ' or any ISO-8601 string. Callers should pass
-  // this: it is the only non-deterministic input, so supplying it makes the output byte-stable and
-  // therefore testable (and lets an HTTP handler reuse one timestamp across a whole export).
+  // Supply DTSTAMP as YYYYMMDDTHHMMSSZ or ISO-8601 to make exports deterministic. One timestamp
+  // can be reused for all events.
   timestamp?: string;
 }
 
@@ -57,10 +54,8 @@ function octetLength(text: string): number {
   return n;
 }
 
-// Split a line into the smallest units a fold may not break apart: one code point, or a backslash
-// escape kept with the character it escapes. Unfolding formally happens before unescaping, so
-// splitting `\,` across a fold is legal — but enough clients mis-handle it that keeping escape
-// pairs atomic is free insurance. Grouping never costs more than one extra octet.
+// Keep Unicode code points and backslash escape pairs intact when folding. Some calendar clients
+// mishandle escapes split across continuation lines.
 function tokenize(line: string): string[] {
   const chars = Array.from(line);
   const tokens: string[] = [];
@@ -102,10 +97,14 @@ function formatIcsStamp(d: Date): string {
  * only when omitted. Callers should pass a timestamp for reproducible output.
  */
 function toIcsStamp(value?: string): string {
-  if (value === undefined) return formatIcsStamp(new Date());
+  if (value === undefined) {
+    return formatIcsStamp(new Date());
+  }
 
   const raw = value.trim();
-  if (icsStamp.test(raw)) return raw;
+  if (icsStamp.test(raw)) {
+    return raw;
+  }
 
   const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) {
@@ -129,18 +128,13 @@ export function escapeIcsText(v: string): string {
 }
 
 /**
- * Fold a content line to 75 octets per RFC 5545 §3.1.
- *
- * Continuation lines begin with a single space, and that space counts toward
- * the 75 — so the first line carries 75 octets of content and each following
- * line 74. Readers strip exactly one leading whitespace character when
- * unfolding, which is why we emit exactly one.
- *
- * The measurement is in UTF-8 octets, not `String.length`: a line of 60
- * Devanagari characters is ~180 octets and must still be folded.
+ * Fold at 75 UTF-8 octets per RFC 5545 §3.1. Continuation lines start with one space, leaving 74
+ * octets for content. Count encoded bytes, not JavaScript string length.
  */
 export function foldLine(line: string): string {
-  if (octetLength(line) <= maxOctets) return line;
+  if (octetLength(line) <= maxOctets) {
+    return line;
+  }
 
   const out: string[] = [];
   let chunk = '';
@@ -158,25 +152,22 @@ export function foldLine(line: string): string {
     chunk += token;
     used += size;
   }
-  if (chunk) out.push(chunk);
+  if (chunk) {
+    out.push(chunk);
+  }
 
   return out.join(`${crlf} `);
 }
 
-/** '2026-08-15' -> '20260815'. Inverse of the parser's `toISO`. */
+/** 'YYYY-08-15' -> '20260815'. Inverse of the parser's `toISO`. */
 export function icsDate(iso: string): string {
   assertIsoDate(iso, 'date');
   return iso.replace(/-/g, '');
 }
 
 /**
- * Add (or subtract) whole days to a 'YYYY-MM-DD' date, in UTC.
- *
- * Deliberately built on Date.UTC rather than the local-time constructor: UTC
- * has no DST, so a day is always exactly 86 400 000 ms. Using local time makes
- * this silently return the wrong date for servers in DST-observing zones on the
- * two shift days a year — and the caller here is DTEND, where a one-day error
- * moves everybody's holiday.
+ * Add whole days to YYYY-MM-DD in UTC so daylight-saving transitions cannot shift calendar end
+ * dates.
  */
 export function addDays(iso: string, n: number): string {
   assertIsoDate(iso, 'date');
@@ -198,10 +189,8 @@ function textLine(name: string, value: string): string {
  * 15 ends on August 16; leave through August 17 ends on August 18.
  */
 function buildEvent(ev: CalendarEvent, stamp: string): string[] {
-  // UID is REQUIRED and must actually carry a value — a bare `UID:` line makes
-  // strict parsers reject the whole VCALENDAR, and lenient ones invent a fresh
-  // id on every import, which is precisely the duplicate-storm we use stable
-  // UIDs to avoid.
+  // Require a nonempty stable UID so calendar clients can update an existing event without
+  // creating duplicates.
   const uid = ev.uid?.trim();
   if (!uid) {
     throw new Error(`Calendar event for '${ev.summary}' is missing a UID.`);
@@ -237,7 +226,9 @@ function buildEvent(ev: CalendarEvent, stamp: string): string[] {
 
   lines.push(textLine('SUMMARY', ev.summary?.trim() || '(untitled)'));
   const description = ev.description?.trim();
-  if (description) lines.push(textLine('DESCRIPTION', description));
+  if (description) {
+    lines.push(textLine('DESCRIPTION', description));
+  }
 
   lines.push('END:VEVENT');
   return lines;
@@ -266,7 +257,9 @@ export function buildIcs(events: CalendarEvent[], opts: BuildIcsOptions = {}): s
     textLine('X-WR-CALDESC', `${calName} — holidays, leave and company events`),
   ];
 
-  for (const ev of events) lines.push(...buildEvent(ev, stamp));
+  for (const ev of events) {
+    lines.push(...buildEvent(ev, stamp));
+  }
 
   lines.push('END:VCALENDAR');
   return lines.join(crlf) + crlf;

@@ -44,28 +44,41 @@ export class StorageAccessError extends Error {
 
 async function requireScope(): Promise<Scope> {
   const scope = await currentScope();
-  if (!scope) throw new StorageAccessError('You are not signed in.');
+  if (!scope) {
+    throw new StorageAccessError('You are not signed in.');
+  }
   return scope;
 }
 
 // Enforces read authorization: HR/admin can read all buckets; employees can only read within their
 // own path prefix.
 function assertMayRead(scope: Scope, bucket: StorageBucket, path: string): void {
-  if (scope.isStaff) return;
-  if (!employeeScoped.has(bucket)) return; // company-wide: any signed-in reader
+  if (scope.isStaff) {
+    return;
+  }
+  if (!employeeScoped.has(bucket)) {
+    // company-wide: any signed-in reader
+    return;
+  }
   const owner = ownerOf(path);
-  if (!owner || owner !== scope.employeeId) throw new StorageAccessError();
+  if (!owner || owner !== scope.employeeId) {
+    throw new StorageAccessError();
+  }
 }
 
 // Enforces upload authorization: privileged buckets (generated-documents, notice-attachments)
 // require HR/admin.
 function assertMayWrite(scope: Scope, bucket: StorageBucket, path: string): void {
-  if (scope.isStaff) return;
+  if (scope.isStaff) {
+    return;
+  }
   if (bucket === 'generated-documents' || bucket === 'notice-attachments') {
     throw new StorageAccessError('Only admin or HR can upload here.');
   }
   const owner = ownerOf(path);
-  if (!owner || owner !== scope.employeeId) throw new StorageAccessError();
+  if (!owner || owner !== scope.employeeId) {
+    throw new StorageAccessError();
+  }
 }
 
 export interface StoredFile {
@@ -95,11 +108,8 @@ async function findFile(bucket: StorageBucket, path: string): Promise<GridFSFile
 }
 
 /**
- * What `putObject` will store: bytes already in hand, or something that can
- * produce them a piece at a time.
- *
- * A Blob (which a `File` from a form is) and a ReadableStream are STREAMED —
- * see below for why that matters on anything the size of a scan.
+ * putObject accepts buffered bytes or a streaming source. Blob and ReadableStream inputs are
+ * uploaded without buffering the full file.
  */
 export type StorableBody = ArrayBuffer | Uint8Array | Blob | ReadableStream<Uint8Array>;
 
@@ -158,11 +168,15 @@ export async function getObject(
   assertMayRead(s, bucket, path);
 
   const file = await findFile(bucket, path);
-  if (!file) return null;
+  if (!file) {
+    return null;
+  }
 
   const fs = await gridfs(bucket);
   const chunks: Buffer[] = [];
-  for await (const chunk of fs.openDownloadStream(file._id)) chunks.push(chunk as Buffer);
+  for await (const chunk of fs.openDownloadStream(file._id)) {
+    chunks.push(chunk as Buffer);
+  }
 
   return {
     bytes: Buffer.concat(chunks),
@@ -193,7 +207,9 @@ export async function deleteObject(
 
   const fs = await gridfs(bucket);
   const files = await fs.find({ filename: path }).toArray();
-  for (const f of files) await fs.delete(f._id);
+  for (const f of files) {
+    await fs.delete(f._id);
+  }
   return files.length > 0;
 }
 

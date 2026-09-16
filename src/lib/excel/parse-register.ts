@@ -106,16 +106,29 @@ type CellLike = ExcelJS.CellValue;
 // Unwrap the shapes exceljs hands back: formula results, rich text, hyperlinks and shared-string
 // objects all arrive as objects rather than scalars.
 function unwrap(v: CellLike): unknown {
-  if (v === null || v === undefined) return null;
-  if (v instanceof Date) return v;
+  if (v === null || v === undefined) {
+    return null;
+  }
+  if (v instanceof Date) {
+    return v;
+  }
   if (typeof v === 'object') {
     const o = v as unknown as Record<string, unknown>;
-    if ('result' in o) return unwrap(o.result as CellLike); // formula
+    if ('result' in o) {
+      // formula
+      return unwrap(o.result as CellLike);
+    }
     if ('richText' in o && Array.isArray(o.richText)) {
       return (o.richText as { text?: string }[]).map((t) => t.text ?? '').join('');
     }
-    if ('text' in o) return o.text; // hyperlink
-    if ('error' in o) return null; // #REF! etc — treat as blank
+    if ('text' in o) {
+      // hyperlink
+      return o.text;
+    }
+    if ('error' in o) {
+      // #REF! etc — treat as blank
+      return null;
+    }
     return null;
   }
   return v;
@@ -123,15 +136,23 @@ function unwrap(v: CellLike): unknown {
 
 function asText(v: CellLike): string {
   const u = unwrap(v);
-  if (u === null || u === undefined) return '';
-  if (u instanceof Date) return '';
+  if (u === null || u === undefined) {
+    return '';
+  }
+  if (u instanceof Date) {
+    return '';
+  }
   return String(u).trim();
 }
 
 function asNumber(v: CellLike): number | null {
   const u = unwrap(v);
-  if (u === null || u === undefined || u === '') return null;
-  if (typeof u === 'number') return Number.isFinite(u) ? u : null;
+  if (u === null || u === undefined || u === '') {
+    return null;
+  }
+  if (typeof u === 'number') {
+    return Number.isFinite(u) ? u : null;
+  }
   if (typeof u === 'string') {
     const n = Number(u.replace(/,/g, '').trim());
     return Number.isFinite(n) ? n : null;
@@ -139,13 +160,13 @@ function asNumber(v: CellLike): number | null {
   return null;
 }
 
-// Convert a duration/time cell to whole minutes. exceljs normally resolves these to Date objects
-// anchored at the workbook's epoch, but a raw fraction (0.385416.. = 09:15) shows up when a cell
-// has no date format. Both are supported. Values may legitimately exceed 24h (the month's
-// total-hours cell), so this returns elapsed minutes since the epoch rather than a clock reading.
+// Convert Excel dates or day fractions to whole elapsed minutes. Durations can exceed 24 hours, so
+// do not reduce them to time of day.
 export function excelValueToMinutes(v: CellLike, date1904 = false): number | null {
   const u = unwrap(v);
-  if (u === null || u === undefined || u === '') return null;
+  if (u === null || u === undefined || u === '') {
+    return null;
+  }
 
   if (u instanceof Date) {
     const epoch = date1904 ? excelEpoch1904 : excelEpoch1900;
@@ -153,15 +174,21 @@ export function excelValueToMinutes(v: CellLike, date1904 = false): number | nul
     return Number.isFinite(mins) ? mins : null;
   }
   if (typeof u === 'number') {
-    if (!Number.isFinite(u)) return null;
+    if (!Number.isFinite(u)) {
+      return null;
+    }
     return Math.round(u * minutesPerDay);
   }
   if (typeof u === 'string') {
     // 'HH:MM' / 'HH:MM:SS' typed as text.
     const m = /^(\d{1,3}):(\d{2})(?::(\d{2}))?$/.exec(u.trim());
-    if (m) return Number(m[1]) * 60 + Number(m[2]) + (m[3] ? Math.round(Number(m[3]) / 60) : 0);
+    if (m) {
+      return Number(m[1]) * 60 + Number(m[2]) + (m[3] ? Math.round(Number(m[3]) / 60) : 0);
+    }
     const n = Number(u.trim());
-    if (Number.isFinite(n)) return Math.round(n * minutesPerDay);
+    if (Number.isFinite(n)) {
+      return Math.round(n * minutesPerDay);
+    }
   }
   return null;
 }
@@ -169,14 +196,18 @@ export function excelValueToMinutes(v: CellLike, date1904 = false): number | nul
 // A punch is a clock reading; 0 (or blank) means the employee never punched.
 function toPunchMinutes(v: CellLike, date1904: boolean): number | null {
   const mins = excelValueToMinutes(v, date1904);
-  if (mins === null || mins <= 0) return null;
+  if (mins === null || mins <= 0) {
+    return null;
+  }
   // Normalise to a time-of-day so 'HH:MM' formatting is always valid.
   return ((mins % minutesPerDay) + minutesPerDay) % minutesPerDay;
 }
 
 // Formats minutes since midnight as 'HH:MM' clock string.
 export function minutesToClock(mins: number | null): string | null {
-  if (mins === null) return null;
+  if (mins === null) {
+    return null;
+  }
   const m = ((Math.round(mins) % minutesPerDay) + minutesPerDay) % minutesPerDay;
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 }
@@ -184,9 +215,15 @@ export function minutesToClock(mins: number | null): string | null {
 /** Trim + uppercase + collapse whitespace, then fold known aliases. */
 export function normalizeStatus(raw: string): string {
   const s = raw.trim().toUpperCase().replace(/\s+/g, ' ');
-  if (!s) return '';
-  if (knownSet.has(s)) return s;
-  if (statusAliases[s]) return statusAliases[s];
+  if (!s) {
+    return '';
+  }
+  if (knownSet.has(s)) {
+    return s;
+  }
+  if (statusAliases[s]) {
+    return statusAliases[s];
+  }
   return s; // unknown — reported as a warning, never thrown
 }
 
@@ -225,7 +262,7 @@ function readPeriod(
     year = monthCell.getUTCFullYear();
     month1 = monthCell.getUTCMonth() + 1;
   } else if (typeof monthCell === 'number' && Number.isFinite(monthCell)) {
-    // A bare serial: 46174 -> 2026-06-01.
+    // A bare serial: 46174 -> YYYY-06-01.
     const epoch = date1904 ? excelEpoch1904 : excelEpoch1900;
     const d = new Date(epoch + monthCell * minutesPerDay * msPerMin);
     year = d.getUTCFullYear();
@@ -267,8 +304,13 @@ function readDayColumns(ws: ExcelJS.Worksheet): { col: number; day: number }[] {
   for (let col = colFirstDay; col < colFirstDay + maxDayColumns; col++) {
     const n = asNumber(ws.getCell(rowDayNumbers, col).value);
     // Summary headers ('P','T',…) are text, so a non-number ends the day band.
-    if (n === null || !Number.isInteger(n) || n < 1 || n > 31) break;
-    if (out.length && n !== out[out.length - 1].day + 1) break; // non-contiguous
+    if (n === null || !Number.isInteger(n) || n < 1 || n > 31) {
+      break;
+    }
+    if (out.length && n !== out[out.length - 1].day + 1) {
+      // non-contiguous
+      break;
+    }
     out.push({ col, day: n });
   }
   return out;
@@ -283,7 +325,9 @@ const fallbackCountOrder = ['P', 'T', 'LM', 'S', 'OH', 'L', 'CO', 'HD', 'WO'];
  */
 function findSummaryBand(ws: ExcelJS.Worksheet, firstCandidate: number): number | null {
   for (let col = firstCandidate; col <= firstCandidate + summarySearchSpan; col++) {
-    if (normalizeStatus(asText(ws.getCell(rowDayNumbers, col).value)) === 'P') return col;
+    if (normalizeStatus(asText(ws.getCell(rowDayNumbers, col).value)) === 'P') {
+      return col;
+    }
   }
   return null;
 }
@@ -303,7 +347,9 @@ function findLabelledRow(
   re: RegExp,
 ): number | null {
   for (let r = from; r <= to; r++) {
-    if (re.test(asText(ws.getCell(r, colLabel).value).toUpperCase())) return r;
+    if (re.test(asText(ws.getCell(r, colLabel).value).toUpperCase())) {
+      return r;
+    }
   }
   return null;
 }
@@ -324,12 +370,15 @@ export async function parseRegisterWorkbook(buf: ArrayBuffer | Buffer): Promise<
   }
 
   const ws = workbook.getWorksheet('Sheet1') ?? workbook.worksheets[0];
-  if (!ws) throw new Error('The workbook has no worksheets.');
+  if (!ws) {
+    throw new Error('The workbook has no worksheets.');
+  }
 
   const warnings: string[] = [];
   const date1904 = Boolean((workbook.properties as { date1904?: boolean } | undefined)?.date1904);
-  if (date1904)
+  if (date1904) {
     warnings.push('Workbook uses the 1904 date system; times were converted accordingly.');
+  }
 
   const { year, month1 } = readPeriod(ws, date1904, warnings);
   const periodMonth = `${year}-${pad2(month1)}-01`;
@@ -378,7 +427,9 @@ export async function parseRegisterWorkbook(buf: ArrayBuffer | Buffer): Promise<
     const hasAnyStatus = rawStatuses.some((s) => s.raw !== '');
 
     // The sheet is padded with hundreds of blank-but-styled rows; skip quietly.
-    if (idRaw === null && !hasAnyStatus) continue;
+    if (idRaw === null && !hasAnyStatus) {
+      continue;
+    }
 
     if (idRaw === null) {
       warnings.push(
@@ -429,11 +480,19 @@ export async function parseRegisterWorkbook(buf: ArrayBuffer | Buffer): Promise<
     for (let i = 0; i < dayCols.length; i++) {
       const { col, day } = dayCols[i];
       const { raw } = rawStatuses[i];
-      if (!raw) continue; // no status = day not recorded
-      if (day > calendarDays) continue; // guarded by the warning above
+      if (!raw) {
+        // no status = day not recorded
+        continue;
+      }
+      if (day > calendarDays) {
+        // guarded by the warning above
+        continue;
+      }
 
       const status = normalizeStatus(raw);
-      if (!status) continue;
+      if (!status) {
+        continue;
+      }
       if (!isKnownStatus(status)) {
         const at = unknownHere.get(raw.trim()) ?? [];
         at.push(day);
@@ -453,7 +512,9 @@ export async function parseRegisterWorkbook(buf: ArrayBuffer | Buffer): Promise<
       // payroll doesn't see a phantom zero. Overnight (out < in) wraps a day.
       if (workedMin === 0 && workedRaw === null && inMin !== null && outMin !== null) {
         const span = outMin >= inMin ? outMin - inMin : outMin + minutesPerDay - inMin;
-        if (span > 0) workedMin = span;
+        if (span > 0) {
+          workedMin = span;
+        }
       }
 
       days.push({ day, status, inMin, outMin, workedMin });
@@ -468,9 +529,13 @@ export async function parseRegisterWorkbook(buf: ArrayBuffer | Buffer): Promise<
     const counts: Record<string, number> = {};
     for (let i = 0; i < countHeaders.length; i++) {
       const key = countHeaders[i];
-      if (!key) continue;
+      if (!key) {
+        continue;
+      }
       const n = asNumber(ws.getCell(r, bandStart + i).value);
-      if (n !== null) counts[key] = n;
+      if (n !== null) {
+        counts[key] = n;
+      }
     }
 
     employees.push({

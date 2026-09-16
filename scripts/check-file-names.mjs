@@ -16,7 +16,9 @@ async function checkDirectory(directory) {
   for (const entry of entries) {
     const relative = `${directory}/${entry.name}`;
     const key = relative.toLowerCase();
-    if (seen.has(key)) errors.push(`${relative}: clashes with ${seen.get(key)} on Windows`);
+    if (seen.has(key)) {
+      errors.push(`${relative}: clashes with ${seen.get(key)} on Windows`);
+    }
     seen.set(key, relative);
 
     if (entry.isDirectory()) {
@@ -31,7 +33,9 @@ async function checkDirectory(directory) {
       continue;
     }
 
-    if (!entry.isFile() || !/\.(?:tsx?|mjs|css)$/.test(entry.name)) continue;
+    if (!entry.isFile() || !/\.(?:tsx?|mjs|css)$/.test(entry.name)) {
+      continue;
+    }
     const extension = path.extname(entry.name);
     const stem = entry.name.slice(0, -extension.length).replace(/\.test$/, '');
     const component = relative.startsWith('src/components/');
@@ -47,7 +51,9 @@ async function checkDirectory(directory) {
   }
 }
 
-for (const directory of ['src', 'scripts', 'tests']) await checkDirectory(directory);
+for (const directory of ['src', 'scripts', 'tests']) {
+  await checkDirectory(directory);
+}
 
 if (errors.length) {
   console.error(errors.join('\n'));

@@ -40,10 +40,7 @@ export type CommitResult =
   | { ok: true; inserted: number; updated: number; skipped: number; errors: string[] }
   | { ok: false; error: string };
 
-// Roles that may actually write. Deliberately NOT isStaffRole() from @/lib/auth: that is the portal
-// READ set, so gating on it would let a reader through to a write the policy layer then filters to
-// zero rows — a write that reports success and changes nothing. An explicit set turns that into an
-// honest, explained refusal. Mirrors guards.ts writeRoles and importRoles in actions/export.ts.
+// Match guards.ts writeRoles. Portal read access does not permit register imports.
 const importRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 const upsertChunk = 500;
@@ -57,18 +54,22 @@ interface UpsertRow {
   punch_in: string | null;
   punch_out: string | null;
   worked_minutes: number;
+  auto_close_source: null;
+  auto_closed_at: null;
 }
 
 function errMessage(e: unknown): string {
-  if (e instanceof Error) return e.message;
-  if (typeof e === 'string') return e;
+  if (e instanceof Error) {
+    return e.message;
+  }
+  if (typeof e === 'string') {
+    return e;
+  }
   return 'Unexpected error.';
 }
 
-// Largest register we will parse. next.config.mjs already caps the Server Action body at 10mb, but
-// that limit is about TRANSPORT — this one is about what we agree to decompress. A 2MB .xlsx is a
-// zip that can expand to gigabytes in exceljs (a zip bomb), so the size is checked before the
-// buffer is read.
+// Limit the compressed workbook size before parsing, separately from the Server Action body limit.
+// This does not bound the workbook's decompressed size.
 const maxUploadBytes = 10 * 1024 * 1024;
 
 // Turn the uploaded FormData field into a parsed register.
@@ -78,7 +79,9 @@ async function readUpload(formData: FormData): Promise<ParsedRegister> {
     throw new Error('No file was uploaded. Choose the monthly register .xlsx and try again.');
   }
   const upload = file as File;
-  if (upload.size === 0) throw new Error('That file is empty.');
+  if (upload.size === 0) {
+    throw new Error('That file is empty.');
+  }
   if (upload.size > maxUploadBytes) {
     throw new Error(
       `That file is ${(upload.size / 1024 / 1024).toFixed(1)}MB — the register limit is ` +
@@ -100,9 +103,13 @@ function buildResolver(codeMap: Record<string, string>) {
   const byTrailing = new Map<number, string[]>();
   for (const code of Object.keys(codeMap)) {
     const m = /(\d+)\s*$/.exec(code);
-    if (!m) continue;
+    if (!m) {
+      continue;
+    }
     const n = Number(m[1]);
-    if (!Number.isFinite(n)) continue;
+    if (!Number.isFinite(n)) {
+      continue;
+    }
     const list = byTrailing.get(n) ?? [];
     list.push(code);
     byTrailing.set(n, list);
@@ -112,11 +119,17 @@ function buildResolver(codeMap: Record<string, string>) {
     emplId: number,
   ): { id: string; code: string } | { ambiguous: string[] } | null {
     const exact = codeForEmplId(emplId);
-    if (codeMap[exact]) return { id: codeMap[exact], code: exact };
+    if (codeMap[exact]) {
+      return { id: codeMap[exact], code: exact };
+    }
 
     const candidates = byTrailing.get(emplId) ?? [];
-    if (candidates.length === 1) return { id: codeMap[candidates[0]], code: candidates[0] };
-    if (candidates.length > 1) return { ambiguous: candidates };
+    if (candidates.length === 1) {
+      return { id: codeMap[candidates[0]], code: candidates[0] };
+    }
+    if (candidates.length > 1) {
+      return { ambiguous: candidates };
+    }
     return null;
   };
 }
@@ -185,7 +198,9 @@ function planImport(
       const closed = autoCloseDay(d.inMin, d.outMin, autoOutMin);
       const outMin = closed ? closed.outMin : d.outMin;
       const workedMin = closed && d.workedMin === 0 ? closed.workedMin : d.workedMin;
-      if (closed) autoClosedCount++;
+      if (closed) {
+        autoClosedCount++;
+      }
 
       rows.push({
         employee_id: hit.id,
@@ -194,6 +209,8 @@ function planImport(
         punch_in: minutesToClock(d.inMin),
         punch_out: minutesToClock(outMin),
         worked_minutes: workedMin,
+        auto_close_source: null,
+        auto_closed_at: null,
       });
       usable++;
     }
@@ -219,13 +236,11 @@ function planImport(
 
 export async function previewImport(formData: FormData): Promise<PreviewResult> {
   try {
-    // Gate BEFORE parsing. This is a public HTTP endpoint, and parsing an
-    // attacker-supplied .xlsx is the expensive part — leaving it ungated let any
-    // authenticated user drive server CPU/memory with crafted workbooks, and
-    // leaked the employee roster through the preview's matched/unmatched lists.
-    // Mirrors commitImport's importRoles (admin/hr).
+    // Authorize before parsing an uploaded workbook or returning employee matches in the preview.
     const gate = await requireStaff('Previewing the register');
-    if (!gate.ok) return { ok: false, error: gate.error };
+    if (!gate.ok) {
+      return { ok: false, error: gate.error };
+    }
 
     const reg = await readUpload(formData);
 
@@ -264,11 +279,8 @@ async function fetchExistingKeys(
   const keys = new Set<string>();
 
   for (let offset = 0; ; offset += selectPage) {
-    // The order is load-bearing, not cosmetic: a paged read has no stability
-    // guarantee without an ORDER BY, so an unordered paged read of
-    // a full roster (~210 employees x ~30 days = ~6300 rows, i.e. 7 pages) can
-    // repeat and omit rows between pages. That would silently misreport the
-    // inserted/updated split. Ordering by the unique key makes paging total.
+    // Page in unique-key order so rows are neither repeated nor skipped when calculating inserted
+    // and updated counts.
     const { data, error } = await dbc
       .from('attendance_days')
       .select('employee_id, work_date')
@@ -284,8 +296,12 @@ async function fetchExistingKeys(
       );
     }
     const page = (data ?? []) as { employee_id: string; work_date: string }[];
-    for (const r of page) keys.add(`${r.employee_id}|${String(r.work_date).slice(0, 10)}`);
-    if (page.length < selectPage) break;
+    for (const r of page) {
+      keys.add(`${r.employee_id}|${String(r.work_date).slice(0, 10)}`);
+    }
+    if (page.length < selectPage) {
+      break;
+    }
   }
   return keys;
 }
@@ -299,13 +315,16 @@ function explainWriteError(message: string, code?: string): string {
 
 export async function commitImport(formData: FormData): Promise<CommitResult> {
   // 1. A write is impossible without a database. Never pretend otherwise.
-  if (!isMongoConfigured())
+  if (!isMongoConfigured()) {
     return { ok: false, error: 'The database is not configured, so nothing can be imported.' };
+  }
 
   try {
     // 2. Staff only.
     const { userId, profile } = await getSession();
-    if (!userId) return { ok: false, error: 'Sign in to import the register.' };
+    if (!userId) {
+      return { ok: false, error: 'Sign in to import the register.' };
+    }
     const role = profile?.role;
     if (!role || !importRoles.includes(role)) {
       return {
@@ -327,7 +346,9 @@ export async function commitImport(formData: FormData): Promise<CommitResult> {
         `${unmatched.length} Empl. ID(s) had no matching employee and were skipped: ${unmatched.join(', ')}.`,
       );
     }
-    for (const w of reg.warnings) errors.push(w);
+    for (const w of reg.warnings) {
+      errors.push(w);
+    }
 
     if (rows.length === 0) {
       return {
@@ -342,7 +363,9 @@ export async function commitImport(formData: FormData): Promise<CommitResult> {
 
     // 3b. Prohibit import for months whose payroll is finalized (locked or paid).
     const monthOpen = await requireOpenPayrollMonth(dbc, reg.periodMonth);
-    if (!monthOpen.ok) return { ok: false, error: monthOpen.error };
+    if (!monthOpen.ok) {
+      return { ok: false, error: monthOpen.error };
+    }
 
     // 4. Snapshot existing keys so inserted/updated are real, not guessed.
     const existing = await fetchExistingKeys(dbc, reg.periodMonth, reg.daysInMonth);
@@ -364,8 +387,11 @@ export async function commitImport(formData: FormData): Promise<CommitResult> {
         continue;
       }
       for (const r of chunk) {
-        if (existing.has(`${r.employee_id}|${r.work_date}`)) updated++;
-        else inserted++;
+        if (existing.has(`${r.employee_id}|${r.work_date}`)) {
+          updated++;
+        } else {
+          inserted++;
+        }
       }
     }
 
@@ -396,8 +422,9 @@ export async function commitImport(formData: FormData): Promise<CommitResult> {
         source_rows: rows.length,
       },
     });
-    if (logError)
+    if (logError) {
       errors.push(`Attendance imported, but the activity log entry failed: ${logError.message}`);
+    }
 
     revalidatePath('/register');
     revalidatePath('/today');

@@ -72,8 +72,9 @@ export function SignPanel({
           onClick={() =>
             startTransition(async () => {
               const res = await acknowledgeDocument({ kind, documentId, signedName: name.trim() });
-              if (!res.ok) toast(res.error ?? 'The signature was not recorded.', 'error');
-              else {
+              if (!res.ok) {
+                toast(res.error ?? 'The signature was not recorded.', 'error');
+              } else {
                 toast('Signed — thank you.', 'success');
                 setOpen(false);
                 router.refresh();

@@ -40,7 +40,9 @@ const statusOptions: TicketStatus[] = ['open', 'in_progress', 'resolved', 'close
 // ISO timestamp -> '15 Jul, 10:30'.
 function stampTime(iso: string): string {
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
+  if (Number.isNaN(d.getTime())) {
+    return '';
+  }
   return d.toLocaleString('en-GB', {
     day: '2-digit',
     month: 'short',
@@ -96,7 +98,9 @@ export function TicketChatDrawer({
 
   // Streams real-time comments for the active ticket via Server-Sent Events (SSE).
   useEffect(() => {
-    if (!open || !ticket) return;
+    if (!open || !ticket) {
+      return;
+    }
 
     const source = new EventSource(`/api/helpdesk/${ticket.id}/stream`);
     source.addEventListener('comment', (event) => {
@@ -111,12 +115,16 @@ export function TicketChatDrawer({
 
   // Keep the view pinned to the newest message.
   useEffect(() => {
-    if (open && scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (open && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
   }, [messages, open]);
 
   function send() {
     const text = body.trim();
-    if (!text || !ticket) return;
+    if (!text || !ticket) {
+      return;
+    }
     setError(null);
     startTransition(async () => {
       const res = await addTicketComment(ticket.id, text);
@@ -127,19 +135,26 @@ export function TicketChatDrawer({
       setBody('');
       // Append immediately (deduped by id so the Realtime echo doesn't double it).
       const c = (res as { comment?: TicketComment }).comment;
-      if (c) setMessages((prev) => (prev.some((m) => m.id === c.id) ? prev : [...prev, c]));
+      if (c) {
+        setMessages((prev) => (prev.some((m) => m.id === c.id) ? prev : [...prev, c]));
+      }
       router.refresh();
     });
   }
 
   function changeStatus(next: TicketStatus) {
-    if (!ticket) return;
+    if (!ticket) {
+      return;
+    }
     setStatus(next);
     setError(null);
     startTransition(async () => {
       const res = await setTicketStatus(ticket.id, next);
-      if (!res.ok) setError(res.error ?? 'Could not change the status.');
-      else router.refresh();
+      if (!res.ok) {
+        setError(res.error ?? 'Could not change the status.');
+      } else {
+        router.refresh();
+      }
     });
   }
 

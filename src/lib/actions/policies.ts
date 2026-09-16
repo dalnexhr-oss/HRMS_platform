@@ -12,7 +12,9 @@ const uniqueViolation = '23505';
 /** Records an employee's acknowledgement of a company policy. */
 export async function acknowledgePolicy(policyId: string) {
   const db = requireDb('Marking a policy as read');
-  if (!db.ok) return db;
+  if (!db.ok) {
+    return db;
+  }
 
   const { profile } = await getSession();
   if (!profile?.employee_id) {
@@ -72,7 +74,9 @@ async function clearPolicyNag(
     .select('title')
     .eq('id', policyId)
     .maybeSingle<{ title: string }>();
-  if (!policy?.title) return;
+  if (!policy?.title) {
+    return;
+  }
 
   await dbc
     .from('notifications')
@@ -85,12 +89,18 @@ async function clearPolicyNag(
 /** Staff creates a company policy (published immediately unless left as draft). */
 export async function createPolicy(formData: FormData) {
   const gate = await requireStaff('Creating a policy');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const title = String(formData.get('title') ?? '').trim();
   const body = String(formData.get('body') ?? '').trim();
-  if (!title) return { ok: false, error: 'Please enter a title.' };
-  if (!body) return { ok: false, error: 'Please enter the policy body.' };
+  if (!title) {
+    return { ok: false, error: 'Please enter a title.' };
+  }
+  if (!body) {
+    return { ok: false, error: 'Please enter the policy body.' };
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -104,7 +114,9 @@ export async function createPolicy(formData: FormData) {
       published: formData.get('published') === 'on',
     })
     .select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,
@@ -133,7 +145,9 @@ export async function createPolicy(formData: FormData) {
 /** Staff toggles a policy's published state. */
 export async function setPolicyPublished(policyId: string, published: boolean) {
   const gate = await requireStaff('Publishing a policy');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -141,7 +155,9 @@ export async function setPolicyPublished(policyId: string, published: boolean) {
     .update({ published })
     .eq('id', policyId)
     .select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,
@@ -176,12 +192,18 @@ export async function setPolicyPublished(policyId: string, published: boolean) {
 /** Edit an existing policy's content. Staff-only. Leaves published state alone. */
 export async function updatePolicy(id: string, formData: FormData) {
   const gate = await requireStaff('Editing a policy');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const title = String(formData.get('title') ?? '').trim();
   const body = String(formData.get('body') ?? '').trim();
-  if (!title) return { ok: false, error: 'Please enter a title.' };
-  if (!body) return { ok: false, error: 'Please enter the policy body.' };
+  if (!title) {
+    return { ok: false, error: 'Please enter a title.' };
+  }
+  if (!body) {
+    return { ok: false, error: 'Please enter the policy body.' };
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -195,7 +217,9 @@ export async function updatePolicy(id: string, formData: FormData) {
     })
     .eq('id', id)
     .select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,
@@ -211,11 +235,15 @@ export async function updatePolicy(id: string, formData: FormData) {
 /** Delete a policy. Its acknowledgements cascade away (FK on delete cascade). */
 export async function deletePolicy(id: string) {
   const gate = await requireStaff('Deleting a policy');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc.from('policies').delete().eq('id', id).select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,

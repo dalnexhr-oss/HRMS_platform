@@ -45,7 +45,9 @@ function stamp(ts: string): string {
 }
 
 function runNote(run: PayrollRunView | null): string {
-  if (!run) return 'No run has been created for this month.';
+  if (!run) {
+    return 'No run has been created for this month.';
+  }
   switch (run.status) {
     case 'paid':
       return run.paidAt ? `Paid ${stamp(run.paidAt)}` : 'Marked paid';
@@ -65,7 +67,9 @@ function runNote(run: PayrollRunView | null): string {
 /** 1 -> '1st', 2 -> '2nd', 3 -> '3rd', 4 -> '4th'. */
 function ordinal(n: number): string {
   const rem100 = n % 100;
-  if (rem100 >= 11 && rem100 <= 13) return `${n}th`;
+  if (rem100 >= 11 && rem100 <= 13) {
+    return `${n}th`;
+  }
   return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 }
 
@@ -74,7 +78,9 @@ function celebrationIcon(kind: Celebration['kind']): string {
 }
 
 function celebrationNote(c: Celebration): string {
-  if (c.kind === 'birthday') return 'birthday';
+  if (c.kind === 'birthday') {
+    return 'birthday';
+  }
   return c.years === 1 ? '1 year at Dalnex' : `${c.years} years at Dalnex`;
 }
 
@@ -160,12 +166,10 @@ export function TodayBoard({
                   />
                 ))}
               </div>
-              {/* Stacked, not inline: branch names side by side stop fitting past
-                  ~4 branches, and branches are user-creatable so that is a real
-                  case. One row per branch. The list shows ~2 rows and scrolls
-                  for the rest (.branch-list max-height), so this card — and with
-                  it the whole equal-height KPI band — stays the same size no
-                  matter how many branches exist. */}
+              {/*
+               * Scroll branch rows within a fixed height so additional branches do not stretch the
+               * KPI cards.
+               */}
               <div className="branch-list">
                 {branches.map((b, i) => (
                   <div className="row" key={b.branch}>
@@ -297,9 +301,7 @@ export function TodayBoard({
             )}
           </div>
 
-          {/* Marks watch — real LM counts for the period, derived from the register's
-              per-employee tally of attendance_days.status = 'LM'. The meter's pip count
-              is the mark_threshold setting, so the card matches the configured rule. */}
+          {/* Use actual LM totals and the configured mark_threshold for the meter. */}
           <div className="card watch">
             <div className="hd">
               <h3>Marks watch — {periodMonthLabel}</h3>

@@ -11,7 +11,9 @@ export function StatutoryExports({
   periodMonth: string;
   disabled?: boolean;
 }) {
-  if (disabled) return null;
+  if (disabled) {
+    return null;
+  }
   return (
     <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
       <span className="muted" style={{ fontSize: 12 }}>

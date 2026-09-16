@@ -36,7 +36,9 @@ async function loadPresence(
     .eq('employee_id', employeeId)
     .gte('work_date', `${year}-01-01`)
     .lte('work_date', `${year}-12-31`);
-  if (error) throw new Error(`could not load attendance: ${error.message}`);
+  if (error) {
+    throw new Error(`could not load attendance: ${error.message}`);
+  }
   return presenceByMonth(
     (data ?? []).map((r: any) => ({ workDate: String(r.work_date), status: String(r.status) })),
   );
@@ -60,20 +62,25 @@ export async function saveLeaveSalaryWorking(input: {
   calendarDaysP2Override?: number | null;
 }): Promise<ActionResult> {
   const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Saving a leave-salary working');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
   const year = Number(input.year);
   const salaryBefore = Number(input.salaryBefore);
   const salaryAfter = Number(input.salaryAfter);
   const incrementMonth = Number(input.incrementMonth);
 
-  // Denominator overrides: blank = automatic. A typed value must be a whole
-  // day count a period can actually have — dividing by 0 (or a typo like
-  // 3650) would silently wreck the payout.
+  // Blank uses the calendar count. Overrides must be positive whole days within the period's
+  // possible range.
   const parseOverride = (v: number | null | undefined): number | null | 'bad' => {
-    if (v == null) return null;
+    if (v == null) {
+      return null;
+    }
     const n = Math.round(Number(v));
-    if (!Number.isFinite(n) || n < 1 || n > 366) return 'bad';
+    if (!Number.isFinite(n) || n < 1 || n > 366) {
+      return 'bad';
+    }
     return n;
   };
   const calendarDaysP1Override = parseOverride(input.calendarDaysP1Override);
@@ -85,9 +92,12 @@ export async function saveLeaveSalaryWorking(input: {
     };
   }
 
-  if (!uuidRe.test(String(input.employeeId ?? '')))
+  if (!uuidRe.test(String(input.employeeId ?? ''))) {
     return { ok: false, error: 'Pick an employee.' };
-  if (!validYear(year)) return { ok: false, error: 'Enter a valid year.' };
+  }
+  if (!validYear(year)) {
+    return { ok: false, error: 'Enter a valid year.' };
+  }
   if (!Number.isFinite(salaryBefore) || salaryBefore < 0 || salaryBefore > salaryCap) {
     return { ok: false, error: 'Enter a valid monthly salary for the pre-appraisal period.' };
   }
@@ -156,7 +166,9 @@ export async function saveLeaveSalaryWorking(input: {
     .from('leave_salary_workings')
     .upsert(snapshot, { onConflict: 'employee_id,year' })
     .select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return { ok: false, error: 'The working was not saved — your role may lack permission.' };
   }
@@ -174,8 +186,12 @@ export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
     ['super_admin', 'admin', 'hr'],
     'Finalizing a leave-salary working',
   );
-  if (!gate.ok) return gate;
-  if (!uuidRe.test(id)) return { ok: false, error: 'Unknown working.' };
+  if (!gate.ok) {
+    return gate;
+  }
+  if (!uuidRe.test(id)) {
+    return { ok: false, error: 'Unknown working.' };
+  }
 
   const dbc = await createClient();
   type WorkingRead = {
@@ -196,9 +212,15 @@ export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
     .eq('id', id)
     .maybeSingle<WorkingRead>();
   const { data: row, error: readErr } = read;
-  if (readErr) return { ok: false, error: readErr.message };
-  if (!row) return { ok: false, error: 'That working no longer exists.' };
-  if (row.status !== 'draft') return { ok: false, error: `This working is already ${row.status}.` };
+  if (readErr) {
+    return { ok: false, error: readErr.message };
+  }
+  if (!row) {
+    return { ok: false, error: 'That working no longer exists.' };
+  }
+  if (row.status !== 'draft') {
+    return { ok: false, error: `This working is already ${row.status}.` };
+  }
 
   const year = Number(row.year);
   let monthlyPresence: number[];
@@ -237,8 +259,12 @@ export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
     .eq('id', id)
     .eq('status', 'draft') // races with a concurrent finalize lose here
     .select('id');
-  if (error) return { ok: false, error: error.message };
-  if (wroteNothing(data)) return { ok: false, error: 'Only a draft working can be finalized.' };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  if (wroteNothing(data)) {
+    return { ok: false, error: 'Only a draft working can be finalized.' };
+  }
 
   await dbc.from('activity_log').insert({
     actor_id: gate.profileId,
@@ -258,8 +284,12 @@ export async function reopenLeaveSalary(id: string): Promise<ActionResult> {
     ['super_admin', 'admin', 'hr'],
     'Reopening a leave-salary working',
   );
-  if (!gate.ok) return gate;
-  if (!uuidRe.test(id)) return { ok: false, error: 'Unknown working.' };
+  if (!gate.ok) {
+    return gate;
+  }
+  if (!uuidRe.test(id)) {
+    return { ok: false, error: 'Unknown working.' };
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -268,7 +298,9 @@ export async function reopenLeaveSalary(id: string): Promise<ActionResult> {
     .eq('id', id)
     .eq('status', 'finalized')
     .select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(data)) {
     return {
       ok: false,
@@ -283,8 +315,12 @@ export async function reopenLeaveSalary(id: string): Promise<ActionResult> {
 /** Mark a finalized working paid: stamp who/when, tell the employee. */
 export async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
   const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Marking a leave salary paid');
-  if (!gate.ok) return gate;
-  if (!uuidRe.test(id)) return { ok: false, error: 'Unknown working.' };
+  if (!gate.ok) {
+    return gate;
+  }
+  if (!uuidRe.test(id)) {
+    return { ok: false, error: 'Unknown working.' };
+  }
 
   const dbc = await createClient();
   const { data: row, error: readErr } = await dbc
@@ -297,8 +333,12 @@ export async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
       total_amount: number | string;
       status: string;
     }>();
-  if (readErr) return { ok: false, error: readErr.message };
-  if (!row) return { ok: false, error: 'That working no longer exists.' };
+  if (readErr) {
+    return { ok: false, error: readErr.message };
+  }
+  if (!row) {
+    return { ok: false, error: 'That working no longer exists.' };
+  }
   if (row.status !== 'finalized') {
     return {
       ok: false,
@@ -320,9 +360,12 @@ export async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
     .eq('id', id)
     .eq('status', 'finalized')
     .select('id');
-  if (error) return { ok: false, error: error.message };
-  if (wroteNothing(data))
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  if (wroteNothing(data)) {
     return { ok: false, error: 'Only a finalized working can be marked paid.' };
+  }
 
   const total = Number(row.total_amount ?? 0);
   await notifyEmployee(row.employee_id, {

@@ -26,8 +26,12 @@ export async function startOnboarding(
   templateId?: string,
 ): Promise<ActionResult & { created?: number }> {
   const gate = await requireRoles(onboardingRoles, 'Starting onboarding');
-  if (!gate.ok) return gate;
-  if (!uuidRe.test(String(employeeId ?? ''))) return { ok: false, error: 'Pick an employee.' };
+  if (!gate.ok) {
+    return gate;
+  }
+  if (!uuidRe.test(String(employeeId ?? ''))) {
+    return { ok: false, error: 'Pick an employee.' };
+  }
 
   const dbc = await createClient();
 
@@ -54,15 +58,21 @@ export async function startOnboarding(
       .maybeSingle<{ id: string }>();
     tpl = newest?.id ?? null;
   }
-  if (!tpl) return { ok: false, error: 'No active onboarding template — create one first.' };
+  if (!tpl) {
+    return { ok: false, error: 'No active onboarding template — create one first.' };
+  }
 
   const { data: items, error: itemsErr } = await dbc
     .from('onboarding_template_items')
     .select('title, assignee_role, seq')
     .eq('template_id', tpl)
     .order('seq');
-  if (itemsErr) return { ok: false, error: itemsErr.message };
-  if (!items?.length) return { ok: false, error: 'That template has no steps.' };
+  if (itemsErr) {
+    return { ok: false, error: itemsErr.message };
+  }
+  if (!items?.length) {
+    return { ok: false, error: 'That template has no steps.' };
+  }
 
   // Set task due date to employee joining date for deadline tracking and automated reminder sweeps.
   const { data: emp } = await dbc
@@ -81,7 +91,9 @@ export async function startOnboarding(
   }));
 
   const { data: made, error } = await dbc.from('onboarding_tasks').insert(rows).select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: error.message };
+  }
   if (wroteNothing(made)) {
     return { ok: false, error: 'The checklist was not created — your role may lack permission.' };
   }
@@ -109,9 +121,15 @@ export async function setOnboardingTaskStatus(
   status: (typeof taskStatuses)[number],
 ): Promise<ActionResult> {
   const gate = await requireRoles(onboardingRoles, 'Updating an onboarding step');
-  if (!gate.ok) return gate;
-  if (!uuidRe.test(String(id ?? ''))) return { ok: false, error: 'Unknown onboarding step.' };
-  if (!taskStatuses.includes(status)) return { ok: false, error: 'Pick a valid status.' };
+  if (!gate.ok) {
+    return gate;
+  }
+  if (!uuidRe.test(String(id ?? ''))) {
+    return { ok: false, error: 'Unknown onboarding step.' };
+  }
+  if (!taskStatuses.includes(status)) {
+    return { ok: false, error: 'Pick a valid status.' };
+  }
 
   const done = status === 'done';
   const dbc = await createClient();
@@ -145,12 +163,17 @@ export async function addOnboardingTask(input: {
   dueDate?: string;
 }): Promise<ActionResult> {
   const gate = await requireRoles(onboardingRoles, 'Adding an onboarding step');
-  if (!gate.ok) return gate;
+  if (!gate.ok) {
+    return gate;
+  }
 
-  if (!uuidRe.test(String(input.employeeId ?? '')))
+  if (!uuidRe.test(String(input.employeeId ?? ''))) {
     return { ok: false, error: 'Pick an employee.' };
+  }
   const title = String(input.title ?? '').trim();
-  if (!title) return { ok: false, error: 'Give the step a title.' };
+  if (!title) {
+    return { ok: false, error: 'Give the step a title.' };
+  }
 
   // Empty date strings are normalized to null.
   const dueDate = String(input.dueDate ?? '').trim() || null;
@@ -182,8 +205,12 @@ export async function addOnboardingTask(input: {
 /** Remove a step. Used for steps added by mistake or made irrelevant by the role. */
 export async function deleteOnboardingTask(id: string): Promise<ActionResult> {
   const gate = await requireRoles(onboardingRoles, 'Removing an onboarding step');
-  if (!gate.ok) return gate;
-  if (!uuidRe.test(String(id ?? ''))) return { ok: false, error: 'Unknown onboarding step.' };
+  if (!gate.ok) {
+    return gate;
+  }
+  if (!uuidRe.test(String(id ?? ''))) {
+    return { ok: false, error: 'Unknown onboarding step.' };
+  }
 
   const dbc = await createClient();
   const { data, error } = await dbc.from('onboarding_tasks').delete().eq('id', id).select('id');

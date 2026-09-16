@@ -9,11 +9,15 @@ const affectedPaths = ['/today', '/register', '/me'];
 // Missing coordinates are allowed here. Store the punch as unclassified if the browser cannot
 // provide a usable location.
 function readCoords(body: unknown): PunchCoords | null {
-  if (!body || typeof body !== 'object') return null;
+  if (!body || typeof body !== 'object') {
+    return null;
+  }
   const record = body as Record<string, unknown>;
   const latitude = Number(record.latitude);
   const longitude = Number(record.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
   const accuracy = Number(record.accuracy);
   return {
     latitude,
@@ -29,7 +33,9 @@ export async function handlePunch(request: NextRequest, kind: PunchKind) {
     // Only after the write actually succeeded — a refused or failed punch has
     // changed nothing, and invalidating on it would just cost everyone a
     // re-render to redisplay the same numbers.
-    for (const path of affectedPaths) revalidatePath(path);
+    for (const path of affectedPaths) {
+      revalidatePath(path);
+    }
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : `Unable to punch ${kind}.`;

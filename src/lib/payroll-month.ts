@@ -13,11 +13,8 @@ export function periodMonthFor(workDate: string): string {
 }
 
 /**
- * Why this month is sealed, or null when it is still open.
- *
- * A missing run is OPEN: a month nobody has started payroll for has nothing to
- * desync from. Callers that cannot READ the run must fail closed themselves —
- * "unknown" is not the same as "no run", and this cannot tell them apart.
+ * Return the seal reason, or null for an open or missing run. Callers must propagate read
+ * failures; an unreadable run is not evidence that the month is open.
  */
 export function monthSealReason(periodMonth: string, run: PayrollRunSeal | null): string | null {
   const month = periodMonth.slice(0, 7);
