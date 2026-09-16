@@ -108,10 +108,12 @@ export async function POST(req: Request) {
   if (!stored.ok || !stored.path) {
     return bad(stored.error ?? 'The document could not be uploaded.', 500);
   }
-  // A body that turned out to be empty — possible only when no Content-Length
-  // was declared. No register row for it: an entry pointing at nothing reads as
-  // a filed document and would satisfy a "missing paperwork" check. The empty
-  // files document goes too, so nothing is left for a later read to find.
+  // The file is now in GridFS, but the document is not yet recorded in the database. If the
+  // record fails, the file is deleted to avoid leaving an orphaned chunk in GridFS.
+  if (!stored.path) {
+    await deleteObject(uploadBucket, stored.path).catch(() => undefined);
+    return bad('The document could not be uploaded.', 500);
+  }
   if (stored.size === 0) {
     await deleteObject(uploadBucket, stored.path).catch(() => undefined);
     return bad('Choose a file to upload.');
