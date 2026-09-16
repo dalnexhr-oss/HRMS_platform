@@ -6,7 +6,8 @@ import type { Decimal128 } from 'mongodb';
 import { createClient, createServiceClient, isServiceRoleConfigured } from '@/lib/db/server';
 import { requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { usersCollection } from '@/lib/db/collections';
-import { formatMoney, fromPaise, toPaise } from '@/lib/db/money';
+import { fromPaise as formatMoney } from '@/lib/db/money';
+import { calculateSalary } from '@/lib/salary';
 import { getEmployeeForEdit, type EmployeeEditRow } from '@/lib/queries';
 import { States } from '@/lib/constants';
 
@@ -93,26 +94,6 @@ async function setEmployeeLoginAccess(
       error: e instanceof Error ? e.message : 'Could not update login access.',
     };
   }
-}
-
-/**
- * A money form field as whole paise.
- *
- * Returns null when the text is not a number at all, so the caller can say so
- * instead of silently storing a zero — the old `|| 0` turned a typo in the
- * salary box into a real salary of nothing.
- */
-function moneyPaise(v: FormDataEntryValue | null): number | null {
-  const cleaned = String(v ?? '').replace(/[^0-9.-]/g, '');
-  if (cleaned === '' || cleaned === '-' || cleaned === '.') {
-    return 0;
-  }
-  // toPaise() accepts only this shape; anything else throws, and a thrown
-  // TypeError inside a Server Action reaches the user as an unhandled 500.
-  if (!/^-?\d*(?:\.\d*)?$/.test(cleaned)) {
-    return null;
-  }
-  return toPaise(cleaned);
 }
 
 /**
@@ -238,32 +219,20 @@ function parseSalary(
 ):
   | { ok: true; gross: Decimal128; basic: Decimal128; hra: Decimal128; special: Decimal128 }
   | { ok: false; error: string } {
-  const gross = moneyPaise(formData.get('gross_monthly'));
-  const basic = moneyPaise(formData.get('basic_da'));
-  const hra = moneyPaise(formData.get('hra'));
-  if (gross === null || basic === null || hra === null) {
-    return {
-      ok: false,
-      error: 'Enter the salary amounts as plain numbers, e.g. 30000 or 30000.50.',
-    };
-  }
-  if (gross <= 0) {
-    return { ok: false, error: 'Gross monthly must be greater than zero.' };
-  }
-  if (basic + hra > gross) {
-    return {
-      ok: false,
-      error:
-        `Basic + DA (${formatMoney(fromPaise(basic))}) plus HRA (${formatMoney(fromPaise(hra))}) ` +
-        `exceed gross (${formatMoney(fromPaise(gross))}). Adjust the salary structure.`,
-    };
+  const salary = calculateSalary({
+    gross_monthly: String(formData.get('gross_monthly') ?? ''),
+    basic_da: String(formData.get('basic_da') ?? ''),
+    hra: String(formData.get('hra') ?? ''),
+  });
+  if (!salary.ok) {
+    return { ok: false, error: salary.error };
   }
   return {
     ok: true,
-    gross: fromPaise(gross),
-    basic: fromPaise(basic),
-    hra: fromPaise(hra),
-    special: fromPaise(gross - basic - hra),
+    gross: formatMoney(salary.gross),
+    basic: formatMoney(salary.basic),
+    hra: formatMoney(salary.hra),
+    special: formatMoney(salary.special),
   };
 }
 
@@ -646,6 +615,7 @@ export async function updateEmployee(formData: FormData) {
       special_allowance: salary.special,
     })
     .eq('code', originalCode)
+    .is('deleted_at', null)
     .select('id');
 
   if (error) {
@@ -685,6 +655,7 @@ export async function deactivateEmployee(code: string) {
     .from('employees')
     .update({ status: 'inactive' })
     .eq('code', code)
+    .is('deleted_at', null)
     .select('id');
 
   if (error) {
@@ -726,6 +697,7 @@ export async function reactivateEmployee(code: string) {
     .from('employees')
     .update({ status: 'active' })
     .eq('code', code)
+    .is('deleted_at', null)
     .select('id');
 
   if (error) {

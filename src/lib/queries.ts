@@ -22,6 +22,7 @@ import {
   type BranchDoc,
   type DepartmentDoc,
   type EmployeeDoc,
+  type EmployeeStatus,
   type UserDoc,
 } from '@/lib/db/collections';
 import { afterParentCheck, NotSignedInError, scoped } from '@/lib/db/repo';
@@ -1467,6 +1468,7 @@ export interface EmployeeListRow {
   uan: string | null;
   esic_no: string | null;
   active: boolean;
+  status: EmployeeStatus;
   // employmentType: EmploymentType;
 }
 
@@ -1475,9 +1477,12 @@ export interface EmployeeListRow {
 export async function getEmployees(includeInactive = false): Promise<EmployeeListRow[]> {
   const employees = await scoped<EmployeeDoc>(collections.employees);
   // Reads denormalized branch_name directly without additional collection lookup.
-  const rows = await employees.find(includeInactive ? {} : { status: 'active' }, {
-    sort: { code: 1 },
-  });
+  const rows = await employees.find(
+    includeInactive ? { deleted_at: null } : { status: 'active', deleted_at: null },
+    {
+      sort: { code: 1 },
+    },
+  );
   return rows.map((e) => ({
     code: e.code,
     name: e.full_name,
@@ -1490,6 +1495,7 @@ export async function getEmployees(includeInactive = false): Promise<EmployeeLis
     uan: e.pf_uan,
     esic_no: e.esic_number,
     active: e.status === 'active',
+    status: e.status,
     // Absent on rows written before the field existed — those are employees.
     // employmentType: e.employment_type === 'intern' ? 'intern' : 'employee',
   }));
@@ -1574,7 +1580,7 @@ export interface EmployeeOption {
 export async function getEmployeeOptions(): Promise<EmployeeOption[]> {
   const employees = await scoped<EmployeeDoc>(collections.employees);
   const rows = await employees.find(
-    { status: 'active' },
+    { status: 'active', deleted_at: null },
     { projection: { code: 1, full_name: 1 }, sort: { code: 1 } },
   );
   return rows.map((e) => ({ id: e._id, code: e.code, name: e.full_name }));
@@ -1845,7 +1851,12 @@ export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow 
      emergency_contact_name, emergency_contact_relation, emergency_contact_phone,
      gross_monthly, basic_da, hra, special_allowance, branches(name), departments(name)`;
 
-  const res = await dbc.from('employees').select(fullCols).eq('code', code).maybeSingle();
+  const res = await dbc
+    .from('employees')
+    .select(fullCols)
+    .eq('code', code)
+    .is('deleted_at', null)
+    .maybeSingle();
   const { data, error } = res;
   if (error) {
     fail('getEmployeeForEdit: could not load employee', error);

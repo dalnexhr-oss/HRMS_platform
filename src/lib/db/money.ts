@@ -1,6 +1,7 @@
 // Store money as Decimal128 and calculate in integer paise to avoid floating-point drift. Round at
 // the calculation boundary; keep values within Number.MAX_SAFE_INTEGER.
 import { Decimal128 } from 'mongodb';
+import { parseMoneyPaise } from '@/lib/money';
 
 export type MoneyInput = Decimal128 | number | string | null | undefined;
 
@@ -10,26 +11,7 @@ export function toPaise(value: MoneyInput): number {
     return 0;
   }
 
-  const text = typeof value === 'string' ? value.trim() : value.toString();
-  if (text === '') {
-    return 0;
-  }
-
-  const match = /^(-)?(\d*)(?:\.(\d*))?$/.exec(text);
-  if (!match) {
-    throw new TypeError(`Not a money value: ${text}`);
-  }
-
-  const [, sign, whole = '0', frac = ''] = match;
-
-  // Round to two decimal places using symmetric half-away-from-zero rounding.
-  const digits = (frac + '000').slice(0, 3);
-  let amount = Number(whole || '0') * 100 + Number(digits.slice(0, 2));
-  if (Number(digits[2]) >= 5) {
-    amount += 1;
-  }
-
-  return sign === '-' ? -amount : amount;
+  return parseMoneyPaise(value.toString());
 }
 
 /** A Decimal128 for storage, from paise. */
@@ -42,7 +24,7 @@ export function fromPaise(paise: number): Decimal128 {
   const rupees = Math.floor(abs / 100);
   const remainder = abs % 100;
   return Decimal128.fromString(
-    `${negative ? '-' : ''}${rupees}.${String(remainder).padStart(2, '0')}`,
+    `${negative ? '-' : ''}${rupees}${remainder ? `.${String(remainder).padStart(2, '0')}` : ''}`,
   );
 }
 

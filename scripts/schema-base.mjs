@@ -213,6 +213,12 @@ export const BASE_SCHEMA = {
           status: {
             enum: ['active', 'on_notice', 'inactive'],
           },
+          deleted_at: {
+            bsonType: ['date', 'null'],
+          },
+          deleted_by: {
+            bsonType: ['string', 'null'],
+          },
           created_at: {
             bsonType: 'date',
           },

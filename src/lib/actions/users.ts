@@ -9,7 +9,7 @@ import { isEmployeeAreaRole } from '@/lib/auth';
 import { hashPassword, validatePassword } from '@/lib/auth/password';
 import { createResetToken, resetTokenTtlMinutes } from '@/lib/auth/reset-tokens';
 import { appOrigin, originNotConfigured } from '@/lib/auth/origin';
-import { collections, usersCollection, type UserDoc } from '@/lib/db/collections';
+import { collections, usersCollection, type EmployeeDoc, type UserDoc } from '@/lib/db/collections';
 import { db, isMongoConfigured } from '@/lib/db/mongo';
 import { escapeHtml, isEmailConfigured, sendEmail } from '@/lib/email';
 import type { AppRole } from '@/types/database';
@@ -21,6 +21,20 @@ export interface ActionResult {
 
 // Roles allowed to administer users.
 const userAdminRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
+
+async function employeeLinkError(employeeId: string | null): Promise<string | null> {
+  if (!employeeId) {
+    return null;
+  }
+  const database = await db();
+  const employee = await database
+    .collection<EmployeeDoc>(collections.employees)
+    .findOne({ _id: employeeId }, { projection: { deleted_at: 1 } });
+  if (!employee) {
+    return 'The linked employee no longer exists.';
+  }
+  return employee.deleted_at ? 'A deleted employee cannot have an enabled login.' : null;
+}
 
 // Keep role constants private because use-server modules only permit async exports.
 const assignableRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr', 'employee', 'intern'];
@@ -217,6 +231,10 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
   }
 
   try {
+    const linkError = await employeeLinkError(employeeId);
+    if (linkError) {
+      return { ok: false, error: linkError };
+    }
     const users = await usersCollection();
     const now = new Date();
 
@@ -301,6 +319,13 @@ export async function updateUserRole(
     const allowed = await assertMayActOnTarget(userId, gate.role);
     if (!allowed.ok) {
       return allowed;
+    }
+
+    if (!allowed.target.disabled || employeeId !== allowed.target.employee_id) {
+      const linkError = await employeeLinkError(employeeId);
+      if (linkError) {
+        return { ok: false, error: linkError };
+      }
     }
 
     const users = await usersCollection();
@@ -407,6 +432,13 @@ export async function setUserDisabled(userId: string, disabled: boolean): Promis
     const allowed = await assertMayActOnTarget(userId, gate.role);
     if (!allowed.ok) {
       return allowed;
+    }
+
+    if (!disabled) {
+      const linkError = await employeeLinkError(allowed.target.employee_id);
+      if (linkError) {
+        return { ok: false, error: linkError };
+      }
     }
 
     const users = await usersCollection();

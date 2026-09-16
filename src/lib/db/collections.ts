@@ -215,6 +215,8 @@ export interface EmployeeDoc {
   exit_reason: string | null;
 
   status: EmployeeStatus;
+  deleted_at?: Date | null;
+  deleted_by?: string | null;
   created_at: Date;
   updated_at: Date;
 }

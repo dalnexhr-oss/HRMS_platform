@@ -6,6 +6,7 @@ import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createEmployee, updateEmployee } from '@/lib/actions/employees';
 import { States } from '@/lib/constants';
+import { SalaryFields } from './SalaryFields';
 
 import type { EmployeeEditRow, BranchRow } from '@/lib/queries';
 
@@ -266,35 +267,7 @@ export function AddEmployeeDrawer({
               defaultValue={employee?.emergency_contact_phone ?? undefined}
             />
 
-            <div className="fold">Salary structure</div>
-            <div className="f-row">
-              <Field
-                name="gross_monthly"
-                label="Gross / month (₹)"
-                defaultValue={fmt(employee?.gross_monthly, '30,000')}
-                mono
-              />
-              <Field
-                name="basic_da"
-                label="Basic + DA (₹)"
-                defaultValue={fmt(employee?.basic_da, '15,000')}
-                mono
-              />
-            </div>
-            <div className="f-row">
-              <Field name="hra" label="HRA (₹)" defaultValue={fmt(employee?.hra, '9,000')} mono />
-              <Field
-                name="special_allowance"
-                label="Special allowance (₹)"
-                defaultValue={fmt(employee?.special_allowance, '6,000')}
-                mono
-                readOnly
-              />
-            </div>
-            <div className="hint">
-              Special allowance is derived as gross − (Basic + DA) − HRA so the components always
-              sum to gross (a database rule). PT applies by branch state.
-            </div>
+            <SalaryFields initial={employee ?? undefined} />
             {error && (
               <div className="login-error" role="alert">
                 {error}
@@ -313,11 +286,6 @@ export function AddEmployeeDrawer({
       </aside>
     </>
   );
-}
-
-/** number -> '30,000' string for a form default; falls back to a placeholder default. */
-function fmt(n: number | undefined, fallback: string): string {
-  return n != null ? n.toLocaleString('en-IN') : fallback;
 }
 
 /** Sentinel understood by resolveBranch in the employees actions. */

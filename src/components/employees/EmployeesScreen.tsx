@@ -12,6 +12,7 @@ import {
   reactivateEmployee,
 } from '@/lib/actions/employees';
 import { branchColorAt } from '@/lib/constants';
+import { deleteEmployee } from '@/lib/actions/employee-deletion';
 import type { EmployeeListRow, EmployeeEditRow, BranchRow } from '@/lib/queries';
 
 export function EmployeesScreen({
@@ -128,6 +129,37 @@ export function EmployeesScreen({
       } else {
         toast(`${name} reactivated.`, 'success');
         router.refresh();
+      }
+    });
+  }
+
+  async function onDelete(code: string, name: string) {
+    const confirmed = await confirm({
+      title: 'Delete inactive employee',
+      message: `Delete ${name} (${code}) from the employee list? They will no longer appear under Show inactive or be available for reactivation. Attendance, payroll, and other historical records will be retained, and linked logins will remain disabled.`,
+      confirmLabel: 'Delete employee',
+      danger: true,
+    });
+    if (!confirmed) {
+      return;
+    }
+    setBusyCode(code);
+    startTransition(async () => {
+      try {
+        const result = await deleteEmployee(code);
+        if (!result.ok) {
+          toast(result.error, 'error');
+          return;
+        }
+        toast(
+          result.warning ?? `${name} deleted from the employee list.`,
+          result.warning ? 'info' : 'success',
+        );
+        router.refresh();
+      } catch {
+        toast('Could not delete the employee. Try again.', 'error');
+      } finally {
+        setBusyCode(null);
       }
     });
   }
@@ -264,14 +296,27 @@ export function EmployeesScreen({
                           </button>
                         </>
                       ) : (
-                        <button
-                          className="btn quiet"
-                          onClick={() => onReactivate(e.code, e.name)}
-                          disabled={pending && busyCode === e.code}
-                          title="Reactivate this employee"
-                        >
-                          {pending && busyCode === e.code ? '…' : 'Reactivate'}
-                        </button>
+                        <>
+                          <button
+                            className="btn quiet"
+                            onClick={() => onReactivate(e.code, e.name)}
+                            disabled={pending}
+                            title="Reactivate this employee"
+                          >
+                            {pending && busyCode === e.code ? '…' : 'Reactivate'}
+                          </button>
+                          {e.status === 'inactive' && (
+                            <button
+                              type="button"
+                              className="btn danger"
+                              onClick={() => onDelete(e.code, e.name)}
+                              disabled={pending}
+                              title="Delete this inactive employee from the list"
+                            >
+                              {pending && busyCode === e.code ? '…' : 'Delete'}
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </td>
