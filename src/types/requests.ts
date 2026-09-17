@@ -25,3 +25,5 @@ export interface RequestRouting {
   history: RequestApproval[];
   revision: number;
 }
+
+export type EmployeeApprovalView = 'all' | 'pending' | 'reviewed' | 'cc';

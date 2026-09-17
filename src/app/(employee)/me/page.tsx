@@ -58,7 +58,7 @@ import { Punch } from '@/components/employee/Punch';
 import { inr } from '@/lib/format';
 import type { DayCell, PayslipRow } from '@/types/domain';
 import { getRequestRecipients } from '@/lib/requests/routing';
-import { RequestInbox } from '@/components/requests/RequestInbox';
+import { EmployeeApprovalSummary } from '@/components/employee/EmployeeApprovalSummary';
 
 // Employee self-service dashboard. This is the default landing page for employees after login, and the hub for all their self-service needs. It shows a snapshot of their attendance, payslips, requests, tickets, policies, and other relevant information.
 export default async function MePage() {
@@ -274,6 +274,13 @@ export default async function MePage() {
         </div>
       </div>
 
+      {profile && (
+        <EmployeeApprovalSummary
+          requests={inboxRequests}
+          actor={{ id: profile.id, employeeId, role: profile.role }}
+        />
+      )}
+
       {/* who is out today — approved leaves overlapping today's date */}
       <div className="card" id="on-leave-today">
         <div className="hd">
@@ -364,8 +371,6 @@ export default async function MePage() {
         people={requestPeople}
         id="leave"
       />
-
-      {profile && <RequestInbox requests={inboxRequests} userId={profile.id} />}
 
       {/* comp offs earned by working an off day */}
       <MyCompOffs

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { getSession, homeForRole } from '@/lib/auth';
+import { getSession, homeForRole, isStaffRole } from '@/lib/auth';
 import { getRequest } from '@/lib/queries';
 import { getRequestRecipients } from '@/lib/requests/routing';
 import { canReviewRequest } from '@/lib/requests/access';
@@ -19,10 +19,14 @@ export default async function RequestPage({ params }: { params: Promise<{ reques
   }
   const actor = { id: profile.id, employeeId: profile.employee_id, role: profile.role };
   const people = canReviewRequest(request, actor) ? await getRequestRecipients() : [];
+  const employeeReviewer = !isStaffRole(profile.role) && request.employeeId !== profile.employee_id;
   return (
     <main className="wrap grid request-detail">
-      <Link className="btn quiet" href={homeForRole(profile.role)}>
-        ← Back to dashboard
+      <Link
+        className="btn quiet"
+        href={employeeReviewer ? '/me/approvals?view=all' : homeForRole(profile.role)}
+      >
+        ← Back to {employeeReviewer ? 'my approvals' : 'dashboard'}
       </Link>
       <div className="card">
         <div className="hd">

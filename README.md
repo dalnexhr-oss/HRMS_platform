@@ -166,7 +166,11 @@ receive in-app updates and can view the request; only the current approver can d
 request remains pending, with balances, attendance, and comp-off credits settled
 only on final approval. Any assigned approver may reject the request. The applicant,
 CC recipients, and earlier approvers retain access to its decision history at
-`/requests/<requestId>`. Employee dashboards include a **Requests sent to you** inbox.
+`/requests/<requestId>`. Employee dashboards include an **Approvals** summary and
+an approvals icon beside the notification bell linking to `/me/approvals`, with
+**Awaiting me**, **Reviewed by me**, **CC**, and
+**All requests** views. Personal review history includes decision dates, notes, and
+handoffs alongside the request's current status, even after another person reviews it.
 Existing unassigned requests remain reviewable by staff and can also be forwarded.
 
 Request routing is stored atomically in `requests.approval_route`. Run `npm run db:setup`

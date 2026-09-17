@@ -232,6 +232,7 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
 
   revalidatePath('/me');
   revalidatePath('/approvals');
+  revalidatePath('/me/approvals');
   return { ok: true };
 }
 

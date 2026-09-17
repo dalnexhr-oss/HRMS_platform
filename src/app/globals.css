@@ -2642,6 +2642,86 @@ tbody tr:hover {
 .request-inbox-row:hover {
   background: var(--brand-soft);
 }
+.employee-home {
+  display: inline-flex;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.employee-approval-filters,
+.employee-approval-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.employee-approval-filters {
+  margin-bottom: 18px;
+}
+.employee-approval-counts a {
+  flex: 1 1 180px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--brand);
+  font-size: 13px;
+}
+.employee-approval-counts a:hover {
+  background: var(--brand-soft);
+}
+.employee-approval-counts b {
+  display: block;
+  font: 700 24px var(--mono);
+  margin-bottom: 5px;
+}
+.employee-approvals .hd {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.employee-approval-card .hd .pill {
+  text-transform: capitalize;
+}
+.employee-approval-card .bd {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.employee-approval-history {
+  border-left: 3px solid var(--brand);
+  padding: 8px 14px;
+  margin: 16px 0;
+  background: var(--brand-soft);
+  border-radius: 0 10px 10px 0;
+}
+.employee-approval-history h4 {
+  margin: 0 0 10px;
+}
+.employee-approval-history ol {
+  margin: 0;
+  padding-left: 18px;
+}
+.employee-approval-history li + li {
+  margin-top: 12px;
+}
+.employee-approval-history time {
+  display: block;
+  color: var(--ink-3);
+  font-size: 12px;
+  margin-top: 4px;
+}
+.employee-approval-history p,
+.employee-approval-reason {
+  white-space: pre-wrap;
+}
+.approval-status-pending {
+  color: var(--lm);
+}
+.approval-status-approved {
+  color: var(--p);
+}
+.approval-status-rejected {
+  color: var(--ab);
+}
+.approval-status-cancelled {
+  color: var(--ink-3);
+}
 .login-error {
   margin: 0 0 14px;
   padding: 10px 13px;

@@ -101,6 +101,7 @@ async function getSandwichPolicy(): Promise<boolean> {
  *  the staff approvals queue, and the HR dashboard's leave history. */
 function revalidateRequestViews(): void {
   revalidatePath('/me');
+  revalidatePath('/me/approvals');
   revalidatePath('/approvals');
   revalidatePath('/leave-management');
 }

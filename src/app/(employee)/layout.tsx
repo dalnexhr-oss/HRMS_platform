@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { getSession, isStaffRole } from '@/lib/auth';
 import { SignOutButton } from '@/components/auth/SignOutButton';
 import { NotificationBell } from '@/components/shell/NotificationBell';
@@ -6,6 +7,7 @@ import { PunchToggle } from '@/components/employee/PunchToggle';
 import { ProfileMenu } from '@/components/shell/ProfileMenu';
 import { Brand } from '@/components/ui/Brand';
 import { getMyNotifications, getUnreadNotificationCount } from '@/lib/queries';
+import { ApprovalsShortcut } from '@/components/employee/ApprovalsShortcut';
 
 // Employee self-service shell
 export default async function EmployeeLayout({ children }: { children: React.ReactNode }) {
@@ -29,10 +31,13 @@ export default async function EmployeeLayout({ children }: { children: React.Rea
     <div className="main">
       <div className="topbar">
         <div>
-          <Brand priority />
+          <Link href="/me" aria-label="Employee dashboard" className="employee-home">
+            <Brand priority />
+          </Link>
           <div className="sub">Employee self-service</div>
         </div>
         <div className="grow" />
+        <ApprovalsShortcut />
         <NotificationBell notifications={notifications} unread={unread} />
         <span className="who" style={{ marginRight: 4 }}>
           <ProfileMenu
