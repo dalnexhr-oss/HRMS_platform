@@ -21,7 +21,7 @@ const emptyMessages: Record<EmployeeApprovalView, string> = {
   pending: 'No requests are waiting for your approval.',
   reviewed:
     'You have not reviewed any requests yet. Your approvals, rejections, and handoffs will appear here.',
-  cc: 'You have not been copied on any requests yet.',
+  cc: 'You have not been cc on any requests yet.',
   all: 'Requests sent to you for approval or copied to you will appear here.',
 };
 
