@@ -8,9 +8,12 @@ import { requireOpenPayrollMonth } from '@/lib/actions/guards';
 // here. If the second write fails, the credit stays applied and cannot be spent again; reversing
 // the writes could consume a credit without recording the day off. Return follow-up failures as
 // warnings after the decision has saved.
-export async function settleApprovedCompOff(requestId: string): Promise<string | null> {
+export async function settleApprovedCompOff(
+  requestId: string,
+  client?: Awaited<ReturnType<typeof createClient>>,
+): Promise<string | null> {
   try {
-    const dbc = await createClient();
+    const dbc = client ?? (await createClient());
 
     const { data: credit, error } = await dbc
       .from('comp_offs')
@@ -89,9 +92,12 @@ export async function settleApprovedCompOff(requestId: string): Promise<string |
  * Scoped to status='applied' so an already-USED credit can never be resurrected
  * into a fresh day off by replaying a rejection against an old request id.
  */
-export async function releaseCompOff(requestId: string): Promise<void> {
+export async function releaseCompOff(
+  requestId: string,
+  client?: Awaited<ReturnType<typeof createClient>>,
+): Promise<void> {
   try {
-    const dbc = await createClient();
+    const dbc = client ?? (await createClient());
     await dbc
       .from('comp_offs')
       .update({ status: 'available', used_date: null, request_id: null })

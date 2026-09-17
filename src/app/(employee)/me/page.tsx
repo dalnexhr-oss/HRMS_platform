@@ -10,6 +10,7 @@ import {
   getMyAttendance,
   getMyPayslips,
   getMyRequests,
+  getRequests,
   getMyTickets,
   getTicketComments,
   getMyCompOffs,
@@ -56,16 +57,16 @@ import { MyOnboarding } from '@/components/employee/MyOnboarding';
 import { Punch } from '@/components/employee/Punch';
 import { inr } from '@/lib/format';
 import type { DayCell, PayslipRow } from '@/types/domain';
+import { getRequestRecipients } from '@/lib/requests/routing';
+import { RequestInbox } from '@/components/requests/RequestInbox';
 
-// Employee dashboard: personal snapshot, own attendance strip, payslips,
-// leave/duty requests, helpdesk tickets and the policies they must read.
+// Employee self-service dashboard. This is the default landing page for employees after login, and the hub for all their self-service needs. It shows a snapshot of their attendance, payslips, requests, tickets, policies, and other relevant information.
 export default async function MePage() {
   const { profile, email } = await getSession();
   const employeeId = profile?.employee_id ?? null;
   const periodMonth = currentPeriodMonth();
 
-  // Only the per-employee queries need a linked employee record; the overview
-  // and policy list already handle a null id themselves.
+  // Fetch all the data needed for the employee dashboard in parallel. This includes overview, policies, balances, attendance, payslips, requests, tickets, payroll run, comp offs, reimbursements, rate per km, assets, items, holidays, notices, week off policy, read notice ids, documents, onboarding tasks, and employees on leave today.
   const [
     overview,
     policies,
@@ -87,6 +88,8 @@ export default async function MePage() {
     myDocuments,
     myOnboarding,
     onLeaveToday,
+    requestPeople,
+    inboxRequests,
   ] = await Promise.all([
     getEmployeeOverview(employeeId, profile?.full_name, periodMonth),
     getEmployeePolicies(employeeId),
@@ -95,7 +98,6 @@ export default async function MePage() {
     employeeId ? getMyPayslips(employeeId) : Promise.resolve<PayslipRow[]>([]),
     employeeId ? getMyRequests(employeeId) : Promise.resolve<RequestView[]>([]),
     employeeId ? getMyTickets(employeeId) : Promise.resolve<TicketView[]>([]),
-    // Use the saved payroll run status for the net-pay summary.
     getPayrollRun(periodMonth),
     employeeId ? getMyCompOffs(employeeId) : Promise.resolve<CompOffRow[]>([]),
     employeeId ? getMyReimbursements(employeeId) : Promise.resolve<ReimbursementView[]>([]),
@@ -109,13 +111,12 @@ export default async function MePage() {
     employeeId ? getEmployeeDocuments(employeeId) : Promise.resolve<EmployeeDocumentRow[]>([]),
     employeeId ? getMyOnboardingTasks(employeeId) : Promise.resolve<OnboardingTaskRow[]>([]),
     getOnLeaveToday().catch(() => [] as OnLeaveTodayRow[]),
+    getRequestRecipients(),
+    getRequests(),
   ]);
 
-  // Notices are company announcements, so the employee's own read/unread
-  // state is not part of the notice itself. F
-  // Fetch the read ids separately and filter the list here.
+  // Fetch the comments for all tickets in one go, so the ticket list can show the latest comment and comment count.
   const ticketComments = await getTicketComments(tickets.map((t) => t.id));
-
   const noticeCutoffMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const visibleNotices: NoticeView[] = notices.filter(
     (n) =>
@@ -123,28 +124,18 @@ export default async function MePage() {
   );
   const readNoticeSet = new Set(readNoticeIds);
   const unreadNotices = visibleNotices.filter((n) => !readNoticeSet.has(n.id)).length;
-  // Holidays legitimately differ by branch, so scope those to the employee's
-  // branch plus any all-branches entries.
   const myBranch = overview.branch || null;
   const visibleHolidays: HolidayView[] = holidays.filter((h) => !h.branch || h.branch === myBranch);
   const todayStr = todayIST();
   const upcomingHolidayCount = visibleHolidays.filter((h) => h.date >= todayStr).length;
-
   const unread = policies.filter((p) => !p.acknowledged).length;
   const pendingRequests = requests.filter((r) => r.status === 'pending').length;
   const openTickets = tickets.filter(
     (t) => t.status === 'open' || t.status === 'in_progress',
   ).length;
-
-  // Exclude held comp-off credits from the spendable balance, matching applyCompOff and the Comp
-  // offs card.
   const compOffBalance = compOffs.filter((c) => c.status === 'available' && c.isApplicable).length;
   const compOffApplied = compOffs.filter((c) => c.status === 'applied').length;
-
-  // Ticket creation needs a linked employee and a configured database. Use a fallback greeting
-  // when the profile has no name.
   const displayName = overview.name.trim() || profile?.full_name?.trim() || 'there';
-
   const canRaiseTicket = isMongoConfigured() && !!employeeId;
   const ticketBlockedReason = !isMongoConfigured()
     ? 'The database is not configured, so a ticket cannot be saved.'
@@ -178,7 +169,10 @@ export default async function MePage() {
       {/* personal snapshot */}
       <div className="kpis">
         <div className="card kpi">
-          <div className="lab"><span  style={{ color: 'var(--brand)' , fontWeight: 'bold' }}>Present Days</span> - {monthName(periodMonth)}</div>
+          <div className="lab">
+            <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Present Days</span> -{' '}
+            {monthName(periodMonth)}
+          </div>
           <div className="val" style={{ color: 'var(--p)' }}>
             {overview.present}
           </div>
@@ -188,14 +182,17 @@ export default async function MePage() {
           </div>
         </div>
         <div className="card kpi">
-          <div className="lab"><span  style={{ color: 'var(--brand)' , fontWeight: 'bold' }}>Hours worked</span> - {monthName(periodMonth)}</div>
-          <div className="val mono" style={{ fontSize: 26, paddingTop: 4 ,paddingBottom: 6}}>
+          <div className="lab">
+            <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Hours worked</span> -{' '}
+            {monthName(periodMonth)}
+          </div>
+          <div className="val mono" style={{ fontSize: 26, paddingTop: 4, paddingBottom: 6 }}>
             {overview.workedHours}
           </div>
           <div className="hours-note">
             {overview.surplusMinutes > 0 ? '+' : ''}
             {overview.surplusMinutes} min
-            <span style={{ color: 'var(--brand)' }}>  surplus</span>
+            <span style={{ color: 'var(--brand)' }}> surplus</span>
           </div>
           <div className="note" style={{ fontSize: 9, marginTop: 0 }}>
             Daily target of 9 hours 15 minutes, across {overview.surplusPresentDays}{' '}
@@ -203,7 +200,10 @@ export default async function MePage() {
           </div>
         </div>
         <div className="card kpi">
-          <div className="lab"><span  style={{ color: 'var(--brand)' , fontWeight: 'bold' }}>Pending hours</span> - {monthName(periodMonth)}</div>
+          <div className="lab">
+            <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Pending hours</span> -{' '}
+            {monthName(periodMonth)}
+          </div>
           <div
             className="val mono"
             style={{
@@ -221,7 +221,9 @@ export default async function MePage() {
           </div>
         </div>
         <div className="card kpi">
-          <div className="lab"><span  style={{ color: 'var(--brand)' , fontWeight: 'bold' }}>Comp offs remaining</span></div>
+          <div className="lab">
+            <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Comp offs remaining</span>
+          </div>
           <div className="val" style={{ color: compOffBalance > 0 ? 'var(--p)' : 'var(--ink-3)' }}>
             {compOffBalance}
           </div>
@@ -232,7 +234,10 @@ export default async function MePage() {
           </div>
         </div>
         <div className="card kpi">
-          <div className="lab"><span  style={{ color: 'var(--brand)' , fontWeight: 'bold' }}>Net pay</span> - {monthName(periodMonth)}</div>
+          <div className="lab">
+            <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Net pay</span> -{' '}
+            {monthName(periodMonth)}
+          </div>
           <div className="val" style={{ fontSize: 26, paddingTop: 8, color: 'var(--brand-deep)' }}>
             {overview.netPay != null ? inr(overview.netPay) : '—'}
           </div>
@@ -241,21 +246,27 @@ export default async function MePage() {
           </div>
         </div>
         <div className="card kpi">
-          <div className="lab">Policies to read</div>
+          <div className="lab">
+            <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Policies to read</span>
+          </div>
           <div className="val" style={{ color: unread ? 'var(--hd)' : 'var(--p)' }}>
             {unread}
           </div>
           <div className="note">{policies.length} published in total</div>
         </div>
         <div className="card kpi">
-          <div className="lab">Requests pending</div>
+          <div className="lab">
+            <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Requests pending</span>
+          </div>
           <div className="val" style={{ color: pendingRequests ? 'var(--lm)' : 'var(--p)' }}>
             {pendingRequests}
           </div>
           <div className="note">{requests.length} filed in total</div>
         </div>
         <div className="card kpi">
-          <div className="lab">Open tickets</div>
+          <div className="lab">
+            <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Open tickets</span>
+          </div>
           <div className="val" style={{ color: openTickets ? 'var(--lm)' : 'var(--p)' }}>
             {openTickets}
           </div>
@@ -350,14 +361,18 @@ export default async function MePage() {
         balances={balances}
         canApply={!!employeeId}
         compOffBalance={compOffBalance}
+        people={requestPeople}
         id="leave"
       />
+
+      {profile && <RequestInbox requests={inboxRequests} userId={profile.id} />}
 
       {/* comp offs earned by working an off day */}
       <MyCompOffs
         compOffs={compOffs}
         canApply={canRaiseTicket}
         blockedReason={ticketBlockedReason}
+        people={requestPeople}
         id="comp-offs"
       />
 

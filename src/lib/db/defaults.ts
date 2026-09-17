@@ -10,7 +10,7 @@ export const today = Symbol('today');
 
 const money = (v: string): Decimal128 => Decimal128.fromString(v);
 
-export type DefaultValue = string | number | boolean | Decimal128 | object | symbol;
+export type DefaultValue = string | number | boolean | Decimal128 | object | symbol | null;
 
 // Mapping of collection -> field -> default value or resolver symbol.
 export const columnDefaults: Record<string, Record<string, DefaultValue>> = {
@@ -228,6 +228,7 @@ export const columnDefaults: Record<string, Record<string, DefaultValue>> = {
     days: money('1.00'),
     status: 'pending',
     created_at: now,
+    approval_route: null,
   },
   role_tab_access: {
     allowed: true,

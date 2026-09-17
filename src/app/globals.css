@@ -2476,6 +2476,172 @@ tbody tr:hover {
   color: var(--brand);
   background: var(--brand-soft);
 }
+/* Company recipient tags and request approval details. */
+.recipient-picker {
+  position: relative;
+}
+.recipient-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  min-height: 44px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: #fff;
+}
+.recipient-tags:focus-within {
+  border-color: var(--brand);
+  box-shadow: var(--ring);
+}
+.f .recipient-tags input:not([type='hidden']) {
+  flex: 1 1 170px;
+  width: auto;
+  min-width: 100px;
+  border: 0;
+  padding: 4px;
+  box-shadow: none;
+  outline: none;
+  background: transparent;
+}
+.recipient-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px 3px 10px;
+  border-radius: 16px;
+  background: var(--brand-soft);
+  color: var(--brand-deep);
+  font-size: 12px;
+}
+.recipient-tag button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+  padding: 3px;
+  cursor: pointer;
+}
+.recipient-options {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: 270px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lift);
+}
+.recipient-options button {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.recipient-options button:hover,
+.recipient-options button[aria-selected='true'] {
+  background: var(--brand-soft);
+}
+.recipient-options span,
+.recipient-options small,
+.recipient-hint {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.recipient-options p {
+  padding: 0 12px;
+}
+.recipient-hint {
+  margin-top: 4px;
+}
+.request-routing {
+  font-size: 12px;
+  margin: 12px 0;
+  overflow-wrap: anywhere;
+}
+.request-routing p {
+  margin: 5px 0;
+}
+.request-awaiting {
+  color: var(--brand);
+  font-weight: 600;
+}
+.request-routing summary {
+  cursor: pointer;
+  margin-top: 8px;
+}
+.request-routing li {
+  margin-bottom: 10px;
+}
+.request-decision {
+  padding-top: 14px;
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.request-decision .acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.request-forward-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+  cursor: pointer;
+}
+.request-forward-choice input {
+  accent-color: var(--brand);
+}
+.request-detail {
+  max-width: 860px;
+  margin: 30px auto;
+}
+.request-detail > .btn {
+  justify-self: start;
+}
+.request-detail .hd h3,
+.request-detail .pill {
+  text-transform: capitalize;
+}
+.request-inbox {
+  display: grid;
+  gap: 8px;
+}
+.request-inbox-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 12px;
+}
+.request-inbox-row > div {
+  flex: 1 1 220px;
+}
+.request-inbox-row > span {
+  color: var(--brand);
+  text-transform: capitalize;
+}
+.request-inbox-row:hover {
+  background: var(--brand-soft);
+}
 .login-error {
   margin: 0 0 14px;
   padding: 10px 13px;

@@ -150,7 +150,9 @@ export function LeaveHistory({ requests }: { requests: RequestView[] }) {
                 {visible.map((r) => (
                   <tr key={r.id}>
                     <td>
-                      <b>{r.employeeName}</b>{' '}
+                      <Link href={`/requests/${r.id}`}>
+                        <b>{r.employeeName}</b>
+                      </Link>{' '}
                       <span className="mono muted" style={{ fontSize: 11 }}>
                         {r.employeeCode}
                       </span>

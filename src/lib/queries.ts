@@ -7,6 +7,8 @@ import { isMongoConfigured } from '@/lib/db/mongo';
 import { defaultWeekOffPolicy, policyFromSettings, type WeekOffPolicy } from '@/lib/week-off';
 import { presentCredit } from '@/lib/leave-salary';
 import { presentDaySurplus } from '@/lib/worked-time';
+import { routingView } from '@/lib/requests/routing-view';
+import type { RequestRouting } from '@/types/requests';
 import type { TopbarStats } from '@/lib/constants';
 import { requiredDocumentCategories } from '@/lib/constants';
 import type {
@@ -2667,6 +2669,7 @@ export async function getSettings(): Promise<SettingView[]> {
 // requests
 export interface RequestView {
   id: string;
+  employeeId: string;
   employeeName: string;
   employeeCode: string;
   branch: string;
@@ -2684,14 +2687,16 @@ export interface RequestView {
   createdAt: string;
   /** When it was decided; null while pending/cancelled-unreviewed. */
   reviewedAt: string | null;
+  routing: RequestRouting | null;
 }
 
 function mapRequest(r: any): RequestView {
   return {
     id: r.id,
-    employeeName: r.employees?.full_name ?? '',
-    employeeCode: r.employees?.code ?? '',
-    branch: r.employees?.branches?.name ?? '',
+    employeeId: r.employee_id,
+    employeeName: r.employee_name || r.employees?.full_name || '',
+    employeeCode: r.employee_code || r.employees?.code || '',
+    branch: r.employee_branch || r.employees?.branches?.name || '',
     type: r.type,
     leaveKind: r.leave_kind,
     startDate: r.start_date,
@@ -2703,9 +2708,10 @@ function mapRequest(r: any): RequestView {
     reviewRemark: r.review_remark ?? null,
     createdAt: iso(r.created_at),
     reviewedAt: isoOrNull(r.reviewed_at),
+    routing: routingView(r.approval_route),
   };
 }
-const requestFields = `id, type, leave_kind, start_date, end_date, days, reason, status,
+const requestFields = `id, employee_id, employee_name, employee_code, employee_branch, approval_route, type, leave_kind, start_date, end_date, days, reason, status,
   balance_after, review_remark, created_at, reviewed_at, employees(code, full_name, branches(name))`;
 
 /** Leave / duty requests, pending first then reviewed. */
@@ -2722,6 +2728,20 @@ export async function getRequests(): Promise<RequestView[]> {
   return (res.data ?? [])
     .map(mapRequest)
     .sort((a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1));
+}
+
+/** The same policy-scoped request view is available to staff, the applicant, and tagged people. */
+export async function getRequest(id: string): Promise<RequestView | null> {
+  const dbc = await createClient();
+  const { data, error } = await dbc
+    .from('requests')
+    .select(requestFields)
+    .eq('id', id)
+    .maybeSingle();
+  if (error) {
+    fail('getRequest: could not load the request', error);
+  }
+  return data ? mapRequest(data) : null;
 }
 
 // on leave today

@@ -7,6 +7,10 @@ import { applyCompOff } from '@/lib/actions/comp-off';
 import { todayIST } from '@/lib/format';
 import type { LeaveBalanceRow, RequestView } from '@/lib/queries';
 import type { RequestType } from '@/types/database';
+import Link from 'next/link';
+import type { RequestRecipient } from '@/types/requests';
+import { RequestRecipients } from '@/components/requests/RequestRecipients';
+import { RequestRoutingSummary } from '@/components/requests/RequestRoutingSummary';
 
 const typeLabel: Record<RequestType, string> = {
   leave: 'Leave',
@@ -90,6 +94,7 @@ export function ApplyLeave({
   balances,
   canApply,
   compOffBalance = 0,
+  people,
   id,
 }: {
   requests: RequestView[];
@@ -98,6 +103,7 @@ export function ApplyLeave({
   /** Usable comp-off credits (available AND applicable) — the Comp off kind
    *  cannot be filed without one, so the form needs the count up front. */
   compOffBalance?: number;
+  people: RequestRecipient[];
   id?: string;
 }) {
   return (
@@ -142,7 +148,7 @@ export function ApplyLeave({
           )}
 
           {canApply ? (
-            <NewRequestForm compOffBalance={compOffBalance} />
+            <NewRequestForm compOffBalance={compOffBalance} people={people} />
           ) : (
             <p className="muted" style={{ fontSize: 13 }}>
               Your login is not linked to an employee record, so requests cannot be filed. Ask HR to
@@ -223,6 +229,10 @@ function RequestItem({ request }: { request: RequestView }) {
               : ''}
       </p>
       {request.reason && <p className="body">{request.reason}</p>}
+      <RequestRoutingSummary routing={request.routing} status={request.status} />
+      <Link className="btn quiet" href={`/requests/${request.id}`}>
+        View request →
+      </Link>
       {request.reviewRemark && (request.status === 'approved' || request.status === 'rejected') && (
         <p
           className="body"
@@ -240,13 +250,20 @@ function RequestItem({ request }: { request: RequestView }) {
 // The parent gates this form with canApply. Keep date bounds in state; read the remaining fields
 // from FormData on submit.
 
-function NewRequestForm({ compOffBalance }: { compOffBalance: number }) {
+function NewRequestForm({
+  compOffBalance,
+  people,
+}: {
+  compOffBalance: number;
+  people: RequestRecipient[];
+}) {
   const router = useRouter();
   const [type, setType] = useState<RequestType>('leave');
   const [leaveKind, setLeaveKind] = useState<LeaveKindChoice>('CO');
   const today = todayIST();
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [recipientKey, setRecipientKey] = useState(0);
 
   const onStartChange = (value: string) => {
     setStartDate(value);
@@ -264,6 +281,7 @@ function NewRequestForm({ compOffBalance }: { compOffBalance: number }) {
       if (res.ok) {
         setStartDate('');
         setEndDate('');
+        setRecipientKey((value) => value + 1);
         router.refresh();
       }
       return res;
@@ -276,6 +294,7 @@ function NewRequestForm({ compOffBalance }: { compOffBalance: number }) {
 
   return (
     <form action={action}>
+      <RequestRecipients key={recipientKey} people={people} disabled={pending} />
       <div className="f">
         <label>Request type</label>
         <select name="type" value={type} onChange={(e) => setType(e.target.value as RequestType)}>

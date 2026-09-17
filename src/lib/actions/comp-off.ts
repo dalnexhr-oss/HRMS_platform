@@ -9,7 +9,8 @@ import { getWeekOffPolicy } from '@/lib/queries';
 import { isScheduledWeekOff } from '@/lib/week-off';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { toDecimal } from '@/lib/db/money';
-import { notifyApprovers, notifyEmployee } from '@/lib/notify';
+import { notifyEmployee } from '@/lib/notify';
+import { notifyRequestParticipants, prepareRequestRouting } from '@/lib/requests/routing';
 import { todayIST } from '@/lib/format';
 
 export interface ActionResult {
@@ -135,6 +136,15 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
   }
 
   const dbc = await createClient();
+  let routing: Awaited<ReturnType<typeof prepareRequestRouting>>;
+  try {
+    routing = await prepareRequestRouting(formData, employeeId);
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'Choose valid request recipients.',
+    };
+  }
 
   // Default to FIFO allocation (earliest expiration, then earliest earned date).
   let compOffId = requestedId;
@@ -196,6 +206,7 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
       days: toDecimal(1),
       reason,
       status: 'pending',
+      ...routing,
     })
     .select('id');
 
@@ -211,13 +222,11 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
     .update({ request_id: req![0].id, used_date: takeDate })
     .eq('id', compOffId);
 
-  await notifyApprovers(
-    {
-      kind: 'request',
-      title: `${profile?.full_name ?? 'An employee'} applied to take a comp off`,
-      body: takeDate,
-      link: '/approvals',
-    },
+  await notifyRequestParticipants(
+    req![0].id,
+    routing.approval_route,
+    `${profile?.full_name ?? 'An employee'} applied to take a comp off`,
+    takeDate,
     profile?.id,
   );
 

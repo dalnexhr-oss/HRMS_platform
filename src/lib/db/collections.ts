@@ -2,6 +2,7 @@
 import type { Collection, Decimal128, Document } from 'mongodb';
 import { db } from '@/lib/db/mongo';
 import type { AppRole } from '@/types/database';
+import type { RequestPerson } from '@/types/requests';
 
 export const collections = {
   // Identity: credentials, role, and tab access share the user document.
@@ -114,6 +115,41 @@ export interface UserDoc {
   last_sign_in_at: Date | null;
   created_at: Date;
   updated_at: Date;
+}
+
+/** Routing and decisions live with the request so forwarding is one atomic document update. */
+export interface RequestRouteDoc {
+  initial_approver: RequestPerson;
+  current_approver: RequestPerson;
+  cc: RequestPerson[];
+  revision: number;
+  history: {
+    approver: RequestPerson;
+    decision: 'approved' | 'rejected';
+    decided_at: Date;
+    remark: string | null;
+    forwarded_to: RequestPerson | null;
+  }[];
+}
+
+export interface RequestDoc {
+  _id: string;
+  employee_id: string;
+  employee_name?: string;
+  employee_code?: string;
+  employee_branch?: string;
+  type: 'leave' | 'site_visit' | 'outdoor_duty' | 'wfh' | 'comp_off';
+  leave_kind?: string | null;
+  start_date: string;
+  end_date: string;
+  days: Decimal128;
+  reason: string | null;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  approval_route?: RequestRouteDoc | null;
+  reviewed_by?: string | null;
+  reviewed_at?: Date | null;
+  review_remark?: string | null;
+  created_at: Date;
 }
 
 // What is safe to hand to a React component. Never includes the hash.

@@ -3,7 +3,7 @@ import { registerHooks } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
-// Match the application's @/ alias while running source modules with node:test.
+// Match the application's alias and relative TypeScript imports in node:test.
 registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier.startsWith('@/')) {
@@ -18,6 +18,15 @@ registerHooks({
         url,
         shortCircuit: true,
       };
+    }
+    if (/^\.\.?\//.test(specifier) && context.parentURL?.startsWith('file:')) {
+      const base = new URL(specifier, context.parentURL).href;
+      const url = [`${base}.ts`, `${base}.tsx`].find((candidate) =>
+        existsSync(fileURLToPath(candidate)),
+      );
+      if (url) {
+        return { url, shortCircuit: true };
+      }
     }
     return nextResolve(specifier, context);
   },

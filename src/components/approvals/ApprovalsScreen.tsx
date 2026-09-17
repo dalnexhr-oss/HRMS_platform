@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect, useMemo, useState, useTransition } from 'react';
-import type { ChangeEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Stamp } from '@/components/ui/Stamp';
-import { reviewRequest } from '@/lib/actions/requests';
 import { useToast } from '@/components/ui/Toast';
 import type { RequestView } from '@/lib/queries';
+import type { RequestRecipient } from '@/types/requests';
+import { canReviewRequest, type RequestActor } from '@/lib/requests/access';
+import { RequestDecisionControls } from '@/components/requests/RequestDecisionControls';
+import { RequestRoutingSummary } from '@/components/requests/RequestRoutingSummary';
+import { RequestInbox } from '@/components/requests/RequestInbox';
 
 // Map a request type to the register stamp it corresponds to.
 const typeStamp: Record<RequestView['type'], string> = {
@@ -49,10 +52,21 @@ function dateRange(startIso: string, endIso: string): string {
   return `${dayOf(startIso)} ${startMonth} – ${dayOf(endIso)} ${endMonth}`;
 }
 
-export function ApprovalsScreen({ requests }: { requests: RequestView[] }) {
+export function ApprovalsScreen({
+  requests,
+  actor,
+  people,
+}: {
+  requests: RequestView[];
+  actor: RequestActor;
+  people: RequestRecipient[];
+}) {
   const { toast, toastNode } = useToast();
   // Start with just the pending requests; reviewed cards drop out optimistically.
-  const initialPending = useMemo(() => requests.filter((r) => r.status === 'pending'), [requests]);
+  const initialPending = useMemo(
+    () => requests.filter((r) => canReviewRequest(r, actor)),
+    [requests, actor],
+  );
   const [pending, setPending] = useState<RequestView[]>(initialPending);
 
   // Resync when server rows change while retaining optimistic removals between updates.
@@ -69,6 +83,8 @@ export function ApprovalsScreen({ requests }: { requests: RequestView[] }) {
             <RequestCard
               key={req.id}
               request={req}
+              actor={actor}
+              people={people}
               onReviewed={(id) => setPending((rows) => rows.filter((r) => r.id !== id))}
               toast={toast}
             />
@@ -80,46 +96,29 @@ export function ApprovalsScreen({ requests }: { requests: RequestView[] }) {
         <div className="card">
           <div className="empty" style={{ padding: 26 }}>
             <span className="muted" style={{ font: '500 12px var(--mono)' }}>
-              Nothing else waiting — leave and outdoor-duty requests land here the moment
-              they&rsquo;re raised in the app.
+              No requests are waiting for your approval.
             </span>
           </div>
         </div>
       )}
+      <RequestInbox requests={requests} userId={actor.id} />
     </div>
   );
 }
 
 function RequestCard({
   request,
+  actor,
+  people,
   onReviewed,
   toast,
 }: {
   request: RequestView;
+  actor: RequestActor;
+  people: RequestRecipient[];
   onReviewed: (id: string) => void;
   toast: (message: string, kind?: 'success' | 'error' | 'info') => void;
 }) {
-  const [busy, startTransition] = useTransition();
-  const [remark, setRemark] = useState('');
-
-  const decide = (decision: 'approved' | 'rejected') => {
-    startTransition(async () => {
-      const res = await reviewRequest(request.id, decision, remark);
-      if (res.ok) {
-        onReviewed(request.id);
-        // A warning means the decision stood but a side-effect needs a human
-        // (balance missing, register locked, …) — show it, loudly.
-        if (res.warning) {
-          toast(res.warning, 'info');
-        } else {
-          toast(`Request ${decision}.`, 'success');
-        }
-      } else {
-        toast(res.error ?? 'The request could not be reviewed.', 'error');
-      }
-    });
-  };
-
   return (
     <div className="card req">
       <div className="top">
@@ -137,22 +136,28 @@ function RequestCard({
         </span>
       </div>
       <div className="body">{requestSentence(request)}</div>
-      <div className="acts" style={{ flexWrap: 'wrap' }}>
-        <input
-          value={remark}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => setRemark(e.target.value)}
-          placeholder="Reason for the decision (shared with the employee)"
-          maxLength={500}
-          disabled={busy}
-          aria-label={`Reason for approving or rejecting ${request.employeeName}'s request`}
-          style={{ flex: '1 1 220px', minWidth: 180, padding: '7px 10px' }}
+      <div className="bd">
+        <RequestRoutingSummary routing={request.routing} status={request.status} />
+        <RequestDecisionControls
+          request={request}
+          actor={actor}
+          people={people}
+          onReviewed={(id, result) => {
+            onReviewed(id);
+            toast(
+              result.warning ??
+                (result.forwarded
+                  ? 'Stage approved and forwarded for further approval.'
+                  : 'Decision saved.'),
+              result.warning ? 'info' : 'success',
+            );
+          }}
         />
-        <button className="btn primary" onClick={() => decide('approved')} disabled={busy}>
-          {busy ? 'Saving…' : 'Approve'}
-        </button>
-        <button className="btn" onClick={() => decide('rejected')} disabled={busy}>
-          Reject
-        </button>
+      </div>
+      <div className="acts" style={{ flexWrap: 'wrap' }}>
+        <Link className="btn quiet" href={`/requests/${request.id}`}>
+          View request →
+        </Link>
         {/* Leave/WFH decisions are cross-checked against the register. Site visits and outdoor duty would want a location map, which does not exist yet — so no button is shown rather than a dead one. */}
         {(request.type === 'leave' || request.type === 'wfh') && (
           <Link className="btn quiet" href="/register">

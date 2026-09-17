@@ -155,6 +155,24 @@ only grant, or act on, a role at or below your own, so only a `super_admin` can
 create, promote to, or delete another `super_admin`. Create the first one with
 `npm run db:setup -- --admin --email …`.
 
+## Leave recipients and further approval
+
+New leave, duty, and comp-off applications use a searchable **To** field for the
+approver and optional **CC** company-account tags. The selected approver can be HR,
+an administrator, or an active employee such as a technical lead. CC recipients
+receive in-app updates and can view the request; only the current approver can decide.
+
+**Approve & forward** records a stage approval and assigns the next person. The
+request remains pending, with balances, attendance, and comp-off credits settled
+only on final approval. Any assigned approver may reject the request. The applicant,
+CC recipients, and earlier approvers retain access to its decision history at
+`/requests/<requestId>`. Employee dashboards include a **Requests sent to you** inbox.
+Existing unassigned requests remain reviewable by staff and can also be forwarded.
+
+Request routing is stored atomically in `requests.approval_route`. Run `npm run db:setup`
+with the deployment's environment file to apply the optional-field validators and
+recipient indexes from `scripts/schema.mjs`; existing requests require no backfill.
+
 ## Where Row Level Security went
 
 Postgres enforced 114 RLS policies across 48 tables, and that was the security
@@ -177,7 +195,7 @@ filter on `employee_id` overwrite the policy's constraint on the same field.
 ## Data model notes
 
 - **Money** is `Decimal128`, never a JS number, and all arithmetic runs in
-  integer  (`lib/db/money.ts`). Postgres `numeric` is exact; float64 is
+  integer (`lib/db/money.ts`). Postgres `numeric` is exact; float64 is
   not, and a payroll run is thousands of operations.
 - **Calendar days** (`work_date`, `date_of_joining`) are `"YYYY-MM-DD"` strings,
   not BSON Dates. A BSON Date is a UTC instant; round-tripping a calendar day

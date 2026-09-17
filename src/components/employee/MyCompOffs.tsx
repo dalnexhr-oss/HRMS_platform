@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 import { formatDate, todayIST } from '@/lib/format';
 import { applyCompOff } from '@/lib/actions/comp-off';
 import type { CompOffRow } from '@/lib/queries';
+import type { RequestRecipient } from '@/types/requests';
+import { RequestRecipients } from '@/components/requests/RequestRecipients';
 
 const statusLabel: Record<CompOffRow['status'], string> = {
   available: 'Available',
@@ -41,11 +43,13 @@ export function MyCompOffs({
   compOffs,
   canApply,
   blockedReason,
+  people,
   id,
 }: {
   compOffs: CompOffRow[];
   canApply: boolean;
   blockedReason: string;
+  people: RequestRecipient[];
   id?: string;
 }) {
   // The balance: available AND applicable. Credits HR put on hold don't count.
@@ -78,7 +82,7 @@ export function MyCompOffs({
 
             {usable.length > 0 &&
               (canApply ? (
-                <ApplyForm available={usable} />
+                <ApplyForm available={usable} people={people} />
               ) : (
                 <p className="muted" style={{ fontSize: 13, margin: 0 }}>
                   {blockedReason}
@@ -91,12 +95,14 @@ export function MyCompOffs({
   );
 }
 
-function ApplyForm({ available }: { available: CompOffRow[] }) {
+function ApplyForm({ available, people }: { available: CompOffRow[]; people: RequestRecipient[] }) {
   const router = useRouter();
+  const [recipientKey, setRecipientKey] = useState(0);
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
     async (_prev, formData) => {
       const res = await applyCompOff(formData);
       if (res.ok) {
+        setRecipientKey((value) => value + 1);
         router.refresh();
       }
       return res;
@@ -110,6 +116,7 @@ function ApplyForm({ available }: { available: CompOffRow[] }) {
 
   return (
     <form action={action} style={{ borderTop: '1px dashed var(--line)', paddingTop: 14 }}>
+      <RequestRecipients key={recipientKey} people={people} disabled={pending} />
       <div className="f-row">
         <div className="f">
           <label>Use the comp off earned on</label>

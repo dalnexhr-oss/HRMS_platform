@@ -156,10 +156,29 @@ export const policies: Partial<Record<string, CollectionPolicy>> = {
 
   // leave
   [collections.requests]: {
-    read: staffOrOwn(),
+    read: (s) =>
+      s.isStaff
+        ? {}
+        : {
+            $or: [
+              ...(s.employeeId ? [{ employee_id: s.employeeId }] : []),
+              { 'approval_route.initial_approver.id': s.userId },
+              { 'approval_route.current_approver.id': s.userId },
+              { 'approval_route.cc.id': s.userId },
+              { 'approval_route.history.approver.id': s.userId },
+            ],
+          },
     // Employees may only modify their own requests while in 'pending' status.
     write: ownEmployeeInState('employee_id', ['pending']),
     insert: insertStaffOrOwn('employee_id', { status: 'pending' }),
+    // Routed decisions use a guarded atomic transition in requests/routing.ts. Ordinary employee
+    // writes only withdraw a pending owned request; they cannot replace its recipients or approve it.
+    check: (s, fields) =>
+      s.isStaff ||
+      (Object.keys(fields).every((key) => key === 'status' || key === 'updated_at') &&
+        fields.status === 'cancelled')
+        ? null
+        : 'Only the assigned approver can decide this request.',
   },
   [collections.leaveBalances]: staffManagedEmployeeReadable(),
   [collections.leaveBalanceAdjustments]: staffManagedEmployeeReadable(),

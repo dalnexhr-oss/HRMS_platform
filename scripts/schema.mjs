@@ -6,6 +6,15 @@
 import { BASE_SCHEMA } from './schema-base.mjs';
 
 const TEXT = { bsonType: ['string', 'null'] };
+const REQUEST_PERSON = {
+  bsonType: 'object',
+  required: ['id', 'name', 'email'],
+  properties: {
+    id: { bsonType: 'string' },
+    name: { bsonType: 'string' },
+    email: { bsonType: 'string' },
+  },
+};
 
 // Per-collection overrides:
 // - drop skips the collection.
@@ -65,6 +74,53 @@ const OVERRIDES = {
     // across everyone. The unique index serves the first; this serves the second.
     indexes: [
       { keys: { work_date: 1, status: 1 }, options: { name: 'attendance_days_date_status' } },
+    ],
+  },
+
+  requests: {
+    properties: {
+      employee_name: TEXT,
+      employee_code: TEXT,
+      employee_branch: TEXT,
+      approval_route: {
+        bsonType: ['object', 'null'],
+        required: ['initial_approver', 'current_approver', 'cc', 'revision', 'history'],
+        properties: {
+          initial_approver: REQUEST_PERSON,
+          current_approver: REQUEST_PERSON,
+          cc: { bsonType: 'array', maxItems: 20, items: REQUEST_PERSON },
+          revision: { bsonType: ['int', 'long'], minimum: 0 },
+          history: {
+            bsonType: 'array',
+            maxItems: 100,
+            items: {
+              bsonType: 'object',
+              required: ['approver', 'decision', 'decided_at', 'remark', 'forwarded_to'],
+              properties: {
+                approver: REQUEST_PERSON,
+                decision: { enum: ['approved', 'rejected'] },
+                decided_at: { bsonType: 'date' },
+                remark: TEXT,
+                forwarded_to: { ...REQUEST_PERSON, bsonType: ['object', 'null'] },
+              },
+            },
+          },
+        },
+      },
+    },
+    indexes: [
+      {
+        keys: { 'approval_route.current_approver.id': 1, status: 1 },
+        options: { name: 'requests_assigned_status' },
+      },
+      {
+        keys: { 'approval_route.cc.id': 1, created_at: -1 },
+        options: { name: 'requests_cc_created' },
+      },
+      {
+        keys: { 'approval_route.history.approver.id': 1 },
+        options: { name: 'requests_previous_approvers' },
+      },
     ],
   },
 

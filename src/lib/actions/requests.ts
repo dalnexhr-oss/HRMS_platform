@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/db/server';
+import { createClient, createServiceClient } from '@/lib/db/server';
 import { isMongoConfigured, getWeekOffPolicy, getHolidays } from '@/lib/queries';
 import { countLeaveDays, isScheduledWeekOff } from '@/lib/week-off';
 import { getSession } from '@/lib/auth';
@@ -11,6 +11,12 @@ import { toDecimal } from '@/lib/db/money';
 import { notifyApprovers, notifyEmployee } from '@/lib/notify';
 import { todayIST } from '@/lib/format';
 import type { LeaveType, RequestType } from '@/types/database';
+import {
+  notifyRequestParticipants,
+  prepareRequestRouting,
+  reviewRoutedRequest,
+} from '@/lib/requests/routing';
+import type { RequestRouteDoc } from '@/lib/db/collections';
 
 export interface ActionResult {
   ok: boolean;
@@ -18,6 +24,7 @@ export interface ActionResult {
   // The decision saved, but a follow-up operation failed. Treat ok: true with a warning as a
   // successful decision requiring attention.
   warning?: string;
+  forwarded?: boolean;
 }
 
 const requestTypes: readonly RequestType[] = ['leave', 'site_visit', 'outdoor_duty', 'wfh'];
@@ -313,11 +320,11 @@ export async function reviewRequest(
   decision: 'approved' | 'rejected',
   /** Approver decision reason, stored on request and displayed to employee. */
   remark?: string,
+  nextApproverId?: string,
+  revision?: number,
 ): Promise<ActionResult> {
-  // Staff-only, DB required. requireStaff also covers the no-database refusal.
-  const gate = await requireStaff(`Marking a request ${decision}`);
-  if (!gate.ok) {
-    return gate;
+  if (decision !== 'approved' && decision !== 'rejected') {
+    return { ok: false, error: 'Choose Approve or Reject.' };
   }
 
   const cleanRemark =
@@ -325,60 +332,108 @@ export async function reviewRequest(
       .trim()
       .slice(0, 500) || null;
 
-  const dbc = await createClient();
-
-  // Multi-tier approval chain handling: resolve next pending step or final decision.
-  const chain = await decideApprovalStep(dbc, id, decision, gate.profileId, cleanRemark);
-  if (!chain.ok) {
-    return { ok: false, error: chain.error };
-  }
-  if (chain.stage === 'intermediate') {
-    // More approvals to go: the request stays pending on purpose.
-    await notifyApprovers(
-      {
-        kind: 'approval',
-        title: `A request needs approval step ${chain.nextStep}`,
-        body: `Step ${chain.decidedStep} approved. Awaiting the next approver.`,
-        link: '/approvals',
-      },
-      gate.profileId,
-    );
-    revalidateRequestViews();
-    return { ok: true };
-  }
-
-  const res = await dbc
-    .from('requests')
-    .update({
-      status: decision,
-      reviewed_by: gate.profileId,
-      reviewed_at: new Date(),
-      review_remark: cleanRemark,
-    })
-    .eq('id', id)
-    .eq('status', 'pending')
-    .select('id, type, leave_kind, days, employee_id, start_date, end_date');
-  const { data, error } = res;
-  if (error) {
-    return { ok: false, error: error.message };
-  }
-
-  if (!data || data.length === 0) {
+  let routed: Awaited<ReturnType<typeof reviewRoutedRequest>>;
+  try {
+    routed = await reviewRoutedRequest(id, decision, cleanRemark, nextApproverId?.trim(), revision);
+  } catch (error) {
     return {
       ok: false,
-      error:
-        'The request was not updated — it may already have been reviewed by someone else, or your account may not have permission to review it.',
+      error: error instanceof Error ? error.message : 'Could not review this request.',
     };
   }
+  if (routed.kind === 'forwarded') {
+    const route = routed.request.approval_route!;
+    const message = `Approved at this stage; awaiting ${route.current_approver.name}'s further approval.`;
+    await notifyRequestParticipants(
+      id,
+      route,
+      `Further approval: ${routed.request.employee_name ?? 'Employee'}'s request`,
+      message,
+    );
+    await notifyEmployee(routed.request.employee_id, {
+      kind: 'approval',
+      title: 'Your request was forwarded for further approval',
+      body: message,
+      link: `/requests/${id}`,
+    });
+    revalidateRequestViews();
+    revalidatePath(`/requests/${id}`);
+    return { ok: true, forwarded: true };
+  }
 
-  const reviewed = data[0] as {
+  // The selected colleague may be an employee. Use service access for narrowly scoped follow-up
+  // writes only after the guarded request transition succeeds.
+  const dbc = routed.kind === 'final' ? createServiceClient() : await createClient();
+  let reviewed: {
     type: string;
-    leave_kind: string | null;
-    days: number;
+    leave_kind?: string | null;
+    days: unknown;
     employee_id: string;
     start_date: string;
     end_date: string;
   };
+  if (routed.kind === 'final') {
+    reviewed = routed.request;
+  } else {
+    const gate = await requireStaff(`Marking a request ${decision}`);
+    if (!gate.ok) {
+      return gate;
+    }
+
+    // Multi-tier approval chain handling: resolve next pending step or final decision.
+    const chain = await decideApprovalStep(dbc, id, decision, gate.profileId, cleanRemark);
+    if (!chain.ok) {
+      return { ok: false, error: chain.error };
+    }
+    if (chain.stage === 'intermediate') {
+      // More approvals to go: the request stays pending on purpose.
+      await notifyApprovers(
+        {
+          kind: 'approval',
+          title: `A request needs approval step ${chain.nextStep}`,
+          body: `Step ${chain.decidedStep} approved. Awaiting the next approver.`,
+          link: '/approvals',
+        },
+        gate.profileId,
+      );
+      revalidateRequestViews();
+      return { ok: true };
+    }
+
+    const res = await dbc
+      .from('requests')
+      .update({
+        status: decision,
+        reviewed_by: gate.profileId,
+        reviewed_at: new Date(),
+        review_remark: cleanRemark,
+      })
+      .eq('id', id)
+      .eq('status', 'pending')
+      .is('approval_route', null)
+      .select('id, type, leave_kind, days, employee_id, start_date, end_date');
+    const { data, error } = res;
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+
+    if (!data || data.length === 0) {
+      return {
+        ok: false,
+        error:
+          'The request was not updated — it may already have been reviewed by someone else, or your account may not have permission to review it.',
+      };
+    }
+
+    reviewed = data[0] as {
+      type: string;
+      leave_kind: string | null;
+      days: number;
+      employee_id: string;
+      start_date: string;
+      end_date: string;
+    };
+  }
 
   // The decision is committed before side effects. Report follow-up failures as warnings; the
   // pending-status guard prevents applying a transition twice.
@@ -388,9 +443,9 @@ export async function reviewRequest(
   // releases it back to the employee.
   if (reviewed.type === 'comp_off') {
     if (decision === 'approved') {
-      warning = await settleApprovedCompOff(id);
+      warning = await settleApprovedCompOff(id, dbc);
     } else {
-      await releaseCompOff(id);
+      await releaseCompOff(id, dbc);
     }
   }
 
@@ -488,7 +543,17 @@ export async function reviewRequest(
     });
   }
 
+  if (routed.kind === 'final' && routed.request.approval_route) {
+    await notifyRequestParticipants(
+      id,
+      routed.request.approval_route,
+      `${routed.request.employee_name ?? 'Employee'}'s request was ${decision}`,
+      cleanRemark || `${routed.request.start_date} – ${routed.request.end_date}`,
+    );
+  }
+
   revalidateRequestViews();
+  revalidatePath(`/requests/${id}`);
   if (decision === 'approved') {
     // An approval also changes the register (stamping / comp-off settle) and
     // the leave balances shown on /leave.
@@ -582,6 +647,15 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
   }
 
   const dbc = await createClient();
+  let routing: Awaited<ReturnType<typeof prepareRequestRouting>>;
+  try {
+    routing = await prepareRequestRouting(formData, employeeId);
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'Choose valid request recipients.',
+    };
+  }
   const { data: inserted, error } = await dbc
     .from('requests')
     .insert({
@@ -595,30 +669,24 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
       days: toDecimal(days),
       reason,
       status: 'pending',
+      ...routing,
     })
     .select('id');
   if (error) {
     return { ok: false, error: error.message };
   }
 
-  // Initialize multi-tier approval chain if configured (best-effort).
   const newId = (inserted?.[0] as { id: string } | undefined)?.id;
-  if (newId) {
-    const { error: chainErr } = await dbc.rpc('fn_init_approval_steps', { p_request_id: newId });
-    if (chainErr) {
-      console.warn('[dalnex-hrms] approval chain seed failed:', chainErr.message);
-    }
+  if (!newId) {
+    return { ok: false, error: 'The request could not be submitted.' };
   }
 
-  // Put it in front of the approvers rather than waiting for them to check.
   const who = profile?.full_name ?? 'An employee';
-  await notifyApprovers(
-    {
-      kind: 'request',
-      title: `${who} raised a ${type.replace('_', ' ')} request`,
-      body: `${startRaw === endRaw ? startRaw : `${startRaw} – ${endRaw}`} · ${days} day${days === 1 ? '' : 's'}`,
-      link: '/approvals',
-    },
+  await notifyRequestParticipants(
+    newId,
+    routing.approval_route,
+    `${who} raised a ${type.replace('_', ' ')} request`,
+    `${startRaw === endRaw ? startRaw : `${startRaw} – ${endRaw}`} · ${days} day${days === 1 ? '' : 's'}`,
     profile?.id,
   );
 
@@ -651,7 +719,7 @@ export async function cancelRequest(id: string): Promise<ActionResult> {
     .eq('id', id)
     .eq('employee_id', employeeId)
     .eq('status', 'pending')
-    .select('id, type');
+    .select('id, type, approval_route, employee_name');
   if (error) {
     return { ok: false, error: error.message };
   }
@@ -669,6 +737,18 @@ export async function cancelRequest(id: string): Promise<ActionResult> {
     await releaseCompOff(id);
   }
 
+  const cancelled = data[0] as { approval_route?: RequestRouteDoc; employee_name?: string };
+  if (cancelled.approval_route) {
+    await notifyRequestParticipants(
+      id,
+      cancelled.approval_route,
+      `${cancelled.employee_name ?? 'Employee'} cancelled their request`,
+      'The applicant withdrew this request. No further approval is needed.',
+      profile?.id,
+    );
+  }
+
   revalidateRequestViews();
+  revalidatePath(`/requests/${id}`);
   return { ok: true };
 }
