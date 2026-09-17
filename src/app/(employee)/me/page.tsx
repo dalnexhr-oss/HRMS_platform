@@ -178,7 +178,7 @@ export default async function MePage() {
       {/* personal snapshot */}
       <div className="kpis">
         <div className="card kpi">
-          <div className="lab">Present · {monthName(periodMonth)}</div>
+          <div className="lab">Present - {monthName(periodMonth)}</div>
           <div className="val" style={{ color: 'var(--p)' }}>
             {overview.present}
           </div>
@@ -188,8 +188,8 @@ export default async function MePage() {
           </div>
         </div>
         <div className="card kpi">
-          <div className="lab">Hours worked · {monthName(periodMonth)}</div>
-          <div className="val mono" style={{ fontSize: 26, paddingTop: 8 }}>
+          <div className="lab">Hours worked - {monthName(periodMonth)}</div>
+          <div className="val mono" style={{ fontSize: 26, paddingTop: 4 ,paddingBottom: 6}}>
             {overview.workedHours}
           </div>
           <div className="hours-note">
@@ -203,7 +203,7 @@ export default async function MePage() {
           </div>
         </div>
         <div className="card kpi">
-          <div className="lab">Pending hours · {monthName(periodMonth)}</div>
+          <div className="lab">Pending hours - {monthName(periodMonth)}</div>
           <div
             className="val mono"
             style={{
