@@ -192,6 +192,15 @@ export default async function MePage() {
           <div className="val mono" style={{ fontSize: 26, paddingTop: 8 }}>
             {overview.workedHours}
           </div>
+          <div className="hours-note">
+            {overview.surplusMinutes > 0 ? '+' : ''}
+            {overview.surplusMinutes} min
+            <span style={{ color: 'var(--brand)' }}>  surplus</span>
+          </div>
+          <div className="note" style={{ fontSize: 9, marginTop: 0 }}>
+            Daily target of 9 hours 15 minutes, across {overview.surplusPresentDays}{' '}
+            {overview.surplusPresentDays === 1 ? ' day you were present' : 'days you were present'}.
+          </div>
         </div>
         <div className="card kpi">
           <div className="lab">Pending hours · {monthName(periodMonth)}</div>

@@ -8,6 +8,26 @@ export const staffRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 // Employees and interns use /me. Intern payroll rules differ, but navigation access is shared.
 export const employeeAreaRoles: AppRole[] = ['employee', 'intern'];
 
+const roleTier: Record<AppRole, number> = {
+  super_admin: 3,
+  admin: 2,
+  hr: 1,
+  employee: 0,
+  intern: 0,
+};
+
+export function tierOf(role: AppRole | null | undefined): number {
+  return role ? (roleTier[role] ?? 0) : 0;
+}
+
+export const tierLabel: Record<AppRole, string> = {
+  super_admin: 'super admin',
+  admin: 'admin',
+  hr: 'HR',
+  employee: 'employee',
+  intern: 'intern',
+};
+
 export function isStaffRole(role: AppRole | null | undefined): boolean {
   return !!role && staffRoles.includes(role);
 }

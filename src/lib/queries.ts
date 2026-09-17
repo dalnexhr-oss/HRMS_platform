@@ -6,6 +6,7 @@ import { minutesToHHMM, trimTime } from '@/lib/format';
 import { isMongoConfigured } from '@/lib/db/mongo';
 import { defaultWeekOffPolicy, policyFromSettings, type WeekOffPolicy } from '@/lib/week-off';
 import { presentCredit } from '@/lib/leave-salary';
+import { presentDaySurplus } from '@/lib/worked-time';
 import type { TopbarStats } from '@/lib/constants';
 import { requiredDocumentCategories } from '@/lib/constants';
 import type {
@@ -2174,6 +2175,9 @@ export interface EmployeeOverview {
   halfDays: number;
   leaves: number;
   workedHours: string;
+  /** Month-to-date surplus above 9h 15m per present day. */
+  surplusMinutes: number;
+  surplusPresentDays: number;
   netPay: number | null;
   /**
    * Month-to-date hours still owed: (working days so far × full_day_minutes)
@@ -2200,6 +2204,8 @@ export async function getEmployeeOverview(
       halfDays: 0,
       leaves: 0,
       workedHours: '00:00',
+      surplusMinutes: 0,
+      surplusPresentDays: 0,
       netPay: null,
       pendingHours: '00:00',
       pendingMinutes: 0,
@@ -2232,17 +2238,22 @@ export async function getEmployeeOverview(
     fail('getEmployeeOverview: could not load attendance', daysError);
   }
 
-  const rows = days ?? [];
-  const count = (s: string) => rows.filter((d: any) => d.status === s).length;
-  const workedMin = rows.reduce((a: number, d: any) => a + (d.worked_minutes ?? 0), 0);
+  const rows = (days ?? []) as {
+    work_date: string;
+    status: string;
+    worked_minutes: number | null;
+  }[];
+  const count = (s: string) => rows.filter((d) => d.status === s).length;
+  const workedMin = rows.reduce((a, d) => a + (d.worked_minutes ?? 0), 0);
 
   // Calculate pending hours through today using the payroll target: P+CO+OH+T+S+LM+0.5×HD,
   // multiplied by full_day_minutes. Use the default when the setting is missing.
   const today = todayISO();
+  const surplus = presentDaySurplus(rows, periodMonth, today);
   const workingStatuses = ['P', 'CO', 'OH', 'T', 'S', 'LM'];
   let workingCredit = 0;
   let workedToDate = 0;
-  for (const d of rows as { work_date: string; status: string; worked_minutes: number | null }[]) {
+  for (const d of rows) {
     if (String(d.work_date) > today) {
       continue;
     }
@@ -2284,6 +2295,8 @@ export async function getEmployeeOverview(
     halfDays: count('HD'),
     leaves: count('L'),
     workedHours: minutesToHHMM(workedMin),
+    surplusMinutes: surplus.surplusMinutes,
+    surplusPresentDays: surplus.presentDays,
     netPay: slip ? Number((slip as any).net_payable) : null,
     pendingHours: minutesToHHMM(pendingMin),
     pendingMinutes: pendingMin,

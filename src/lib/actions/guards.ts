@@ -12,7 +12,8 @@ type DbClient = Awaited<ReturnType<typeof createClient>>;
 export const writeRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
 export type StaffGate =
-  { ok: true; profileId: string; employeeId: string | null } | { ok: false; error: string };
+  | { ok: true; profileId: string; employeeId: string | null; role: AppRole }
+  | { ok: false; error: string };
 
 /** Validates an administrative staff session (super_admin, admin, hr) with an active DB connection. */
 export async function requireStaff(action = 'This action'): Promise<StaffGate> {
@@ -32,7 +33,7 @@ export async function requireStaff(action = 'This action'): Promise<StaffGate> {
       error: `${action} needs a super admin, admin or HR account — yours is "${profile.role}".`,
     };
   }
-  return { ok: true, profileId: profile.id, employeeId: profile.employee_id };
+  return { ok: true, profileId: profile.id, employeeId: profile.employee_id, role: profile.role };
 }
 
 /**

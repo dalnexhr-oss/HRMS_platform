@@ -4,6 +4,7 @@ import { registerHooks } from 'node:module';
 
 // Run the server actions against isolated records; never connect to the company database.
 const stubs = {
+  'server-only': '',
   'next/cache': 'export const revalidatePath = (path) => globalThis.deletionTest.paths.push(path);',
   '@/lib/db/server': `
     export const createClient = () => globalThis.deletionTest.client;
@@ -22,6 +23,10 @@ const stubs = {
   '@/lib/db/mongo': `
     export const isMongoConfigured = () => true;
     export const db = () => globalThis.deletionTest.database;
+    export const withTransaction = (fn) => globalThis.deletionTest.transaction(fn);
+  `,
+  '@/lib/db/repo': `
+    export const scoped = () => globalThis.deletionTest.employeeRecords;
   `,
   '@/lib/queries': 'export const getEmployeeForEdit = () => null;',
   '@/lib/email': `
@@ -67,9 +72,27 @@ registerHooks({
 
 const { deleteEmployee } = await import('../src/lib/actions/employee-deletion.ts');
 const { reactivateEmployee } = await import('../src/lib/actions/employees.ts');
-const { createUser, setUserDisabled, updateUserRole } = await import('../src/lib/actions/users.ts');
+const { createUser, deleteUser, setUserDisabled, updateUserRole } =
+  await import('../src/lib/actions/users.ts');
 
 let fixture;
+
+function matches(row, filter) {
+  return Object.entries(filter).every(([key, value]) => {
+    if (value instanceof Date) {
+      return row[key]?.getTime() === value.getTime();
+    }
+    if (value && typeof value === 'object') {
+      if ('$in' in value) {
+        return value.$in.includes(row[key]);
+      }
+      if ('$nin' in value) {
+        return !value.$nin.includes(row[key]);
+      }
+    }
+    return (row[key] ?? null) === value;
+  });
+}
 
 function query(table) {
   const filters = [];
@@ -141,7 +164,13 @@ beforeEach((t) => {
     userWrites: 0,
     rows: {
       employees: [
-        { id: 'employee-1', code: 'DN001', full_name: 'Test Employee', status: 'inactive' },
+        {
+          id: 'employee-1',
+          _id: 'employee-1',
+          code: 'DN001',
+          full_name: 'Test Employee',
+          status: 'inactive',
+        },
       ],
       profiles: [
         {
@@ -155,18 +184,89 @@ beforeEach((t) => {
       activity_log: [],
       attendance_days: [{ employee_id: 'employee-1', work_date: '2026-09-01' }],
       payslips: [{ employee_id: 'employee-1', period_month: '2026-09-01' }],
+      password_reset_tokens: [{ user_id: 'user-1', token: 'reset-1' }],
     },
     client: { from: query },
+    transaction: async (fn) => {
+      if (fixture.standalone) {
+        return fn(undefined);
+      }
+      const originalRows = structuredClone(fixture.rows);
+      try {
+        return await fn({});
+      } catch (error) {
+        fixture.rows = originalRows;
+        throw error;
+      }
+    },
+    employeeRecords: {
+      inSession: () => fixture.employeeRecords,
+      findOne: async (filter) => {
+        if (fixture.readError) {
+          throw new Error(fixture.readError);
+        }
+        const row = fixture.rows.employees.find((row) => matches(row, filter));
+        return row ? { ...row } : null;
+      },
+      updateOne: async (filter, update) => {
+        if (fixture.writeError) {
+          throw new Error(fixture.writeError);
+        }
+        if (fixture.reactivateBeforeWrite) {
+          fixture.rows.employees[0].status = 'active';
+        }
+        const row = fixture.rows.employees.find((row) => matches(row, filter));
+        if (!row) {
+          return 0;
+        }
+        Object.assign(row, update.$set);
+        return 1;
+      },
+    },
     users: {
+      find: (filter) => ({
+        toArray: async () => {
+          if (fixture.loginError) {
+            throw new Error(fixture.loginError);
+          }
+          return fixture.rows.profiles
+            .filter((row) => matches(row, filter))
+            .map((row) => ({ ...row }));
+        },
+      }),
       findOne: async ({ _id }) => fixture.rows.profiles.find((row) => row._id === _id),
+      countDocuments: async (filter) =>
+        fixture.rows.profiles.filter((row) => matches(row, filter)).length,
+      deleteOne: async (filter) => {
+        if (fixture.userDeleteError) {
+          throw new Error(fixture.userDeleteError);
+        }
+        if (fixture.userChangedBeforeDelete) {
+          return { deletedCount: 0 };
+        }
+        const index = fixture.rows.profiles.findIndex((row) => matches(row, filter));
+        if (index < 0) {
+          return { deletedCount: 0 };
+        }
+        fixture.rows.profiles.splice(index, 1);
+        return { deletedCount: 1 };
+      },
       updateOne: async () => {
         fixture.userWrites++;
         return { matchedCount: 1 };
       },
     },
     database: {
-      collection: () => ({
+      collection: (name) => ({
         findOne: async ({ _id }) => fixture.rows.employees.find((row) => row.id === _id),
+        deleteMany: async (filter) => {
+          if (fixture.resetDeleteError) {
+            throw new Error(fixture.resetDeleteError);
+          }
+          const count = fixture.rows[name].length;
+          fixture.rows[name] = fixture.rows[name].filter((row) => !matches(row, filter));
+          return { deletedCount: count - fixture.rows[name].length };
+        },
       }),
     },
   };
@@ -187,24 +287,20 @@ test('only staff can delete employees, and blank or missing selections fail', as
 });
 
 test('active, on-notice, own, and already deleted employees cannot be deleted', async () => {
-  const employee = fixture.rows.employees[0];
   for (const status of ['active', 'on_notice']) {
-    employee.status = status;
+    fixture.rows.employees[0].status = status;
     assert.match((await deleteEmployee('DN001')).error, /Deactivate/);
   }
-  employee.status = 'inactive';
-  fixture.gate.employeeId = employee.id;
+  fixture.rows.employees[0].status = 'inactive';
+  fixture.gate.employeeId = fixture.rows.employees[0].id;
   assert.match((await deleteEmployee('DN001')).error, /own employee record/);
   fixture.gate.employeeId = null;
-  employee.deleted_at = new Date();
+  fixture.rows.employees[0].deleted_at = new Date();
   assert.match((await deleteEmployee('DN001')).error, /already been deleted/);
   assert.equal(fixture.rows.activity_log.length, 0);
 });
 
-test('enabled logins or failed prerequisite reads block deletion', async () => {
-  fixture.rows.profiles[0].disabled = false;
-  assert.match((await deleteEmployee('DN001')).error, /enabled login/);
-  fixture.rows.profiles[0].disabled = true;
+test('failed prerequisite reads block deletion', async () => {
   fixture.loginError = 'Login lookup unavailable';
   assert.match((await deleteEmployee('DN001')).error, /Login lookup unavailable/);
   fixture.readError = 'Employee lookup unavailable';
@@ -212,11 +308,10 @@ test('enabled logins or failed prerequisite reads block deletion', async () => {
   assert.equal(fixture.rows.employees[0].deleted_at, undefined);
 });
 
-test('deletion preserves historical records, disabled logins, and employee identity', async () => {
+test('deletion removes linked logins and reset tokens while preserving employee history', async () => {
   const history = structuredClone({
     attendance: fixture.rows.attendance_days,
     payslips: fixture.rows.payslips,
-    logins: fixture.rows.profiles,
   });
   assert.deepEqual(await deleteEmployee(' DN001 '), { ok: true });
   assert.equal(fixture.rows.employees.length, 1);
@@ -226,12 +321,13 @@ test('deletion preserves historical records, disabled logins, and employee ident
     {
       attendance: fixture.rows.attendance_days,
       payslips: fixture.rows.payslips,
-      logins: fixture.rows.profiles,
     },
     history,
   );
   assert.equal(fixture.rows.activity_log[0].event_type, 'employee_deleted');
   assert.equal(fixture.rows.activity_log[0].employee_id, 'employee-1');
+  assert.equal(fixture.rows.profiles.length, 0);
+  assert.equal(fixture.rows.password_reset_tokens.length, 0);
   assert.deepEqual(fixture.paths, ['/employees', '/users']);
   assert.equal((await deleteEmployee('DN001')).ok, false);
 });
@@ -257,7 +353,7 @@ test('audit failure reports a warning after a successful deletion', async () => 
 test('deleted employees cannot be reactivated or have linked logins enabled', async () => {
   await deleteEmployee('DN001');
   assert.equal((await reactivateEmployee('DN001')).ok, false);
-  assert.match((await setUserDisabled('user-1', false)).error, /deleted employee/);
+  assert.match((await setUserDisabled('user-1', false)).error, /no longer exists/);
   assert.equal(fixture.rows.employees[0].status, 'inactive');
   assert.equal(fixture.userWrites, 0);
 });
@@ -275,11 +371,95 @@ test('new or reassigned logins cannot link to a deleted employee', async () => {
     form.set(key, value);
   }
   assert.match((await createUser(form)).error, /deleted employee/);
-  fixture.rows.profiles[0].employee_id = null;
-  fixture.rows.profiles[0].disabled = false;
+  fixture.rows.profiles.push({
+    _id: 'user-2',
+    role: 'employee',
+    employee_id: null,
+    disabled: false,
+  });
   assert.match(
-    (await updateUserRole('user-1', 'employee', 'employee-1')).error,
+    (await updateUserRole('user-2', 'employee', 'employee-1')).error,
     /deleted employee/,
   );
   assert.equal(fixture.userWrites, 0);
+});
+
+test('employee deletion removes enabled logins too and leaves unrelated accounts intact', async () => {
+  fixture.rows.profiles[0].disabled = false;
+  const unrelated = { _id: 'user-2', employee_id: 'employee-2', role: 'employee' };
+  fixture.rows.profiles.push(unrelated);
+  fixture.rows.password_reset_tokens.push({ user_id: 'user-2', token: 'reset-2' });
+  assert.equal((await deleteEmployee('DN001')).ok, true);
+  assert.deepEqual(fixture.rows.profiles, [unrelated]);
+  assert.deepEqual(fixture.rows.password_reset_tokens, [{ user_id: 'user-2', token: 'reset-2' }]);
+});
+
+test('employee deletion succeeds without a linked login', async () => {
+  fixture.rows.profiles = [];
+  assert.equal((await deleteEmployee('DN001')).ok, true);
+});
+
+test('employee deletion removes every linked login', async () => {
+  fixture.rows.profiles.push({ _id: 'user-2', employee_id: 'employee-1', role: 'intern' });
+  fixture.rows.password_reset_tokens.push({ user_id: 'user-2', token: 'reset-2' });
+  assert.equal((await deleteEmployee('DN001')).ok, true);
+  assert.equal(fixture.rows.profiles.length, 0);
+  assert.equal(fixture.rows.password_reset_tokens.length, 0);
+});
+
+test('employee deletion cannot bypass self, superior-role, or last-admin protections', async () => {
+  fixture.rows.profiles[0]._id = fixture.gate.profileId;
+  assert.match((await deleteEmployee('DN001')).error, /own account/);
+  fixture.rows.profiles[0]._id = 'user-1';
+  fixture.rows.profiles[0].role = 'super_admin';
+  assert.match((await deleteEmployee('DN001')).error, /Only a super admin/);
+  fixture.rows.profiles[0].role = 'admin';
+  assert.match((await deleteEmployee('DN001')).error, /last admin/);
+  assert.equal(fixture.rows.employees[0].deleted_at, undefined);
+  assert.equal(fixture.rows.profiles.length, 1);
+  assert.equal(fixture.rows.activity_log.length, 0);
+});
+
+test('account or reset-token deletion failure rolls back the employee and allows retry', async () => {
+  for (const key of ['userDeleteError', 'resetDeleteError']) {
+    fixture[key] = 'Delete unavailable';
+    assert.match((await deleteEmployee('DN001')).error, /Delete unavailable/);
+    fixture[key] = null;
+    assert.equal(fixture.rows.employees[0].deleted_at, undefined);
+    assert.equal(fixture.rows.profiles.length, 1);
+    assert.equal(fixture.rows.password_reset_tokens.length, 1);
+    assert.equal(fixture.rows.activity_log.length, 0);
+  }
+  assert.equal((await deleteEmployee('DN001')).ok, true);
+});
+
+test('a changed linked account aborts deletion and preserves the employee', async () => {
+  fixture.userChangedBeforeDelete = true;
+  assert.match((await deleteEmployee('DN001')).error, /account changed/);
+  assert.equal(fixture.rows.employees[0].deleted_at, undefined);
+  assert.equal(fixture.rows.profiles.length, 1);
+});
+
+test('standalone database failures keep the employee visible for retry', async () => {
+  fixture.standalone = true;
+  fixture.userDeleteError = 'Delete unavailable';
+  assert.equal((await deleteEmployee('DN001')).ok, false);
+  assert.equal(fixture.rows.employees[0].deleted_at, null);
+  assert.equal(fixture.rows.profiles.length, 1);
+  fixture.userDeleteError = null;
+  assert.equal((await deleteEmployee('DN001')).ok, true);
+});
+
+test('deleting directly from Users retains employee records and applies the shared safeguards', async () => {
+  const employee = structuredClone(fixture.rows.employees);
+  assert.equal((await deleteUser('admin-1')).ok, false);
+  fixture.rows.profiles[0].role = 'super_admin';
+  assert.match((await deleteUser('user-1')).error, /Only a super admin/);
+  fixture.rows.profiles[0].role = 'admin';
+  assert.match((await deleteUser('user-1')).error, /last admin/);
+  fixture.rows.profiles[0].role = 'employee';
+  assert.equal((await deleteUser('user-1')).ok, true);
+  assert.deepEqual(fixture.rows.employees, employee);
+  assert.equal(fixture.rows.profiles.length, 0);
+  assert.equal(fixture.rows.password_reset_tokens.length, 0);
 });

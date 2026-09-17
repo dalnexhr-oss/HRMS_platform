@@ -4,13 +4,15 @@
 import { revalidatePath } from 'next/cache';
 import { randomUUID } from 'node:crypto';
 import { requireRoles } from '@/lib/actions/guards';
+import { deleteUserAccounts } from '@/lib/actions/user-deletion';
+import { tierLabel, tierOf } from '@/lib/roles';
 import { isEmployeeAreaRole } from '@/lib/auth';
 // validatePassword enforces length limits (10 min, 200 max) before hashing.
 import { hashPassword, validatePassword } from '@/lib/auth/password';
 import { createResetToken, resetTokenTtlMinutes } from '@/lib/auth/reset-tokens';
 import { appOrigin, originNotConfigured } from '@/lib/auth/origin';
 import { collections, usersCollection, type EmployeeDoc, type UserDoc } from '@/lib/db/collections';
-import { db, isMongoConfigured } from '@/lib/db/mongo';
+import { db, isMongoConfigured, withTransaction } from '@/lib/db/mongo';
 import { escapeHtml, isEmailConfigured, sendEmail } from '@/lib/email';
 import type { AppRole } from '@/types/database';
 
@@ -38,30 +40,6 @@ async function employeeLinkError(employeeId: string | null): Promise<string | nu
 
 // Keep role constants private because use-server modules only permit async exports.
 const assignableRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr', 'employee', 'intern'];
-
-// A caller may grant roles and manage accounts only at or below their own tier. Enforce this on
-// every administration action.
-const roleTier: Record<AppRole, number> = {
-  super_admin: 3,
-  admin: 2,
-  hr: 1,
-  employee: 0,
-  // Same tier as an employee: no portal, nothing to escalate to.
-  intern: 0,
-};
-
-function tierOf(role: AppRole | null | undefined): number {
-  return role ? (roleTier[role] ?? 0) : 0;
-}
-
-// Role name as it reads in a refusal message.
-const tierLabel: Record<AppRole, string> = {
-  super_admin: 'super admin',
-  admin: 'admin',
-  hr: 'HR',
-  employee: 'employee',
-  intern: 'intern',
-};
 
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -375,34 +353,7 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
   }
 
   try {
-    const allowed = await assertMayActOnTarget(userId, gate.role);
-    if (!allowed.ok) {
-      return allowed;
-    }
-    const target = allowed.target;
-
-    const users = await usersCollection();
-
-    // Never empty an administrative tier — that locks everyone out of /users.
-    if (target.role === 'admin' || target.role === 'super_admin') {
-      const label = tierLabel[target.role];
-      const count = await users.countDocuments({ role: target.role }, { limit: 2 });
-      if (count <= 1) {
-        return {
-          ok: false,
-          error: `This is the last ${label} account — promote another before deleting it.`,
-        };
-      }
-    }
-
-    const result = await users.deleteOne({ _id: userId });
-    if (result.deletedCount === 0) {
-      return { ok: false, error: 'That account no longer exists.' };
-    }
-
-    // Explicit cascade — see the note above.
-    const database = await db();
-    await database.collection('password_reset_tokens').deleteMany({ user_id: userId });
+    await withTransaction((session) => deleteUserAccounts([userId], gate, session));
 
     revalidatePath('/users');
     return { ok: true };

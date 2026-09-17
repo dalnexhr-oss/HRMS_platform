@@ -136,7 +136,7 @@ export function EmployeesScreen({
   async function onDelete(code: string, name: string) {
     const confirmed = await confirm({
       title: 'Delete inactive employee',
-      message: `Delete ${name} (${code}) from the employee list? They will no longer appear under Show inactive or be available for reactivation. Attendance, payroll, and other historical records will be retained, and linked logins will remain disabled.`,
+      message: `Delete ${name} (${code}) from the employee list and delete their linked accounts from Users? They will no longer appear under Show inactive or be available for reactivation. Attendance, payroll, and other historical records will be retained.`,
       confirmLabel: 'Delete employee',
       danger: true,
     });
@@ -152,7 +152,7 @@ export function EmployeesScreen({
           return;
         }
         toast(
-          result.warning ?? `${name} deleted from the employee list.`,
+          result.warning ?? `${name} and their linked user accounts deleted.`,
           result.warning ? 'info' : 'success',
         );
         router.refresh();

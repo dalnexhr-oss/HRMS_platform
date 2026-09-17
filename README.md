@@ -144,11 +144,13 @@ counter invalidates every token an account holds — which is what makes sign-ou
 password change, and disabling a login actually take effect. Set
 `SESSION_MAX_AGE_DAYS` to change the lifetime.
 
-`users.disabled` blocks sign-in and kills live sessions immediately; it is the
-right tool for a departing employee, because it preserves the account and its
-audit trail where deleting does not.
+`users.disabled` blocks sign-in and kills live sessions immediately. Deactivating
+an employee keeps their linked login disabled for possible reactivation. Deleting
+an inactive employee removes their linked accounts from Users and clears their
+password-reset tokens. The employee identity, attendance, payroll, and other
+historical records are retained for historical joins.
 
-User administration is tiered (`ROLE_TIER` in `lib/actions/users.ts`): you may
+User administration is tiered (`tierOf` in `lib/roles.ts`): you may
 only grant, or act on, a role at or below your own, so only a `super_admin` can
 create, promote to, or delete another `super_admin`. Create the first one with
 `npm run db:setup -- --admin --email …`.
@@ -175,7 +177,7 @@ filter on `employee_id` overwrite the policy's constraint on the same field.
 ## Data model notes
 
 - **Money** is `Decimal128`, never a JS number, and all arithmetic runs in
-  integer **paise** (`lib/db/money.ts`). Postgres `numeric` is exact; float64 is
+  integer  (`lib/db/money.ts`). Postgres `numeric` is exact; float64 is
   not, and a payroll run is thousands of operations.
 - **Calendar days** (`work_date`, `date_of_joining`) are `"YYYY-MM-DD"` strings,
   not BSON Dates. A BSON Date is a UTC instant; round-tripping a calendar day
