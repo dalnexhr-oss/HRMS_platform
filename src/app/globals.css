@@ -2447,6 +2447,35 @@ tbody tr:hover {
   outline: none;
   box-shadow: var(--nu-press), var(--ring);
 }
+.login-password {
+  position: relative;
+}
+.login-form .login-password input {
+  padding-right: 54px;
+}
+.login-password input::-ms-reveal {
+  display: none;
+}
+.login-password-toggle {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  bottom: 2px;
+  width: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.login-password-toggle:hover,
+.login-password-toggle:focus-visible {
+  color: var(--brand);
+  background: var(--brand-soft);
+}
 .login-error {
   margin: 0 0 14px;
   padding: 10px 13px;

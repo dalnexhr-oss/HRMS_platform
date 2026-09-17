@@ -178,7 +178,7 @@ export default async function MePage() {
       {/* personal snapshot */}
       <div className="kpis">
         <div className="card kpi">
-          <div className="lab">Present - {monthName(periodMonth)}</div>
+          <div className="lab"><span  style={{ color: 'var(--brand)' , fontWeight: 'bold' }}>Present Days</span> - {monthName(periodMonth)}</div>
           <div className="val" style={{ color: 'var(--p)' }}>
             {overview.present}
           </div>
@@ -188,7 +188,7 @@ export default async function MePage() {
           </div>
         </div>
         <div className="card kpi">
-          <div className="lab">Hours worked - {monthName(periodMonth)}</div>
+          <div className="lab"><span  style={{ color: 'var(--brand)' , fontWeight: 'bold' }}>Hours worked</span> - {monthName(periodMonth)}</div>
           <div className="val mono" style={{ fontSize: 26, paddingTop: 4 ,paddingBottom: 6}}>
             {overview.workedHours}
           </div>
@@ -203,7 +203,7 @@ export default async function MePage() {
           </div>
         </div>
         <div className="card kpi">
-          <div className="lab">Pending hours - {monthName(periodMonth)}</div>
+          <div className="lab"><span  style={{ color: 'var(--brand)' , fontWeight: 'bold' }}>Pending hours</span> - {monthName(periodMonth)}</div>
           <div
             className="val mono"
             style={{
@@ -221,7 +221,7 @@ export default async function MePage() {
           </div>
         </div>
         <div className="card kpi">
-          <div className="lab">Comp offs remaining</div>
+          <div className="lab"><span  style={{ color: 'var(--brand)' , fontWeight: 'bold' }}>Comp offs remaining</span></div>
           <div className="val" style={{ color: compOffBalance > 0 ? 'var(--p)' : 'var(--ink-3)' }}>
             {compOffBalance}
           </div>
@@ -232,7 +232,7 @@ export default async function MePage() {
           </div>
         </div>
         <div className="card kpi">
-          <div className="lab">Net pay · {monthName(periodMonth)}</div>
+          <div className="lab"><span  style={{ color: 'var(--brand)' , fontWeight: 'bold' }}>Net pay</span> - {monthName(periodMonth)}</div>
           <div className="val" style={{ fontSize: 26, paddingTop: 8, color: 'var(--brand-deep)' }}>
             {overview.netPay != null ? inr(overview.netPay) : '—'}
           </div>

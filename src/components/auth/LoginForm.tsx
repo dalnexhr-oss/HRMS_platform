@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import Link from 'next/link';
 import { signIn, type SignInState } from '@/lib/actions/auth';
 
@@ -8,6 +8,7 @@ import { signIn, type SignInState } from '@/lib/actions/auth';
 // restrict access to approved accounts.
 export function LoginForm({ initialError, next }: { initialError?: string; next?: string } = {}) {
   const [state, action, pending] = useActionState<SignInState, FormData>(signIn, {});
+  const [showPassword, setShowPassword] = useState(false);
 
   // Errors from the sign-in action win, then anything middleware redirected
   // back with.
@@ -30,13 +31,40 @@ export function LoginForm({ initialError, next }: { initialError?: string; next?
       </div>
       <div className="f">
         <label htmlFor="password">Password</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-        />
+        <div className="login-password">
+          <input
+            id="password"
+            name="password"
+            type={showPassword ? 'text' : 'password'}
+            autoComplete="current-password"
+            required
+          />
+          <button
+            type="button"
+            className="login-password-toggle"
+            onClick={() => setShowPassword((visible) => !visible)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            aria-controls="password"
+            title={showPassword ? 'Hide password' : 'Show password'}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+              <circle cx="12" cy="12" r="3" />
+              {showPassword && <path d="m3 3 18 18" />}
+            </svg>
+          </button>
+        </div>
       </div>
 
       {error && (
