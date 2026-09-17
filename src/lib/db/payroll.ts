@@ -2,8 +2,8 @@
 // half-away-from-zero rounding for earnings and deductions; floor hours shortfall deductions to
 // whole rupees.
 //
-// Working days = P + CO + OH + T + S + LM + 0.5 × HD.
-// Payable days = working days + WO; unpaid leave is excluded.
+// Working days = P + T + S + LM + 0.5 × HD.
+// Payable days also include CO, OH, and WO without requiring punch hours.
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { collections } from '@/lib/db/collections';
@@ -12,17 +12,23 @@ import { systemScope } from '@/lib/db/scope';
 import { withTransaction } from '@/lib/db/mongo';
 import { addPaise, fromPaise, roundToRupee, scalePaise, subPaise, toPaise } from '@/lib/db/money';
 import { registerRpc } from '@/lib/db/query-client';
-import type { ClientSession } from 'mongodb';
+import type { ClientSession, Document } from 'mongodb';
 import type { BaseDoc } from '@/lib/db/collections';
 
 // Statuses counted as a full working day.
-const fullDay = ['P', 'CO', 'OH', 'T', 'S', 'LM'];
+const fullDay = ['P', 'T', 'S', 'LM'];
+const paidDayOff = ['CO', 'OH', 'WO'];
 
 // Retrieves a numeric configuration setting with a fallback default.
-async function settingNumeric(key: string, fallback: number): Promise<number> {
+async function settingNumeric(
+  key: string,
+  fallback: number,
+  session?: ClientSession,
+): Promise<number> {
   const settings = scopedFor<BaseDoc & { key: string; value: unknown }>(
     collections.settings,
     systemScope,
+    session,
   );
   const row = await settings.findOne({ key });
   const n = Number(row?.value ?? fallback);
@@ -42,11 +48,12 @@ export async function professionalTax(
   grossPaise: number,
   gender: string,
   month: number,
+  session?: ClientSession,
 ): Promise<number> {
   if (!state) {
     return 0;
   }
-  const slabs = scopedFor<BaseDoc>(collections.ptSlabs, systemScope);
+  const slabs = scopedFor<BaseDoc>(collections.ptSlabs, systemScope, session);
   const rows = await slabs.find({ state });
 
   const matching = rows.filter((s) => {
@@ -107,6 +114,19 @@ export interface PayslipComputation {
 export async function computePayslip(
   employeeId: string,
   runId: string,
+): Promise<PayslipComputation> {
+  return withTransaction(
+    async (session) => {
+      await reserveOpenRun(runId, session);
+      return computePayslipInTransaction(employeeId, runId, session);
+    },
+    { required: true },
+  );
+}
+
+async function computePayslipInTransaction(
+  employeeId: string,
+  runId: string,
   session?: ClientSession,
 ): Promise<PayslipComputation> {
   const employees = scopedFor<BaseDoc>(collections.employees, systemScope, session);
@@ -130,8 +150,8 @@ export async function computePayslip(
   const month = Number(periodMonth.slice(5, 7));
   const dim = daysInMonth(periodMonth);
 
-  const esicCapPaise = toPaise(await settingNumeric('esic_gross_cap', 21000));
-  let fullDayMin = await settingNumeric('full_day_minutes', 555);
+  const esicCapPaise = toPaise(await settingNumeric('esic_gross_cap', 21000, session));
+  let fullDayMin = await settingNumeric('full_day_minutes', 555, session);
   if (fullDayMin <= 0) {
     // 9h15m
     fullDayMin = 555;
@@ -147,7 +167,7 @@ export async function computePayslip(
   });
 
   let workingDays = 0;
-  let weekOffs = 0;
+  let paidDaysOff = 0;
   let workedMinutes = 0;
   for (const d of days) {
     const status = d.status as string;
@@ -155,13 +175,13 @@ export async function computePayslip(
       workingDays += 1;
     } else if (status === 'HD') {
       workingDays += 0.5;
-    } else if (status === 'WO') {
-      weekOffs += 1;
+    } else if (paidDayOff.includes(status)) {
+      paidDaysOff += 1;
     }
     workedMinutes += Number(d.worked_minutes ?? 0);
   }
 
-  const payableDays = workingDays + weekOffs;
+  const payableDays = workingDays + paidDaysOff;
 
   // Per-EMPLOYEE target: the days they were actually scheduled to work.
   const targetMinutes = Math.round(workingDays * fullDayMin);
@@ -195,7 +215,7 @@ export async function computePayslip(
     esicEmployer = toRupee(scalePaise(fromPaise(earnedGross), 0.0325));
   }
 
-  const pt = await professionalTax(state, grossPaise, e.gender as string, month);
+  const pt = await professionalTax(state, grossPaise, e.gender as string, month, session);
 
   // adjustments
   const payslips = scopedFor<BaseDoc>(collections.payslips, systemScope, session);
@@ -306,8 +326,10 @@ export async function computePayslip(
 
 type RunStatus = 'draft' | 'in_review' | 'locked' | 'paid';
 
-interface PayrollRunDoc extends BaseDoc {
+interface PayrollRunDoc {
+  _id: string;
   status: RunStatus;
+  calculation_revision?: number;
   drafts_computed_at?: Date | null;
   locked_at?: Date | null;
   paid_at?: Date | null;
@@ -323,34 +345,62 @@ async function runStatus(runId: string, session?: ClientSession): Promise<RunSta
   return run?.status ?? null;
 }
 
-/**
- * Recompute draft or in-review payslips individually to avoid one unbounded transaction. Change
- * run status last so partial failures remain retryable.
- */
+// Writing the run first makes calculations and locking contend on the same document. The
+// transaction retains that reservation until all of its payslip changes commit or roll back.
+async function reserveOpenRun(runId: string, session?: ClientSession): Promise<void> {
+  const matched = await runs(session).updateOne(
+    { _id: runId, status: { $in: ['draft', 'in_review'] } },
+    { $inc: { calculation_revision: 1 } },
+  );
+  if (!matched) {
+    throw new Error('Payroll run is locked, paid, or missing. No payroll changes were saved.');
+  }
+}
+
+/** Recompute the complete run atomically so locking cannot freeze a partially updated batch. */
 export async function computeRun(runId: string): Promise<void> {
-  const status = await runStatus(runId);
-  if (status === null) {
-    throw new Error(`Payroll run ${runId} does not exist`);
-  }
-  if (status === 'locked' || status === 'paid') {
-    throw new Error(`Payroll run ${runId} is ${status} — recompute is not allowed after lock`);
-  }
-
-  const employees = scopedFor<BaseDoc & { status: string }>(collections.employees, systemScope);
-  const active = await employees.find({ status: 'active' }, { projection: { _id: 1 } });
-  for (const employee of active) {
-    await computePayslip(String(employee._id), runId);
-  }
-
-  // Advance draft runs to in_review; maintain in_review state if already set.
-  await runs().updateOne(
-    { _id: runId },
-    {
-      $set: {
-        drafts_computed_at: new Date(),
-        ...(status === 'draft' ? { status: 'in_review' as RunStatus } : {}),
-      },
+  await withTransaction(
+    async (session) => {
+      await reserveOpenRun(runId, session);
+      const employees = scopedFor<BaseDoc>(collections.employees, systemScope, session);
+      const active = await employees.find(
+        { status: { $in: ['active', 'on_notice'] } },
+        { projection: { _id: 1 } },
+      );
+      for (const employee of active) {
+        await computePayslipInTransaction(String(employee._id), runId, session);
+      }
+      await runs(session).updateOne(
+        { _id: runId },
+        { $set: { drafts_computed_at: new Date(), status: 'in_review' } },
+      );
     },
+    { required: true },
+  );
+}
+
+/** Save adjustments and their calculated amounts under the same run reservation. */
+export async function savePayslipAdjustments(payslipId: string, values: Document): Promise<void> {
+  await withTransaction(
+    async (session) => {
+      const payslips = scopedFor<BaseDoc>(collections.payslips, systemScope, session);
+      const slip = await payslips.findOne({ _id: payslipId });
+      if (!slip) {
+        throw new Error('That payslip no longer exists.');
+      }
+      const runId = String(slip.payroll_run_id);
+      await reserveOpenRun(runId, session);
+      const adjustments = scopedFor<BaseDoc>(collections.payslipAdjustments, systemScope, session);
+      const now = new Date();
+      const doc = { ...values, updated_at: now };
+      await adjustments.upsertOne(
+        { _id: payslipId },
+        { $set: doc, $setOnInsert: { created_at: now } },
+        { _id: payslipId, created_at: now, ...doc },
+      );
+      await computePayslipInTransaction(String(slip.employee_id), runId, session);
+    },
+    { required: true },
   );
 }
 
@@ -361,23 +411,20 @@ export async function computeRun(runId: string): Promise<void> {
  * status transition synchronously.
  */
 export async function lockRun(runId: string): Promise<void> {
-  await withTransaction(async (session) => {
-    const status = await runStatus(runId, session);
-    if (status === null) {
-      throw new Error(`Payroll run ${runId} does not exist`);
-    }
-    if (status === 'locked' || status === 'paid') {
-      throw new Error(`Payroll run ${runId} is already ${status}`);
-    }
+  await withTransaction(
+    async (session) => {
+      await reserveOpenRun(runId, session);
 
-    const now = new Date();
-    const payslips = scopedFor<BaseDoc>(collections.payslips, systemScope, session);
-    await payslips.updateMany(
-      { payroll_run_id: runId },
-      { $set: { status: 'generated', updated_at: now } },
-    );
-    await runs(session).updateOne({ _id: runId }, { $set: { status: 'locked', locked_at: now } });
-  });
+      const now = new Date();
+      const payslips = scopedFor<BaseDoc>(collections.payslips, systemScope, session);
+      await payslips.updateMany(
+        { payroll_run_id: runId },
+        { $set: { status: 'generated', updated_at: now } },
+      );
+      await runs(session).updateOne({ _id: runId }, { $set: { status: 'locked', locked_at: now } });
+    },
+    { required: true },
+  );
 }
 
 /**
@@ -385,22 +432,25 @@ export async function lockRun(runId: string): Promise<void> {
  * Requires the run to be in 'locked' status prior to transition.
  */
 export async function markRunPaid(runId: string): Promise<void> {
-  await withTransaction(async (session) => {
-    const status = await runStatus(runId, session);
-    if (status !== 'locked') {
-      throw new Error(
-        `Payroll run ${runId} must be locked before it can be paid (is ${status ?? 'missing'})`,
-      );
-    }
+  await withTransaction(
+    async (session) => {
+      const status = await runStatus(runId, session);
+      if (status !== 'locked') {
+        throw new Error(
+          `Payroll run ${runId} must be locked before it can be paid (is ${status ?? 'missing'})`,
+        );
+      }
 
-    const now = new Date();
-    const payslips = scopedFor<BaseDoc>(collections.payslips, systemScope, session);
-    await payslips.updateMany(
-      { payroll_run_id: runId },
-      { $set: { status: 'paid', updated_at: now } },
-    );
-    await runs(session).updateOne({ _id: runId }, { $set: { status: 'paid', paid_at: now } });
-  });
+      const now = new Date();
+      const payslips = scopedFor<BaseDoc>(collections.payslips, systemScope, session);
+      await payslips.updateMany(
+        { payroll_run_id: runId },
+        { $set: { status: 'paid', updated_at: now } },
+      );
+      await runs(session).updateOne({ _id: runId }, { $set: { status: 'paid', paid_at: now } });
+    },
+    { required: true },
+  );
 }
 
 let registered = false;

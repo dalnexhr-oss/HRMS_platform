@@ -13,6 +13,7 @@ import { monthSealReason, periodMonthFor } from '@/lib/payroll-month';
 import { todayIST } from '@/lib/format';
 import { noticeRetentionDays } from '@/lib/constants';
 import { lastNightSweepNotice } from '@/lib/night-sweep';
+import { isMongoDuplicateKey } from '@/lib/db/errors';
 import type { BaseDoc } from '@/lib/db/collections';
 import type { PayrollRunSeal } from '@/lib/payroll-month';
 import type { SweepClosure } from '@/lib/night-sweep';
@@ -26,8 +27,7 @@ function addDays(date: string, days: number): string {
 /**
  * Claim a unit of work. Returns false if it was already done.
  *
- * Exactly cron_claim(p_job, p_key): insert and let the unique index refuse a
- * repeat. Guard every side-effecting job with this.
+ * The unique index rejects repeated claims. Claim work before running a job's side effects.
  */
 export async function cronClaim(job: string, runKey: string, detail?: string): Promise<boolean> {
   const log = scopedFor<BaseDoc>(collections.cronRunLog, systemScope);
@@ -41,8 +41,8 @@ export async function cronClaim(job: string, runKey: string, detail?: string): P
     });
     return true;
   } catch (e) {
-    // 11000 = duplicate key violation (job already claimed for this run key).
-    if ((e as { code?: number }).code === 11000) {
+    // Another invocation already claimed this job and run key.
+    if (isMongoDuplicateKey(e)) {
       return false;
     }
     throw e;
@@ -206,7 +206,7 @@ export async function autoPunchOut(targetDate?: string): Promise<JobResult> {
   return claimed(
     'attendance-auto-punch-out',
     { job: 'auto_punch_out', runKey: date },
-    'already ran for ' + date,
+    `already ran for ${date}`,
     async () => {
       // Respect payroll seals before changing yesterday's attendance, including month-boundary
       // runs. A failed payroll lookup must stop the sweep.
@@ -306,7 +306,7 @@ export async function autoCloseMonth(): Promise<JobResult> {
   return claimed(
     'attendance-auto-close-month',
     { job: 'auto_close_month', runKey: prev },
-    'already closed ' + prev,
+    `already closed ${prev}`,
     async () => {
       const runs = scopedFor<BaseDoc>(collections.payrollRuns, systemScope);
       // Only a draft closes automatically. A run already in review, locked or
@@ -395,9 +395,9 @@ async function notifyAll(
   }
   const notifications = scopedFor<BaseDoc>(collections.notifications, systemScope);
   await notifications.insertMany(
-    recipients.map((recipient_id) => ({
+    recipients.map((recipientId) => ({
       _id: randomUUID(),
-      recipient_id,
+      recipient_id: recipientId,
       kind: n.kind,
       title: n.title,
       body: n.body,

@@ -6,7 +6,10 @@ import { useRouter } from 'next/navigation';
 import { createItem, updateItem } from '@/lib/actions/items';
 import type { ItemRow } from '@/lib/queries';
 
-type State = { ok?: boolean; error?: string };
+interface State {
+  ok?: boolean;
+  error?: string;
+}
 
 const statusOptions = ['In Stock', 'Low Stock', 'Out of Stock', 'Discontinued'];
 
@@ -186,7 +189,7 @@ function SelectField({
 }: {
   name: string;
   label: string;
-  options: { value: string; label: string }[];
+  options: Array<{ value: string; label: string }>;
   defaultValue?: string;
 }) {
   return (

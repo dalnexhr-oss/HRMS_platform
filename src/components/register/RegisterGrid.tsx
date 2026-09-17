@@ -36,7 +36,7 @@ function compOffKey(employeeId: string, workDate: string): string {
 // For staff, clicking a day cell opens the correction drawer.
 
 /** Statuses offered in the correction drawer — mirrors allowedStatuses in the action. */
-const statusOptions: [string, string][] = [
+const statusOptions: Array<[string, string]> = [
   ['P', 'P · Present'],
   ['LM', 'LM · Late mark'],
   ['HD', 'HD · Half day'],

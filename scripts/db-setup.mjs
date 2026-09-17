@@ -14,11 +14,11 @@ const scryptAsync = promisify(scrypt);
 
 // Keep the password encoding compatible with auth/password.ts. This standalone script cannot
 // import the TypeScript module directly.
-const N = 65_536,
-  R = 8,
-  P = 1,
-  KEYLEN = 64,
-  MAXMEM = 192 * 1024 * 1024;
+const N = 65_536;
+const R = 8;
+const P = 1;
+const KEYLEN = 64;
+const MAXMEM = 192 * 1024 * 1024;
 
 async function hashPassword(password) {
   const salt = randomBytes(16);
@@ -70,9 +70,9 @@ const existing = new Set(
   (await db.listCollections({}, { nameOnly: true }).toArray()).map((c) => c.name),
 );
 
-let created = 0,
-  updated = 0,
-  indexed = 0;
+let created = 0;
+let updated = 0;
+let indexed = 0;
 const problems = [];
 
 for (const [name, def] of Object.entries(schema)) {
@@ -109,7 +109,7 @@ console.log(
 if (problems.length) {
   console.log(`\n${problems.length} problem(s):`);
   for (const p of problems) {
-    console.log('  ' + p);
+    console.log(`  ${p}`);
   }
 }
 

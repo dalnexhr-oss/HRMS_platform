@@ -139,7 +139,7 @@ async function fetchNames(): Promise<Record<string, string>> {
     );
   }
   const out: Record<string, string> = {};
-  for (const row of (data ?? []) as { code: string; full_name: string | null }[]) {
+  for (const row of (data ?? []) as Array<{ code: string; full_name: string | null }>) {
     out[row.code] = row.full_name ?? row.code;
   }
   return out;
@@ -290,7 +290,7 @@ async function fetchExistingKeys(
         `Could not read existing attendance for ${periodMonth}: ${error.message}${error.code ? ` (${error.code})` : ''}`,
       );
     }
-    const page = (data ?? []) as { employee_id: string; work_date: string }[];
+    const page = (data ?? []) as Array<{ employee_id: string; work_date: string }>;
     for (const r of page) {
       keys.add(`${r.employee_id}|${String(r.work_date).slice(0, 10)}`);
     }
@@ -348,9 +348,9 @@ export async function commitImport(formData: FormData): Promise<CommitResult> {
     if (rows.length === 0) {
       return {
         ok: false,
-        error:
-          'Nothing to import — no rows in the register could be matched to an employee. ' +
-          (unmatched.length ? `Unmatched Empl. IDs: ${unmatched.join(', ')}.` : ''),
+        error: `Nothing to import — no rows in the register could be matched to an employee. ${
+          unmatched.length ? `Unmatched Empl. IDs: ${unmatched.join(', ')}.` : ''
+        }`,
       };
     }
 
@@ -372,7 +372,7 @@ export async function commitImport(formData: FormData): Promise<CommitResult> {
 
     for (let i = 0; i < rows.length; i += upsertChunk) {
       const chunk = rows.slice(i, i + upsertChunk);
-      const { error } = await dbc.from('attendance_days').upsert(chunk, { onConflict: onConflict });
+      const { error } = await dbc.from('attendance_days').upsert(chunk, { onConflict });
 
       if (error) {
         failedRows += chunk.length;

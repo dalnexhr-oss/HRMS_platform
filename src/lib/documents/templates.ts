@@ -190,8 +190,8 @@ export function buildRelievingLetter(input: SeparationLetterInput): LetterSpec {
       `${company} thanks you for your association with the firm and extends its best wishes ` +
         `for your future endeavours.`,
     ],
-    signatoryName: signatoryName,
-    signatoryTitle: signatoryTitle,
+    signatoryName,
+    signatoryTitle,
   };
 }
 
@@ -236,8 +236,8 @@ export function buildExperienceLetter(input: SeparationLetterInput): LetterSpec 
     reference: `Ref: DN-EXP-${code} · ${issued}`,
     salutation: 'To Whomsoever It May Concern',
     paragraphs,
-    signatoryName: signatoryName,
-    signatoryTitle: signatoryTitle,
+    signatoryName,
+    signatoryTitle,
   };
 }
 
@@ -315,8 +315,8 @@ export function buildFullAndFinalStatement(input: FullAndFinalInput): LetterSpec
       { label: 'Total deductions (B)', value: formatMoney(deductions) },
       { label: 'Net payable', value: formatMoney(net) },
     ],
-    signatoryName: signatoryName,
-    signatoryTitle: signatoryTitle,
+    signatoryName,
+    signatoryTitle,
   };
 }
 
@@ -337,7 +337,7 @@ export interface WelcomeEmail {
   html: string;
   /** The inline logo the HTML references via cid: — pass straight to sendEmail().
    *  A CID attachment renders even in clients that block remote images. */
-  attachments: { filename: string; content: Uint8Array; cid: string; contentType: string }[];
+  attachments: Array<{ filename: string; content: Uint8Array; cid: string; contentType: string }>;
 }
 
 /**
@@ -401,9 +401,9 @@ export function buildWelcomeEmail(input: WelcomeEmailInput): WelcomeEmail {
     `<p style="margin:0 0 16px">Your employee code is <strong>${eCode}</strong>. Please quote ` +
     `it in any correspondence with the Human Resources team.</p>` +
     `<p style="margin:0 0 16px">Sign in to the employee portal to complete your profile, ` +
-    `upload your documents, mark attendance, apply for leave and view your payslips.</p>` +
-    portalBlock +
-    `<p style="margin:0 0 16px">Sign in with this email address. If you have not set a ` +
+    `upload your documents, mark attendance, apply for leave and view your payslips.</p>${
+      portalBlock
+    }<p style="margin:0 0 16px">Sign in with this email address. If you have not set a ` +
     `password yet, use the &ldquo;Forgot password&rdquo; link on the sign-in page to create ` +
     `one.</p>` +
     `<p style="margin:0 0 24px">If anything looks incorrect, reply to this email and the ` +

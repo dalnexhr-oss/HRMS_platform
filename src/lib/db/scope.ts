@@ -15,7 +15,7 @@ export interface Scope {
   isSuperAdmin: boolean;
   // Portal read permissions tier.
   isPortal: boolean;
-  // True only for internal background jobs (scheduler and migrations).
+  // True only for internal jobs and maintenance tasks.
   isSystem: boolean;
 }
 

@@ -24,15 +24,15 @@ export interface CollectionPolicy {
   readableVia?: readonly string[];
 }
 
-// Building blocks. Each corresponds to one of the SQL predicates.
+// Shared filters and checks used by collection policies.
 
 const deny = () => null;
 const all = () => ({});
 
-// The scheduler and migrations only — no signed-in account satisfies this.
+// Only internal jobs and maintenance tasks receive system scope.
 const systemOnly = (s: Scope): ScopeFilter => (s.isSystem ? {} : null);
 
-// `is_staff()` — super_admin, admin, hr.
+// Staff access includes super_admin, admin, and hr.
 const staffOnly = (s: Scope): ScopeFilter => (s.isStaff ? {} : null);
 
 // Portal readers see all rows; employees see their own. An unlinked employee matches nothing,
@@ -49,7 +49,7 @@ const staffOrOwn =
     return { [field]: s.employeeId };
   };
 
-// `recipient_id = auth.uid()` / `user_id = auth.uid()`.
+// Match a user-reference field against the signed-in account.
 const ownUser =
   (field: string) =>
   (s: Scope): ScopeFilter => ({ [field]: s.userId });
@@ -233,8 +233,7 @@ export const policies: Partial<Record<string, CollectionPolicy>> = {
     // An employee may upload their own, but never pre-verify it.
     insert: insertStaffOrOwn('employee_id', { verified_by: null, verified_at: null }),
   },
-  // `select using (is_portal() or published_at is not null)` — staff see drafts,
-  // everyone else sees only what has been published.
+  // Staff see drafts; other users see only published notices.
   [collections.notices]: {
     read: (s) => (s.isPortal ? {} : { published_at: { $ne: null } }),
     write: staffOnly,

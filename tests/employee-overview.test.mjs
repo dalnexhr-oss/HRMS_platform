@@ -78,11 +78,21 @@ test('employee overview exposes worked hours and the requested twenty-minute sur
   assert.equal(overview.pendingMinutes, 0);
 });
 
-test('surplus excludes leave days even though they contribute to the payroll target', async () => {
-  globalThis.overviewTest.days.push({ work_date: '2026-09-10', status: 'CO', worked_minutes: 0 });
+test('paid days off do not add pending hours or change the present-day surplus', async () => {
+  globalThis.overviewTest.days.splice(
+    0,
+    3,
+    ...['CO', 'OH', 'WO'].map((status, index) => ({
+      work_date: `2026-09-0${index + 1}`,
+      status,
+      worked_minutes: 0,
+    })),
+  );
   const overview = await getEmployeeOverview('employee-1', null, '2026-09-01');
-  assert.equal(overview.surplusMinutes, 20);
-  assert.equal(overview.surplusPresentDays, 10);
+  assert.equal(overview.surplusMinutes, 14);
+  assert.equal(overview.surplusPresentDays, 7);
+  assert.equal(overview.targetHours, '64:45');
+  assert.equal(overview.pendingMinutes, 0);
 });
 
 test('unlinked accounts have zero surplus and zero present days', async () => {

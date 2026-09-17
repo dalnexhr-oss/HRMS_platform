@@ -15,6 +15,7 @@
     "format:check": "prettier --check .",
     "check:names": "node scripts/check-file-names.mjs",
     "test": "node --import ./tests/register-typescript.mjs --test tests/*.test.mjs",
+    "test:db": "node --import ./tests/register-typescript.mjs --test tests/integration/*.test.mjs",
     "check": "npm run format:check && npm run check:names && npm run lint && npm run typecheck && npm test"
   },
   "dependencies": {

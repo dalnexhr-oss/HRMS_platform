@@ -119,7 +119,7 @@ function unwrap(v: CellLike): unknown {
       return unwrap(o.result as CellLike);
     }
     if ('richText' in o && Array.isArray(o.richText)) {
-      return (o.richText as { text?: string }[]).map((t) => t.text ?? '').join('');
+      return (o.richText as Array<{ text?: string }>).map((t) => t.text ?? '').join('');
     }
     if ('text' in o) {
       // hyperlink
@@ -299,8 +299,8 @@ function readPeriod(
 }
 
 /** Day columns, read from row 4 rather than assumed, so 28..31-day months work. */
-function readDayColumns(ws: ExcelJS.Worksheet): { col: number; day: number }[] {
-  const out: { col: number; day: number }[] = [];
+function readDayColumns(ws: ExcelJS.Worksheet): Array<{ col: number; day: number }> {
+  const out: Array<{ col: number; day: number }> = [];
   for (let col = colFirstDay; col < colFirstDay + maxDayColumns; col++) {
     const n = asNumber(ws.getCell(rowDayNumbers, col).value);
     // Summary headers ('P','T',…) are text, so a non-number ends the day band.

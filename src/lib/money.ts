@@ -9,7 +9,7 @@ export function parseMoneyPaise(value: string): number {
     throw new TypeError(`Not a money value: ${text}`);
   }
   const [, sign, whole = '0', frac = ''] = match;
-  const digits = (frac + '000').slice(0, 3);
+  const digits = `${frac}000`.slice(0, 3);
   let amount = Number(whole || '0') * 100 + Number(digits.slice(0, 2));
   if (Number(digits[2]) >= 5) {
     amount += 1;

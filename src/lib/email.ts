@@ -29,12 +29,12 @@ export interface SendEmailInput {
   html?: string;
   // Optional file attachments. A `cid` makes the attachment inline-embeddable from the HTML body
   // via `<img src="cid:...">` (works in clients that block remote images, no public URL needed).
-  attachments?: {
+  attachments?: Array<{
     filename: string;
     content: Uint8Array | Buffer;
     cid?: string;
     contentType?: string;
-  }[];
+  }>;
 }
 
 interface SmtpConfig {
@@ -73,12 +73,17 @@ export function isEmailConfigured(): boolean {
 
 function warn(context: string, detail: unknown): void {
   console.warn(
-    `[dalnex-hrms] email(${context}) failed — the action itself succeeded: ` +
-      (detail instanceof Error ? detail.message : String(detail)),
+    `[dalnex-hrms] email(${context}) failed — the action itself succeeded: ${
+      detail instanceof Error ? detail.message : String(detail)
+    }`,
   );
 }
 
-export type SendResult = { ok: boolean; id?: string; error?: string };
+export interface SendResult {
+  ok: boolean;
+  id?: string;
+  error?: string;
+}
 
 /**
  * Send one email through the configured SMTP server. Never throws; returns

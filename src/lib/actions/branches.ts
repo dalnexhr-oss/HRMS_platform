@@ -7,6 +7,7 @@
 import { revalidatePath } from 'next/cache';
 import { requireRoles } from '@/lib/actions/guards';
 import { collections } from '@/lib/db/collections';
+import { isMongoDuplicateKey } from '@/lib/db/errors';
 import { scoped } from '@/lib/db/repo';
 import { States } from '@/lib/constants';
 import { toCoordinate } from '@/lib/db/money';
@@ -118,10 +119,6 @@ export async function updateBranchLocation(id: string, formData: FormData): Prom
   }
 }
 
-function isDuplicateKey(e: unknown): boolean {
-  return typeof e === 'object' && e !== null && (e as { code?: number }).code === 11000;
-}
-
 // Rename a branch and/or move it to another state. Admin/HR, like /settings itself.
 export async function updateBranch(id: string, formData: FormData): Promise<ActionResult> {
   const gate = await requireRoles(branchAdminRoles, 'Updating a branch');
@@ -173,7 +170,7 @@ export async function updateBranch(id: string, formData: FormData): Promise<Acti
     revalidateBranchSurfaces();
     return { ok: true };
   } catch (e) {
-    if (isDuplicateKey(e)) {
+    if (isMongoDuplicateKey(e)) {
       return { ok: false, error: `A branch named “${name}” already exists.` };
     }
     return { ok: false, error: e instanceof Error ? e.message : 'Could not update the branch.' };

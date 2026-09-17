@@ -144,24 +144,24 @@ function payslipHtml(p: PayslipRow, logoUrl: string): string {
           ${row('HRA ', inr(p.hraEarned))}
           ${row('Special allowance ', inr(p.specialEarned))}
           ${row('Earned gross', inr(p.earnedGross), { total: true })}
-          ${row('Bonus', p.bonus ? '+' + inr(p.bonus) : '—')}
-          ${row('Reimbursement', p.reimbursementBonus ? '+' + inr(p.reimbursementBonus) : '—')}
-          ${row('Last month balance ', '+' + inr(lmbAdd))}
+          ${row('Bonus', p.bonus ? `+${inr(p.bonus)}` : '—')}
+          ${row('Reimbursement', p.reimbursementBonus ? `+${inr(p.reimbursementBonus)}` : '—')}
+          ${row('Last month balance ', `+${inr(lmbAdd)}`)}
           ${row('Total earnings', inr(p.earnedGross + add), { total: true })}
         </table>
       </div>
       <div>
         <h2>Deductions</h2>
         <table>
-          ${row(`Hours shortfall (${p.shortfallMinutes} min)`, p.shortfallAmount ? '-' + inr(p.shortfallAmount) : '—', { neg: !!p.shortfallAmount })}
-          ${row('PF ', p.pfEmployee ? '-' + inr(p.pfEmployee) : '—', { neg: !!p.pfEmployee })}
-          ${row(`ESIC `, p.esicEmployee ? '-' + inr(p.esicEmployee) : '—', { neg: !!p.esicEmployee })}
-          ${row(`Professional tax `, p.professionalTax ? '-' + inr(p.professionalTax) : '—', { neg: !!p.professionalTax })}
-          ${row('Advance', p.advanceRecovery ? '-' + inr(p.advanceRecovery) : '—', { neg: !!p.advanceRecovery })}
-          ${row('Other deductions', p.otherDeductions ? '-' + inr(p.otherDeductions) : '—', { neg: !!p.otherDeductions })}
-          ${row('Late marks / Loss & damage', p.lossDamage ? '-' + inr(p.lossDamage) : '—', { neg: !!p.lossDamage })}
-          ${lmbDed ? row('Last month balance (recovered)', '-' + inr(lmbDed), { neg: true }) : ''}
-          ${row('Total deductions', ded ? '-' + inr(ded) : '—', { total: true, neg: !!ded })}
+          ${row(`Hours shortfall (${p.shortfallMinutes} min)`, p.shortfallAmount ? `-${inr(p.shortfallAmount)}` : '—', { neg: !!p.shortfallAmount })}
+          ${row('PF ', p.pfEmployee ? `-${inr(p.pfEmployee)}` : '—', { neg: !!p.pfEmployee })}
+          ${row(`ESIC `, p.esicEmployee ? `-${inr(p.esicEmployee)}` : '—', { neg: !!p.esicEmployee })}
+          ${row(`Professional tax `, p.professionalTax ? `-${inr(p.professionalTax)}` : '—', { neg: !!p.professionalTax })}
+          ${row('Advance', p.advanceRecovery ? `-${inr(p.advanceRecovery)}` : '—', { neg: !!p.advanceRecovery })}
+          ${row('Other deductions', p.otherDeductions ? `-${inr(p.otherDeductions)}` : '—', { neg: !!p.otherDeductions })}
+          ${row('Late marks / Loss & damage', p.lossDamage ? `-${inr(p.lossDamage)}` : '—', { neg: !!p.lossDamage })}
+          ${lmbDed ? row('Last month balance (recovered)', `-${inr(lmbDed)}`, { neg: true }) : ''}
+          ${row('Total deductions', ded ? `-${inr(ded)}` : '—', { total: true, neg: !!ded })}
         </table>
       </div>
     </div>

@@ -29,12 +29,12 @@ const statusText: Record<string, string> = {
 };
 
 /** Combine column filters with AND; selected values within a column use OR. */
-const cols: {
+const cols: Array<{
   key: ColKey;
   label: string;
   kind?: ColKind;
   get: (d: EmployeeDocumentRow) => string;
-}[] = [
+}> = [
   { key: 'employee', label: 'Employee', get: (d) => d.name || '—' },
   {
     key: 'category',

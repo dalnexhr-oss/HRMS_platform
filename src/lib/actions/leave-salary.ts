@@ -194,7 +194,7 @@ export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
   }
 
   const dbc = await createClient();
-  type WorkingRead = {
+  interface WorkingRead {
     employee_id: string;
     year: number;
     salary_before: number | string;
@@ -203,7 +203,7 @@ export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
     status: string;
     calendar_days_p1_override?: number | string | null;
     calendar_days_p2_override?: number | string | null;
-  };
+  }
   const read = await dbc
     .from('leave_salary_workings')
     .select(

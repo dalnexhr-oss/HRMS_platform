@@ -16,7 +16,7 @@ export interface LetterSpec {
   // Body paragraphs, rendered in order with spacing between.
   paragraphs: string[];
   // Simple label/value lines rendered as a block (e.g. F&F line items).
-  lines?: { label: string; value: string }[];
+  lines?: Array<{ label: string; value: string }>;
   // Closing, e.g. "For Dalnex LLP".
   signatoryName?: string;
   signatoryTitle?: string;

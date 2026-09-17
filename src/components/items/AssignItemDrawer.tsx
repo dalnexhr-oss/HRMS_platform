@@ -10,7 +10,10 @@ import { useToast } from '@/components/ui/Toast';
 import { todayIST } from '@/lib/format';
 import type { ItemRow, EmployeeOption, ItemAssignmentRow } from '@/lib/queries';
 
-type State = { ok?: boolean; error?: string };
+interface State {
+  ok?: boolean;
+  error?: string;
+}
 
 export function AssignItemDrawer({
   item,

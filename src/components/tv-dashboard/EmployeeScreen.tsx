@@ -12,7 +12,7 @@ const pollMs = 30_000;
 // Mark the board stale after this long without a successful poll.
 const staleMs = 3 * pollMs;
 
-const bands: { key: Presence; label: string }[] = [
+const bands: Array<{ key: Presence; label: string }> = [
   { key: 'in', label: 'In office' },
   { key: 'out', label: 'Clocked out' },
   { key: 'awaited', label: 'Not in yet' },

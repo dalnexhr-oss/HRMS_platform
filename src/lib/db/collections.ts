@@ -123,13 +123,13 @@ export interface RequestRouteDoc {
   current_approver: RequestPerson;
   cc: RequestPerson[];
   revision: number;
-  history: {
+  history: Array<{
     approver: RequestPerson;
     decision: 'approved' | 'rejected';
     decided_at: Date;
     remark: string | null;
     forwarded_to: RequestPerson | null;
-  }[];
+  }>;
 }
 
 export interface RequestDoc {

@@ -112,12 +112,6 @@ export async function POST(req: Request) {
   if (!stored.ok || !stored.path) {
     return bad(stored.error ?? 'The document could not be uploaded.', 500);
   }
-  // The file is now in GridFS, but the document is not yet recorded in the database. If the
-  // record fails, the file is deleted to avoid leaving an orphaned chunk in GridFS.
-  if (!stored.path) {
-    await deleteObject(uploadBucket, stored.path).catch(() => undefined);
-    return bad('The document could not be uploaded.', 500);
-  }
   if (stored.size === 0) {
     await deleteObject(uploadBucket, stored.path).catch(() => undefined);
     return bad('Choose a file to upload.');
@@ -126,6 +120,7 @@ export async function POST(req: Request) {
   const category = (params.get('category') ?? '').trim() || 'other';
   const title = (params.get('title') ?? '').trim() || filename;
 
+  // Registration cleans up the stored file if no document record could be saved.
   const recorded = await recordUploadedDocument({
     filer: {
       id: profile.id,

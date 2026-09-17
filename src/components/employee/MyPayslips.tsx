@@ -90,7 +90,7 @@ export function MyPayslips({ payslips, id }: { payslips: PayslipRow[]; id?: stri
                     <td className="right mono">{p.payableDays}</td>
                     <td className="right mono">{inr(p.earnedGross)}</td>
                     <td className="right mono" style={{ color: 'var(--hd)' }}>
-                      {totalDeductions(p) ? '-' + inr(totalDeductions(p)) : '—'}
+                      {totalDeductions(p) ? `-${inr(totalDeductions(p))}` : '—'}
                     </td>
                     <td
                       className="right mono"
@@ -128,28 +128,28 @@ function PayslipBreakdown({ p }: { p: PayslipRow }) {
             <h4>Deductions</h4>
             <Kv
               label={`Hours shortfall (${p.shortfallMinutes} min)`}
-              value={p.shortfallAmount ? '-' + inr(p.shortfallAmount) : '—'}
+              value={p.shortfallAmount ? `-${inr(p.shortfallAmount)}` : '—'}
             />
-            <Kv label="PF · 12% of Basic+DA" value={p.pfEmployee ? '-' + inr(p.pfEmployee) : '—'} />
+            <Kv label="PF · 12% of Basic+DA" value={p.pfEmployee ? `-${inr(p.pfEmployee)}` : '—'} />
             <Kv
               label={`ESIC · 0.75% ${p.esicEmployee ? '(eligible)' : '(above ₹21k cap)'}`}
-              value={p.esicEmployee ? '-' + inr(p.esicEmployee) : '—'}
+              value={p.esicEmployee ? `-${inr(p.esicEmployee)}` : '—'}
             />
             <Kv
               label={`Professional tax · ${p.state}`}
-              value={p.professionalTax ? '-' + inr(p.professionalTax) : '—'}
+              value={p.professionalTax ? `-${inr(p.professionalTax)}` : '—'}
             />
             <Kv
               label="Advance recovery"
-              value={p.advanceRecovery ? '-' + inr(p.advanceRecovery) : '—'}
+              value={p.advanceRecovery ? `-${inr(p.advanceRecovery)}` : '—'}
             />
             <Kv
               label="Other deductions"
-              value={p.otherDeductions ? '-' + inr(p.otherDeductions) : '—'}
+              value={p.otherDeductions ? `-${inr(p.otherDeductions)}` : '—'}
             />
             <Kv
               label="Late marks / Loss & damage"
-              value={p.lossDamage ? '-' + inr(p.lossDamage) : '—'}
+              value={p.lossDamage ? `-${inr(p.lossDamage)}` : '—'}
             />
             {p.lastMonthBalance !== 0 && (
               <Kv
@@ -157,13 +157,13 @@ function PayslipBreakdown({ p }: { p: PayslipRow }) {
                 value={(p.lastMonthBalance > 0 ? '+' : '-') + inr(Math.abs(p.lastMonthBalance))}
               />
             )}
-            {p.bonus !== 0 && <Kv label="Bonus" value={'+' + inr(p.bonus)} />}
+            {p.bonus !== 0 && <Kv label="Bonus" value={`+${inr(p.bonus)}`} />}
             {p.reimbursementBonus !== 0 && (
-              <Kv label="Reimbursement" value={'+' + inr(p.reimbursementBonus)} />
+              <Kv label="Reimbursement" value={`+${inr(p.reimbursementBonus)}`} />
             )}
             <Kv
               label="Total deductions"
-              value={totalDeductions(p) ? '-' + inr(totalDeductions(p)) : '—'}
+              value={totalDeductions(p) ? `-${inr(totalDeductions(p))}` : '—'}
             />
             <Kv label="Net payable" value={inr(p.netPayable)} total />
           </div>

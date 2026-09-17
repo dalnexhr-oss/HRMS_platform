@@ -7,6 +7,8 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
+import { db } from '@/lib/db/mongo';
+import { deleteObject } from '@/lib/db/gridfs';
 import { wroteNothing } from '@/lib/actions/guards';
 import { notifyApprovers } from '@/lib/notify';
 import type { StorageBucket } from '@/lib/storage';
@@ -62,44 +64,57 @@ export async function recordUploadedDocument(input: {
   storagePath: string;
 }): Promise<{ ok: boolean; error?: string }> {
   const { filer, employeeId, isStaff, category, title, storagePath } = input;
-  const dbc = await createClient();
+  let registered = false;
+  try {
+    const dbc = await createClient();
 
-  // Initialize document chain (version 1, doc_group = id).
-  const id = randomUUID();
-  const { data, error } = await dbc
-    .from('employee_documents')
-    .insert({
-      id,
-      employee_id: employeeId,
-      category,
-      title,
-      storage_path: storagePath,
-      uploaded_by: filer.id,
-      bucket: uploadBucket,
-      doc_group: id,
-      version: 1,
-      superseded_at: null,
-      // Unverified by default on creation; verification requires staff review.
-      verified_by: null,
-      verified_at: null,
-    })
-    .select('id');
+    // Initialize document chain (version 1, doc_group = id).
+    const id = randomUUID();
+    const { data, error } = await dbc
+      .from('employee_documents')
+      .insert({
+        id,
+        employee_id: employeeId,
+        category,
+        title,
+        storage_path: storagePath,
+        uploaded_by: filer.id,
+        bucket: uploadBucket,
+        doc_group: id,
+        version: 1,
+        superseded_at: null,
+        // Unverified by default on creation; verification requires staff review.
+        verified_by: null,
+        verified_at: null,
+      })
+      .select('id');
 
-  if (error) {
-    // Storage path constraint violation (must match employee ID prefix).
-    if (error.code === queryErrorCodes.validationFailed) {
+    if (error) {
+      // Storage path constraint violation (must match employee ID prefix).
+      if (error.code === queryErrorCodes.validationFailed) {
+        return {
+          ok: false,
+          error: 'The upload was rejected because its storage path did not match the employee.',
+        };
+      }
+      return { ok: false, error: error.message };
+    }
+    if (wroteNothing(data)) {
       return {
         ok: false,
-        error: 'The upload was rejected because its storage path did not match the employee.',
+        error: 'The document was not filed — your account may not have permission.',
       };
     }
-    return { ok: false, error: error.message };
-  }
-  if (wroteNothing(data)) {
+    registered = true;
+  } catch (error) {
     return {
       ok: false,
-      error: 'The document was not filed — your account may not have permission.',
+      error: error instanceof Error ? error.message : 'The document was not filed.',
     };
+  } finally {
+    if (!registered) {
+      await discardUnfiledUpload(storagePath);
+    }
   }
 
   // Notify approvers only on self-service uploads by employees.
@@ -119,4 +134,20 @@ export async function recordUploadedDocument(input: {
   revalidatePath('/documents');
   revalidatePath('/onboarding');
   return { ok: true };
+}
+
+async function discardUnfiledUpload(storagePath: string): Promise<void> {
+  try {
+    // A lost acknowledgement can report failure after insertion. Keep files that have a record.
+    const saved = await (
+      await db()
+    )
+      .collection('employee_documents')
+      .findOne({ storage_path: storagePath, bucket: uploadBucket }, { projection: { _id: 1 } });
+    if (!saved) {
+      await deleteObject(uploadBucket, storagePath);
+    }
+  } catch (error) {
+    console.error('Could not clean up an unfiled document upload:', error);
+  }
 }

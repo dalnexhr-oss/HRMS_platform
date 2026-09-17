@@ -12,6 +12,7 @@ import { hashPassword, validatePassword } from '@/lib/auth/password';
 import { createResetToken, resetTokenTtlMinutes } from '@/lib/auth/reset-tokens';
 import { appOrigin, originNotConfigured } from '@/lib/auth/origin';
 import { collections, usersCollection } from '@/lib/db/collections';
+import { isMongoDuplicateKey } from '@/lib/db/errors';
 import { db, isMongoConfigured, withTransaction } from '@/lib/db/mongo';
 import { escapeHtml, isEmailConfigured, sendEmail } from '@/lib/email';
 import type { EmployeeDoc, UserDoc } from '@/lib/db/collections';
@@ -238,10 +239,8 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
     revalidatePath('/users');
     return { ok: true };
   } catch (e) {
-    // 11000 is a unique-index violation. Which index decides the message —
-    // "email taken" and "that employee already has a login" are different
-    // problems with different fixes.
-    if (isDuplicateKey(e)) {
+    // Use the failed index to distinguish an email conflict from an employee who already has a login.
+    if (isMongoDuplicateKey(e)) {
       const message = String((e as { message?: string }).message ?? '');
       if (message.includes('users_employee_unique')) {
         return { ok: false, error: 'That employee already has a login account.' };
@@ -250,10 +249,6 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
     }
     return { ok: false, error: e instanceof Error ? e.message : 'Could not create the user.' };
   }
-}
-
-function isDuplicateKey(e: unknown): boolean {
-  return typeof e === 'object' && e !== null && (e as { code?: number }).code === 11000;
 }
 
 /** Change an existing account's role (and employee link when it becomes one). */
@@ -322,7 +317,7 @@ export async function updateUserRole(
     revalidatePath('/users');
     return { ok: true };
   } catch (e) {
-    if (isDuplicateKey(e)) {
+    if (isMongoDuplicateKey(e)) {
       return { ok: false, error: 'That employee already has a login account.' };
     }
     return { ok: false, error: e instanceof Error ? e.message : 'Could not update the role.' };

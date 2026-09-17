@@ -210,7 +210,7 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
       .in('status', ['applied', 'used'])
       .limit(1);
     if (!already || already.length === 0) {
-      let fifo = await dbc
+      const fifo = await dbc
         .from('comp_offs')
         .select('id')
         .eq('employee_id', employeeId)

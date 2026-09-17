@@ -156,7 +156,7 @@ async function stampLeaveOnRegister(
     return `Approved, but the register could not be read to stamp the leave: ${readErr.message}. Mark the day(s) L from the register.`;
   }
   const statusByDate = new Map<string, string>();
-  for (const row of (existing ?? []) as { work_date: string; status: string }[]) {
+  for (const row of (existing ?? []) as Array<{ work_date: string; status: string }>) {
     statusByDate.set(row.work_date, row.status);
   }
 
@@ -200,7 +200,9 @@ async function stampLeaveOnRegister(
   if (toInsert.length > 0) {
     const { error } = await dbc
       .from('attendance_days')
-      .insert(toInsert.map((work_date) => ({ employee_id: employeeId, work_date, status: 'L' })));
+      .insert(
+        toInsert.map((workDate) => ({ employee_id: employeeId, work_date: workDate, status: 'L' })),
+      );
     // Ignore duplicate key conflicts if stamped concurrently.
     if (error && error.code !== queryErrorCodes.duplicateKey) {
       problems.push(`could not add L day(s): ${error.message}`);
@@ -270,7 +272,7 @@ async function decideApprovalStep(
     return { ok: true, stage: 'none' };
   }
 
-  const rows = steps as { id: string; step_no: number; status: string }[];
+  const rows = steps as Array<{ id: string; step_no: number; status: string }>;
   const current = rows.find((s) => s.status === 'pending');
   if (!current) {
     // Every step already decided — the request should not still be pending.

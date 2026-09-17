@@ -122,7 +122,7 @@ for (const e of all) {
 const show = (title, rows) => {
   console.log(`${title}: ${rows.length}`);
   for (const r of rows.slice(0, 25)) {
-    console.log('   ' + r);
+    console.log(`   ${r}`);
   }
   if (rows.length > 25) {
     console.log(`   … and ${rows.length - 25} more`);
@@ -147,9 +147,9 @@ if (ops.length === 0) {
 
 // verification
 console.log('\n--- verification ---');
-let wrong = 0,
-  stillNull = 0,
-  okUnassigned = 0;
+let wrong = 0;
+let stillNull = 0;
+let okUnassigned = 0;
 for (const e of await employees
   .find(
     {},

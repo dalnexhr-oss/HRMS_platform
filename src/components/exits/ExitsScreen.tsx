@@ -10,7 +10,12 @@ import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import type { ExitCaseRow, ClearanceItemRow, EmployeeOption, ExitInterviewRow, KtItemRow } from '@/lib/queries';
 
-const stageOrder: ExitCaseRow['stage'][] = ['initiated', 'clearance', 'settlement', 'completed'];
+const stageOrder: Array<ExitCaseRow['stage']> = [
+  'initiated',
+  'clearance',
+  'settlement',
+  'completed',
+];
 
 const stageLabel: Record<ExitCaseRow['stage'], string> = {
   initiated: 'Initiated',

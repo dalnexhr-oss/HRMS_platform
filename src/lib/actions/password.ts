@@ -10,7 +10,6 @@ import { usersCollection } from '@/lib/db/collections';
 import { isMongoConfigured } from '@/lib/db/mongo';
 import { escapeHtml, isEmailConfigured, sendEmail } from '@/lib/email';
 import { appOrigin, originNotConfigured } from '@/lib/auth/origin';
-import type { UserDoc } from '@/lib/db/collections';
 
 export interface PasswordState {
   error?: string;
@@ -116,17 +115,17 @@ export async function resetPassword(
     return { error: invalid };
   }
 
-  // Atomic: spends the token, so a replayed link fails here.
-  const userId = await consumeResetToken(token);
-  if (!userId) {
+  const claim = await consumeResetToken(token);
+  if (!claim) {
     return { error: 'That reset link has expired or has already been used. Request a new one.' };
   }
 
+  const passwordHash = await hashPassword(password);
   const users = await usersCollection();
   const result = await users.findOneAndUpdate(
-    { _id: userId },
+    { _id: claim.userId, token_version: claim.tokenVersion, disabled: false },
     {
-      $set: { password_hash: await hashPassword(password), updated_at: new Date() },
+      $set: { password_hash: passwordHash, updated_at: new Date() },
       // Every other session this account holds dies here. A password reset is
       // the standard response to "someone else is in my account", so leaving
       // their existing year-long cookies alive would defeat the point.
@@ -136,7 +135,7 @@ export async function resetPassword(
   );
 
   if (!result) {
-    return { error: 'That account no longer exists.' };
+    return { error: 'That reset link is no longer valid. Request a new one.' };
   }
 
   // Require a fresh sign-in with the new password after resetting it.
@@ -180,7 +179,12 @@ export async function changePassword(
   }
 
   const updated = await users.findOneAndUpdate(
-    { _id: userId },
+    {
+      _id: userId,
+      password_hash: user.password_hash,
+      token_version: user.token_version,
+      disabled: false,
+    },
     {
       $set: { password_hash: await hashPassword(password), updated_at: new Date() },
       $inc: { token_version: 1 },
@@ -188,12 +192,14 @@ export async function changePassword(
     { returnDocument: 'after' },
   );
 
+  if (!updated) {
+    return { error: 'Your account changed while saving. Sign in again and retry.' };
+  }
+
   // The bump above just invalidated this browser's cookie too. Re-issue it so
   // the person who made the change stays signed in while every other device is
   // signed out — which is what "change my password" is expected to do.
-  if (updated) {
-    await createSession(updated as UserDoc);
-  }
+  await createSession(updated);
 
   return { done: true };
 }

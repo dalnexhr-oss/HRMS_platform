@@ -8,28 +8,14 @@ import { isMongoConfigured } from '@/lib/db/mongo';
 import { getSession } from '@/lib/auth';
 import { notifyEmployee } from '@/lib/notify';
 import { toMoney } from '@/lib/db/money';
+import { queryErrorMessage } from '@/lib/db/errors';
+import { savePayslipAdjustments } from '@/lib/db/payroll';
 import type { Decimal128 } from 'mongodb';
-import type { AppRole, PayrollStatus } from '@/types/database';
+import type { AppRole } from '@/types/database';
 
 // Match guards.ts writeRoles. Payroll writes require super_admin, admin, or hr; portal read access
 // is insufficient.
 const payrollRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
-
-// A run in one of these states is history; recompute/adjust must refuse.
-const frozen: readonly PayrollStatus[] = ['locked', 'paid'];
-
-interface QueryError {
-  message: string;
-  details?: string | null;
-  hint?: string | null;
-  code?: string;
-}
-
-// Flatten a query error into one readable line. The summary arrives in `message`; some errors put
-// the useful half in `hint`/`details` instead.
-function queryMessage(error: QueryError): string {
-  return [error.message, error.details, error.hint].filter(Boolean).join(' — ');
-}
 
 type Gate = { ok: true; profileId: string } | { ok: false; error: string };
 
@@ -84,7 +70,7 @@ export async function openRun(periodMonth: string): Promise<{ ok: boolean; error
       .eq('period_month', start)
       .maybeSingle();
     if (existErr) {
-      return { ok: false, error: queryMessage(existErr) };
+      return { ok: false, error: queryErrorMessage(existErr) };
     }
     if (existing) {
       return { ok: false, error: `A payroll run for ${start} already exists.` };
@@ -95,7 +81,7 @@ export async function openRun(periodMonth: string): Promise<{ ok: boolean; error
       .insert({ period_month: start, status: 'draft' })
       .select('id');
     if (error) {
-      return { ok: false, error: queryMessage(error) };
+      return { ok: false, error: queryErrorMessage(error) };
     }
     if (!data || data.length === 0) {
       return {
@@ -132,7 +118,7 @@ async function callRunRpc(
     const dbc = await createClient();
     const { error } = await dbc.rpc(fn, { p_run_id: runId });
     if (error) {
-      return { ok: false, error: queryMessage(error) };
+      return { ok: false, error: queryErrorMessage(error) };
     }
 
     revalidatePath('/payroll');
@@ -143,7 +129,7 @@ async function callRunRpc(
 }
 
 /**
- * Recompute every active employee's draft payslip for the run and stamp
+ * Recompute draft payslips for active and on-notice employees and stamp
  * drafts_computed_at. Raises (and therefore returns ok:false) on a locked run.
  */
 export async function computeRun(runId: string): Promise<{ ok: boolean; error?: string }> {
@@ -182,7 +168,7 @@ async function notifyPayslipsReady(runId: string): Promise<void> {
         )
       : 'this month';
 
-    for (const s of (slips ?? []) as { employee_id: string }[]) {
+    for (const s of (slips ?? []) as Array<{ employee_id: string }>) {
       await notifyEmployee(s.employee_id, {
         kind: 'payroll',
         title: `Your ${month} payslip is ready`,
@@ -274,87 +260,14 @@ export async function saveAdjustments(
     }
     const remarksRaw = String(formData.get('remarks') ?? '').trim();
 
-    const dbc = await createClient();
-
-    // Which employee/run does this payslip belong to?
-    const { data: payslip, error: lookupError } = await dbc
-      .from('payslips')
-      .select('id, employee_id, payroll_run_id')
-      .eq('id', payslipId)
-      .maybeSingle<{ id: string; employee_id: string; payroll_run_id: string }>();
-    if (lookupError) {
-      return { ok: false, error: `${context}: ${queryMessage(lookupError)}` };
-    }
-    if (!payslip) {
-      return { ok: false, error: `${context}: payslip ${payslipId} no longer exists.` };
-    }
-
-    const employeeId = payslip.employee_id;
-    const runId = payslip.payroll_run_id;
-
-    // Fail-closed verification: ensure payroll run is in 'draft' or 'in_review' status before recomputing.
-    const { data: run, error: runError } = await dbc
-      .from('payroll_runs')
-      .select('status')
-      .eq('id', runId)
-      .maybeSingle<{ status: PayrollStatus }>();
-    if (runError) {
-      return {
-        ok: false,
-        error: `${context}: could not check whether this payroll run is locked: ${queryMessage(runError)}`,
-      };
-    }
-    if (!run?.status) {
-      return {
-        ok: false,
-        error:
-          `${context}: payslip ${payslipId} points at payroll run ${runId}, which could not be ` +
-          `read, so there is no way to tell whether it is locked. Refusing to write.`,
-      };
-    }
-    if (frozen.includes(run.status)) {
-      return {
-        ok: false,
-        error: `${context}: this payroll run is ${run.status} — adjustments are frozen and cannot be changed.`,
-      };
-    }
-
-    const { error: upsertError } = await dbc.from('payslip_adjustments').upsert(
-      {
-        id: payslipId,
-        // Parsed as numbers above so the range checks read naturally, then
-        // converted on the way out: every adjustment column is `decimal`, and
-        // a JS number is rejected by the validator.
-        ...(Object.fromEntries(
-          moneyFields.map((field) => [field, toMoney(values[field])]),
-        ) as Record<MoneyField, Decimal128>),
-        remarks: remarksRaw || null,
-        updated_by: g.profileId,
-        updated_at: new Date(),
-      },
-      { onConflict: 'id' },
-    );
-    if (upsertError) {
-      return { ok: false, error: `${context}: ${queryMessage(upsertError)}` };
-    }
-
-    // Recompute so the row the user is looking at tells the truth.
-    const { error: recomputeError } = await dbc.rpc('fn_compute_payslip', {
-      p_employee_id: employeeId,
-      p_run_id: runId,
+    await savePayslipAdjustments(payslipId, {
+      ...(Object.fromEntries(moneyFields.map((field) => [field, toMoney(values[field])])) as Record<
+        MoneyField,
+        Decimal128
+      >),
+      remarks: remarksRaw || null,
+      updated_by: g.profileId,
     });
-    if (recomputeError) {
-      // The upsert above DID land. Revalidate even on this failure path, or the
-      // cached page keeps serving the old adjustments while the database holds
-      // the new ones — the reader would have no way to know their edit stuck.
-      revalidatePath('/payroll');
-      return {
-        ok: false,
-        error:
-          `${context}: adjustments were saved, but recomputing the payslip failed, so the ` +
-          `net payable shown is stale: ${queryMessage(recomputeError)}`,
-      };
-    }
 
     revalidatePath('/payroll');
     return { ok: true };

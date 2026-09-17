@@ -13,7 +13,7 @@ export function currentYearIST(): number {
 
 // ₹1,23,456 — Indian-grouped rupees, rounded.
 export function inr(n: number): string {
-  return '₹' + Math.round(n).toLocaleString('en-IN');
+  return `₹${Math.round(n).toLocaleString('en-IN')}`;
 }
 
 // minutes -> 'HH:MM' (e.g. 560 -> '09:20').
@@ -31,7 +31,7 @@ export function hhmmToMinutes(t: string): number {
 
 /** '2022-07-15' -> '15 Jul 2022'. */
 export function formatDate(iso: string): string {
-  const d = new Date(iso + 'T00:00:00');
+  const d = new Date(`${iso}T00:00:00`);
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 

@@ -6,6 +6,7 @@
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { toCoordinate } from '@/lib/db/money';
+import { withTransaction } from '@/lib/db/mongo';
 import { lastNightSweepNotice, previousWorkDate } from '@/lib/night-sweep';
 import type { SweepClosure } from '@/lib/night-sweep';
 import type { PunchKind, PunchCoords, PunchStatus, PunchRecord, PunchResult } from '@/types/punch';
@@ -402,59 +403,69 @@ export async function recordPunch(
   coords: PunchCoords | null,
 ): Promise<PunchResult> {
   const { employeeId } = await employeeContext();
-  const dbc = await createClient();
   const now = new Date();
   const { date } = localParts(now);
 
-  // reject only genuine sequence errors, never a location
-  const { data: priorRaw, error: priorError } = await dbc
-    .from('punch_events')
-    .select<DayEvent[]>('kind, punched_at')
-    .eq('employee_id', employeeId)
-    .gte('punched_at', dayFloorUtc(date))
-    .order('punched_at', { ascending: true });
-  if (priorError) {
-    throw new Error(priorError.message);
-  }
+  return withTransaction(
+    async (session) => {
+      const dbc = await createClient(session);
+      // reject only genuine sequence errors, never a location
+      const { data: priorRaw, error: priorError } = await dbc
+        .from('punch_events')
+        .select<DayEvent[]>('kind, punched_at')
+        .eq('employee_id', employeeId)
+        .gte('punched_at', dayFloorUtc(date))
+        .order('punched_at', { ascending: true });
+      if (priorError) {
+        throw new Error(priorError.message);
+      }
 
-  const prior = (priorRaw ?? []).filter((event) => localParts(punchedAt(event)).date === date);
-  const openNow = prior.length > 0 && prior[prior.length - 1].kind === 'in';
+      const prior = (priorRaw ?? []).filter((event) => localParts(punchedAt(event)).date === date);
+      const openNow = prior.length > 0 && prior[prior.length - 1].kind === 'in';
 
-  if (kind === 'in' && openNow) {
-    throw new Error('You are already punched in.');
-  }
-  if (kind === 'out' && !openNow) {
-    throw new Error('There is no open punch to close.');
-  }
+      if (kind === 'in' && openNow) {
+        throw new Error('You are already punched in.');
+      }
+      if (kind === 'out' && !openNow) {
+        throw new Error('There is no open punch to close.');
+      }
 
-  const point = validCoords(coords);
-  const { office, requireLocation } = await readPunchPolicy(employeeId);
+      const point = validCoords(coords);
+      const { office, requireLocation } = await readPunchPolicy(employeeId);
 
-  // A required location must be present; being outside the office does not block a punch.
-  if (requireLocation && !point) {
-    throw new Error(locationRequired);
-  }
+      // A required location must be present; being outside the office does not block a punch.
+      if (requireLocation && !point) {
+        throw new Error(locationRequired);
+      }
 
-  const withinGeofence = classify(point, office);
+      const withinGeofence = classify(point, office);
 
-  const { error: eventError } = await dbc.from('punch_events').insert({
-    employee_id: employeeId,
-    // Stored as BSON Date matching collection schema validation.
-    punched_at: now,
-    kind,
-    // Geographic coordinates stored as 6-decimal Decimal128.
-    lat: toCoordinate(point?.latitude ?? null),
-    lng: toCoordinate(point?.longitude ?? null),
-    within_geofence: withinGeofence,
-    source: 'web_app',
-  });
-  if (eventError) {
-    throw new Error(eventError.message);
-  }
+      const { error: eventError } = await dbc.from('punch_events').insert({
+        employee_id: employeeId,
+        // Stored as BSON Date matching collection schema validation.
+        punched_at: now,
+        kind,
+        // Geographic coordinates stored as 6-decimal Decimal128.
+        lat: toCoordinate(point?.latitude ?? null),
+        lng: toCoordinate(point?.longitude ?? null),
+        within_geofence: withinGeofence,
+        source: 'web_app',
+      });
+      if (eventError) {
+        throw new Error(eventError.message);
+      }
 
-  const workedMinutes = await resolveDay(employeeId, date, [...prior, { kind, punched_at: now }]);
+      const workedMinutes = await resolveDay(
+        employeeId,
+        date,
+        [...prior, { kind, punched_at: now }],
+        dbc,
+      );
 
-  return { kind, punchedAt: now.toISOString(), withinGeofence, workedMinutes };
+      return { kind, punchedAt: now.toISOString(), withinGeofence, workedMinutes };
+    },
+    { required: true },
+  );
 }
 
 /**
@@ -465,9 +476,8 @@ async function resolveDay(
   employeeId: string,
   workDate: string,
   events: DayEvent[],
+  dbc: Awaited<ReturnType<typeof createClient>>,
 ): Promise<number> {
-  const dbc = await createClient();
-
   // Store punch times as HH:MM to match the attendance validator. Worked-minute calculations
   // already ignore seconds.
   const times = events.map((event) => ({

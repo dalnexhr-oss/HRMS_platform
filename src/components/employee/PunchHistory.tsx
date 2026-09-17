@@ -24,7 +24,7 @@ function dayKey(value: string): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(value));
 }
 
-function groupByDay(punches: PunchRecord[]): [string, PunchRecord[]][] {
+function groupByDay(punches: PunchRecord[]): Array<[string, PunchRecord[]]> {
   const groups = new Map<string, PunchRecord[]>();
   for (const punch of punches) {
     const key = dayKey(punch.timestamp);

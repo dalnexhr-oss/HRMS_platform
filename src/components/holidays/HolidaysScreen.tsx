@@ -116,8 +116,9 @@ function ImportHolidays({
       const msg =
         res.imported === 0
           ? `All ${res.skipped} public holiday(s) for ${res.year} are already in your calendar.`
-          : `Imported ${res.imported} public holiday(s) for ${res.year}` +
-            (res.skipped ? `, skipped ${res.skipped} already present.` : '.');
+          : `Imported ${res.imported} public holiday(s) for ${res.year}${
+              res.skipped ? `, skipped ${res.skipped} already present.` : '.'
+            }`;
       setResult(msg);
       toast(msg, 'success');
       setTentative(res.tentative);

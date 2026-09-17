@@ -52,7 +52,7 @@ export function isAuthConfigured(): boolean {
 // Issue a session token for a user.
 export async function signSession(claims: SessionClaims): Promise<string> {
   return new SignJWT({ ...claims } as unknown as JWTPayload)
-    .setProtectedHeader({ alg: alg })
+    .setProtectedHeader({ alg })
     .setSubject(claims.sub)
     .setIssuer(issuer)
     .setAudience(audience)
@@ -68,8 +68,8 @@ export async function signSession(claims: SessionClaims): Promise<string> {
 export async function verifySession(token: string): Promise<SessionClaims | null> {
   try {
     const { payload } = await jwtVerify(token, secretKey(), {
-      issuer: issuer,
-      audience: audience,
+      issuer,
+      audience,
       algorithms: [alg],
     });
 

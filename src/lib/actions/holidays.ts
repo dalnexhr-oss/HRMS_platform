@@ -8,11 +8,11 @@ import { allBranches, resolveBranchScope } from '@/lib/actions/branch-helpers';
 
 // Add an official holiday. Blank branch = all branches (branch_id null).
 export async function addHoliday(formData: FormData) {
-  const holiday_date = String(formData.get('holiday_date') ?? '').trim();
+  const holidayDate = String(formData.get('holiday_date') ?? '').trim();
   const name = String(formData.get('name') ?? '').trim();
   const branch = String(formData.get('branch') ?? '').trim();
 
-  if (!holiday_date) {
+  if (!holidayDate) {
     return { ok: false, error: 'Please choose a date.' };
   }
   if (!name) {
@@ -28,7 +28,7 @@ export async function addHoliday(formData: FormData) {
   const scope = await resolveBranchScope(dbc, branch);
   const { data, error } = await dbc
     .from('holidays')
-    .insert({ holiday_date, name, ...scope })
+    .insert({ holiday_date: holidayDate, name, ...scope })
     .select('id');
   if (error) {
     return { ok: false, error: error.message };
@@ -72,7 +72,7 @@ export async function importHolidaysFromGoogle(year: number): Promise<ImportHoli
     // overwrites a hand-entered holiday.
     const { data: existing, error: readErr } = await dbc
       .from('holidays')
-      .select<{ holiday_date: string }[]>('holiday_date')
+      .select<Array<{ holiday_date: string }>>('holiday_date')
       .gte('holiday_date', `${year}-01-01`)
       .lte('holiday_date', `${year}-12-31`);
     if (readErr) {

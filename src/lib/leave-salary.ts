@@ -27,7 +27,7 @@ export const presentCredit: Record<AttendanceStatus, number> = {
 
 // Sum credit-weighted presence by calendar month, with January at index 0. Ignore malformed dates,
 // unknown statuses, and rows outside the requested year.
-export function presenceByMonth(rows: { workDate: string; status: string }[]): number[] {
+export function presenceByMonth(rows: Array<{ workDate: string; status: string }>): number[] {
   const months = new Array(12).fill(0);
   for (const row of rows) {
     const month = Number(row.workDate?.slice(5, 7));

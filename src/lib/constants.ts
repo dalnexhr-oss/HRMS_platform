@@ -20,7 +20,7 @@ export function statusMeta(s: AttendanceStatus | string) {
   return attendanceStatusMeta[s] ?? attendanceStatusMeta.P;
 }
 
-export const registerLegend: [AttendanceStatus, string][] = [
+export const registerLegend: Array<[AttendanceStatus, string]> = [
   ['P', 'Present'],
   ['LM', 'Late mark'],
   ['HD', 'Half day'],

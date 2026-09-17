@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { beforeEach, test } from 'node:test';
 import { registerHooks } from 'node:module';
+import { isMongoDuplicateKey, queryErrorMessage } from '../src/lib/db/errors.ts';
 
 // Keep the real query client, repository, policies, and actions; isolate storage and sessions.
 const stubs = {
@@ -18,6 +19,12 @@ const stubs = {
     export const notifyEveryone = async () => {};
     export const notifyApprovers = async () => { globalThis.queryErrorTest.notifications++; };
   `,
+  '@/lib/db/gridfs': `
+    export const deleteObject = async (bucket, path) => {
+      globalThis.queryErrorTest.deletedFiles.push({ bucket, path });
+      return true;
+    };
+  `,
   '@/lib/queries': 'export const purgeExpiredNotices = async () => {};',
   '@/lib/storage': `
     export const uploadSharedFile = () => { throw new Error('Unexpected file upload'); };
@@ -27,7 +34,7 @@ const stubs = {
 registerHooks({
   resolve(specifier, context, nextResolve) {
     return specifier in stubs
-      ? { url: 'query-error-test:' + specifier, shortCircuit: true }
+      ? { url: `query-error-test:${specifier}`, shortCircuit: true }
       : nextResolve(specifier, context);
   },
   load(url, context, nextLoad) {
@@ -54,6 +61,42 @@ const signature = { kind: 'policy', signedName: 'Example Employee' };
 const driverError = (code, message, extra = {}) =>
   Object.assign(new Error(message), { code, ...extra });
 
+test('shared query messages retain useful details without adding empty fields or error codes', () => {
+  assert.equal(queryErrorMessage({ message: 'Save failed' }), 'Save failed');
+  assert.equal(
+    queryErrorMessage({
+      message: 'Save failed',
+      details: null,
+      hint: '',
+      code: 'VALIDATION_FAILED',
+    }),
+    'Save failed',
+  );
+  assert.equal(
+    queryErrorMessage({
+      message: 'Save failed',
+      details: 'Invalid amount',
+      hint: 'Check the salary',
+    }),
+    'Save failed — Invalid amount — Check the salary',
+  );
+});
+
+test('raw duplicate detection accepts driver errors and rejects unrelated thrown values', () => {
+  assert.equal(isMongoDuplicateKey(driverError(11000, 'Duplicate key')), true);
+  for (const value of [
+    null,
+    undefined,
+    'Duplicate key',
+    new Error('Failure'),
+    { code: 121 },
+    { code: '11000' },
+    { code: 'DUPLICATE_KEY' },
+  ]) {
+    assert.equal(isMongoDuplicateKey(value), false);
+  }
+});
+
 beforeEach(() => {
   fixture = {
     user: { _id: 'user-1', employee_id: employeeId, role: 'employee' },
@@ -61,6 +104,8 @@ beforeEach(() => {
     error: null,
     writes: 0,
     notifications: 0,
+    deletedFiles: [],
+    savedUpload: null,
     database: {
       collection() {
         return {
@@ -72,6 +117,7 @@ beforeEach(() => {
             return { insertedCount: docs.length };
           },
           find: () => ({ toArray: async () => [] }),
+          findOne: async () => fixture.savedUpload,
           aggregate: () => ({ toArray: async () => [] }),
         };
       },
@@ -157,6 +203,24 @@ test('rejected document uploads show the validation message without sending noti
   assert.equal(result.ok, false);
   assert.match(result.error, /storage path did not match the employee/);
   assert.equal(fixture.notifications, 0);
+  assert.deepEqual(fixture.deletedFiles, [
+    { bucket: 'employee-documents', path: `${employeeId}/document.pdf` },
+  ]);
+});
+
+test('an upload with committed metadata keeps its file after a lost acknowledgement', async () => {
+  fixture.error = new Error('Write acknowledgement lost');
+  fixture.savedUpload = { _id: 'document-1' };
+  const result = await recordUploadedDocument({
+    filer: { id: 'user-1', role: 'employee', fullName: 'Example Employee', employeeId },
+    employeeId,
+    isStaff: false,
+    category: 'identity',
+    title: 'Identity document',
+    storagePath: `${employeeId}/document.pdf`,
+  });
+  assert.equal(result.ok, false);
+  assert.deepEqual(fixture.deletedFiles, []);
 });
 
 test('function errors use the same mapping and unrelated failures are not treated as duplicates', async () => {

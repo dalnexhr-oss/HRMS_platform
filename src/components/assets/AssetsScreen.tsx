@@ -28,7 +28,7 @@ type ColKey =
   | 'ram'
   | 'storage';
 
-const cols: { key: ColKey; label: string; kind?: ColKind; get: (a: AssetRow) => string }[] = [
+const cols: Array<{ key: ColKey; label: string; kind?: ColKind; get: (a: AssetRow) => string }> = [
   { key: 'purchased', label: 'Purchased on', kind: 'date', get: (a) => a.purchase_date ?? '—' },
   {
     key: 'cost',

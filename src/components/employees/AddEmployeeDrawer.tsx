@@ -300,7 +300,7 @@ function BranchPicker({
   branchDefault,
   genderDefault,
 }: {
-  options: { value: string; label: string }[];
+  options: Array<{ value: string; label: string }>;
   branchDefault?: string;
   genderDefault?: string;
 }) {
@@ -425,7 +425,7 @@ function SelectField({
 }: {
   name: string;
   label: string;
-  options: { value: string; label: string }[];
+  options: Array<{ value: string; label: string }>;
   defaultValue?: string;
 }) {
   return (

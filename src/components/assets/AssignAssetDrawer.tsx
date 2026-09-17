@@ -9,7 +9,10 @@ import { assignAsset, unassignAsset, createAssetMaintenance, fetchAssetAssignmen
 import { todayIST } from '@/lib/format';
 import type { AssetRow, EmployeeOption, AssetAssignmentRow, AssetMaintenanceRow } from '@/lib/queries';
 
-type State = { ok?: boolean; error?: string };
+interface State {
+  ok?: boolean;
+  error?: string;
+}
 
 export function AssignAssetDrawer({
   asset,

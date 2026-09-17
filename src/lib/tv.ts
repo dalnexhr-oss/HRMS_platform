@@ -33,19 +33,19 @@ export async function readBoard(): Promise<BoardData> {
       .order('full_name'),
     dbc
       .from('attendance_days')
-      .select<{ employee_id: string; status: string; worked_minutes: number }[]>(
+      .select<Array<{ employee_id: string; status: string; worked_minutes: number }>>(
         'employee_id, status, worked_minutes',
       )
       .eq('work_date', date),
     dbc
       .from('punch_events')
       .select<
-        {
+        Array<{
           employee_id: string;
           kind: string;
           punched_at: Date | string;
           within_geofence: boolean | null;
-        }[]
+        }>
       >('employee_id, kind, punched_at, within_geofence')
       .gte('punched_at', dayFloorUtc(date))
       .order('punched_at', { ascending: true }),

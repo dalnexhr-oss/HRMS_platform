@@ -41,7 +41,7 @@ function stamp(iso: string | null): string | null {
 
 /** 'yyyy-MM-dd' -> 'month  name'. */
 function monthLabel(periodMonth: string): string {
-  const d = new Date(periodMonth + 'T00:00:00Z');
+  const d = new Date(`${periodMonth}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) {
     return periodMonth;
   }
@@ -67,7 +67,7 @@ function dayLabel(date: string | null): string | null {
   if (!date) {
     return null;
   }
-  const d = new Date(date + 'T00:00:00Z');
+  const d = new Date(`${date}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) {
     return null;
   }
@@ -94,8 +94,9 @@ async function loadAdjustmentWindow(
 
   if (error) {
     throw new Error(
-      `PayrollPage: could not load the adjustments window: ${error.message}` +
-        (error.code ? ` (${error.code})` : ''),
+      `PayrollPage: could not load the adjustments window: ${error.message}${
+        error.code ? ` (${error.code})` : ''
+      }`,
     );
   }
   return { open: data?.adjustments_open ?? null, close: data?.adjustments_close ?? null };
@@ -127,8 +128,9 @@ async function loadAdjustments(payslipIds: string[]): Promise<Record<string, Pay
 
   if (error) {
     throw new Error(
-      `PayrollPage: could not load payslip adjustments: ${error.message}` +
-        (error.code ? ` (${error.code})` : ''),
+      `PayrollPage: could not load payslip adjustments: ${error.message}${
+        error.code ? ` (${error.code})` : ''
+      }`,
     );
   }
 
@@ -168,14 +170,14 @@ export default async function PayrollPage({
   const statusLabel = run ? runStatusLabel[run.status] : 'No run';
 
   // Show only milestones with recorded timestamps.
-  const segments: [string, string][] = run
+  const segments: Array<[string, string]> = run
     ? (
         [
           ['Month closed', stamp(run.monthClosedAt)],
           ['Drafts computed', stamp(run.draftsComputedAt)],
           ['Locked', stamp(run.lockedAt)],
           ['Paid', stamp(run.paidAt)],
-        ] as [string, string | null][]
+        ] as Array<[string, string | null]>
       ).flatMap(([l, v]) => (v ? [[l, v] as [string, string]] : []))
     : [];
 

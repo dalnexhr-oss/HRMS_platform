@@ -72,7 +72,7 @@ export interface TodayKpis {
   inOffice: number;
   field: number;
   absent: number;
-  byBranch: { branch: string; count: number }[];
+  byBranch: Array<{ branch: string; count: number }>;
 }
 
 export interface Celebration {

@@ -5,17 +5,18 @@ import { isMongoConfigured } from '@/lib/db/mongo';
 import { registerDbFunctions } from '@/lib/db/functions';
 import { registerPayrollFunctions } from '@/lib/db/payroll';
 import type { QueryClient } from '@/lib/db/query-client';
+import type { ClientSession } from 'mongodb';
 
 // Register RPC handlers once at client initialization boundary.
 registerDbFunctions();
 registerPayrollFunctions();
 
 // Request-scoped client. Every query it runs is filtered by the caller's policy.
-export async function createClient(): Promise<QueryClient> {
+export async function createClient(session?: ClientSession): Promise<QueryClient> {
   if (!isMongoConfigured()) {
     throw new Error('MONGO_URI is not set. Add it to .env.local and restart.');
   }
-  return createQueryClient();
+  return createQueryClient(false, session);
 }
 
 // Server-only client for privileged background jobs.

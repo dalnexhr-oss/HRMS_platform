@@ -675,7 +675,7 @@ export async function markReimbursementPaid(
     payment_ref: ref,
   };
 
-  let { data, error } = await dbc
+  const { data, error } = await dbc
     .from('reimbursement_claims')
     .update(patch)
     .eq('id', id)

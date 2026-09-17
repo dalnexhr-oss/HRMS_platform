@@ -13,7 +13,11 @@ const sortLabels: Record<ColKind, [asc: string, desc: string]> = {
   number: ['Sort low → high', 'Sort high → low'],
   date: ['Sort oldest → newest', 'Sort newest → oldest'],
 };
-export type DateRange = { from: string; to: string; blank?: boolean };
+export interface DateRange {
+  from: string;
+  to: string;
+  blank?: boolean;
+}
 
 export const noRange: DateRange = { from: '', to: '' };
 
@@ -47,7 +51,10 @@ function monthEnd(iso: string): string {
   return shiftDays(m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`, -1);
 }
 
-type Preset = { label: string; range: DateRange };
+interface Preset {
+  label: string;
+  range: DateRange;
+}
 
 /**
  * Offer date presets that intersect the column's date range. The caller supplies today when the
@@ -253,7 +260,7 @@ export function ThMenu({
       <button
         ref={btnRef}
         type="button"
-        className={'th-btn' + (active ? ' on' : '')}
+        className={`th-btn${active ? ' on' : ''}`}
         onClick={toggleOpen}
         aria-haspopup="true"
         aria-expanded={open}
@@ -297,7 +304,7 @@ export function ThMenu({
           >
             <button
               type="button"
-              className={'th-pop-item' + (sortDir === 'asc' ? ' on' : '')}
+              className={`th-pop-item${sortDir === 'asc' ? ' on' : ''}`}
               onClick={() => {
                 onSort(sortDir === 'asc' ? null : 'asc');
                 setOpen(false);
@@ -307,7 +314,7 @@ export function ThMenu({
             </button>
             <button
               type="button"
-              className={'th-pop-item' + (sortDir === 'desc' ? ' on' : '')}
+              className={`th-pop-item${sortDir === 'desc' ? ' on' : ''}`}
               onClick={() => {
                 onSort(sortDir === 'desc' ? null : 'desc');
                 setOpen(false);
@@ -341,7 +348,7 @@ export function ThMenu({
                     <button
                       key={p.label}
                       type="button"
-                      className={'th-chip' + (sameRange(p.range, range) ? ' on' : '')}
+                      className={`th-chip${sameRange(p.range, range) ? ' on' : ''}`}
                       aria-pressed={sameRange(p.range, range)}
                       onClick={() => onRange?.(sameRange(p.range, range) ? noRange : p.range)}
                     >
@@ -351,7 +358,7 @@ export function ThMenu({
                   {hasBlanks && (
                     <button
                       type="button"
-                      className={'th-chip' + (range.blank ? ' on' : '')}
+                      className={`th-chip${range.blank ? ' on' : ''}`}
                       aria-pressed={!!range.blank}
                       onClick={() =>
                         onRange?.(range.blank ? noRange : { from: '', to: '', blank: true })

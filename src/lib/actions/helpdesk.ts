@@ -74,11 +74,11 @@ export async function setTicketStatus(id: string, status: TicketStatus, note?: s
 
   const reply = (note ?? '').trim();
   const dbc = await createClient();
-  const resolved_at = status === 'resolved' || status === 'closed' ? new Date() : null;
+  const resolvedAt = status === 'resolved' || status === 'closed' ? new Date() : null;
 
   // Only touch resolution_note when a reply is actually written, so a plain
   // status change does not blank out the note left with an earlier one.
-  const patch: Record<string, unknown> = { status, resolved_at };
+  const patch: Record<string, unknown> = { status, resolved_at: resolvedAt };
   if (reply) {
     patch.resolution_note = reply;
   }

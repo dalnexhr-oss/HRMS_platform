@@ -154,7 +154,7 @@ export class ScopedCollection<T extends Document> {
     return String(result.insertedId);
   }
 
-  async insertMany(docs: OptionalUnlessRequiredId<T>[]): Promise<number> {
+  async insertMany(docs: Array<OptionalUnlessRequiredId<T>>): Promise<number> {
     for (const doc of docs) {
       const refusal = this.policy.insert(this.scope, doc as Document);
       if (refusal) {

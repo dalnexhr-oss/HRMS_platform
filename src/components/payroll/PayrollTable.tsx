@@ -10,7 +10,10 @@ import type { ChangeEvent } from 'react';
 import type { PayslipRow } from '@/types/domain';
 import type { PayrollRunView } from '@/lib/queries';
 
-type ActionResult = { ok: boolean; error?: string };
+interface ActionResult {
+  ok: boolean;
+  error?: string;
+}
 
 // One payslip's manual adjustments, as loaded by the page.
 export interface PayslipAdjustments {
@@ -209,7 +212,7 @@ export function PayrollTable({
   const [open, setOpen] = useState<string | null>(null);
   const sum = (k: keyof PayslipRow) => payslips.reduce((a, p) => a + (p[k] as number), 0);
 
-  const totals: [string, string][] = [
+  const totals: Array<[string, string]> = [
     ['Total net payout', inr(sum('netPayable'))],
     ['Earned gross', inr(sum('earnedGross'))],
     ['PF (emp + er)', inr(sum('pfEmployee') + sum('pfEmployer'))],
@@ -286,7 +289,7 @@ export function PayrollTable({
                         className="right mono"
                         style={{ color: p.shortfallAmount ? 'var(--hd)' : 'var(--ink-3)' }}
                       >
-                        {p.shortfallAmount ? '-' + inr(p.shortfallAmount) : '—'}
+                        {p.shortfallAmount ? `-${inr(p.shortfallAmount)}` : '—'}
                       </td>
                       <td className="right mono">{inr(p.pfEmployee)}</td>
                       <td className="right mono">{p.esicEmployee ? inr(p.esicEmployee) : '—'}</td>
@@ -362,7 +365,7 @@ function PayExpand({
             />
             <Kv label={`Professional tax · ${p.state}`} value={inr(p.professionalTax)} />
             <Kv label="Advance recovery" value={p.advanceRecovery ? inr(p.advanceRecovery) : '—'} />
-            <Kv label="Bonus (added)" value={p.bonus ? '+' + inr(p.bonus) : '—'} />
+            <Kv label="Bonus (added)" value={p.bonus ? `+${inr(p.bonus)}` : '—'} />
             <Kv label="Other deductions" value={p.otherDeductions ? inr(p.otherDeductions) : '—'} />
             <Kv label="Late marks / Loss & damage" value={p.lossDamage ? inr(p.lossDamage) : '—'} />
             <Kv label="Net payable" value={inr(p.netPayable)} total />

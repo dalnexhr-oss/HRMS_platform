@@ -33,7 +33,7 @@ function todayLabel(): string {
 // 'YYYY-06-01' -> 'June'.
 function monthLabelOf(periodMonth: string): string {
   return new Intl.DateTimeFormat('en-GB', { month: 'long' }).format(
-    new Date(periodMonth + 'T00:00:00'),
+    new Date(`${periodMonth}T00:00:00`),
   );
 }
 

@@ -107,7 +107,7 @@ export function countLeaveDays(
   }
 
   // Enumerate the span, flagging which days are non-working.
-  const days: { iso: string; off: boolean }[] = [];
+  const days: Array<{ iso: string; off: boolean }> = [];
   const cursor = new Date(start.getTime());
   while (cursor.getTime() <= end.getTime()) {
     const iso = cursor.toISOString().slice(0, 10);

@@ -38,7 +38,7 @@ const stubs = {
 registerHooks({
   resolve(specifier, context, nextResolve) {
     return specifier in stubs
-      ? { url: 'request-test:' + specifier, shortCircuit: true }
+      ? { url: `request-test:${specifier}`, shortCircuit: true }
       : nextResolve(specifier, context);
   },
   load(url, context, nextLoad) {

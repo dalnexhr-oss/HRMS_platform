@@ -39,9 +39,7 @@ export async function settleApprovedCompOff(
       return `Approved, but the day was not stamped: ${monthOpen.error}`;
     }
 
-    // Preserve any real punches already on that day. The previous version
-    // upserted punch_in/punch_out to null, so approving a comp off for a date
-    // the employee had actually worked ERASED their punches and worked minutes.
+    // Preserve recorded punches and worked minutes when applying a comp off to an existing day.
     const { data: existing, error: readErr } = await dbc
       .from('attendance_days')
       .select('punch_in, punch_out, worked_minutes')

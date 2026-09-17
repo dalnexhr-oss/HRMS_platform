@@ -31,8 +31,9 @@ const approverRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
 function warn(context: string, detail: unknown): void {
   console.warn(
-    `[dalnex-hrms] notify(${context}) failed — the action itself succeeded: ` +
-      (detail instanceof Error ? detail.message : String(detail)),
+    `[dalnex-hrms] notify(${context}) failed — the action itself succeeded: ${
+      detail instanceof Error ? detail.message : String(detail)
+    }`,
   );
 }
 
@@ -50,8 +51,8 @@ async function dispatch(recipientIds: string[], input: NotifyInput): Promise<voi
 
   try {
     const admin = createServiceClient();
-    const rows = unique.map((recipient_id) => ({
-      recipient_id,
+    const rows = unique.map((recipientId) => ({
+      recipient_id: recipientId,
       kind: input.kind,
       title: input.title,
       body: input.body ?? null,
@@ -87,7 +88,7 @@ export async function notifyEmployee(employeeId: string | null, input: NotifyInp
     const admin = createServiceClient();
     const { data, error } = await admin
       .from('profiles')
-      .select<{ id: string }[]>('id')
+      .select<Array<{ id: string }>>('id')
       .eq('employee_id', employeeId);
     if (error) {
       return warn(input.kind, error.message);
@@ -111,7 +112,7 @@ export async function notifyApprovers(input: NotifyInput, exceptProfileId?: stri
     const admin = createServiceClient();
     const { data, error } = await admin
       .from('profiles')
-      .select<{ id: string; role: string }[]>('id, role')
+      .select<Array<{ id: string; role: string }>>('id, role')
       .in('role', approverRoles as unknown as string[]);
     if (error) {
       return warn(input.kind, error.message);
@@ -137,7 +138,7 @@ export async function notifyEveryone(input: NotifyInput, exceptProfileId?: strin
   }
   try {
     const admin = createServiceClient();
-    const { data, error } = await admin.from('profiles').select<{ id: string }[]>('id');
+    const { data, error } = await admin.from('profiles').select<Array<{ id: string }>>('id');
     if (error) {
       return warn(input.kind, error.message);
     }

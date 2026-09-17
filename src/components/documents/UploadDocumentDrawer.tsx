@@ -8,7 +8,10 @@ import { uploadEmployeeDocument, replaceEmployeeDocument } from '@/lib/actions/d
 import { documentCategories, documentCategoryLabel } from '@/lib/constants';
 import type { EmployeeDocumentRow, EmployeeOption } from '@/lib/queries';
 
-type State = { ok?: boolean; error?: string };
+interface State {
+  ok?: boolean;
+  error?: string;
+}
 
 export type DrawerTarget =
   { mode: 'upload'; employeeId?: string } | { mode: 'replace'; document: EmployeeDocumentRow };

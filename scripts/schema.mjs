@@ -77,6 +77,12 @@ const OVERRIDES = {
     ],
   },
 
+  payroll_runs: {
+    properties: {
+      calculation_revision: { bsonType: ['int', 'long', 'double'], minimum: 0 },
+    },
+  },
+
   requests: {
     properties: {
       employee_name: TEXT,
@@ -179,7 +185,7 @@ const OVERRIDES = {
   },
 };
 
-// collections with no SQL ancestor
+// Authentication and session collections.
 
 const APP_ROLES = ['super_admin', 'admin', 'hr', 'manager', 'employee'];
 
@@ -240,7 +246,7 @@ const EXTRA_COLLECTIONS = {
     ],
   },
 
-  // Replaces GoTrue's recovery link. Only a hash is stored; expiry is a TTL index.
+  // Single-use recovery links tied to the account's credential version, with TTL expiry.
   password_reset_tokens: {
     validator: {
       $jsonSchema: {
@@ -250,6 +256,7 @@ const EXTRA_COLLECTIONS = {
           _id: { bsonType: 'string' },
           user_id: { bsonType: 'string' },
           token_hash: { bsonType: 'string' },
+          token_version: { bsonType: ['int', 'long', 'double'], minimum: 0 },
           expires_at: { bsonType: 'date' },
           created_at: { bsonType: 'date' },
           requested_ip: TEXT,
@@ -265,7 +272,7 @@ const EXTRA_COLLECTIONS = {
   },
 };
 
-// The final schema: generated, overridden, plus the collections SQL never had.
+// Combine base definitions, overrides, and authentication collections.
 export function buildSchema() {
   const schema = {};
 

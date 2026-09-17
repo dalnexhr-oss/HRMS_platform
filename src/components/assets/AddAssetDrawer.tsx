@@ -8,7 +8,10 @@ import { todayIST } from '@/lib/format';
 import { assetLinkMaxLength } from '@/lib/asset-link';
 import type { AssetRow } from '@/lib/queries';
 
-type State = { ok?: boolean; error?: string };
+interface State {
+  ok?: boolean;
+  error?: string;
+}
 
 export function AddAssetDrawer({
   open,

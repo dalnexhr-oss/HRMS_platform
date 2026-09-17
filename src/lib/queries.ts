@@ -12,6 +12,7 @@ import { collections } from '@/lib/db/collections';
 import { afterParentCheck, NotSignedInError, scoped } from '@/lib/db/repo';
 import { deleteExpiredNotices } from '@/lib/db/scheduler';
 import { toNumber } from '@/lib/db/money';
+import { queryErrorMessage } from '@/lib/db/errors';
 import type { WeekOffPolicy } from '@/lib/week-off';
 import type { RequestRouting } from '@/types/requests';
 import type { TopbarStats } from '@/lib/constants';
@@ -19,9 +20,9 @@ import type { RegisterEmployee, PayslipRow, DayCell, TodayKpis, Celebration, Pun
 import type { Policy, LeaveType, RequestType } from '@/types/database';
 import type { BranchDoc, DepartmentDoc, EmployeeDoc, EmployeeStatus, UserDoc } from '@/lib/db/collections';
 import type { TabAccess } from '@/lib/access';
+import type { QueryError } from '@/types/query';
 
-// Re-exported: ~8 action files already import isMongoConfigured from here.
-// The implementation lives in @/lib/db/mongo (single source of truth).
+// Expose database availability alongside the query helpers.
 export { isMongoConfigured };
 
 // utils
@@ -45,34 +46,26 @@ function isoOrNull(value: unknown): string | null {
 
 // Returns the first day of the current month in IST ('YYYY-MM-01') as the default accounting period.
 export function currentPeriodMonth(): string {
-  return todayISO().slice(0, 8) + '01';
+  return `${todayISO().slice(0, 8)}01`;
 }
 
-interface QueryError {
-  message: string;
-  details?: string | null;
-  hint?: string | null;
-  code?: string;
-}
-
-// Turn a query error into a real, debuggable Error and throw it. The query layer reports failures as plain objects; throwing one raw loses the stack and renders as "{}" in Next's error overlay.
+// Throw an Error with query context so failures retain a useful stack and message.
 function fail(context: string, error: QueryError): never {
-  const detail = [error.message, error.details, error.hint].filter(Boolean).join(' — ');
+  const detail = queryErrorMessage(error);
   const code = error.code ? ` (${error.code})` : '';
   throw new Error(`${context}: ${detail}${code}`);
 }
 
 /** 'YYYY-06-01' -> { start: 'YYYY-06-01', end: 'YYYY-06-30' } */
 function monthRange(periodMonth: string): { start: string; end: string } {
-  const start = periodMonth.slice(0, 8) + '01';
-  const d = new Date(start + 'T00:00:00Z');
+  const start = `${periodMonth.slice(0, 8)}01`;
+  const d = new Date(`${start}T00:00:00Z`);
   const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
   return { start, end: end.toISOString().slice(0, 10) };
 }
 
 /**
- * Today's date in the business timezone. The SQL views use the database's
- * current_date; this keeps app-side date filters on the same calendar day.
+ * Today's date in IST, used for calendar-day query filters.
  */
 function todayISO(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
@@ -543,9 +536,9 @@ export function documentStats(
   register: EmployeeDocumentRow[],
   activeEmployeeIds: string[],
 ): DocumentStats {
-  let awaiting = 0,
-    returned = 0,
-    issued = 0;
+  let awaiting = 0;
+  let returned = 0;
+  let issued = 0;
   const heldByEmployee = new Map<string, Set<string>>();
 
   for (const d of register) {
@@ -569,8 +562,8 @@ export function documentStats(
     }
   }
 
-  let missing = 0,
-    employeesMissing = 0;
+  let missing = 0;
+  let employeesMissing = 0;
   for (const id of activeEmployeeIds) {
     const held = heldByEmployee.get(id);
     const gaps = requiredDocumentCategories.filter((c) => !held?.has(c)).length;
@@ -997,7 +990,7 @@ export async function getLeaveSalaryPresence(year: number): Promise<Record<strin
       fail('getLeaveSalaryPresence: could not load attendance', error);
     }
 
-    const page = (data ?? []) as { employee_id: string; work_date: string; status: string }[];
+    const page = (data ?? []) as Array<{ employee_id: string; work_date: string; status: string }>;
     for (const r of page) {
       const months = (byEmployee[r.employee_id] ??= new Array(12).fill(0));
       const month = Number(String(r.work_date).slice(5, 7));
@@ -2002,9 +1995,11 @@ export async function getAssets(): Promise<AssetRow[]> {
   // purchase_cost is stored as Decimal128 — money is never a float at rest
   // (lib/db/money.ts). The screen only displays it, so widen to a number here
   // rather than leaking a BSON type into a client component.
-  const rows = (res.data ?? []) as unknown as (Omit<AssetRow, 'purchase_cost'> & {
-    purchase_cost: unknown;
-  })[];
+  const rows = (res.data ?? []) as unknown as Array<
+    Omit<AssetRow, 'purchase_cost'> & {
+      purchase_cost: unknown;
+    }
+  >;
   return rows.map((r) => ({
     ...r,
     qr_url: r.qr_url ?? null,
@@ -2228,19 +2223,19 @@ export async function getEmployeeOverview(
     fail('getEmployeeOverview: could not load attendance', daysError);
   }
 
-  const rows = (days ?? []) as {
+  const rows = (days ?? []) as Array<{
     work_date: string;
     status: string;
     worked_minutes: number | null;
-  }[];
+  }>;
   const count = (s: string) => rows.filter((d) => d.status === s).length;
   const workedMin = rows.reduce((a, d) => a + (d.worked_minutes ?? 0), 0);
 
-  // Calculate pending hours through today using the payroll target: P+CO+OH+T+S+LM+0.5×HD,
+  // Calculate pending hours through today using the payroll target: P+T+S+LM+0.5×HD,
   // multiplied by full_day_minutes. Use the default when the setting is missing.
   const today = todayISO();
   const surplus = presentDaySurplus(rows, periodMonth, today);
-  const workingStatuses = ['P', 'CO', 'OH', 'T', 'S', 'LM'];
+  const workingStatuses = ['P', 'T', 'S', 'LM'];
   let workingCredit = 0;
   let workedToDate = 0;
   for (const d of rows) {
@@ -2423,7 +2418,7 @@ export async function getReadNoticeIds(employeeId: string | null): Promise<strin
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('notice_reads')
-    .select<{ notice_id: string }[]>('notice_id')
+    .select<Array<{ notice_id: string }>>('notice_id')
     .eq('employee_id', employeeId);
   if (error) {
     fail('getReadNoticeIds: could not load read receipts', error);

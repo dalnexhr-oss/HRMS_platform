@@ -69,13 +69,19 @@ let warnedStandalone = false;
 
 /**
  * Run fn with snapshot isolation when transactions are supported. Every repository must use the
- * supplied session. Standalone development databases execute without a transaction and emit a
- * warning.
+ * supplied session. Required transactions refuse standalone databases; other callers execute
+ * without a transaction and emit a warning.
  */
 export async function withTransaction<T>(
   fn: (session: ClientSession | undefined) => Promise<T>,
+  options: { required?: boolean } = {},
 ): Promise<T> {
   if (!(await supportsTransactions())) {
+    if (options.required) {
+      throw new Error(
+        'This operation requires a MongoDB replica set so related changes can be saved together.',
+      );
+    }
     if (!warnedStandalone) {
       warnedStandalone = true;
       console.warn(

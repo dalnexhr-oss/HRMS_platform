@@ -32,12 +32,12 @@ const leaveKindLabel: Record<string, string> = {
 
 // 'yyyy-MM-dd' -> day-of-month number as a string.
 function dayOf(iso: string): number {
-  return new Date(iso + 'T00:00:00').getDate();
+  return new Date(`${iso}T00:00:00`).getDate();
 }
 
 // 'yyyy-MM-dd' -> 'Jul' (short month).
 function monthOf(iso: string): string {
-  return new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { month: 'short' });
+  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { month: 'short' });
 }
 
 // 'yyyy-MM-dd'..'yyyy-MM-dd' -> '1 Jul – 3 Jul' or '1 Jul – 3 Aug' or '1 Jul' depending on the range.

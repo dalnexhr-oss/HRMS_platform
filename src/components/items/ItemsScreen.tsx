@@ -27,7 +27,7 @@ type ColKey =
   | 'status'
   | 'returnable';
 
-const cols: { key: ColKey; label: string; get: (i: ItemRow) => string; kind?: ColKind }[] = [
+const cols: Array<{ key: ColKey; label: string; get: (i: ItemRow) => string; kind?: ColKind }> = [
   { key: 'code', label: 'Material / Tool ID', get: (i) => i.item_code ?? '—' },
   { key: 'name', label: 'Name', get: (i) => i.item_name || '—' },
   { key: 'category', label: 'Category', get: (i) => i.category ?? '—' },

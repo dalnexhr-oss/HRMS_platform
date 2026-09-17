@@ -29,7 +29,7 @@ export function employeeApprovals(requests: RequestView[], actor: RequestActor) 
   return { all, pending, reviewed, cc };
 }
 
-export const employeeApprovalViews: { value: EmployeeApprovalView; label: string }[] = [
+export const employeeApprovalViews: Array<{ value: EmployeeApprovalView; label: string }> = [
   { value: 'pending', label: 'Awaiting me' },
   { value: 'reviewed', label: 'Reviewed by me' },
   { value: 'cc', label: 'CC' },

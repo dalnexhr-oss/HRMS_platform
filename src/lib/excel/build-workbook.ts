@@ -184,7 +184,7 @@ function writeReferenceSheet(
         [1, cell?.in ?? null],
         [2, cell?.out ?? null],
         [3, cell?.hours ?? null],
-      ] as [number, string | null][]) {
+      ] as Array<[number, string | null]>) {
         const c = ws.getCell(top + offset, col);
         const serial = clockToExcelTime(clock);
         if (serial === null) {
@@ -362,7 +362,7 @@ function daysOfMonth(periodMonth: string): number[] {
 }
 
 /** Code → human label, for the template's legend. Keep in step with knownStatuses. */
-const statusLegend: [string, string][] = [
+const statusLegend: Array<[string, string]> = [
   ['P', 'Present'],
   ['HD', 'Half day'],
   ['L', 'Leave'],
@@ -430,7 +430,7 @@ function writeTemplateGuideSheet(
     title: `Register import template — ${monthTitle(periodMonth)}`,
   });
 
-  const lines: [string, string][] = [
+  const lines: Array<[string, string]> = [
     ['', ''],
     [
       'Before you start',

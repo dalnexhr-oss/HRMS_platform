@@ -4,29 +4,20 @@
  */
 import 'server-only';
 import { NotSignedInError, ScopeError, readFilterFor, scoped, scopedFor } from '@/lib/db/repo';
-import { queryErrorCodes } from '@/lib/db/errors';
+import { isMongoDuplicateKey, queryErrorCodes } from '@/lib/db/errors';
 import { currentScope, systemScope } from '@/lib/db/scope';
 import { db } from '@/lib/db/mongo';
 import { columnDefaults, now, today } from '@/lib/db/defaults';
 import { isView, runView } from '@/lib/db/views';
 import { relationshipFor } from '@/lib/db/relationships';
 import { todayIST } from '@/lib/format';
-import type { Document, Filter } from 'mongodb';
+import type { ClientSession, Document, Filter } from 'mongodb';
 import type { Scope } from '@/lib/db/scope';
 import type { ScopedCollection } from '@/lib/db/repo';
 import type { DefaultValue } from '@/lib/db/defaults';
+import type { QueryError, QueryResult } from '@/types/query';
 
-export interface QueryResult<T> {
-  data: T;
-  error: QueryError | null;
-  count?: number | null;
-}
-
-export interface QueryError {
-  message: string;
-  code?: string;
-  details?: string;
-}
+export type { QueryError, QueryResult } from '@/types/query';
 
 function toQueryError(e: unknown): QueryError {
   if (e instanceof ScopeError) {
@@ -36,7 +27,7 @@ function toQueryError(e: unknown): QueryError {
     return { message: e.message, code: queryErrorCodes.notSignedIn };
   }
   const err = e as { code?: number | string; message?: string; errInfo?: unknown };
-  if (err?.code === 11000) {
+  if (isMongoDuplicateKey(e)) {
     return {
       message: 'A record with these values already exists.',
       code: queryErrorCodes.duplicateKey,
@@ -319,7 +310,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<QueryResult<T>> {
    */
   private asSystem = false;
 
-  private filters: Filter<Document>[] = [];
+  private filters: Array<Filter<Document>> = [];
   private sortKeys: SortKey[] = [];
   private limitN: number | null = null;
   private skipN = 0;
@@ -336,6 +327,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<QueryResult<T>> {
   constructor(
     private readonly table: string,
     asSystem = false,
+    private readonly session?: ClientSession,
   ) {
     this.asSystem = asSystem;
   }
@@ -343,7 +335,9 @@ class QueryBuilder<T = Document[]> implements PromiseLike<QueryResult<T>> {
   /** The repository this query runs through — scoped, or system-wide. */
   private async repo(): Promise<ScopedCollection<Document>> {
     const name = collectionFor(this.table);
-    return this.asSystem ? scopedFor<Document>(name, systemScope) : scoped<Document>(name);
+    return this.asSystem
+      ? scopedFor<Document>(name, systemScope, this.session)
+      : scoped<Document>(name, this.session);
   }
 
   /** Who this query runs as. Same rule as repo(), as a scope rather than a handle. */
@@ -573,6 +567,10 @@ class QueryBuilder<T = Document[]> implements PromiseLike<QueryResult<T>> {
           return await this.runDelete(repo);
       }
     } catch (e) {
+      // Preserve driver error labels so the transaction can retry or roll back the whole operation.
+      if (this.session?.inTransaction()) {
+        throw e;
+      }
       // Return query failures and policy refusals in the error field expected by callers.
       return { data: (this.wantSingle ? null : []) as T, error: toQueryError(e), count: null };
     }
@@ -590,8 +588,8 @@ class QueryBuilder<T = Document[]> implements PromiseLike<QueryResult<T>> {
     if (this.sortKeys.length) {
       rows = [...rows].sort((a, b) => {
         for (const { field, dir, nullsLast } of this.sortKeys) {
-          const av = a[field],
-            bv = b[field];
+          const av = a[field];
+          const bv = b[field];
           const aNull = av === null || av === undefined;
           const bNull = bv === null || bv === undefined;
           if (aNull || bNull) {
@@ -1130,10 +1128,10 @@ export interface QueryClient {
 /**
  * Construct the query adapter synchronously. Each query resolves its access scope at execution.
  */
-export function createQueryClient(asSystem = false): QueryClient {
+export function createQueryClient(asSystem = false, session?: ClientSession): QueryClient {
   return {
     from<T = Document[]>(table: string) {
-      return new QueryBuilder<T>(table, asSystem);
+      return new QueryBuilder<T>(table, asSystem, session);
     },
     async rpc<T = unknown>(name: string, args: Document = {}): Promise<QueryResult<T>> {
       const fn = rpc.get(name);

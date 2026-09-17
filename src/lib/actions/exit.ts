@@ -130,7 +130,7 @@ async function seedClearance(
   exitCaseId: string,
   employeeId: string,
 ): Promise<string | null> {
-  const rows: Record<string, unknown>[] = [];
+  const rows: Array<Record<string, unknown>> = [];
 
   // Propagate read failures so missing checklist data cannot be mistaken for completed clearance.
   const { data: assets, error: assetErr } = await dbc
@@ -242,7 +242,7 @@ export async function ensureExitInterview(exitCaseId: string): Promise<ActionRes
  * the question they were asked.
  */
 export async function saveExitInterview(
-  answers: { id: string; answer: string }[],
+  answers: Array<{ id: string; answer: string }>,
 ): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Saving the exit interview');
   if (!gate.ok) {
