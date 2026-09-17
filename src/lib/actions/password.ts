@@ -3,15 +3,14 @@
 // Server Actions for password reset requests, token consumption, and password updates.
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth/session';
-import { createSession, destroySession, revokeAllSessions } from '@/lib/auth/session';
+import { getSession, createSession, destroySession, revokeAllSessions } from '@/lib/auth/session';
 import { hashPassword, validatePassword, verifyPassword } from '@/lib/auth/password';
 import { consumeResetToken, createResetToken, resetTokenTtlMinutes } from '@/lib/auth/reset-tokens';
-import { usersCollection, type UserDoc } from '@/lib/db/collections';
+import { usersCollection } from '@/lib/db/collections';
 import { isMongoConfigured } from '@/lib/db/mongo';
 import { escapeHtml, isEmailConfigured, sendEmail } from '@/lib/email';
-// One definition of the app's own origin, shared with actions/users.ts.
 import { appOrigin, originNotConfigured } from '@/lib/auth/origin';
+import type { UserDoc } from '@/lib/db/collections';
 
 export interface PasswordState {
   error?: string;

@@ -5,12 +5,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/format';
-import {
-  startOnboarding,
-  setOnboardingTaskStatus,
-  addOnboardingTask,
-  deleteOnboardingTask,
-} from '@/lib/actions/onboarding';
+import { startOnboarding, setOnboardingTaskStatus, addOnboardingTask, deleteOnboardingTask } from '@/lib/actions/onboarding';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import type { OnboardingTaskRow, OnboardingTemplateRow, EmployeeOption } from '@/lib/queries';

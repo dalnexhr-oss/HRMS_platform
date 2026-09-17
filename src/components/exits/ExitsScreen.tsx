@@ -5,31 +5,10 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { inr, formatDate } from '@/lib/format';
-import {
-  initiateExit,
-  refreshExitClearance,
-  setClearanceItemCleared,
-  setExitStage,
-  prepareFullAndFinal,
-  setFullAndFinalStatus,
-  generateExitDocument,
-  fetchClearanceItems,
-  ensureExitInterview,
-  saveExitInterview,
-  fetchExitInterview,
-  setKtStatus,
-  deleteKtItem,
-  fetchKtItems,
-} from '@/lib/actions/exit';
+import { initiateExit, refreshExitClearance, setClearanceItemCleared, setExitStage, prepareFullAndFinal, setFullAndFinalStatus, generateExitDocument, fetchClearanceItems, ensureExitInterview, saveExitInterview, fetchExitInterview, setKtStatus, deleteKtItem, fetchKtItems } from '@/lib/actions/exit';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
-import type {
-  ExitCaseRow,
-  ClearanceItemRow,
-  EmployeeOption,
-  ExitInterviewRow,
-  KtItemRow,
-} from '@/lib/queries';
+import type { ExitCaseRow, ClearanceItemRow, EmployeeOption, ExitInterviewRow, KtItemRow } from '@/lib/queries';
 
 const stageOrder: ExitCaseRow['stage'][] = ['initiated', 'clearance', 'settlement', 'completed'];
 

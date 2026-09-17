@@ -1,19 +1,20 @@
 'use server';
 
 // Staff-only employee actions used by the add/edit drawer.
+import { queryErrorCodes } from '@/lib/db/errors';
 import { revalidatePath } from 'next/cache';
-import type { Decimal128 } from 'mongodb';
-import { createClient, createServiceClient, isServiceRoleConfigured } from '@/lib/db/server';
-import { requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { usersCollection } from '@/lib/db/collections';
-import { fromPaise as formatMoney } from '@/lib/db/money';
 import { calculateSalary } from '@/lib/salary';
-import { getEmployeeForEdit, type EmployeeEditRow } from '@/lib/queries';
 import { States } from '@/lib/constants';
-
+import { getEmployeeForEdit } from '@/lib/queries';
+import { createClient, createServiceClient, isServiceRoleConfigured } from '@/lib/db/server';
+import { fromPaise as formatMoney } from '@/lib/db/money';
 import { sendEmail, isEmailConfigured } from '@/lib/email';
+import { requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { buildWelcomeEmail } from '@/lib/documents/templates';
 import { startOnboarding } from '@/lib/actions/onboarding';
+import type { EmployeeEditRow } from '@/lib/queries';
+import type { Decimal128 } from 'mongodb';
 
 // Transient failures worth a second try; a missing account is not one.
 const loginUpdateAttempts = 3;
@@ -323,7 +324,7 @@ async function resolveBranch(
     .single();
   if (error) {
     // Concurrent creation race: adopt existing branch if created simultaneously.
-    if (error.code === '23505') {
+    if (error.code === queryErrorCodes.duplicateKey) {
       const { data: raced } = await dbc
         .from('branches')
         .select('id, name')
@@ -475,7 +476,7 @@ export async function createEmployee(formData: FormData) {
 
   if (error) {
     // Unique constraint violation (duplicate employee code or Aadhaar).
-    if (error.code === '23505') {
+    if (error.code === queryErrorCodes.duplicateKey) {
       const dup = /aadhaar/i.test(error.message)
         ? 'That Aadhaar number is already registered to another employee.'
         : `Employee code “${code}” is already in use. Pick a different code.`;
@@ -620,7 +621,7 @@ export async function updateEmployee(formData: FormData) {
 
   if (error) {
     // Unique constraint violation (duplicate Aadhaar or employee attribute).
-    if (error.code === '23505') {
+    if (error.code === queryErrorCodes.duplicateKey) {
       const dup = /aadhaar/i.test(error.message)
         ? 'That Aadhaar number is already registered to another employee.'
         : 'That value is already in use by another employee.';

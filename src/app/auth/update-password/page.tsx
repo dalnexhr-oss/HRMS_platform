@@ -1,6 +1,6 @@
-import type { Metadata } from 'next';
 import { UpdatePasswordForm } from '@/components/auth/UpdatePasswordForm';
 import { Brand } from '@/components/ui/Brand';
+import type { Metadata } from 'next';
 
 export const metadata: Metadata = { title: 'Set a new password — Dalnex HRMS' };
 

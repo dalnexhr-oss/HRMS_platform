@@ -2,14 +2,15 @@
 // system scope.
 import 'server-only';
 import { randomUUID } from 'node:crypto';
-import { collections, type BaseDoc } from '@/lib/db/collections';
+import { collections } from '@/lib/db/collections';
 import { scopedFor } from '@/lib/db/repo';
-import { registerRpc } from '@/lib/db/postgrest-compat';
-import { currentScope, systemScope, type Scope } from '@/lib/db/scope';
+import { registerRpc } from '@/lib/db/query-client';
 import { toDecimal } from '@/lib/db/money';
-import { AppRole } from '@/types/database';
-// Use the shared IST business date for database operations.
 import { todayIST } from '@/lib/format';
+import { currentScope, systemScope } from '@/lib/db/scope';
+import type { AppRole } from '@/types/database';
+import type { Scope } from '@/lib/db/scope';
+import type { BaseDoc } from '@/lib/db/collections';
 
 // Only internal jobs may set this context; RPC dispatch never accepts it from clients.
 export interface Invocation {

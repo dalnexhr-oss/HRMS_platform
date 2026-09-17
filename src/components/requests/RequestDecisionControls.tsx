@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { reviewRequest, type ActionResult } from '@/lib/actions/requests';
-import { canReviewRequest, type RequestActor } from '@/lib/requests/access';
+import { reviewRequest } from '@/lib/actions/requests';
+import { canReviewRequest } from '@/lib/requests/access';
+import { RecipientPicker } from './RecipientPicker';
+import { useState, useTransition } from 'react';
+import type { ActionResult } from '@/lib/actions/requests';
+import type { RequestActor } from '@/lib/requests/access';
 import type { RequestView } from '@/lib/queries';
 import type { RequestRecipient } from '@/types/requests';
-import { RecipientPicker } from './RecipientPicker';
 
 export function RequestDecisionControls({
   request,

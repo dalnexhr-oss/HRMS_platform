@@ -2,11 +2,11 @@
 // filters use IST.
 
 import 'server-only';
-import type { Document } from 'mongodb';
 import { collections } from '@/lib/db/collections';
 import { scoped, scopedFor } from '@/lib/db/repo';
-import type { Scope } from '@/lib/db/scope';
 import { todayIST } from '@/lib/format';
+import type { Scope } from '@/lib/db/scope';
+import type { Document } from 'mongodb';
 
 // Returns a scoped collection handle. Defaults to active caller session scope.
 async function handle(name: string, scope?: Scope) {

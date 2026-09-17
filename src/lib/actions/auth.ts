@@ -4,11 +4,11 @@
 import { redirect } from 'next/navigation';
 import { homeForRole } from '@/lib/auth';
 import { isAuthConfigured } from '@/lib/auth/jwt';
-import { createSession, destroySession, getSession, revokeAllSessions } from '@/lib/auth/session';
 import { verifyPassword } from '@/lib/auth/password';
 import { safeRedirectPath } from '@/lib/auth/redirect';
 import { usersCollection } from '@/lib/db/collections';
 import { isMongoConfigured } from '@/lib/db/mongo';
+import { createSession, destroySession, getSession, revokeAllSessions } from '@/lib/auth/session';
 
 export interface SignInState {
   error?: string;

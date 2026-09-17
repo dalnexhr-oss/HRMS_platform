@@ -1,7 +1,6 @@
-import { getHolidays, getWeekOffPolicy, getBranches } from '@/lib/queries';
+import { getHolidays, getWeekOffPolicy, getBranches, currentPeriodMonth } from '@/lib/queries';
 import { HolidaysScreen } from '@/components/holidays/HolidaysScreen';
 import { describePolicy } from '@/lib/week-off';
-import { currentPeriodMonth } from '@/lib/queries';
 
 export default async function HolidaysPage() {
   const [holidays, policy, branches] = await Promise.all([

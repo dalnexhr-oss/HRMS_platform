@@ -1,8 +1,9 @@
 /** Shared Server Action guards for database availability, staff roles, and successful writes. */
 import { isMongoConfigured } from '@/lib/db/mongo';
 import { getSession } from '@/lib/auth';
+import { monthSealReason, periodMonthFor } from '@/lib/payroll-month';
+import type { PayrollRunSeal } from '@/lib/payroll-month';
 import type { createClient } from '@/lib/db/server';
-import { monthSealReason, periodMonthFor, type PayrollRunSeal } from '@/lib/payroll-month';
 import type { AppRole } from '@/types/database';
 
 // Request-scoped database client type.

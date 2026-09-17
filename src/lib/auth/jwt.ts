@@ -1,7 +1,8 @@
 // HS256 session JWTs shared by Node and edge runtimes through jose. The default lifetime is one
 // year; server session checks compare ver with users.token_version to enforce revocation. A stolen
 // cookie remains usable until it expires or the account's version changes.
-import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
+import { SignJWT, jwtVerify } from 'jose';
+import type { JWTPayload } from 'jose';
 import type { AppRole } from '@/types/database';
 
 // How long an issued token stays valid. One year unless overridden.

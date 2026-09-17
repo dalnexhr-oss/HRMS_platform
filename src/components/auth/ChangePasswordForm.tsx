@@ -3,7 +3,8 @@
 // Verify the current password server-side before changing it. Checking the stored hash avoids
 // replacing the active session.
 import { useActionState } from 'react';
-import { changePassword, type PasswordState } from '@/lib/actions/password';
+import { changePassword } from '@/lib/actions/password';
+import type { PasswordState } from '@/lib/actions/password';
 
 // Mirrors validatePassword() in lib/auth/password.ts.
 const minLen = 10;

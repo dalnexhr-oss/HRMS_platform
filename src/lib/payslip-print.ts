@@ -1,8 +1,8 @@
 // Render a printable payslip from the supplied PayslipRow. Open self-contained HTML in a new
 // window; the browser handles printing and PDF saving.
 import { inr } from '@/lib/format';
-import type { PayslipRow } from '@/types/domain';
 import { company } from '@/lib/brand/company';
+import type { PayslipRow } from '@/types/domain';
 
 // 'YYYY-MM-01' -> 'June YYYY'; falls back gracefully.
 function monthLabel(periodMonth: string | null): string {

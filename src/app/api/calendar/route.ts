@@ -8,7 +8,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { getHolidays } from '@/lib/queries';
-import { buildIcs, type CalendarEvent } from '@/lib/ics';
+import { buildIcs } from '@/lib/ics';
+import type { CalendarEvent } from '@/lib/ics';
 
 // Always evaluated per-request: the feed is per-user and changes as leave is approved.
 export const dynamic = 'force-dynamic';

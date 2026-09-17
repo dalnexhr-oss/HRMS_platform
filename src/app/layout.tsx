@@ -1,8 +1,8 @@
-import type { Metadata, Viewport } from 'next';
 /**
  * The root layout for the application.
  */
 import './globals.css';
+import type { Metadata, Viewport } from 'next';
 
 export const metadata: Metadata = {
   title: 'Dalnex HRMS — Admin Portal',

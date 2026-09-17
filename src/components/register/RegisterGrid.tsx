@@ -4,14 +4,11 @@ import { useActionState, useEffect, useRef, useState, useTransition, useCallback
 import { useRouter } from 'next/navigation';
 import { Stamp } from '@/components/ui/Stamp';
 import { dow } from '@/lib/constants';
-import {
-  correctAttendance,
-  correctAttendanceBulk,
-  type CorrectionState,
-} from '@/lib/actions/attendance';
+import { correctAttendance, correctAttendanceBulk } from '@/lib/actions/attendance';
 import { grantCompOff } from '@/lib/actions/comp-off';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
+import type { CorrectionState } from '@/lib/actions/attendance';
 import type { DayCell, RegisterEmployee } from '@/types/domain';
 
 // Statuses that mean the day was scheduled off — mirrors offDayStatuses.

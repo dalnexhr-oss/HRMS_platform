@@ -3,20 +3,17 @@
 // Leave-salary workings by employee. Drafts recalculate from salaries and register attendance;
 // finalized rows use saved figures. The paid-leave pool below supports annual provisioning and
 // audited adjustments.
-import { useMemo, useState, useTransition, type ReactNode } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { inr } from '@/lib/format';
-import { computeLeaveSalary, effectiveFigures, type LeaveSalaryResult } from '@/lib/leave-salary';
-import type { LeaveSalaryViewRow } from '@/lib/leave-salary-view';
-import {
-  saveLeaveSalaryWorking,
-  finalizeLeaveSalary,
-  reopenLeaveSalary,
-  markLeaveSalaryPaid,
-} from '@/lib/actions/leave-salary';
+import { computeLeaveSalary, effectiveFigures } from '@/lib/leave-salary';
+import { saveLeaveSalaryWorking, finalizeLeaveSalary, reopenLeaveSalary, markLeaveSalaryPaid } from '@/lib/actions/leave-salary';
 import { provisionLeaveYear, adjustLeaveBalance } from '@/lib/actions/leave';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
+import type { LeaveSalaryResult } from '@/lib/leave-salary';
+import type { ReactNode } from 'react';
+import type { LeaveSalaryViewRow } from '@/lib/leave-salary-view';
 import type { LeaveBalanceAdminRow } from '@/lib/queries';
 
 const monthNames = [

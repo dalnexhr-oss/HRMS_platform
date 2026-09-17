@@ -2,6 +2,7 @@
  * Shared upload validation and registration for form-based Server Actions and the streaming
  * document route.
  */
+import { queryErrorCodes } from '@/lib/db/errors';
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
@@ -86,7 +87,7 @@ export async function recordUploadedDocument(input: {
 
   if (error) {
     // Storage path constraint violation (must match employee ID prefix).
-    if (error.code === '23514') {
+    if (error.code === queryErrorCodes.validationFailed) {
       return {
         ok: false,
         error: 'The upload was rejected because its storage path did not match the employee.',

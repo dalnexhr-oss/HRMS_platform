@@ -1,36 +1,24 @@
 // Server-side data queries. Throw database failures through fail() so callers can distinguish
 // errors from legitimately empty results.
-import type { TabAccess } from '@/lib/access';
 import { createClient } from '@/lib/db/server';
 import { minutesToHHMM, trimTime } from '@/lib/format';
 import { isMongoConfigured } from '@/lib/db/mongo';
-import { defaultWeekOffPolicy, policyFromSettings, type WeekOffPolicy } from '@/lib/week-off';
+import { defaultWeekOffPolicy, policyFromSettings } from '@/lib/week-off';
 import { presentCredit } from '@/lib/leave-salary';
 import { presentDaySurplus } from '@/lib/worked-time';
 import { routingView } from '@/lib/requests/routing-view';
+import { requiredDocumentCategories } from '@/lib/constants';
+import { collections } from '@/lib/db/collections';
+import { afterParentCheck, NotSignedInError, scoped } from '@/lib/db/repo';
+import { deleteExpiredNotices } from '@/lib/db/scheduler';
+import { toNumber } from '@/lib/db/money';
+import type { WeekOffPolicy } from '@/lib/week-off';
 import type { RequestRouting } from '@/types/requests';
 import type { TopbarStats } from '@/lib/constants';
-import { requiredDocumentCategories } from '@/lib/constants';
-import type {
-  RegisterEmployee,
-  PayslipRow,
-  DayCell,
-  TodayKpis,
-  Celebration,
-  PunchLogRow,
-} from '@/types/domain';
+import type { RegisterEmployee, PayslipRow, DayCell, TodayKpis, Celebration, PunchLogRow } from '@/types/domain';
 import type { Policy, LeaveType, RequestType } from '@/types/database';
-import {
-  collections,
-  type BranchDoc,
-  type DepartmentDoc,
-  type EmployeeDoc,
-  type EmployeeStatus,
-  type UserDoc,
-} from '@/lib/db/collections';
-import { afterParentCheck, NotSignedInError, scoped } from '@/lib/db/repo';
-import { toNumber } from '@/lib/db/money';
-import { deleteExpiredNotices } from '@/lib/db/scheduler';
+import type { BranchDoc, DepartmentDoc, EmployeeDoc, EmployeeStatus, UserDoc } from '@/lib/db/collections';
+import type { TabAccess } from '@/lib/access';
 
 // Re-exported: ~8 action files already import isMongoConfigured from here.
 // The implementation lives in @/lib/db/mongo (single source of truth).
@@ -2754,15 +2742,13 @@ export interface OnLeaveTodayRow {
 }
 
 /**
- * Return colleagues on approved leave today in IST through fn_on_leave_today. Return an empty list
- * when the function is unavailable.
+ * Return colleagues on approved leave today in IST through fn_on_leave_today.
+ * Report query failures through the shared error handler.
  */
 export async function getOnLeaveToday(): Promise<OnLeaveTodayRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc.rpc('fn_on_leave_today');
-  // An unregistered rpc comes back with a MESSAGE and no code (postgrest-compat.rpc),
-  // so there is no "function not installed" code to branch on any more — and
-  // fn_on_leave_today is registered by db/server.ts regardless.
+  // The database client registers this handler during initialization.
   if (error) {
     fail('getOnLeaveToday: could not load who is on leave', error);
   }

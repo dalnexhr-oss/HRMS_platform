@@ -3,20 +3,12 @@
  * writes throw ScopeError. Internal jobs can explicitly request system scope.
  */
 import 'server-only';
-import type {
-  AggregateOptions,
-  ClientSession,
-  CountDocumentsOptions,
-  Document,
-  Filter,
-  FindOptions,
-  OptionalUnlessRequiredId,
-  UpdateFilter,
-  UpdateOptions,
-} from 'mongodb';
 import { db } from '@/lib/db/mongo';
-import { policyFor, type CollectionPolicy } from '@/lib/db/policies';
-import { currentScope, systemScope, type Scope } from '@/lib/db/scope';
+import { policyFor } from '@/lib/db/policies';
+import { currentScope, systemScope } from '@/lib/db/scope';
+import type { CollectionPolicy } from '@/lib/db/policies';
+import type { Scope } from '@/lib/db/scope';
+import type { AggregateOptions, ClientSession, CountDocumentsOptions, Document, Filter, FindOptions, OptionalUnlessRequiredId, UpdateFilter, UpdateOptions } from 'mongodb';
 
 // Thrown when a write is refused. Carries a message safe to show a user.
 export class ScopeError extends Error {

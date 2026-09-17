@@ -4,6 +4,7 @@
  * Append-only document signatures. Read the timestamp, IP, and user agent on the server; clients
  * provide only the signature content.
  */
+import { queryErrorCodes } from '@/lib/db/errors';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/db/server';
@@ -81,11 +82,11 @@ export async function acknowledgeDocument(input: {
 
   if (error) {
     // Unique constraint: document already signed by this employee.
-    if (error.code === '23505') {
+    if (error.code === queryErrorCodes.duplicateKey) {
       return { ok: false, error: 'You have already signed this document.' };
     }
     // Authorization refusal: employee identity mismatch.
-    if (error.code === '42501') {
+    if (error.code === queryErrorCodes.permissionDenied) {
       return {
         ok: false,
         error:

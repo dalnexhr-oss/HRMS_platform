@@ -1,12 +1,9 @@
 // Build leave-salary rows for both the page and Excel export from the same roster, attendance, and
 // saved workings. Pure calculations live in leave-salary.ts.
-import {
-  getLeaveSalaryPresence,
-  getLeaveSalaryRoster,
-  getLeaveSalaryWorkings,
-  type LeaveSalaryWorkingRow,
-} from '@/lib/queries';
-import { computeLeaveSalary, type LeaveSalaryResult } from '@/lib/leave-salary';
+import { getLeaveSalaryPresence, getLeaveSalaryRoster, getLeaveSalaryWorkings } from '@/lib/queries';
+import { computeLeaveSalary } from '@/lib/leave-salary';
+import type { LeaveSalaryWorkingRow } from '@/lib/queries';
+import type { LeaveSalaryResult } from '@/lib/leave-salary';
 
 // Increment month when nothing is saved: April — appraisals land in March.
 export const defaultIncrementMonth = 4;

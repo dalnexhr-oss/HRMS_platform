@@ -1,5 +1,6 @@
 'use server';
 
+import { queryErrorCodes } from '@/lib/db/errors';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
@@ -8,9 +9,6 @@ import { notifyEveryone } from '@/lib/notify';
 import { purgeExpiredNotices } from '@/lib/queries';
 import { uploadSharedFile, signedUrl } from '@/lib/storage';
 import { resolveBranchScope } from '@/lib/actions/branch-helpers';
-
-// Duplicate key violation error code (mapped from Mongo 11000).
-const uniqueViolation = '23505';
 
 // Notice attachments are PDFs only, capped like employee documents.
 const pdfMaxBytes = 10 * 1024 * 1024;
@@ -70,7 +68,7 @@ export async function markNoticeRead(noticeId: string) {
 
   // Already read: the unique index on (notice_id, employee_id) rejected the
   // second insert, which is exactly what "idempotent" means here.
-  if (error && error.code !== uniqueViolation) {
+  if (error && error.code !== queryErrorCodes.duplicateKey) {
     return { ok: false, error: error.message };
   }
   revalidatePath('/me');

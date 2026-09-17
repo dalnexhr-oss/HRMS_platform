@@ -5,11 +5,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/format';
-import {
-  fetchEmployeeDocumentHistory,
-  verifyEmployeeDocument,
-  deleteEmployeeDocument,
-} from '@/lib/actions/documents';
+import { fetchEmployeeDocumentHistory, verifyEmployeeDocument, deleteEmployeeDocument } from '@/lib/actions/documents';
 import { documentCategoryLabel, requiredDocumentCategories } from '@/lib/constants';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { usePrompt } from '@/components/ui/PromptDialog';

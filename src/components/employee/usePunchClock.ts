@@ -4,17 +4,11 @@
 // failures are allowed unless the server's requireLocation policy requires coordinates.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  getPunchStatus,
-  locationPermission,
-  punchIn,
-  punchOut,
-  requestCoords,
-  type LocationFailure,
-  type PunchStatusResponse,
-} from '@/lib/actions/punch';
+import { getPunchStatus, locationPermission, punchIn, punchOut, requestCoords } from '@/lib/actions/punch';
+import { announcePunch, onPunchChange } from '@/lib/punch-bus';
+import type { PunchSource } from '@/lib/punch-bus';
+import type { LocationFailure, PunchStatusResponse } from '@/lib/actions/punch';
 import type { ToastKind } from '@/components/ui/Toast';
-import { announcePunch, onPunchChange, type PunchSource } from '@/lib/punch-bus';
 
 const timeFmt: Intl.DateTimeFormatOptions = {
   hour: '2-digit',

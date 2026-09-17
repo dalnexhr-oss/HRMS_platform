@@ -1,6 +1,7 @@
 // Stream files after getObject() checks the session and bucket/path permissions.
 import { NextResponse } from 'next/server';
-import { getObject, StorageAccessError, type StorageBucket } from '@/lib/db/gridfs';
+import { getObject, StorageAccessError } from '@/lib/db/gridfs';
+import type { StorageBucket } from '@/lib/db/gridfs';
 
 export const runtime = 'nodejs';
 // Do not share cached responses between users; each file request requires an access check.

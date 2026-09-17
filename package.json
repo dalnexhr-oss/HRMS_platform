@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "db:setup": "node --env-file=.env.local scripts/db-setup.mjs",
     "db:backfill-names": "node --env-file=.env.local scripts/backfill-employee-names.mjs",
-    "format": "prettier --write .",
+    "format": "eslint . --fix && prettier --write .",
     "format:check": "prettier --check .",
     "check:names": "node scripts/check-file-names.mjs",
     "test": "node --import ./tests/register-typescript.mjs --test tests/*.test.mjs",

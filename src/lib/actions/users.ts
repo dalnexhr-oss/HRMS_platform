@@ -11,9 +11,10 @@ import { isEmployeeAreaRole } from '@/lib/auth';
 import { hashPassword, validatePassword } from '@/lib/auth/password';
 import { createResetToken, resetTokenTtlMinutes } from '@/lib/auth/reset-tokens';
 import { appOrigin, originNotConfigured } from '@/lib/auth/origin';
-import { collections, usersCollection, type EmployeeDoc, type UserDoc } from '@/lib/db/collections';
+import { collections, usersCollection } from '@/lib/db/collections';
 import { db, isMongoConfigured, withTransaction } from '@/lib/db/mongo';
 import { escapeHtml, isEmailConfigured, sendEmail } from '@/lib/email';
+import type { EmployeeDoc, UserDoc } from '@/lib/db/collections';
 import type { AppRole } from '@/types/database';
 
 export interface ActionResult {

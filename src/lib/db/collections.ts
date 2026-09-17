@@ -1,6 +1,6 @@
 // MongoDB collection names and stored document types.
-import type { Collection, Decimal128, Document } from 'mongodb';
 import { db } from '@/lib/db/mongo';
+import type { Collection, Decimal128, Document } from 'mongodb';
 import type { AppRole } from '@/types/database';
 import type { RequestPerson } from '@/types/requests';
 

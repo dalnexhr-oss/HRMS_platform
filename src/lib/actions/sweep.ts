@@ -9,12 +9,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { todayIST } from '@/lib/format';
 import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/guards';
-import {
-  autoCloseDay,
-  clockToMinutes,
-  getAutoPunchOutMinutes,
-  minutesToClock,
-} from '@/lib/attendance-rules';
+import { autoCloseDay, clockToMinutes, getAutoPunchOutMinutes, minutesToClock } from '@/lib/attendance-rules';
 
 export type SweepResult =
   { ok: true; closed: number; at: string; date: string } | { ok: false; error: string };

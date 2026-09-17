@@ -6,11 +6,7 @@ import { inr } from '@/lib/format';
 import { AddEmployeeDrawer } from './AddEmployeeDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
-import {
-  fetchEmployeeForEdit,
-  deactivateEmployee,
-  reactivateEmployee,
-} from '@/lib/actions/employees';
+import { fetchEmployeeForEdit, deactivateEmployee, reactivateEmployee } from '@/lib/actions/employees';
 import { branchColorAt } from '@/lib/constants';
 import { deleteEmployee } from '@/lib/actions/employee-deletion';
 import type { EmployeeListRow, EmployeeEditRow, BranchRow } from '@/lib/queries';

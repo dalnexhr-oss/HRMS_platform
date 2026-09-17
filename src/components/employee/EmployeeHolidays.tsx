@@ -1,6 +1,7 @@
-import type { HolidayView } from '@/lib/queries';
-import { describePolicy, type WeekOffPolicy } from '@/lib/week-off';
+import { describePolicy } from '@/lib/week-off';
 import { todayIST } from '@/lib/format';
+import type { WeekOffPolicy } from '@/lib/week-off';
+import type { HolidayView } from '@/lib/queries';
 
 // Show the employee's weekly off schedule and upcoming and past holidays.
 export function EmployeeHolidays({

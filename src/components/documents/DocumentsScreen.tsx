@@ -5,25 +5,18 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/format';
-import {
-  ThMenu,
-  distinctValues,
-  sortRows,
-  inDateRange,
-  rangeActive,
-  type SortDir,
-  type ColKind,
-  type DateRange,
-} from '@/components/ui/ThMenu';
+import { ThMenu, distinctValues, sortRows, inDateRange, rangeActive } from '@/components/ui/ThMenu';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { usePrompt } from '@/components/ui/PromptDialog';
 import { useToast } from '@/components/ui/Toast';
 import { verifyEmployeeDocument, deleteEmployeeDocument } from '@/lib/actions/documents';
 import { documentCategoryLabel } from '@/lib/constants';
-import { UploadDocumentDrawer, type DrawerTarget } from './UploadDocumentDrawer';
+import { UploadDocumentDrawer } from './UploadDocumentDrawer';
 import { EmployeeDocumentsPanel } from './EmployeeDocumentsPanel';
 import { openDocument } from './open-document';
 import { StatusPill } from './StatusPill';
+import type { DrawerTarget } from './UploadDocumentDrawer';
+import type { SortDir, ColKind, DateRange } from '@/components/ui/ThMenu';
 import type { DocumentStats, EmployeeDocumentRow, EmployeeOption } from '@/lib/queries';
 
 type ColKey = 'employee' | 'category' | 'title' | 'source' | 'status' | 'filed';

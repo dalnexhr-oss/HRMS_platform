@@ -1,5 +1,6 @@
 // Reuse a MongoClient connection pool across requests and development hot reloads.
-import { MongoClient, type Db, type ClientSession } from 'mongodb';
+import { MongoClient } from 'mongodb';
+import type { Db, ClientSession } from 'mongodb';
 
 const uri = process.env.MONGO_URI ?? process.env.MONGODB_URI;
 

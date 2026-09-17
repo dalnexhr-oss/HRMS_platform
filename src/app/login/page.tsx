@@ -1,7 +1,7 @@
-import type { Metadata } from 'next';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { Brand } from '@/components/ui/Brand';
 import { safeRedirectPath } from '@/lib/auth/redirect';
+import type { Metadata } from 'next';
 
 export const metadata: Metadata = { title: 'Sign in — Dalnex HRMS' };
 

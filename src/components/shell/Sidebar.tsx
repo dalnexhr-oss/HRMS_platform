@@ -1,14 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import type { Route } from 'next';
-import { usePathname } from 'next/navigation';
-import { navItems, groupOrder, type NavItem } from '@/lib/constants';
-import { canAccessTab, type TabAccess } from '@/lib/access';
-import type { AppRole } from '@/types/database';
 import { icons } from '@/components/Icons';
 import { Brand } from '@/components/ui/Brand';
+import { usePathname } from 'next/navigation';
+import { canAccessTab } from '@/lib/access';
+import { useEffect, useState } from 'react';
+import { navItems, groupOrder } from '@/lib/constants';
+import type { TabAccess } from '@/lib/access';
+import type { NavItem } from '@/lib/constants';
+import type { Route } from 'next';
+import type { AppRole } from '@/types/database';
 
 // Extra icons for tabs absent from Icons.tsx. Navigation rows, groups, and order come from navItems
 // in constants.ts.

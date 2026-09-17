@@ -6,9 +6,9 @@ import { useActionState, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate, todayIST } from '@/lib/format';
 import { applyCompOff } from '@/lib/actions/comp-off';
+import { RequestRecipients } from '@/components/requests/RequestRecipients';
 import type { CompOffRow } from '@/lib/queries';
 import type { RequestRecipient } from '@/types/requests';
-import { RequestRecipients } from '@/components/requests/RequestRecipients';
 
 const statusLabel: Record<CompOffRow['status'], string> = {
   available: 'Available',

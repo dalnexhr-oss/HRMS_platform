@@ -1,52 +1,51 @@
 /**
- * Translate PostgREST-style queries to MongoDB operations. All access goes through repo.ts so
- * collection policies remain enforced.
+ * Build MongoDB queries and dispatch server-side database functions.
+ * Collection access is checked through repo.ts using the query's access scope.
  */
 import 'server-only';
-import type { Document, Filter } from 'mongodb';
-import {
-  NotSignedInError,
-  readFilterFor,
-  scoped,
-  scopedFor,
-  type ScopedCollection,
-} from '@/lib/db/repo';
-import { currentScope, systemScope, type Scope } from '@/lib/db/scope';
+import { NotSignedInError, ScopeError, readFilterFor, scoped, scopedFor } from '@/lib/db/repo';
+import { queryErrorCodes } from '@/lib/db/errors';
+import { currentScope, systemScope } from '@/lib/db/scope';
 import { db } from '@/lib/db/mongo';
-import { columnDefaults, now, today, type DefaultValue } from '@/lib/db/defaults';
+import { columnDefaults, now, today } from '@/lib/db/defaults';
 import { isView, runView } from '@/lib/db/views';
 import { relationshipFor } from '@/lib/db/relationships';
-// Canonical definition of today in IST, shared across query builder, views, and scheduler.
 import { todayIST } from '@/lib/format';
+import type { Document, Filter } from 'mongodb';
+import type { Scope } from '@/lib/db/scope';
+import type { ScopedCollection } from '@/lib/db/repo';
+import type { DefaultValue } from '@/lib/db/defaults';
 
-export interface PgResult<T> {
+export interface QueryResult<T> {
   data: T;
-  error: PgError | null;
+  error: QueryError | null;
   count?: number | null;
 }
 
-export interface PgError {
+export interface QueryError {
   message: string;
   code?: string;
   details?: string;
 }
 
-// Standard error code mappings for database constraint violations.
-export const ERR_DUPLICATE_KEY = '23505';
-export const ERR_CHECK_VIOLATION = '23514';
-
-const duplicateKey = ERR_DUPLICATE_KEY;
-const checkViolation = ERR_CHECK_VIOLATION;
-
-function toPgError(e: unknown): PgError {
+function toQueryError(e: unknown): QueryError {
+  if (e instanceof ScopeError) {
+    return { message: e.message, code: queryErrorCodes.permissionDenied };
+  }
+  if (e instanceof NotSignedInError) {
+    return { message: e.message, code: queryErrorCodes.notSignedIn };
+  }
   const err = e as { code?: number | string; message?: string; errInfo?: unknown };
   if (err?.code === 11000) {
-    return { message: 'duplicate key value violates unique constraint', code: duplicateKey };
+    return {
+      message: 'A record with these values already exists.',
+      code: queryErrorCodes.duplicateKey,
+    };
   }
   if (err?.code === 121) {
     return {
-      message: 'new row violates check constraint',
-      code: checkViolation,
+      message: 'Document validation failed.',
+      code: queryErrorCodes.validationFailed,
       details: JSON.stringify(err.errInfo ?? {}),
     };
   }
@@ -84,11 +83,11 @@ interface Embed {
   localField: string;
   // Field on the joined document, `_id` for an ordinary to-one join.
   foreignField: string;
-  // Many rows may match — PostgREST returns an array, so no $unwind.
+  // Multiple matches remain an array, so no $unwind is needed.
   toMany: boolean;
-  // PostgREST's `!inner` — drop rows with no match.
+  // `!inner` drops rows with no matching related document.
   inner: boolean;
-  // PostgREST's aggregate form, `children(count)`.
+  // `children(count)` returns the number of related documents.
   count: boolean;
 }
 
@@ -141,14 +140,14 @@ function parseSelect(select: string, parentTable: string): { fields: string[]; e
     // Anything else is malformed and is reported rather than silently treated
     // as a column name.
     if (!part.endsWith(')')) {
-      throw new Error(`postgrest-compat: malformed embed in select list: '${part}'`);
+      throw new Error(`query-client: malformed embed in select list: '${part}'`);
     }
     const head = part.slice(0, open).trim();
     const body = part.slice(open + 1, -1);
 
     const parsed = /^(?:([\w]+):)?([\w]+)(!inner)?$/.exec(head);
     if (!parsed) {
-      throw new Error(`postgrest-compat: malformed embed in select list: '${part}'`);
+      throw new Error(`query-client: malformed embed in select list: '${part}'`);
     }
     const [, aliasRaw, tableRaw, inner] = parsed;
     const alias = aliasRaw ?? tableRaw;
@@ -156,13 +155,13 @@ function parseSelect(select: string, parentTable: string): { fields: string[]; e
     const relationship = relationshipFor(parentTable, alias);
     if (!relationship) {
       throw new Error(
-        `postgrest-compat: no relationship declared for '${alias}' on '${parentTable}'. ` +
+        `query-client: no relationship declared for '${alias}' on '${parentTable}'. ` +
           'Add one to src/lib/db/relationships.ts — an embed is never joined on a guess.',
       );
     }
 
     const nested = parseSelect(body, relationship.table);
-    // `children(count)` is PostgREST's aggregate, not a column called 'count'.
+    // `children(count)` requests an aggregate rather than a field named 'count'.
     const count =
       nested.embeds.length === 0 && nested.fields.length === 1 && nested.fields[0] === 'count';
 
@@ -201,9 +200,8 @@ function embedStages(embed: Embed, scope: Scope, parent: string): Document[] {
   }
 
   if (embed.count) {
-    // PostgREST returns `[{ count: n }]`, and $count produces exactly that —
-    // including an empty array when there are no children, which the callers
-    // already read as `?.[0]?.count ?? 0`.
+    // $count returns [{ count: n }], or an empty array when no documents match.
+    // Callers read the result as `?.[0]?.count ?? 0`.
     sub.push({ $count: 'count' });
   } else if (embed.fields.length > 0 && !embed.fields.includes('*')) {
     const projection: Document = {};
@@ -235,8 +233,8 @@ function embedStages(embed: Embed, scope: Scope, parent: string): Document[] {
     },
   ];
 
-  // A to-one embed is an object in PostgREST; a to-many (and the count
-  // aggregate) is an array, so only the former unwinds.
+  // A single related document is returned as an object; multiple documents and
+  // count aggregates remain arrays, so only single-document relations unwind.
   if (!embed.toMany && !embed.count) {
     stages.push({ $unwind: { path: `$${embed.alias}`, preserveNullAndEmptyArrays: !embed.inner } });
   } else if (embed.inner) {
@@ -245,9 +243,9 @@ function embedStages(embed: Embed, scope: Scope, parent: string): Document[] {
   return stages;
 }
 
-/** Collections a PostgREST table name maps to when they differ. */
+/** Query names that map to differently named MongoDB collections. */
 const tableAliases: Record<string, string> = {
-  // auth.users + public.profiles merged into one collection.
+  // Profile queries read user documents.
   profiles: 'users',
 };
 
@@ -314,11 +312,10 @@ function sortStages(keys: SortKey[]): { pre: Document[]; sort: Document; helpers
 
 type Mode = 'select' | 'insert' | 'update' | 'delete' | 'upsert';
 
-class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
+class QueryBuilder<T = Document[]> implements PromiseLike<QueryResult<T>> {
   /**
-   * When true this query runs as the system rather than the signed-in caller —
-   * the replacement for the service-role key. Reachable only through
-   * systemPgClient(), never from a request path.
+   * Run with system scope when explicitly requested by trusted server code.
+   * The default scope uses the signed-in caller's collection policies.
    */
   private asSystem = false;
 
@@ -541,14 +538,14 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
 
   // execution
 
-  then<R1 = PgResult<T>, R2 = never>(
-    onfulfilled?: ((value: PgResult<T>) => R1 | PromiseLike<R1>) | null,
+  then<R1 = QueryResult<T>, R2 = never>(
+    onfulfilled?: ((value: QueryResult<T>) => R1 | PromiseLike<R1>) | null,
     onrejected?: ((reason: unknown) => R2 | PromiseLike<R2>) | null,
   ): PromiseLike<R1 | R2> {
     return this.run().then(onfulfilled, onrejected);
   }
 
-  private async run(): Promise<PgResult<T>> {
+  private async run(): Promise<QueryResult<T>> {
     try {
       // Views are read-only aggregations.
       if (isView(this.table)) {
@@ -576,9 +573,8 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
           return await this.runDelete(repo);
       }
     } catch (e) {
-      // The shape the caller expects: an error object, never a throw. A thrown
-      // ScopeError is a policy refusal and is reported the same way RLS did.
-      return { data: (this.wantSingle ? null : []) as T, error: toPgError(e), count: null };
+      // Return query failures and policy refusals in the error field expected by callers.
+      return { data: (this.wantSingle ? null : []) as T, error: toQueryError(e), count: null };
     }
   }
 
@@ -586,7 +582,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
    * Materialize bounded summary views before filtering in memory. Views that grow with transaction
    * volume need their filters pushed into the aggregation pipeline.
    */
-  private async runView(): Promise<PgResult<T>> {
+  private async runView(): Promise<QueryResult<T>> {
     // Pass system scope to views explicitly because this branch runs before repo() is called.
     let rows = await runView(this.table, this.asSystem ? systemScope : undefined);
     rows = rows.filter((row) => matches(row, this.where()));
@@ -634,8 +630,8 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
         return {
           data: null as T,
           error: {
-            message: 'JSON object requested, multiple (or no) rows returned',
-            code: 'PGRST116',
+            message: 'No matching document found',
+            code: queryErrorCodes.noResult,
           },
           count,
         };
@@ -645,7 +641,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
     return { data: rows as T, error: null, count };
   }
 
-  private async runSelect(repo: ScopedCollection<Document>): Promise<PgResult<T>> {
+  private async runSelect(repo: ScopedCollection<Document>): Promise<QueryResult<T>> {
     const { fields, embeds } = parseSelect(this.selectStr, this.table);
 
     if (this.headOnly) {
@@ -694,8 +690,8 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
         return {
           data: null as T,
           error: {
-            message: 'JSON object requested, multiple (or no) rows returned',
-            code: 'PGRST116',
+            message: 'No matching document found',
+            code: queryErrorCodes.noResult,
           },
           count,
         };
@@ -749,7 +745,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
     return repo.aggregate(pipeline);
   }
 
-  private async runInsert(repo: ScopedCollection<Document>): Promise<PgResult<T>> {
+  private async runInsert(repo: ScopedCollection<Document>): Promise<QueryResult<T>> {
     const docs = (Array.isArray(this.payload) ? this.payload : [this.payload])
       .map(withId)
       .map((d) => withDefaults(this.table, d));
@@ -768,7 +764,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
     };
   }
 
-  private async runUpsert(repo: ScopedCollection<Document>): Promise<PgResult<T>> {
+  private async runUpsert(repo: ScopedCollection<Document>): Promise<QueryResult<T>> {
     const inputs = (Array.isArray(this.payload) ? this.payload : [this.payload]).map(withId);
     const out: Document[] = [];
     for (const provided of inputs) {
@@ -816,7 +812,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
     };
   }
 
-  private async runUpdate(repo: ScopedCollection<Document>): Promise<PgResult<T>> {
+  private async runUpdate(repo: ScopedCollection<Document>): Promise<QueryResult<T>> {
     const where = this.where();
 
     // Capture writable IDs before updating, then read those IDs back. The update may change fields
@@ -841,7 +837,7 @@ class QueryBuilder<T = Document[]> implements PromiseLike<PgResult<T>> {
     };
   }
 
-  private async runDelete(repo: ScopedCollection<Document>): Promise<PgResult<T>> {
+  private async runDelete(repo: ScopedCollection<Document>): Promise<QueryResult<T>> {
     const where = this.where();
     // Read returned rows through the write policy before deleting, so the response cannot claim
     // inaccessible rows were deleted.
@@ -873,13 +869,11 @@ function resolveDefault(value: DefaultValue): unknown {
   if (value === now) {
     return new Date();
   }
-  // `current_date` meant the IST calendar date to this app; todayIST() is the
-  // single definition of it. See the note on the import.
+  // Calendar-day defaults use the shared IST business date.
   if (value === today) {
     return todayIST();
   }
-  // A fresh object per document — sharing one literal would let two rows alias
-  // the same jsonb value, so mutating one would change the other.
+  // Create a fresh object so documents do not share mutable default values.
   if (value !== null && typeof value === 'object' && value.constructor === Object) {
     return {};
   }
@@ -1023,7 +1017,7 @@ function matches(row: Document, filter: Document): boolean {
           case '$options':
             break; // read above, alongside $regex
           default:
-            throw new Error(`postgrest-compat: operator '${op}' is not supported on a view`);
+            throw new Error(`query-client: operator '${op}' is not supported on a view`);
         }
       }
       continue;
@@ -1079,16 +1073,15 @@ function parseFilterNode(part: string): Document {
 
   const [field, op, ...rest] = part.split('.');
   if (!field || !op) {
-    // Never fall through to something that quietly matches everything — that is
-    // exactly how this became a delete-the-table bug.
-    throw new Error(`postgrest-compat: cannot parse filter expression '${part}'`);
+    // Reject malformed filters so they cannot match every document during a write.
+    throw new Error(`query-client: cannot parse filter expression '${part}'`);
   }
 
   // Negation prefix parsing: `field.not.<op>.<value>`.
   if (op === 'not') {
     const [innerOp, ...innerRest] = rest;
     if (!innerOp) {
-      throw new Error(`postgrest-compat: cannot parse filter expression '${part}'`);
+      throw new Error(`query-client: cannot parse filter expression '${part}'`);
     }
     return { $nor: [operatorClause(field, innerOp, innerRest.join('.'))] };
   }
@@ -1123,40 +1116,39 @@ function operatorClause(field: string, op: string, value: unknown): Document {
     case 'ilike':
       return { [f]: { $regex: likeToRegex(String(value)), $options: 'i' } };
     default:
-      throw new Error(`postgrest-compat: unsupported operator '${op}' on '${field}'`);
+      throw new Error(`query-client: unsupported operator '${op}' on '${field}'`);
   }
 }
 
 // client
 
-export interface PgClient {
+export interface QueryClient {
   from<T = Document[]>(table: string): QueryBuilder<T>;
-  rpc<T = unknown>(name: string, args?: Document): Promise<PgResult<T>>;
+  rpc<T = unknown>(name: string, args?: Document): Promise<QueryResult<T>>;
 }
 
 /**
- * Construct the query adapter synchronously. Each query resolves its session through scoped();
- * existing await createClient() callers remain supported.
+ * Construct the query adapter synchronously. Each query resolves its access scope at execution.
  */
-export function pgClient(asSystem = false): PgClient {
+export function createQueryClient(asSystem = false): QueryClient {
   return {
     from<T = Document[]>(table: string) {
       return new QueryBuilder<T>(table, asSystem);
     },
-    async rpc<T = unknown>(name: string, args: Document = {}): Promise<PgResult<T>> {
+    async rpc<T = unknown>(name: string, args: Document = {}): Promise<QueryResult<T>> {
       const fn = rpc.get(name);
       if (!fn) {
         return {
           data: null as T,
           error: {
-            message: `postgrest-compat: no TypeScript implementation registered for '${name}'`,
+            message: `query-client: no TypeScript implementation registered for '${name}'`,
           },
         };
       }
       try {
         return { data: (await fn(args)) as T, error: null };
       } catch (e) {
-        return { data: null as T, error: toPgError(e) };
+        return { data: null as T, error: toQueryError(e) };
       }
     },
   };
@@ -1166,12 +1158,12 @@ export function pgClient(asSystem = false): PgClient {
  * System-scoped client bypassing collection-level security policies.
  * Reserved for scheduled background jobs, maintenance tasks, and automated jobs.
  */
-export function systemPgClient(): PgClient {
-  return pgClient(true);
+export function createSystemQueryClient(): QueryClient {
+  return createQueryClient(true);
 }
 
 /**
- * RPC registry for stored procedure equivalents invoked via `.rpc()`.
+ * Server-side function registry invoked through `.rpc()`.
  */
 const rpc = new Map<string, (args: Document) => Promise<unknown>>();
 

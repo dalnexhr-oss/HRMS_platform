@@ -1,22 +1,14 @@
-import type { Route } from 'next';
 import Link from 'next/link';
 import { RegisterGrid } from '@/components/register/RegisterGrid';
 import { Stamp } from '@/components/ui/Stamp';
 import { registerLegend } from '@/lib/constants';
-import {
-  currentPeriodMonth,
-  getBranches,
-  getCompOffsForMonth,
-  getLeaveRegisterMismatches,
-  getPayrollRun,
-  getRegister,
-  getWeekOffPolicy,
-} from '@/lib/queries';
+import { currentPeriodMonth, getBranches, getCompOffsForMonth, getLeaveRegisterMismatches, getPayrollRun, getRegister, getWeekOffPolicy } from '@/lib/queries';
 import { weekOffDaysInMonth } from '@/lib/week-off';
 import { getSession } from '@/lib/auth';
 import { minutesToHHMM, formatDate } from '@/lib/format';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { exportRegisterXlsx } from '@/lib/actions/export';
+import type { Route } from 'next';
 import type { AppRole } from '@/types/database';
 import type { RegisterEmployee } from '@/types/domain';
 

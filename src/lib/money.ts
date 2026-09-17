@@ -19,7 +19,7 @@ export function parseMoneyPaise(value: string): number {
 
 export function formatPaise(paise: number): string {
   return (paise / 100).toLocaleString('en-IN', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   });
 }

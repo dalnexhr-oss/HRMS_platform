@@ -1,6 +1,7 @@
+import { canReviewRequest } from './access';
+import type { RequestActor } from './access';
 import type { RequestView } from '@/lib/queries';
 import type { EmployeeApprovalView } from '@/types/requests';
-import { canReviewRequest, type RequestActor } from './access';
 
 /** Keep personal decisions separate from the request's eventual outcome after other reviews. */
 export function employeeApprovals(requests: RequestView[], actor: RequestActor) {

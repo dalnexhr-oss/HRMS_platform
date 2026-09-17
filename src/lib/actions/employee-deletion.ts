@@ -1,12 +1,13 @@
 'use server';
 
+import { scoped } from '@/lib/db/repo';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { requireStaff } from '@/lib/actions/guards';
 import { deleteUserAccounts } from '@/lib/actions/user-deletion';
-import { collections, usersCollection, type EmployeeDoc } from '@/lib/db/collections';
 import { withTransaction } from '@/lib/db/mongo';
-import { scoped } from '@/lib/db/repo';
+import { collections, usersCollection } from '@/lib/db/collections';
+import type { EmployeeDoc } from '@/lib/db/collections';
 
 type DeleteResult = { ok: true; warning?: string } | { ok: false; error: string };
 

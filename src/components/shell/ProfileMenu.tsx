@@ -1,10 +1,10 @@
 'use client';
 
 // Profile popover with identity details and a link to the account settings page.
-import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import type { Route } from 'next';
 import { AvatarInner } from '@/components/ui/Avatar';
+import { useEffect, useRef, useState } from 'react';
+import type { Route } from 'next';
 
 const roleLabel: Record<string, string> = {
   admin: 'Administrator',

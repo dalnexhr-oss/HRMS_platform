@@ -2,26 +2,19 @@
 
 // Exit stages: initiated → clearance → settlement → completed. Disable the login only at completion
 // so the employee retains access during clearance and settlement.
+import { queryErrorCodes } from '@/lib/db/errors';
 import { revalidatePath } from 'next/cache';
+import { todayIST } from '@/lib/format';
 import { toMoney } from '@/lib/db/money';
-import { createClient } from '@/lib/db/server';
-import { requireRoles, wroteNothing } from '@/lib/actions/guards';
-import {
-  getClearanceItems as readClearanceItems,
-  getExitInterview as readExitInterview,
-  getKtItems as readKtItems,
-  type ExitInterviewRow,
-} from '@/lib/queries';
 import { notifyEmployee } from '@/lib/notify';
+import { createClient } from '@/lib/db/server';
+import { renderLetterPdf } from '@/lib/documents/letters';
 import { deactivateEmployee } from '@/lib/actions/employees';
 import { uploadFileService } from '@/lib/storage';
-import { todayIST } from '@/lib/format';
-import { renderLetterPdf } from '@/lib/documents/letters';
-import {
-  buildRelievingLetter,
-  buildExperienceLetter,
-  buildFullAndFinalStatement,
-} from '@/lib/documents/templates';
+import { requireRoles, wroteNothing } from '@/lib/actions/guards';
+import { getClearanceItems as readClearanceItems, getExitInterview as readExitInterview, getKtItems as readKtItems } from '@/lib/queries';
+import { buildRelievingLetter, buildExperienceLetter, buildFullAndFinalStatement } from '@/lib/documents/templates';
+import type { ExitInterviewRow } from '@/lib/queries';
 import type { AppRole } from '@/types/database';
 
 export interface ActionResult {
@@ -82,7 +75,7 @@ export async function initiateExit(input: {
 
   if (error) {
     // Unique constraint: only one active exit case permitted per employee.
-    if (error.code === '23505') {
+    if (error.code === queryErrorCodes.duplicateKey) {
       return { ok: false, error: 'This employee already has an exit in progress.' };
     }
     return { ok: false, error: error.message };

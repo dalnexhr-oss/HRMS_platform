@@ -1,18 +1,9 @@
-import { TodayBoard, type Loaded } from '@/components/today/TodayBoard';
+import { TodayBoard } from '@/components/today/TodayBoard';
 import { CompOffAdminCard } from '@/components/today/CompOffAdminCard';
 import { LiveRefresh } from '@/components/today/LiveRefresh';
-import {
-  currentPeriodMonth,
-  getActivityFeed,
-  getCelebrationsToday,
-  getCompOffAdmin,
-  getPayrollRun,
-  getPunchLogToday,
-  getRegister,
-  getSettings,
-  getTodayBoard,
-  type SettingView,
-} from '@/lib/queries';
+import { currentPeriodMonth, getActivityFeed, getCelebrationsToday, getCompOffAdmin, getPayrollRun, getPunchLogToday, getRegister, getSettings, getTodayBoard } from '@/lib/queries';
+import type { Loaded } from '@/components/today/TodayBoard';
+import type { SettingView } from '@/lib/queries';
 import type { MarkWatch, RegisterEmployee } from '@/types/domain';
 
 // Read the current date on each request, rather than freezing it at build time.

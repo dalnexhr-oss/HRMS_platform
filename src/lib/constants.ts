@@ -57,6 +57,8 @@ export const branchPalette = [
   '#C75B41', // 18 terracotta
   '#7E57C2', // 19 lavender
   '#2E7D52', // 20 forest
+  '#2A78D6', // 21 blue
+  '#06809C', // 22 forest teal
 ] as const;
 
 // Colour for the i-th branch (alphabetical index). Wraps past 20 branches.

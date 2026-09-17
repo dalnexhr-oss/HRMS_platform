@@ -1,7 +1,7 @@
 // Use text, a dot, and the tile tint to show attendance state on distant displays.
-import type { EmployeeData } from '@/types/tv';
 import { presenceLabel } from '@/types/tv';
 import { statusMeta } from '@/lib/constants';
+import type { EmployeeData } from '@/types/tv';
 
 const timeFmt: Intl.DateTimeFormatOptions = {
   hour: '2-digit',

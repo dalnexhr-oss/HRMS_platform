@@ -5,7 +5,8 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { acknowledgeDocument } from '@/lib/actions/acknowledge';
-import { useToast, type ToastKind } from '@/components/ui/Toast';
+import { useToast } from '@/components/ui/Toast';
+import type { ToastKind } from '@/components/ui/Toast';
 
 export function SignPanel({
   kind,

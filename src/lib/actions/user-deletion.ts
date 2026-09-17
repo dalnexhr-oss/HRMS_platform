@@ -1,9 +1,8 @@
 import 'server-only';
-
-import type { ClientSession } from 'mongodb';
 import { usersCollection } from '@/lib/db/collections';
 import { db } from '@/lib/db/mongo';
 import { tierLabel, tierOf } from '@/lib/roles';
+import type { ClientSession } from 'mongodb';
 import type { AppRole } from '@/types/database';
 
 /** Shared account deletion rules for Users and employee deletion. Caller supplies a staff gate. */

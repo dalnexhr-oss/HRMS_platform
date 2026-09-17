@@ -6,13 +6,14 @@
 // Payable days = working days + WO; unpaid leave is excluded.
 import 'server-only';
 import { randomUUID } from 'node:crypto';
-import type { ClientSession } from 'mongodb';
-import { collections, type BaseDoc } from '@/lib/db/collections';
+import { collections } from '@/lib/db/collections';
 import { scopedFor } from '@/lib/db/repo';
 import { systemScope } from '@/lib/db/scope';
 import { withTransaction } from '@/lib/db/mongo';
 import { addPaise, fromPaise, roundToRupee, scalePaise, subPaise, toPaise } from '@/lib/db/money';
-import { registerRpc } from '@/lib/db/postgrest-compat';
+import { registerRpc } from '@/lib/db/query-client';
+import type { ClientSession } from 'mongodb';
+import type { BaseDoc } from '@/lib/db/collections';
 
 // Statuses counted as a full working day.
 const fullDay = ['P', 'CO', 'OH', 'T', 'S', 'LM'];

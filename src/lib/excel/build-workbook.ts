@@ -10,13 +10,13 @@ import { statusFill, headerFill, timeFormat, clockToExcelTime } from '@/lib/exce
 import { writeBrandHeader, writeBrandOverlay } from '@/lib/excel/brand';
 // Pure module — same label the Today board's <Stamp> renders.
 import { statusMeta } from '@/lib/constants';
+import { effectiveFigures } from '@/lib/leave-salary';
 import type { PayslipRow, PunchLogRow, RegisterEmployee, DayCell } from '@/types/domain';
 // Type-only import: erased at compile time, so this file stays free of the
 // server-only modules queries.ts pulls in.
 import type { ReimbursementView } from '@/lib/queries';
 import type { LeaveSalaryViewRow } from '@/lib/leave-salary-view';
 // Pure module (no server deps) — safe here for the same reason inr/minutesToHHMM are.
-import { effectiveFigures } from '@/lib/leave-salary';
 
 // 'YYYY-MM-01' -> 'June YYYY'.
 export function monthTitle(periodMonth: string): string {

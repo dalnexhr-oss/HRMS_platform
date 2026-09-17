@@ -4,7 +4,8 @@
 // exist.
 import { useActionState } from 'react';
 import Link from 'next/link';
-import { requestPasswordReset, type PasswordState } from '@/lib/actions/password';
+import { requestPasswordReset } from '@/lib/actions/password';
+import type { PasswordState } from '@/lib/actions/password';
 
 export function ResetRequestForm() {
   const [state, action, pending] = useActionState<PasswordState, FormData>(

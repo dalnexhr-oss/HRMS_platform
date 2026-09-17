@@ -4,14 +4,11 @@
 import 'server-only';
 import { cache } from 'react';
 import { cookies } from 'next/headers';
-import {
-  signSession,
-  verifySession,
-  sessionMaxAgeSeconds,
-  type SessionClaims,
-} from '@/lib/auth/jwt';
 import { sessionCookie } from '@/lib/auth/session-shared';
-import { usersCollection, type UserDoc } from '@/lib/db/collections';
+import { usersCollection } from '@/lib/db/collections';
+import { signSession, verifySession, sessionMaxAgeSeconds } from '@/lib/auth/jwt';
+import type { SessionClaims } from '@/lib/auth/jwt';
+import type { UserDoc } from '@/lib/db/collections';
 import type { AppRole, Profile } from '@/types/database';
 
 // Re-exported so callers have one import for everything session-related.

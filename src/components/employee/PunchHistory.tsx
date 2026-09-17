@@ -2,8 +2,9 @@
 
 // Group punches by day, newest first. Keep the last 100 events in a scrollable panel.
 import { useEffect, useState } from 'react';
-import { getPunchHistory, type PunchRecord } from '@/lib/actions/punch';
+import { getPunchHistory } from '@/lib/actions/punch';
 import { GeoChip } from './GeoChip';
+import type { PunchRecord } from '@/lib/actions/punch';
 
 const dayFmt: Intl.DateTimeFormatOptions = {
   weekday: 'short',

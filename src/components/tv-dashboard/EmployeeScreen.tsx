@@ -5,8 +5,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Brand } from '@/components/ui/Brand';
-import type { BoardData, Presence } from '@/types/tv';
 import { EmployeeCard } from './EmployeeCard';
+import type { BoardData, Presence } from '@/types/tv';
 
 const pollMs = 30_000;
 // Mark the board stale after this long without a successful poll.

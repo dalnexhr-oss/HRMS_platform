@@ -1,5 +1,6 @@
 'use server';
 
+import { queryErrorCodes } from '@/lib/db/errors';
 import { revalidatePath } from 'next/cache';
 import { createClient, createServiceClient } from '@/lib/db/server';
 import { isMongoConfigured, getWeekOffPolicy, getHolidays } from '@/lib/queries';
@@ -10,12 +11,8 @@ import { releaseCompOff, settleApprovedCompOff } from '@/lib/comp-off-settle';
 import { toDecimal } from '@/lib/db/money';
 import { notifyApprovers, notifyEmployee } from '@/lib/notify';
 import { todayIST } from '@/lib/format';
+import { notifyRequestParticipants, prepareRequestRouting, reviewRoutedRequest } from '@/lib/requests/routing';
 import type { LeaveType, RequestType } from '@/types/database';
-import {
-  notifyRequestParticipants,
-  prepareRequestRouting,
-  reviewRoutedRequest,
-} from '@/lib/requests/routing';
 import type { RequestRouteDoc } from '@/lib/db/collections';
 
 export interface ActionResult {
@@ -205,7 +202,7 @@ async function stampLeaveOnRegister(
       .from('attendance_days')
       .insert(toInsert.map((work_date) => ({ employee_id: employeeId, work_date, status: 'L' })));
     // Ignore duplicate key conflicts if stamped concurrently.
-    if (error && error.code !== '23505') {
+    if (error && error.code !== queryErrorCodes.duplicateKey) {
       problems.push(`could not add L day(s): ${error.message}`);
     }
   }

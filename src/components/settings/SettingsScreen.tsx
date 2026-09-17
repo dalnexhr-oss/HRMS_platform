@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateSetting } from '@/lib/actions/settings';
-import { updateBranch, deleteBranch, updateBranchLocation } from '@/lib/actions/branches';
 import { States } from '@/lib/constants';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
-import { useToast, type ToastKind } from '@/components/ui/Toast';
+import { useToast } from '@/components/ui/Toast';
+import { useState, useTransition } from 'react';
+import { updateBranch, deleteBranch, updateBranchLocation } from '@/lib/actions/branches';
+import type { ToastKind } from '@/components/ui/Toast';
 import type { SettingView, BranchRow } from '@/lib/queries';
 
 export function SettingsScreen({

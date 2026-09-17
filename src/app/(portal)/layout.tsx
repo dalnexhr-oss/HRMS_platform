@@ -1,17 +1,12 @@
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
-import type { Route } from 'next';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { getSession, isStaffRole } from '@/lib/auth';
 import { canAccessTab, slugFromPathname } from '@/lib/access';
 import { navItems } from '@/lib/constants';
-import {
-  getMyNotifications,
-  getUnreadNotificationCount,
-  getTopbarStats,
-  getMyTabAccess,
-} from '@/lib/queries';
+import { getMyNotifications, getUnreadNotificationCount, getTopbarStats, getMyTabAccess } from '@/lib/queries';
+import type { Route } from 'next';
 
 // Shared portal shell. Each route renders inside the main content area.
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {

@@ -4,22 +4,18 @@
  */
 import 'server-only';
 import { randomUUID } from 'node:crypto';
-import { collections, type BaseDoc } from '@/lib/db/collections';
+import { collections } from '@/lib/db/collections';
 import { scopedFor } from '@/lib/db/repo';
 import { systemScope } from '@/lib/db/scope';
 import { provisionLeaveBalances, scheduled } from '@/lib/db/functions';
-import {
-  autoCloseDay,
-  autoPunchOutMinutesFrom,
-  clockToMinutes,
-  minutesToClock,
-} from '@/lib/attendance-rules';
-import { monthSealReason, periodMonthFor, type PayrollRunSeal } from '@/lib/payroll-month';
-// Every job's notion of "now" — the company runs on IST — and the app's one
-// definition of it. See the note on the same import in postgrest-compat.ts.
+import { autoCloseDay, autoPunchOutMinutesFrom, clockToMinutes, minutesToClock } from '@/lib/attendance-rules';
+import { monthSealReason, periodMonthFor } from '@/lib/payroll-month';
 import { todayIST } from '@/lib/format';
 import { noticeRetentionDays } from '@/lib/constants';
-import { lastNightSweepNotice, type SweepClosure } from '@/lib/night-sweep';
+import { lastNightSweepNotice } from '@/lib/night-sweep';
+import type { BaseDoc } from '@/lib/db/collections';
+import type { PayrollRunSeal } from '@/lib/payroll-month';
+import type { SweepClosure } from '@/lib/night-sweep';
 
 function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`);

@@ -6,11 +6,12 @@
  */
 import { revalidatePath } from 'next/cache';
 import { requireRoles } from '@/lib/actions/guards';
-import { collections, type BranchDoc, type EmployeeDoc } from '@/lib/db/collections';
+import { collections } from '@/lib/db/collections';
 import { scoped } from '@/lib/db/repo';
-import { withTransaction } from '@/lib/db/mongo';
-import { toCoordinate } from '@/lib/db/money';
 import { States } from '@/lib/constants';
+import { toCoordinate } from '@/lib/db/money';
+import { withTransaction } from '@/lib/db/mongo';
+import type { BranchDoc, EmployeeDoc } from '@/lib/db/collections';
 
 export interface ActionResult {
   ok: boolean;

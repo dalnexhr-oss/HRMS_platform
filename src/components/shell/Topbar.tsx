@@ -1,10 +1,11 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { pageHeader, type TopbarStats } from '@/lib/constants';
+import { pageHeader } from '@/lib/constants';
 import { SignOutButton } from '@/components/auth/SignOutButton';
 import { NotificationBell } from '@/components/shell/NotificationBell';
 import { ProfileMenu } from '@/components/shell/ProfileMenu';
+import type { TopbarStats } from '@/lib/constants';
 import type { NotificationRow } from '@/lib/queries';
 
 export function Topbar({

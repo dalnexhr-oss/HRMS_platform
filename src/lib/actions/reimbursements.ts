@@ -2,6 +2,7 @@
 
 // Recalculate travel claims on the server using distance × the configured rate. Approval adds the
 // claim to the month's payslip adjustment and recomputes pay.
+import { queryErrorCodes } from '@/lib/db/errors';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
@@ -242,7 +243,7 @@ async function addToPayroll(
       const { error: insErr } = await dbc
         .from('payslip_adjustments')
         .insert({ id: payslip.id, reimbursement_bonus: toMoney(next), updated_at: new Date() });
-      if (insErr && insErr.code !== '23505') {
+      if (insErr && insErr.code !== queryErrorCodes.duplicateKey) {
         return `Approved, but the payslip adjustment failed: ${insErr.message}`;
       }
       applied = !insErr;

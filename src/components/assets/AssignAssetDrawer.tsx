@@ -5,20 +5,9 @@
 import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AssetQrEditor } from './AssetQrEditor';
-import {
-  assignAsset,
-  unassignAsset,
-  createAssetMaintenance,
-  fetchAssetAssignments,
-  fetchAssetMaintenance,
-} from '@/lib/actions/assets';
+import { assignAsset, unassignAsset, createAssetMaintenance, fetchAssetAssignments, fetchAssetMaintenance } from '@/lib/actions/assets';
 import { todayIST } from '@/lib/format';
-import type {
-  AssetRow,
-  EmployeeOption,
-  AssetAssignmentRow,
-  AssetMaintenanceRow,
-} from '@/lib/queries';
+import type { AssetRow, EmployeeOption, AssetAssignmentRow, AssetMaintenanceRow } from '@/lib/queries';
 
 type State = { ok?: boolean; error?: string };
 

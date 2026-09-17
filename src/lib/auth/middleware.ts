@@ -1,8 +1,9 @@
 // Verify JWT signatures at the edge and route unauthenticated requests to login. Server session
 // checks enforce revocation; layouts and repository policies enforce authorization.
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { verifySession } from '@/lib/auth/jwt';
 import { sessionCookie } from '@/lib/auth/session-shared';
+import type { NextRequest } from 'next/server';
 
 export async function updateSession(request: NextRequest) {
   // Forward the pathname for the portal layout's tab-access check. Copy request headers because

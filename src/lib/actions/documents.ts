@@ -10,19 +10,11 @@ import { randomUUID } from 'node:crypto';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { requireDb, requireRoles, wroteNothing } from '@/lib/actions/guards';
-import { uploadFile, signedUrl, resolveUploadType, type StorageBucket } from '@/lib/storage';
+import { uploadFile, signedUrl, resolveUploadType } from '@/lib/storage';
 import { notifyEmployee } from '@/lib/notify';
-import {
-  maxBytes,
-  recordUploadedDocument,
-  resolveTargetEmployee,
-  uploadBucket,
-  verifyRoles,
-} from '@/lib/documents/upload';
-import {
-  getEmployeeDocuments as readEmployeeDocuments,
-  getEmployeeDocumentHistory as readEmployeeDocumentHistory,
-} from '@/lib/queries';
+import { maxBytes, recordUploadedDocument, resolveTargetEmployee, uploadBucket, verifyRoles } from '@/lib/documents/upload';
+import { getEmployeeDocuments as readEmployeeDocuments, getEmployeeDocumentHistory as readEmployeeDocumentHistory } from '@/lib/queries';
+import type { StorageBucket } from '@/lib/storage';
 
 export interface ActionResult {
   ok: boolean;

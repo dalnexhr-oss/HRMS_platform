@@ -1,18 +1,12 @@
 import 'server-only';
-
 import { getSession } from '@/lib/auth';
-import {
-  collections,
-  usersCollection,
-  type EmployeeDoc,
-  type RequestDoc,
-  type RequestRouteDoc,
-} from '@/lib/db/collections';
+import { collections, usersCollection } from '@/lib/db/collections';
 import { db } from '@/lib/db/mongo';
 import { scoped } from '@/lib/db/repo';
 import { notifyProfiles } from '@/lib/notify';
-import type { RequestPerson, RequestRecipient } from '@/types/requests';
 import { isStaffRole } from '@/lib/roles';
+import type { EmployeeDoc, RequestDoc, RequestRouteDoc } from '@/lib/db/collections';
+import type { RequestPerson, RequestRecipient } from '@/types/requests';
 
 /** Minimal company directory for recipient selection; credentials and personal contact fields stay private. */
 export async function getRequestRecipients(): Promise<RequestRecipient[]> {

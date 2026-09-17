@@ -3,9 +3,11 @@
 import 'server-only';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { GridFSBucket, ObjectId, type GridFSFile } from 'mongodb';
+import { GridFSBucket } from 'mongodb';
 import { db } from '@/lib/db/mongo';
-import { currentScope, type Scope } from '@/lib/db/scope';
+import { currentScope } from '@/lib/db/scope';
+import type { GridFSFile, ObjectId } from 'mongodb';
+import type { Scope } from '@/lib/db/scope';
 
 export type StorageBucket =
   'employee-documents' | 'reimbursement-receipts' | 'generated-documents' | 'notice-attachments';

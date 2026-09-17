@@ -7,14 +7,9 @@ import { AddItemDrawer } from './AddItemDrawer';
 import { AssignItemDrawer } from './AssignItemDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
-import {
-  ThMenu,
-  distinctValues,
-  sortRows,
-  type SortDir,
-  type ColKind,
-} from '@/components/ui/ThMenu';
+import { ThMenu, distinctValues, sortRows } from '@/components/ui/ThMenu';
 import { deleteItem } from '@/lib/actions/items';
+import type { SortDir, ColKind } from '@/components/ui/ThMenu';
 import type { ItemRow, EmployeeOption } from '@/lib/queries';
 
 // Header-menu columns in display order. Use an em dash for missing values so they can be filtered;

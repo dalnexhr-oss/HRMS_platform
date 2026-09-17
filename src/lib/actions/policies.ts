@@ -1,13 +1,11 @@
 'use server';
 
+import { queryErrorCodes } from '@/lib/db/errors';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { notifyEveryone } from '@/lib/notify';
-
-// Duplicate key violation error code (mapped from Mongo 11000).
-const uniqueViolation = '23505';
 
 /** Records an employee's acknowledgement of a company policy. */
 export async function acknowledgePolicy(policyId: string) {
@@ -34,13 +32,13 @@ export async function acknowledgePolicy(policyId: string) {
 
   if (error) {
     // Duplicate acknowledgement is benign (already marked read).
-    if (error.code === uniqueViolation) {
+    if (error.code === queryErrorCodes.duplicateKey) {
       revalidatePath('/me');
       revalidatePath('/policies');
       return { ok: true };
     }
     // Access refusal: user cannot record acknowledgement for another employee.
-    if (error.code === '42501') {
+    if (error.code === queryErrorCodes.permissionDenied) {
       return {
         ok: false,
         error:

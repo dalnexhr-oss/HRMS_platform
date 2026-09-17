@@ -5,12 +5,7 @@ import { getSession } from '@/lib/auth';
 import { isMongoConfigured } from '@/lib/db/mongo';
 import { deleteObject, StorageAccessError } from '@/lib/db/gridfs';
 import { resolveUploadType, uploadFile } from '@/lib/storage';
-import {
-  maxBytes,
-  recordUploadedDocument,
-  resolveTargetEmployee,
-  uploadBucket,
-} from '@/lib/documents/upload';
+import { maxBytes, recordUploadedDocument, resolveTargetEmployee, uploadBucket } from '@/lib/documents/upload';
 
 export const runtime = 'nodejs';
 // The body is consumed as a stream and the work is per-user; nothing here is

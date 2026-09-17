@@ -3,7 +3,8 @@
 // Submit the one-time reset token with the new password; it is not stored in the session.
 import { useActionState } from 'react';
 import Link from 'next/link';
-import { resetPassword, type PasswordState } from '@/lib/actions/password';
+import { resetPassword } from '@/lib/actions/password';
+import type { PasswordState } from '@/lib/actions/password';
 
 // Mirrors validatePassword() in lib/auth/password.ts.
 const minLen = 10;

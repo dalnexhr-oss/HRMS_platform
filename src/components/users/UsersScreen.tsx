@@ -3,20 +3,15 @@
 // Account administration controls. Each Server Action checks the caller's role independently.
 import { useActionState, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  createUser,
-  updateUserRole,
-  sendPasswordReset,
-  setUserPassword,
-  deleteUser,
-  type ManagedUser,
-} from '@/lib/actions/users';
+import { createUser, updateUserRole, sendPasswordReset, setUserPassword, deleteUser } from '@/lib/actions/users';
 import { usePrompt } from '@/components/ui/PromptDialog';
 import { useToast } from '@/components/ui/Toast';
-import type { EmployeeOption } from '@/lib/queries';
-import { AccessDrawer, type AccessTarget } from '@/components/users/AccessDrawer';
+import { AccessDrawer } from '@/components/users/AccessDrawer';
 import { isConfigurableRole } from '@/lib/access';
 import { isEmployeeAreaRole } from '@/lib/roles';
+import type { AccessTarget } from '@/components/users/AccessDrawer';
+import type { ManagedUser } from '@/lib/actions/users';
+import type { EmployeeOption } from '@/lib/queries';
 import type { AppRole } from '@/types/database';
 
 const roleLabel: Record<AppRole, string> = {

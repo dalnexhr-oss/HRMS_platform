@@ -1,7 +1,7 @@
 import Link from 'next/link';
+import { employeeApprovals } from '@/lib/requests/employee-approvals';
 import type { RequestView } from '@/lib/queries';
 import type { RequestActor } from '@/lib/requests/access';
-import { employeeApprovals } from '@/lib/requests/employee-approvals';
 
 export function EmployeeApprovalSummary({
   requests,

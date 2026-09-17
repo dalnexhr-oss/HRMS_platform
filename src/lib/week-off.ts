@@ -16,7 +16,7 @@ export const defaultWeekOffPolicy: WeekOffPolicy = {
 
 const saturday = 6;
 
-// Parse a settings jsonb value into a number[], or null when unusable.
+// Parse a stored settings value into a number[], or null when unusable.
 function numberList(value: unknown): number[] | null {
   if (!Array.isArray(value)) {
     return null;

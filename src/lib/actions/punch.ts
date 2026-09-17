@@ -1,12 +1,7 @@
 // Browser-side wrappers for the /api/punch routes.
 // Server work lives in @/lib/punch — this file only speaks HTTP.
 
-import type {
-  PunchStatus as PunchStatusResponse,
-  PunchRecord,
-  PunchResult,
-  PunchCoords,
-} from '@/types/punch';
+import type { PunchStatus as PunchStatusResponse, PunchRecord, PunchResult, PunchCoords } from '@/types/punch';
 
 export type {
   PunchStatus as PunchStatusResponse,

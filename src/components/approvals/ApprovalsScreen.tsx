@@ -4,12 +4,13 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Stamp } from '@/components/ui/Stamp';
 import { useToast } from '@/components/ui/Toast';
-import type { RequestView } from '@/lib/queries';
-import type { RequestRecipient } from '@/types/requests';
-import { canReviewRequest, type RequestActor } from '@/lib/requests/access';
+import { canReviewRequest } from '@/lib/requests/access';
 import { RequestDecisionControls } from '@/components/requests/RequestDecisionControls';
 import { RequestRoutingSummary } from '@/components/requests/RequestRoutingSummary';
 import { RequestInbox } from '@/components/requests/RequestInbox';
+import type { RequestActor } from '@/lib/requests/access';
+import type { RequestRecipient } from '@/types/requests';
+import type { RequestView } from '@/lib/queries';
 
 // Map a request type to the register stamp it corresponds to.
 const typeStamp: Record<RequestView['type'], string> = {

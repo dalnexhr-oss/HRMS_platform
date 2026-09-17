@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation';
 import { createRequest, cancelRequest } from '@/lib/actions/requests';
 import { applyCompOff } from '@/lib/actions/comp-off';
 import { todayIST } from '@/lib/format';
-import type { LeaveBalanceRow, RequestView } from '@/lib/queries';
-import type { RequestType } from '@/types/database';
 import Link from 'next/link';
-import type { RequestRecipient } from '@/types/requests';
 import { RequestRecipients } from '@/components/requests/RequestRecipients';
 import { RequestRoutingSummary } from '@/components/requests/RequestRoutingSummary';
+import type { LeaveBalanceRow, RequestView } from '@/lib/queries';
+import type { RequestType } from '@/types/database';
+import type { RequestRecipient } from '@/types/requests';
 
 const typeLabel: Record<RequestType, string> = {
   leave: 'Leave',

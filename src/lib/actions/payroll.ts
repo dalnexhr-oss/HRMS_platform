@@ -7,8 +7,8 @@ import { createClient } from '@/lib/db/server';
 import { isMongoConfigured } from '@/lib/db/mongo';
 import { getSession } from '@/lib/auth';
 import { notifyEmployee } from '@/lib/notify';
-import type { Decimal128 } from 'mongodb';
 import { toMoney } from '@/lib/db/money';
+import type { Decimal128 } from 'mongodb';
 import type { AppRole, PayrollStatus } from '@/types/database';
 
 // Match guards.ts writeRoles. Payroll writes require super_admin, admin, or hr; portal read access
@@ -18,7 +18,7 @@ const payrollRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 // A run in one of these states is history; recompute/adjust must refuse.
 const frozen: readonly PayrollStatus[] = ['locked', 'paid'];
 
-interface PgError {
+interface QueryError {
   message: string;
   details?: string | null;
   hint?: string | null;
@@ -27,7 +27,7 @@ interface PgError {
 
 // Flatten a query error into one readable line. The summary arrives in `message`; some errors put
 // the useful half in `hint`/`details` instead.
-function pgMessage(error: PgError): string {
+function queryMessage(error: QueryError): string {
   return [error.message, error.details, error.hint].filter(Boolean).join(' — ');
 }
 
@@ -84,7 +84,7 @@ export async function openRun(periodMonth: string): Promise<{ ok: boolean; error
       .eq('period_month', start)
       .maybeSingle();
     if (existErr) {
-      return { ok: false, error: pgMessage(existErr) };
+      return { ok: false, error: queryMessage(existErr) };
     }
     if (existing) {
       return { ok: false, error: `A payroll run for ${start} already exists.` };
@@ -95,7 +95,7 @@ export async function openRun(periodMonth: string): Promise<{ ok: boolean; error
       .insert({ period_month: start, status: 'draft' })
       .select('id');
     if (error) {
-      return { ok: false, error: pgMessage(error) };
+      return { ok: false, error: queryMessage(error) };
     }
     if (!data || data.length === 0) {
       return {
@@ -132,7 +132,7 @@ async function callRunRpc(
     const dbc = await createClient();
     const { error } = await dbc.rpc(fn, { p_run_id: runId });
     if (error) {
-      return { ok: false, error: pgMessage(error) };
+      return { ok: false, error: queryMessage(error) };
     }
 
     revalidatePath('/payroll');
@@ -283,7 +283,7 @@ export async function saveAdjustments(
       .eq('id', payslipId)
       .maybeSingle<{ id: string; employee_id: string; payroll_run_id: string }>();
     if (lookupError) {
-      return { ok: false, error: `${context}: ${pgMessage(lookupError)}` };
+      return { ok: false, error: `${context}: ${queryMessage(lookupError)}` };
     }
     if (!payslip) {
       return { ok: false, error: `${context}: payslip ${payslipId} no longer exists.` };
@@ -301,7 +301,7 @@ export async function saveAdjustments(
     if (runError) {
       return {
         ok: false,
-        error: `${context}: could not check whether this payroll run is locked: ${pgMessage(runError)}`,
+        error: `${context}: could not check whether this payroll run is locked: ${queryMessage(runError)}`,
       };
     }
     if (!run?.status) {
@@ -335,7 +335,7 @@ export async function saveAdjustments(
       { onConflict: 'id' },
     );
     if (upsertError) {
-      return { ok: false, error: `${context}: ${pgMessage(upsertError)}` };
+      return { ok: false, error: `${context}: ${queryMessage(upsertError)}` };
     }
 
     // Recompute so the row the user is looking at tells the truth.
@@ -352,7 +352,7 @@ export async function saveAdjustments(
         ok: false,
         error:
           `${context}: adjustments were saved, but recomputing the payslip failed, so the ` +
-          `net payable shown is stale: ${pgMessage(recomputeError)}`,
+          `net payable shown is stale: ${queryMessage(recomputeError)}`,
       };
     }
 

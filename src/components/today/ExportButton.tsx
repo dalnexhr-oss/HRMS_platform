@@ -1,8 +1,8 @@
 'use client';
 
-import type { PunchLogRow } from '@/types/domain';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { exportPunchLogXlsx } from '@/lib/actions/export';
+import type { PunchLogRow } from '@/types/domain';
 
 interface ExportButtonProps {
   // Disable an empty export locally; the action re-queries the data before building the workbook.

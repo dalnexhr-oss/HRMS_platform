@@ -2,10 +2,10 @@
 
 // Notification dropdown and unread count. Render bodies as text because they may contain
 // user-submitted content.
-import { useEffect, useRef, useState, useTransition } from 'react';
-import type { Route } from 'next';
 import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { markNotificationRead, markAllNotificationsRead } from '@/lib/actions/notifications';
+import type { Route } from 'next';
 import type { NotificationRow } from '@/lib/queries';
 
 const kindIcon: Record<string, string> = {

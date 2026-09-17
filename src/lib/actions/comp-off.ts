@@ -2,6 +2,7 @@
 
 // Comp-off lifecycle: staff grant credit for work on a day off; employees apply against available
 // credit; approval stamps the taken day CO and marks the credit used.
+import { queryErrorCodes } from '@/lib/db/errors';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
@@ -73,7 +74,7 @@ export async function grantCompOff(employeeId: string, earnedDate: string): Prom
 
   if (error) {
     // Conflict: credit already granted for this date.
-    if (error.code === '23505') {
+    if (error.code === queryErrorCodes.duplicateKey) {
       return { ok: false, error: 'A comp off has already been granted for that day.' };
     }
     return { ok: false, error: error.message };

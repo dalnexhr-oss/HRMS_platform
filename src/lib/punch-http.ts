@@ -1,7 +1,9 @@
 // Shared request handling for the punch in / punch out routes.
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { locationRequired, recordPunch, type PunchCoords, type PunchKind } from '@/lib/punch';
+import { locationRequired, recordPunch } from '@/lib/punch';
+import type { NextRequest } from 'next/server';
+import type { PunchCoords, PunchKind } from '@/lib/punch';
 
 // Pages a punch changes: the board and its punch log, the register, /me.
 const affectedPaths = ['/today', '/register', '/me'];

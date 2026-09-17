@@ -2,10 +2,10 @@
 
 // Avatar picker: upload a cropped 128×128 photo, choose a bundled image, or revert to initials.
 // updateAvatar persists the selection.
-import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AvatarInner } from '@/components/ui/Avatar';
 import { updateAvatar } from '@/lib/actions/profile';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { avatarPresetId, avatarPresetLabel } from '@/lib/avatar-presets';
 
 // Draw the file onto a 128×128 canvas (centre-cropped) and return a JPEG data URL.

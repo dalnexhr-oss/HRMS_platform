@@ -1,11 +1,11 @@
 // HR letter templates use dates supplied by the caller and facts from stored records. Use ASCII Rs.
 // with two decimal places because the standard PDF fonts use WinAnsi encoding.
-import type { LetterSpec } from './letters';
 // One escaper for every HTML email body in the app, next to sendEmail().
 import { escapeHtml } from '@/lib/email';
 // Legal entity name used across every generated document.
 import { company } from '@/lib/brand/company';
 import { logoPngBytes } from '@/lib/brand/logo';
+import type { LetterSpec } from './letters';
 
 // Rendered under "For Dalnex LLP" in the signatory block of every letter.
 const signatoryName = 'Authorised Signatory';

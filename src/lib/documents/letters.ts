@@ -2,8 +2,9 @@
  * Build HR letter PDFs with pdf-lib. Generated files are stored in the generated-documents bucket
  * and served through authenticated routes.
  */
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { logoAspect, logoPngBytes } from '@/lib/brand/logo';
+import type { PDFFont, PDFPage } from 'pdf-lib';
 
 export interface LetterSpec {
   // Heading, e.g. "Relieving Letter" or "Full & Final Settlement".

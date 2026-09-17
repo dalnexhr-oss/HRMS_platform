@@ -4,7 +4,8 @@
 // Example cron entry:
 // 0 2 * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://your-host/api/cron
 import { NextResponse } from 'next/server';
-import { jobs, runDailyJobs, type JobName } from '@/lib/db/scheduler';
+import { jobs, runDailyJobs } from '@/lib/db/scheduler';
+import type { JobName } from '@/lib/db/scheduler';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
