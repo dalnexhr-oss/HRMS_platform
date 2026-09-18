@@ -1,9 +1,9 @@
 import { redirect } from 'next/navigation';
+import { todayIST } from '@/lib/format';
+import { getSession } from '@/lib/auth';
+import { createClient } from '@/lib/db/server';
 import { LeaveHistory } from '@/components/leave-management/LeaveHistory';
 import { getOnLeaveToday, getRequests } from '@/lib/queries';
-import { createClient } from '@/lib/db/server';
-import { getSession } from '@/lib/auth';
-import { todayIST } from '@/lib/format';
 import type { AppRole } from '@/types/database';
 
 // Fetch live leave queues on each request.

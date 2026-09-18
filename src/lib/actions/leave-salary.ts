@@ -389,10 +389,6 @@ async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-export {
-  saveLeaveSalaryWorking,
-  finalizeLeaveSalary,
-  reopenLeaveSalary,
-  markLeaveSalaryPaid,
-  type ActionResult,
-};
+export { saveLeaveSalaryWorking, finalizeLeaveSalary, reopenLeaveSalary, markLeaveSalaryPaid };
+
+export type { ActionResult };

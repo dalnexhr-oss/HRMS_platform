@@ -30,4 +30,5 @@ async function resolveBranchScope(dbc: DbClient, branch: string): Promise<Branch
   return { branch_id: data.id, branch_name: data.name };
 }
 
-export { allBranches, resolveBranchScope, type BranchScope };
+export { allBranches, resolveBranchScope };
+export type { BranchScope };

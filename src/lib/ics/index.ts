@@ -265,12 +265,5 @@ function buildIcs(events: CalendarEvent[], opts: BuildIcsOptions = {}): string {
   return lines.join(crlf) + crlf;
 }
 
-export {
-  escapeIcsText,
-  foldLine,
-  icsDate,
-  addDays,
-  buildIcs,
-  type CalendarEvent,
-  type BuildIcsOptions,
-};
+export { escapeIcsText, foldLine, icsDate, addDays, buildIcs };
+export type { CalendarEvent, BuildIcsOptions };

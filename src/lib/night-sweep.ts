@@ -43,4 +43,5 @@ function lastNightSweepNotice(day: SweepClosure | null, now = new Date()): Night
   };
 }
 
-export { previousWorkDate, lastNightSweepNotice, type SweepClosure };
+export { previousWorkDate, lastNightSweepNotice };
+export type { NightSweepNotice, SweepClosure };

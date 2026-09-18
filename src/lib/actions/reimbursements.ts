@@ -838,5 +838,6 @@ export {
   uploadReimbursementReceipt,
   getReceiptUrl,
   fetchClaimEvents,
-  type ActionResult,
 };
+
+export type { ActionResult, ReimbursementPurpose };

@@ -106,9 +106,5 @@ async function buildLeaveSalaryView(year: number): Promise<LeaveSalaryView> {
   return { year, migrated: workings !== null, rows };
 }
 
-export {
-  defaultIncrementMonth,
-  buildLeaveSalaryView,
-  type LeaveSalaryViewRow,
-  type LeaveSalaryView,
-};
+export { defaultIncrementMonth, buildLeaveSalaryView };
+export type { LeaveSalaryWorkingRow, LeaveSalaryResult, LeaveSalaryViewRow, LeaveSalaryView };

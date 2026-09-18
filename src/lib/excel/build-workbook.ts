@@ -5,20 +5,17 @@
 // header. Employee blocks start at row 6 with four rows: status, punch-in, punch-out, and worked
 // hours.
 import ExcelJS from 'exceljs';
-import { minutesToHHMM } from '@/lib/format';
-import { statusFill, headerFill, timeFormat, clockToExcelTime } from '@/lib/excel/register-style';
-import { writeBrandHeader, writeBrandOverlay } from '@/lib/excel/brand';
-// Pure module — same label the Today board's <Stamp> renders.
 import { statusMeta } from '@/lib/constants';
+import { minutesToHHMM } from '@/lib/format';
 import { effectiveFigures } from '@/lib/leave-salary';
-import type { PayslipRow, PunchLogRow, RegisterEmployee, DayCell } from '@/types/domain';
-// Type-only import: erased at compile time, so this file stays free of the
-// server-only modules queries.ts pulls in.
+import { writeBrandHeader, writeBrandOverlay } from '@/lib/excel/brand';
+import { statusFill, headerFill, timeFormat, clockToExcelTime } from '@/lib/excel/register-style';
 import type { ReimbursementView } from '@/lib/queries';
 import type { LeaveSalaryViewRow } from '@/lib/leave-salary-view';
-// Pure module (no server deps) — safe here for the same reason inr/minutesToHHMM are.
+import type { PayslipRow, PunchLogRow, RegisterEmployee, DayCell } from '@/types/domain';
 
-// 'YYYY-MM-01' -> 'June YYYY'.
+/// Build the register export workbook: the company's own layout first (re-importable), then a
+/// secondary layout for external use.
 function monthTitle(periodMonth: string): string {
   const d = new Date(`${periodMonth.slice(0, 7)}-01T00:00:00Z`);
   if (Number.isNaN(d.getTime())) {

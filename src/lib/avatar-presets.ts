@@ -22,10 +22,6 @@ function avatarPresetLabel(id: string): string {
   return `Avatar ${Number(id)}`;
 }
 
-export {
-  avatarPresetId,
-  isAvatarPresetId,
-  avatarPresetSrc,
-  avatarPresetLabel,
-  type AvatarPresetId,
-};
+export { avatarPresetId, isAvatarPresetId, avatarPresetSrc, avatarPresetLabel };
+
+export type { AvatarPresetId };

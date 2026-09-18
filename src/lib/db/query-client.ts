@@ -1172,12 +1172,16 @@ async function rawDb() {
   return db();
 }
 
-export {
-  createQueryClient,
-  createSystemQueryClient,
-  registerRpc,
-  rawDb,
-  type QueryError,
-  type QueryResult,
-  type QueryClient,
+export { createQueryClient, createSystemQueryClient, registerRpc, rawDb };
+
+export type {
+  QueryBuilder,
+  QueryResult,
+  QueryError,
+  SortKey,
+  QueryClient,
+  Embed,
+  Filter,
+  DefaultValue,
+  Mode,
 };

@@ -269,12 +269,6 @@ function registerDbFunctions(): void {
   );
 }
 
-export {
-  scheduled,
-  registerDbFunctions,
-  onLeaveToday,
-  initApprovalSteps,
-  provisionLeaveBalances,
-  type Invocation,
-  type OnLeaveRow,
-};
+export { scheduled, registerDbFunctions, onLeaveToday, initApprovalSteps, provisionLeaveBalances };
+
+export type { NotPermitted, Invocation, OnLeaveRow };

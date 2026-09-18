@@ -152,11 +152,6 @@ async function discardUnfiledUpload(storagePath: string): Promise<void> {
   }
 }
 
-export {
-  verifyRoles,
-  uploadBucket,
-  maxBytes,
-  resolveTargetEmployee,
-  recordUploadedDocument,
-  type Filer,
-};
+export { verifyRoles, uploadBucket, maxBytes, resolveTargetEmployee, recordUploadedDocument };
+
+export type { Filer };

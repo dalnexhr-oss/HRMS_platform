@@ -68,4 +68,5 @@ async function updateAvatar(value: string | null): Promise<ActionResult> {
   return { ok: true };
 }
 
-export { updateAvatar, type ActionResult };
+export { updateAvatar };
+export { type ActionResult };

@@ -83,4 +83,5 @@ function relationshipFor(parentTable: string, alias: string): Relationship | nul
   return relationships[parentTable]?.[alias] ?? null;
 }
 
-export { relationships, relationshipFor, type Relationship };
+export { relationships, relationshipFor };
+export type { Relationship };

@@ -76,4 +76,5 @@ async function signOut() {
 const dummyHash =
   'scrypt$65536$8$1$CftBGH0+i21Hii5EPwDwQg==$CsAkgiwdSpCsLUVtHuOVbTMKVzfOfRfzRHrH+962fr+pEP6ZSr0n2BNFkhPBOxBMn8m8o/Bd2imihYsJE2m9Ng==';
 
-export { signIn, signOut, type SignInState };
+export { signIn, signOut };
+export { type SignInState };

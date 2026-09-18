@@ -30,4 +30,5 @@ function onPunchChange(self: PunchSource, handler: () => void): () => void {
   return () => window.removeEventListener(eventName, listener);
 }
 
-export { announcePunch, onPunchChange, type PunchSource };
+export { announcePunch, onPunchChange, eventName };
+export type { PunchSource };

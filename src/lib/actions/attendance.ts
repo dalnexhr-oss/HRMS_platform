@@ -374,4 +374,5 @@ async function correctAttendanceBulk(input: {
   return { ok: true };
 }
 
-export { correctAttendance, correctAttendanceBulk, type CorrectionState, type BulkTarget };
+export { correctAttendance, correctAttendanceBulk };
+export { type CorrectionState, type BulkTarget };

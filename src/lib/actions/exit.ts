@@ -857,5 +857,6 @@ export {
   updateFullAndFinal,
   setFullAndFinalStatus,
   generateExitDocument,
-  type ActionResult,
 };
+
+export type { ExitInterviewRow, ActionResult };

@@ -150,4 +150,5 @@ async function renderLetterPdf(spec: LetterSpec): Promise<Uint8Array> {
   return doc.save();
 }
 
-export { renderLetterPdf, type LetterSpec };
+export { renderLetterPdf };
+export type { LetterSpec };

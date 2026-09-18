@@ -194,14 +194,12 @@ function effectiveFigures(
   };
 }
 
-export {
-  presentCredit,
-  presenceByMonth,
-  computeLeaveSalary,
-  effectiveFigures,
-  type LeaveSalaryInput,
-  type PeriodFigures,
-  type LeaveSalaryResult,
-  type WorkingSnapshot,
-  type EffectiveFigures,
+export { presentCredit, presenceByMonth, computeLeaveSalary, effectiveFigures };
+
+export type {
+  LeaveSalaryInput,
+  PeriodFigures,
+  LeaveSalaryResult,
+  WorkingSnapshot,
+  EffectiveFigures,
 };

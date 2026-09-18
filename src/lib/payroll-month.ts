@@ -30,4 +30,5 @@ function monthSealReason(periodMonth: string, run: PayrollRunSeal | null): strin
   return null;
 }
 
-export { periodMonthFor, monthSealReason, type PayrollRunSeal };
+export { periodMonthFor, monthSealReason };
+export type { PayrollRunSeal };

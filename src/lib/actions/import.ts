@@ -432,11 +432,12 @@ async function commitImport(formData: FormData): Promise<CommitResult> {
   }
 }
 
-export {
-  previewImport,
-  commitImport,
-  type MatchedEmployee,
-  type ImportPreview,
-  type PreviewResult,
-  type CommitResult,
+export { previewImport, commitImport };
+export type {
+  ParsedRegister,
+  MatchedEmployee,
+  ImportPreview,
+  PreviewResult,
+  CommitResult,
+  UpsertRow,
 };

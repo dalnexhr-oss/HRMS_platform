@@ -127,4 +127,5 @@ async function sendEmail(input: SendEmailInput): Promise<SendResult> {
   }
 }
 
-export { escapeHtml, isEmailConfigured, sendEmail, type SendEmailInput, type SendResult };
+export { escapeHtml, isEmailConfigured, sendEmail };
+export type { SendEmailInput, SendResult };

@@ -276,5 +276,6 @@ export {
   exportPfEcr,
   exportEsic,
   exportPt,
-  type ExportResult,
 };
+
+export type { AppRole, ExportResult };

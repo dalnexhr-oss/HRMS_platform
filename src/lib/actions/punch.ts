@@ -102,17 +102,13 @@ function requestCoords(timeoutMs = 10_000): Promise<LocationResult> {
   });
 }
 
-export {
-  getPunchStatus,
-  getPunchHistory,
-  punchIn,
-  punchOut,
-  locationPermission,
-  requestCoords,
-  type PunchStatusResponse,
-  type PunchRecord,
-  type PunchResult,
-  type PunchCoords,
-  type LocationFailure,
-  type LocationResult,
+export { getPunchStatus, getPunchHistory, punchIn, punchOut, locationPermission, requestCoords };
+
+export type {
+  PunchStatusResponse,
+  PunchRecord,
+  PunchResult,
+  PunchCoords,
+  LocationFailure,
+  LocationResult,
 };

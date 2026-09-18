@@ -125,5 +125,6 @@ export {
   scalePaise,
   roundToRupee,
   dividePaise,
-  type MoneyInput,
 };
+
+export type { MoneyInput };

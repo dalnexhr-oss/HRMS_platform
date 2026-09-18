@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
+import { getSession } from '@/lib/auth';
 import { ExitsScreen } from '@/components/exits/ExitsScreen';
 import { getExitCases, getEmployeeOptions } from '@/lib/queries';
-import { getSession } from '@/lib/auth';
 import type { AppRole } from '@/types/database';
 
 // Match the exit actions' staff role gate.

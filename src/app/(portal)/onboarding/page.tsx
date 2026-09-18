@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { getSession } from '@/lib/auth';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 import { getOnboardingBoard, getOnboardingTemplates, getEmployeeOptions } from '@/lib/queries';
-import { getSession } from '@/lib/auth';
 import type { AppRole } from '@/types/database';
 
 // Match the onboarding actions and collection policies.

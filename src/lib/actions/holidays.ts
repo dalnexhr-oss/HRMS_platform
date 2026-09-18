@@ -135,4 +135,5 @@ async function deleteHoliday(id: string) {
   return { ok: true };
 }
 
-export { addHoliday, importHolidaysFromGoogle, deleteHoliday, type ImportHolidaysResult };
+export { addHoliday, importHolidaysFromGoogle, deleteHoliday };
+export { type ImportHolidaysResult };

@@ -432,8 +432,5 @@ export {
   buildExperienceLetter,
   buildFullAndFinalStatement,
   buildWelcomeEmail,
-  type SeparationLetterInput,
-  type FullAndFinalInput,
-  type WelcomeEmailInput,
-  type WelcomeEmail,
 };
+export type { SeparationLetterInput, FullAndFinalInput, WelcomeEmailInput, WelcomeEmail };

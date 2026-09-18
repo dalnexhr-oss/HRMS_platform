@@ -566,8 +566,5 @@ export {
   isKnownStatus,
   codeForEmplId,
   parseRegisterWorkbook,
-  type ParsedDay,
-  type ParsedEmployee,
-  type ParsedRegister,
-  type KnownStatus,
 };
+export type { ParsedDay, ParsedEmployee, ParsedRegister, KnownStatus };

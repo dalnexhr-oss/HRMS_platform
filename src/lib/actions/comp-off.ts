@@ -292,4 +292,5 @@ async function setCompOffApplicability(id: string, applicable: boolean): Promise
   return { ok: true };
 }
 
-export { grantCompOff, applyCompOff, setCompOffApplicability, type ActionResult };
+export { grantCompOff, applyCompOff, setCompOffApplicability };
+export type { ActionResult };

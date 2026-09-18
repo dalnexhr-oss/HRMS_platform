@@ -116,12 +116,6 @@ function wroteNothing(data: unknown[] | null): boolean {
   return !data || data.length === 0;
 }
 
-export {
-  writeRoles,
-  requireStaff,
-  requireRoles,
-  requireDb,
-  requireOpenPayrollMonth,
-  wroteNothing,
-  type StaffGate,
-};
+export { writeRoles, requireStaff, requireRoles, requireDb, requireOpenPayrollMonth, wroteNothing };
+
+export type { DbClient, StaffGate };

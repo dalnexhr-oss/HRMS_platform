@@ -223,4 +223,5 @@ async function deleteBranch(id: string): Promise<ActionResult> {
   }
 }
 
-export { updateBranchLocation, updateBranch, deleteBranch, type ActionResult };
+export { updateBranchLocation, updateBranch, deleteBranch };
+export { type ActionResult };

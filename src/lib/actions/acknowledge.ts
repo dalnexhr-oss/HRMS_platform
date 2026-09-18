@@ -103,4 +103,5 @@ async function acknowledgeDocument(input: {
   return { ok: true };
 }
 
-export { acknowledgeDocument, type ActionResult };
+export { acknowledgeDocument };
+export { type ActionResult };

@@ -55,4 +55,5 @@ async function markAllNotificationsRead(): Promise<ActionResult> {
   return { ok: true };
 }
 
-export { markNotificationRead, markAllNotificationsRead, type ActionResult };
+export { markNotificationRead, markAllNotificationsRead };
+export type { ActionResult };

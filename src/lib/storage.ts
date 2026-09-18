@@ -163,14 +163,5 @@ async function signedUrl(
   }
 }
 
-export {
-  resolveUploadType,
-  uploadFile,
-  uploadSharedFile,
-  uploadFileService,
-  signedUrl,
-  type StorageBucket,
-  type StorableBody,
-  type UploadKind,
-  type UploadResult,
-};
+export { resolveUploadType, uploadFile, uploadSharedFile, uploadFileService, signedUrl };
+export type { StorageBucket, StorableBody, UploadKind, UploadResult };

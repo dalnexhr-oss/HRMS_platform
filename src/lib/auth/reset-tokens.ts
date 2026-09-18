@@ -112,5 +112,6 @@ export {
   createResetToken,
   consumeResetToken,
   peekResetToken,
-  type ResetTokenClaim,
 };
+
+export type { ResetTokenDoc, ResetTokenClaim };

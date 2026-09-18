@@ -216,14 +216,5 @@ function objectUrl(bucket: StorageBucket, path: string): string {
   return `/api/files/${bucket}/${path.split('/').map(encodeURIComponent).join('/')}`;
 }
 
-export {
-  StorageAccessError,
-  putObject,
-  getObject,
-  statObject,
-  deleteObject,
-  objectUrl,
-  type StorageBucket,
-  type StoredFile,
-  type StorableBody,
-};
+export { objectUrl, putObject, getObject, statObject, deleteObject, StorageAccessError };
+export type { StorageBucket, StoredFile, StorableBody };

@@ -90,5 +90,6 @@ export {
   autoPunchOutMinutesFrom,
   getAutoPunchOutMinutes,
   autoCloseDay,
-  type ClosedDay,
 };
+
+export type { ClosedDay };

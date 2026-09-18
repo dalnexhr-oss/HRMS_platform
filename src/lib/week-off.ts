@@ -184,5 +184,6 @@ export {
   countLeaveDays,
   weekOffDaysInMonth,
   describePolicy,
-  type WeekOffPolicy,
 };
+
+export type { WeekOffPolicy };

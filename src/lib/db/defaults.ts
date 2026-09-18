@@ -239,4 +239,6 @@ const columnDefaults: Record<string, Record<string, DefaultValue>> = {
   },
 };
 
-export { now, today, columnDefaults, type DefaultValue };
+export { now, today, columnDefaults };
+
+export type { DefaultValue };

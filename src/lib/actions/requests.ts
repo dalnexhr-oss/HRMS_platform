@@ -753,4 +753,5 @@ async function cancelRequest(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-export { reviewRequest, createRequest, cancelRequest, type ActionResult };
+export { reviewRequest, createRequest, cancelRequest };
+export type { ActionResult };

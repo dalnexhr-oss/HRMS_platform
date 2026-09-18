@@ -226,10 +226,6 @@ async function deleteOnboardingTask(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-export {
-  startOnboarding,
-  setOnboardingTaskStatus,
-  addOnboardingTask,
-  deleteOnboardingTask,
-  type ActionResult,
-};
+export { startOnboarding, setOnboardingTaskStatus, addOnboardingTask, deleteOnboardingTask };
+
+export type { ActionResult };

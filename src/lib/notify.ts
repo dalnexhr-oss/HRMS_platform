@@ -151,11 +151,5 @@ async function notifyEveryone(input: NotifyInput, exceptProfileId?: string): Pro
   }
 }
 
-export {
-  notifyProfiles,
-  notifyEmployee,
-  notifyApprovers,
-  notifyEveryone,
-  type NotificationKind,
-  type NotifyInput,
-};
+export { notifyProfiles, notifyEmployee, notifyApprovers, notifyEveryone };
+export type { NotificationKind, NotifyInput };

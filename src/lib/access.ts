@@ -45,11 +45,6 @@ function slugFromPathname(pathname: string): string {
   return pathname.split('/').filter(Boolean)[0] ?? '';
 }
 
-export {
-  configurableRoles,
-  staticallyAllowed,
-  isConfigurableRole,
-  canAccessTab,
-  slugFromPathname,
-  type TabAccess,
-};
+export { configurableRoles, staticallyAllowed, isConfigurableRole, canAccessTab, slugFromPathname };
+
+export type { TabAccess };

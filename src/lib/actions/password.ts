@@ -208,10 +208,6 @@ async function signOutEverywhere(): Promise<void> {
   redirect('/login');
 }
 
-export {
-  requestPasswordReset,
-  resetPassword,
-  changePassword,
-  signOutEverywhere,
-  type PasswordState,
-};
+export { requestPasswordReset, resetPassword, changePassword, signOutEverywhere };
+
+export type { PasswordState };

@@ -56,4 +56,5 @@ async function currentScope(): Promise<Scope | null> {
   return scopeForRole(user._id, user.role, user.employee_id);
 }
 
-export { systemScope, scopeForRole, currentScope, type Scope };
+export { systemScope, scopeForRole, currentScope };
+export type { Scope };

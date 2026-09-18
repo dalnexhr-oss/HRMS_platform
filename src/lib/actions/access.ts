@@ -137,4 +137,5 @@ async function resetUserTabAccess(userId: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-export { fetchUserTabAccess, setUserTabAccess, resetUserTabAccess, type ActionResult };
+export { fetchUserTabAccess, setUserTabAccess, resetUserTabAccess };
+export { type ActionResult };

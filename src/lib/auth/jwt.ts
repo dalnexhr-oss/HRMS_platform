@@ -89,11 +89,6 @@ async function verifySession(token: string): Promise<SessionClaims | null> {
   }
 }
 
-export {
-  sessionMaxAgeDays,
-  sessionMaxAgeSeconds,
-  isAuthConfigured,
-  signSession,
-  verifySession,
-  type SessionClaims,
-};
+export { sessionMaxAgeDays, sessionMaxAgeSeconds, isAuthConfigured, signSession, verifySession };
+
+export type { SessionClaims };

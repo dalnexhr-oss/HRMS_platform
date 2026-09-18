@@ -484,5 +484,6 @@ export {
   lockRun,
   markRunPaid,
   registerPayrollFunctions,
-  type PayslipComputation,
 };
+
+export type { RunStatus, PayslipComputation };

@@ -242,4 +242,5 @@ async function buildPtXlsx(rows: StatutoryRow[], periodMonth: string): Promise<U
   return bytes(wb);
 }
 
-export { getStatutoryRows, buildPfEcr, buildEsicXlsx, buildPtXlsx, type StatutoryRow };
+export { getStatutoryRows, buildPfEcr, buildEsicXlsx, buildPtXlsx };
+export type { StatutoryRow };

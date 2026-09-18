@@ -31,5 +31,5 @@ async function LoginPage({
   );
 }
 
-export { metadata};
+export { metadata };
 export { LoginPage as default };

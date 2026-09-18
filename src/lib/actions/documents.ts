@@ -374,5 +374,5 @@ export {
   fetchEmployeeDocumentHistory,
   getDocumentUrl,
   fetchEmployeeDocuments,
-  type ActionResult,
 };
+export type { StorageBucket, ActionResult };

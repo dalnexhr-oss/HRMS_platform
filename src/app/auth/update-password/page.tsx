@@ -27,5 +27,5 @@ async function UpdatePasswordPage({
   );
 }
 
-export { metadata};
+export { metadata };
 export { UpdatePasswordPage as default };

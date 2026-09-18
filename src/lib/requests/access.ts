@@ -21,4 +21,5 @@ function canReviewRequest(
     : isStaffRole(actor.role);
 }
 
-export { canReviewRequest, type RequestActor };
+export { canReviewRequest };
+export { type RequestActor };

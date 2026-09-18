@@ -35,4 +35,5 @@ function RootLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-export { metadata, viewport, RootLayout as default };
+export { metadata, viewport };
+export { RootLayout as default };

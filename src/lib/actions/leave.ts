@@ -146,4 +146,5 @@ async function adjustLeaveBalance(input: {
   return { ok: true };
 }
 
-export { provisionLeaveYear, adjustLeaveBalance, type ActionResult };
+export { provisionLeaveYear, adjustLeaveBalance };
+export type { ActionResult };
