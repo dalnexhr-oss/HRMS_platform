@@ -1776,6 +1776,13 @@ tbody tr:hover {
 }
 
 /* employees */
+.employees-toolbar {
+  flex-wrap: wrap;
+}
+.employees-toolbar .search {
+  flex: 1 1 240px;
+  min-width: 0;
+}
 .emp-top {
   display: flex;
   align-items: center;
@@ -2476,6 +2483,102 @@ tbody tr:hover {
   color: var(--brand);
   background: var(--brand-soft);
 }
+/* Searchable employee selection shared by admin forms. */
+.employee-picker {
+  min-width: 0;
+}
+.employee-picker-control {
+  position: relative;
+}
+.f .employee-picker-control > input {
+  min-width: 0;
+  padding-right: 80px;
+}
+.employee-picker-buttons {
+  position: absolute;
+  right: 5px;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+}
+.employee-picker-buttons button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 20px;
+  cursor: pointer;
+}
+.employee-picker-buttons button:hover:not(:disabled),
+.employee-picker-buttons button:focus-visible {
+  background: var(--brand-soft);
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+.employee-picker-buttons button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.employee-picker-options {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  z-index: 35;
+  max-height: 240px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--card-solid);
+  box-shadow: var(--shadow-lift);
+}
+.employee-picker-options button {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.employee-picker-options button:hover,
+.employee-picker-options button[data-active='true'] {
+  background: var(--brand-soft);
+}
+.employee-picker-options button[aria-selected='true'] {
+  font-weight: 600;
+}
+.employee-picker-options small {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.employee-picker-empty {
+  padding: 14px 12px;
+  color: var(--ink-3);
+}
+.employee-picker-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
 /* Company recipient tags and request approval details. */
 .recipient-picker {
   position: relative;

@@ -8,6 +8,7 @@ import { formatDate } from '@/lib/format';
 import { startOnboarding, setOnboardingTaskStatus, addOnboardingTask, deleteOnboardingTask } from '@/lib/actions/onboarding';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
+import { EmployeePicker } from '@/components/employees/EmployeePicker';
 import type { OnboardingTaskRow, OnboardingTemplateRow, EmployeeOption } from '@/lib/queries';
 
 const roleLabel: Record<string, string> = {
@@ -280,17 +281,13 @@ function StartForm({
 
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-      <div className="f" style={{ flex: '1 1 200px', marginBottom: 0 }}>
-        <label>Employee</label>
-        <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
-          <option value="">Choose a joiner…</option>
-          {employees.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.code} — {e.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <EmployeePicker
+        employees={employees}
+        value={employeeId}
+        onChange={setEmployeeId}
+        disabled={disabled || busy}
+        style={{ flex: '1 1 200px', marginBottom: 0 }}
+      />
       <div className="f" style={{ flex: '1 1 180px', marginBottom: 0 }}>
         <label>Template</label>
         <select value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
@@ -339,17 +336,13 @@ function AddTaskForm({
 
   return (
     <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-      <div className="f" style={{ flex: '1 1 160px', marginBottom: 0 }}>
-        <label>Employee</label>
-        <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
-          <option value="">Choose…</option>
-          {employees.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.code} — {e.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <EmployeePicker
+        employees={employees}
+        value={employeeId}
+        onChange={setEmployeeId}
+        disabled={disabled || busy}
+        style={{ flex: '1 1 160px', marginBottom: 0 }}
+      />
       <div className="f" style={{ flex: '1 1 200px', marginBottom: 0 }}>
         <label>Step</label>
         <input

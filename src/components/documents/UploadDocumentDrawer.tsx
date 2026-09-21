@@ -6,6 +6,7 @@ import { useActionState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { uploadEmployeeDocument, replaceEmployeeDocument } from '@/lib/actions/documents';
 import { documentCategories, documentCategoryLabel } from '@/lib/constants';
+import { EmployeePicker } from '@/components/employees/EmployeePicker';
 import type { EmployeeDocumentRow, EmployeeOption } from '@/lib/queries';
 
 interface State {
@@ -95,22 +96,13 @@ function UploadDocumentDrawer({
               </>
             ) : (
               <>
-                <div className="f">
-                  <label htmlFor="doc-employee">Employee</label>
-                  <select
-                    id="doc-employee"
-                    name="employee_id"
-                    required
-                    defaultValue={target?.mode === 'upload' ? (target.employeeId ?? '') : ''}
-                  >
-                    <option value="">Choose an employee…</option>
-                    {employees.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.name} · {e.code}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <EmployeePicker
+                  name="employee_id"
+                  employees={employees}
+                  required
+                  disabled={pending}
+                  defaultValue={target?.mode === 'upload' ? (target.employeeId ?? '') : ''}
+                />
 
                 <div className="f">
                   <label htmlFor="doc-category">Category</label>

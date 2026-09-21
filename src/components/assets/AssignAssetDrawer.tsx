@@ -5,6 +5,7 @@
 import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AssetQrEditor } from './AssetQrEditor';
+import { EmployeePicker } from '@/components/employees/EmployeePicker';
 import { assignAsset, unassignAsset, createAssetMaintenance, fetchAssetAssignments, fetchAssetMaintenance } from '@/lib/actions/assets';
 import { todayIST } from '@/lib/format';
 import type { AssetRow, EmployeeOption, AssetAssignmentRow, AssetMaintenanceRow } from '@/lib/queries';
@@ -146,19 +147,14 @@ function AssignAssetDrawer({
 
               <form action={formAction} style={{ display: 'contents' }}>
                 <input type="hidden" name="asset_id" value={asset.id} />
-                <div className="f">
-                  <label>Employee name</label>
-                  <select name="employee_id" defaultValue="">
-                    <option value="" disabled>
-                      Select an employee…
-                    </option>
-                    {employees.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.name} ({e.code})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <EmployeePicker
+                  key={asset.id}
+                  label="Employee name"
+                  name="employee_id"
+                  employees={employees}
+                  required
+                  disabled={submitting}
+                />
                 <div className="f">
                   <label>Remarks</label>
                   <input name="remarks" placeholder="Optional note for the history" />

@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { inr } from '@/lib/format';
 import { AddEmployeeDrawer } from './AddEmployeeDrawer';
+import { EmployeePicker } from './EmployeePicker';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
 import { fetchEmployeeForEdit, deactivateEmployee, reactivateEmployee } from '@/lib/actions/employees';
@@ -45,6 +46,18 @@ function EmployeesScreen({
 
   const activeCount = useMemo(() => rows.filter((e) => e.active).length, [rows]);
   const inactiveCount = rows.length - activeCount;
+  // Editing is addressed by the original employee code; this picker does not submit a form.
+  const editOptions = useMemo(
+    () =>
+      rows
+        .filter((employee) => employee.active)
+        .map((employee) => ({
+          id: employee.code,
+          code: employee.code,
+          name: employee.name,
+        })),
+    [rows],
+  );
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -162,7 +175,19 @@ function EmployeesScreen({
 
   return (
     <div className="wrap">
-      <div className="emp-top">
+      <div className="emp-top employees-toolbar">
+        <EmployeePicker
+          label="Find employee to edit"
+          employees={editOptions}
+          value=""
+          onChange={(code) => {
+            if (code) {
+              openEdit(code);
+            }
+          }}
+          disabled={pending}
+          style={{ flex: '1 1 260px', marginBottom: 0 }}
+        />
         <div className="search">
           <svg
             width="15"
@@ -176,7 +201,8 @@ function EmployeesScreen({
             <path d="M21 21l-4.3-4.3" />
           </svg>
           <input
-            placeholder="Search name, code, PAN…"
+            placeholder="Filter name, code, PF UAN…"
+            aria-label="Filter employees by name, code, or PF UAN"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -202,7 +228,6 @@ function EmployeesScreen({
             Show inactive
           </label>
         )}
-        <span style={{ flex: 1 }} />
         <button className="btn primary" onClick={openAdd}>
           + Add employee
         </button>

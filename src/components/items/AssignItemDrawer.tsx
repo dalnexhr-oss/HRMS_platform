@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { assignItem, returnAssignment, deleteAssignment, fetchItemAssignments } from '@/lib/actions/items';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
+import { EmployeePicker } from '@/components/employees/EmployeePicker';
 import { todayIST } from '@/lib/format';
 import type { ItemRow, EmployeeOption, ItemAssignmentRow } from '@/lib/queries';
 
@@ -150,19 +151,14 @@ function AssignItemDrawer({
 
               <form key={formKey} action={formAction} style={{ display: 'contents' }}>
                 <input type="hidden" name="item_id" value={item.id} />
-                <div className="f">
-                  <label>Employee name</label>
-                  <select name="employee_id" defaultValue="">
-                    <option value="" disabled>
-                      Select an employee…
-                    </option>
-                    {employees.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.name} ({e.code})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <EmployeePicker
+                  key={item.id}
+                  label="Employee name"
+                  name="employee_id"
+                  employees={employees}
+                  required
+                  disabled={submitting}
+                />
                 <div className="f-row">
                   <div className="f">
                     <label>Quantity</label>

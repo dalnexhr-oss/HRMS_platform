@@ -8,6 +8,7 @@ import { inr, formatDate } from '@/lib/format';
 import { initiateExit, refreshExitClearance, setClearanceItemCleared, setExitStage, prepareFullAndFinal, setFullAndFinalStatus, generateExitDocument, fetchClearanceItems, ensureExitInterview, saveExitInterview, fetchExitInterview, setKtStatus, deleteKtItem, fetchKtItems } from '@/lib/actions/exit';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
+import { EmployeePicker } from '@/components/employees/EmployeePicker';
 import type { ExitCaseRow, ClearanceItemRow, EmployeeOption, ExitInterviewRow, KtItemRow } from '@/lib/queries';
 
 const stageOrder: Array<ExitCaseRow['stage']> = [
@@ -588,17 +589,15 @@ function KtSection({
           marginBottom: 10,
         }}
       >
-        <div className="f" style={{ flex: '1 1 130px', marginBottom: 0 }}>
-          <label>Handover to</label>
-          <select value={handoverTo} onChange={(e) => setHandoverTo(e.target.value)}>
-            <option value="">Unassigned</option>
-            {employees.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.code} — {e.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <EmployeePicker
+          label="Handover to (optional)"
+          employees={employees}
+          value={handoverTo}
+          onChange={setHandoverTo}
+          placeholder="Unassigned — type a name or code…"
+          disabled={busy}
+          style={{ flex: '1 1 130px', marginBottom: 0 }}
+        />
       </div>
 
       {rows === null ? (
@@ -691,17 +690,13 @@ function StartExitForm({
 
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-      <div className="f" style={{ flex: '1 1 180px', marginBottom: 0 }}>
-        <label>Employee</label>
-        <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
-          <option value="">Choose…</option>
-          {employees.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.code} — {e.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <EmployeePicker
+        employees={employees}
+        value={employeeId}
+        onChange={setEmployeeId}
+        disabled={disabled || busy}
+        style={{ flex: '1 1 180px', marginBottom: 0 }}
+      />
       <div className="f" style={{ marginBottom: 0 }}>
         <label>Resignation date</label>
         <input
