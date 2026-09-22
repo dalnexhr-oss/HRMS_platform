@@ -1,5 +1,6 @@
 // Client-facing domain types, maintained by hand. Stored BSON document types live in
 // lib/db/collections.ts; queries.ts converts timestamps to strings for the UI.
+import type { PunchAccess } from './punch';
 
 // Keep attendance statuses in sync with the attendance_days validator and display metadata.
 type AttendanceStatus = 'P' | 'LM' | 'HD' | 'L' | 'WO' | 'OH' | 'AB' | 'S' | 'T' | 'CO';
@@ -74,6 +75,7 @@ interface Profile {
   role: AppRole;
   branch_id: string | null;
   employee_id: string | null;
+  punch_access?: PunchAccess;
   avatar: string | null;
   created_at: string;
 }

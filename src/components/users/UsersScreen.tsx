@@ -3,16 +3,20 @@
 // Account administration controls. Each Server Action checks the caller's role independently.
 import { useActionState, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUser, updateUserRole, sendPasswordReset, setUserPassword, deleteUser } from '@/lib/actions/users';
+import { createUser, updateUserRole, updateUserPunchAccess, sendPasswordReset, setUserPassword, deleteUser } from '@/lib/actions/users';
 import { usePrompt } from '@/components/ui/PromptDialog';
 import { useToast } from '@/components/ui/Toast';
 import { AccessDrawer } from '@/components/users/AccessDrawer';
+import { PunchAccessSelect, punchAccessHelp } from '@/components/users/PunchAccessSelect';
+import { UserActions } from '@/components/users/UserActions';
+import { EmployeePicker } from '@/components/employees/EmployeePicker';
 import { isConfigurableRole } from '@/lib/access';
 import { isEmployeeAreaRole } from '@/lib/roles';
 import type { AccessTarget } from '@/components/users/AccessDrawer';
 import type { ManagedUser } from '@/lib/actions/users';
 import type { EmployeeOption } from '@/lib/queries';
 import type { AppRole } from '@/types/database';
+import type { PunchAccess } from '@/types/punch';
 
 const roleLabel: Record<AppRole, string> = {
   admin: 'Admin',
@@ -33,25 +37,6 @@ const roleTier: Record<AppRole, number> = {
   employee: 0,
   intern: 0,
 };
-
-function rolePillStyle(role: AppRole | null): React.CSSProperties {
-  if (role === 'super_admin') {
-    return { borderColor: 'var(--brand)', color: '#fff', background: 'var(--brand)' };
-  }
-  if (role === 'admin') {
-    return { borderColor: 'var(--brand)', color: 'var(--brand)' };
-  }
-  if (role === 'hr') {
-    return { borderColor: 'var(--brass)', color: 'var(--brass)' };
-  }
-  if (role === 'employee') {
-    return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
-  }
-  if (role === 'intern') {
-    return { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' };
-  }
-  return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
-}
 
 function stamp(iso: string | null): string {
   if (!iso) {
@@ -80,7 +65,6 @@ function UsersScreen({
   const router = useRouter();
   const [drawer, setDrawer] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-  const [menuFor, setMenuFor] = useState<string | null>(null);
   const [accessFor, setAccessFor] = useState<AccessTarget | null>(null);
   const [pending, startTransition] = useTransition();
   const { prompt, promptDialog } = usePrompt();
@@ -170,7 +154,7 @@ function UsersScreen({
 
   if (loadError) {
     return (
-      <div className="wrap">
+      <div className="wrap users-screen">
         <div className="card">
           <div className="bd">
             <div className="login-error">{loadError}</div>
@@ -185,198 +169,137 @@ function UsersScreen({
   }
 
   return (
-    <div className="wrap grid">
+    <div className="wrap grid users-screen">
       {promptDialog}
       {toastNode}
-      <div className="emp-top">
+      <div className="emp-top users-toolbar">
         <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
           {users.length} account{users.length === 1 ? '' : 's'}
         </span>
-        <span style={{ flex: 1 }} />
         <button className="btn primary" onClick={() => setDrawer(true)}>
           + Add user
         </button>
       </div>
 
-      <div className="card">
-        <div style={{ overflowX: 'auto' }}>
-          <table>
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Linked employee</th>
-                <th>Last sign-in</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <tr key={u.id}>
-                  <td className="mono">{u.email}</td>
-                  <td>
-                    <b>{u.fullName ?? '—'}</b>
-                  </td>
-                  <td>
-                    <span className="pill" style={rolePillStyle(u.role)}>
-                      {u.role ? roleLabel[u.role] : 'no profile'}
-                    </span>
-                  </td>
-                  <td>
-                    {u.employeeCode ? (
-                      <>
-                        {u.employeeName}{' '}
-                        <span className="mono muted" style={{ fontSize: 11 }}>
-                          {u.employeeCode}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="muted">—</span>
+      <div className="card users-table-card">
+        <table className="users-table" role="table" aria-label="User accounts">
+          <colgroup>
+            <col className="users-col-account" />
+            <col className="users-col-role" />
+            <col className="users-col-employee" />
+            <col className="users-col-punch" />
+            <col className="users-col-signin" />
+            <col className="users-col-actions" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col">Account</th>
+              <th scope="col">Role</th>
+              <th scope="col">Linked employee</th>
+              <th scope="col">Punch in/out access</th>
+              <th scope="col">Last sign-in</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((u) => (
+              <tr key={u.id} role="row">
+                <td className="users-account" data-label="Account" role="cell">
+                  <b>{u.fullName ?? '—'}</b>
+                  <span className="mono muted users-email">{u.email}</span>
+                </td>
+                <td data-label="Role" role="cell">
+                  <select
+                    className="users-select"
+                    aria-label={`Role for ${u.fullName ?? u.email}`}
+                    value={u.role ?? ''}
+                    disabled={
+                      (pending && busy === u.id) ||
+                      u.id === selfId ||
+                      (u.role !== null && roleTier[u.role] > roleTier[callerRole])
+                    }
+                    title={u.id === selfId ? 'Ask another admin to change your role' : undefined}
+                    onChange={(event) => onRoleChange(u, event.target.value as AppRole)}
+                  >
+                    {!u.role && <option value="">no profile</option>}
+                    {u.role && !assignable.includes(u.role) && (
+                      <option value={u.role}>{roleLabel[u.role]}</option>
                     )}
-                  </td>
-                  <td className="mono muted">{stamp(u.lastSignInAt)}</td>
-                  <td>
-                    <div
-                      style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}
-                    >
-                      {/* Match the server guard: users cannot change their own role. */}
-                      <select
-                        value={u.role ?? ''}
-                        disabled={(pending && busy === u.id) || u.id === selfId}
-                        title={
-                          u.id === selfId
-                            ? 'You cannot change your own role — ask another admin to do it'
-                            : undefined
-                        }
-                        onChange={(e) => onRoleChange(u, e.target.value as AppRole)}
-                        style={{
-                          padding: '5px 8px',
-                          border: '1px solid var(--line-2)',
-                          borderRadius: 8,
-                          font: 'inherit',
-                          fontSize: 13,
-                          background: '#fff',
-                        }}
-                      >
-                        {!u.role && <option value="">no profile</option>}
-                        {assignable.map((r) => (
-                          <option key={r} value={r}>
-                            {roleLabel[r]}
-                          </option>
-                        ))}
-                      </select>
-                      {/*
-                       * Only super admins can configure tab access, and only for admin or HR
-                       * accounts. setUserTabAccess enforces both conditions.
-                       */}
-                      {callerRole === 'super_admin' && isConfigurableRole(u.role) && (
-                        <button
-                          className="btn quiet"
-                          disabled={pending && busy === u.id}
-                          onClick={() =>
+                    {assignable.map((role) => (
+                      <option key={role} value={role}>
+                        {roleLabel[role]}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td data-label="Linked employee" role="cell">
+                  {u.employeeCode ? (
+                    <>
+                      <span>{u.employeeName}</span>
+                      <span className="mono muted users-employee-code">{u.employeeCode}</span>
+                    </>
+                  ) : (
+                    <span className="muted">—</span>
+                  )}
+                </td>
+                <td data-label="Punch in/out access" role="cell">
+                  <PunchAccessSelect
+                    className="users-select"
+                    aria-label={`Punch in/out access for ${u.fullName ?? u.email}`}
+                    value={u.punchAccess}
+                    title={punchAccessHelp[u.punchAccess]}
+                    disabled={pending || !u.role || roleTier[u.role] > roleTier[callerRole]}
+                    onChange={(event) => {
+                      const value = event.target.value as PunchAccess;
+                      run(
+                        u.id,
+                        () => updateUserPunchAccess(u.id, value),
+                        `Punch access updated for ${u.email}.`,
+                      );
+                    }}
+                  />
+                </td>
+                <td className="mono muted" data-label="Last sign-in" role="cell">
+                  {stamp(u.lastSignInAt)}
+                </td>
+                <td className="users-actions-cell" data-label="Actions" role="cell">
+                  <UserActions
+                    name={u.fullName ?? u.email}
+                    disabled={pending && busy === u.id}
+                    canDelete={u.id !== selfId}
+                    onAccess={
+                      callerRole === 'super_admin' && isConfigurableRole(u.role)
+                        ? () =>
                             setAccessFor({
                               id: u.id,
                               email: u.email,
-                              fullName: u.fullName ?? null,
+                              fullName: u.fullName,
                               role: u.role as AppRole,
                             })
-                          }
-                          title="Choose which tabs this account can open"
-                        >
-                          Access
-                        </button>
-                      )}
-                      <button
-                        className="btn quiet"
-                        disabled={pending && busy === u.id}
-                        onClick={() => onSetPassword(u)}
-                      >
-                        Set password
-                      </button>
-                      <button
-                        className="btn quiet"
-                        disabled={pending && busy === u.id}
-                        onClick={() =>
-                          run(
-                            u.id,
-                            () => sendPasswordReset(u.email),
-                            `Reset link generated for ${u.email}.`,
-                          )
-                        }
-                        title="Generate a password-recovery link (emailed if SMTP is configured)"
-                      >
-                        Send reset
-                      </button>
-                      {/* Delete is tucked behind an overflow menu — it removes a
-                          person's access and shouldn't sit a mis-click away. */}
-                      <div style={{ position: 'relative' }}>
-                        <button
-                          className="btn quiet"
-                          disabled={pending && busy === u.id}
-                          onClick={() => setMenuFor(menuFor === u.id ? null : u.id)}
-                          title="More actions"
-                          aria-label="More actions"
-                          aria-haspopup="menu"
-                          aria-expanded={menuFor === u.id}
-                        >
-                          ⋯
-                        </button>
-                        {menuFor === u.id && (
-                          <div
-                            role="menu"
-                            style={{
-                              position: 'absolute',
-                              right: 0,
-                              top: '100%',
-                              marginTop: 4,
-                              zIndex: 10,
-                              background: '#fff',
-                              border: '1px solid var(--line-2)',
-                              borderRadius: 8,
-                              boxShadow: '0 6px 18px rgba(0,0,0,0.14)',
-                              padding: 6,
-                              minWidth: 170,
-                            }}
-                          >
-                            <button
-                              role="menuitem"
-                              className="btn quiet"
-                              disabled={(pending && busy === u.id) || u.id === selfId}
-                              onClick={() => {
-                                setMenuFor(null);
-                                onDelete(u);
-                              }}
-                              title={
-                                u.id === selfId
-                                  ? 'You cannot delete your own account'
-                                  : 'Remove this login (the employee record is kept)'
-                              }
-                              style={{
-                                width: '100%',
-                                textAlign: 'left',
-                                color: u.id === selfId ? undefined : 'var(--ab)',
-                              }}
-                            >
-                              Delete login…
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {users.length === 0 && (
-                <tr>
-                  <td className="muted" colSpan={6} style={{ textAlign: 'center' }}>
-                    No login accounts yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                        : undefined
+                    }
+                    onSetPassword={() => void onSetPassword(u)}
+                    onSendReset={() =>
+                      run(
+                        u.id,
+                        () => sendPasswordReset(u.email),
+                        `Reset link generated for ${u.email}.`,
+                      )
+                    }
+                    onDelete={() => void onDelete(u)}
+                  />
+                </td>
+              </tr>
+            ))}
+            {users.length === 0 && (
+              <tr className="users-empty">
+                <td className="muted" colSpan={6} style={{ textAlign: 'center' }}>
+                  No login accounts yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
 
       <p className="muted" style={{ fontSize: 12 }}>
@@ -420,10 +343,12 @@ function AddUserDrawer({
   onCreated: () => void;
 }) {
   const [role, setRole] = useState<AppRole>('employee');
+  const [punchAccess, setPunchAccess] = useState<PunchAccess>('both');
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
     async (_prev, formData) => {
       const res = await createUser(formData);
       if (res.ok) {
+        setPunchAccess('both');
         onCreated();
       }
       return res;
@@ -484,22 +409,31 @@ function AddUserDrawer({
                 ))}
               </select>
             </div>
-            <div className="f">
-              <label>Linked employee{isEmployeeAreaRole(role) ? '' : ' (optional)'}</label>
-              <select name="employee_id" required={isEmployeeAreaRole(role)} defaultValue="">
-                <option value="">
-                  {isEmployeeAreaRole(role) ? 'Choose an employee…' : 'Not linked'}
-                </option>
-                {employees.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.code} · {e.name}
-                  </option>
-                ))}
-              </select>
-              <span className="hint">
-                {isEmployeeAreaRole(role)
+            <EmployeePicker
+              label={`Linked employee${isEmployeeAreaRole(role) ? '' : ' (optional)'}`}
+              name="employee_id"
+              employees={employees}
+              required={isEmployeeAreaRole(role)}
+              disabled={pending}
+              hint={
+                isEmployeeAreaRole(role)
                   ? 'This login must point at an employee record, or their dashboard has no attendance, payslips or claims to show.'
-                  : 'Link this login to its employee record so this person still gets their own attendance, payslips and leave.'}
+                  : 'Link this login to its employee record so this person still gets their own attendance, payslips and leave.'
+              }
+            />
+
+            <div className="f">
+              <label htmlFor="new-user-punch-access">Punch in/out access</label>
+              <PunchAccessSelect
+                id="new-user-punch-access"
+                name="punch_access"
+                value={punchAccess}
+                onChange={(event) => setPunchAccess(event.target.value as PunchAccess)}
+                aria-describedby="new-user-punch-access-help"
+                disabled={pending}
+              />
+              <span id="new-user-punch-access-help" className="hint">
+                {punchAccessHelp[punchAccess]}
               </span>
             </div>
 

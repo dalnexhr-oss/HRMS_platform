@@ -55,6 +55,7 @@ const OVERRIDES = {
 
   employees: {
     properties: {
+      punch_revision: { bsonType: ['int', 'long', 'double'], minimum: 0 },
       // Denormalised so list screens do not join — see EmployeeDoc.
       branch_name: TEXT,
       department_name: TEXT,
@@ -215,6 +216,7 @@ const EXTRA_COLLECTIONS = {
           branch_id: TEXT,
           avatar: TEXT,
           employee_id: TEXT,
+          punch_access: { enum: ['both', 'web', 'zkteco'] },
           disabled: { bsonType: 'bool' },
           token_version: { bsonType: ['int', 'long'], minimum: 0 },
           tab_access: { bsonType: 'object' },

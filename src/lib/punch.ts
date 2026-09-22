@@ -3,57 +3,22 @@
 //
 // Location classifies punches for HR review. Use the employee's branch geofence, falling back to
 // company settings when the branch has no location.
-import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
+import { createClient } from '@/lib/db/server';
 import { toCoordinate } from '@/lib/db/money';
 import { withTransaction } from '@/lib/db/mongo';
+import { lockEmployeePunches, punchWriteReason } from '@/lib/punch-storage';
 import { lastNightSweepNotice, previousWorkDate } from '@/lib/night-sweep';
+import { allowsWebPunch, readPunchAccess, webPunchDisabled } from '@/lib/punch-access';
+import { localParts, dayFloorUtc, punchInstant, punchedAt, sumWorkedMinutes, summarizePunches } from '@/lib/punch-day';
+import type { DayEvent } from '@/lib/punch-day';
+import type { QueryClient } from '@/lib/db/query-client';
 import type { SweepClosure } from '@/lib/night-sweep';
 import type { PunchKind, PunchCoords, PunchStatus, PunchRecord, PunchResult } from '@/types/punch';
-
-const businessTimeZone = 'Asia/Kolkata';
 
 // Fallback radius when an office point is set without one. A branch's own
 // geofence_radius_m, or the geofence_radius_m setting, overrides it.
 const defaultGeoRadius = 100;
-
-// time helpers --
-
-// Today's date and wall-clock time in the business timezone, not the server's.
-function localParts(date = new Date()): { date: string; time: string } {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: businessTimeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(date);
-  const value = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
-  return {
-    date: `${value('year')}-${value('month')}-${value('day')}`,
-    time: `${value('hour')}:${value('minute')}:${value('second')}`,
-  };
-}
-
-/** 'HH:MM:SS' -> minutes since midnight. */
-function toMinutes(value: string): number {
-  const [hours, minutes] = value.split(':').map(Number);
-  return hours * 60 + minutes;
-}
-
-/**
- * Query from the preceding UTC day, then apply the exact business-day filter with localParts().
- * This includes early IST punches. Return a Date because punched_at is stored as BSON date, not a
- * string.
- */
-function dayFloorUtc(date: string): Date {
-  const floor = new Date(`${date}T00:00:00Z`);
-  floor.setUTCDate(floor.getUTCDate() - 1);
-  return floor;
-}
 
 // geofencing --
 
@@ -125,9 +90,12 @@ function booleanSetting(value: unknown, fallback: boolean): boolean {
  * Read the employee's branch geofence. Missing configuration or lookup failures return null so the
  * caller can use the company-wide fallback.
  */
-async function readBranchGeofence(employeeId: string): Promise<OfficeGeofence | null> {
+async function readBranchGeofence(
+  employeeId: string,
+  client?: QueryClient,
+): Promise<OfficeGeofence | null> {
   try {
-    const dbc = await createClient();
+    const dbc = client ?? (await createClient());
     // `id` is selected only so the projection is narrowed to it plus the embed
     // — an empty field list means "no $project", i.e. the whole employee
     // document, which this has no use for.
@@ -169,15 +137,17 @@ async function readBranchGeofence(employeeId: string): Promise<OfficeGeofence | 
  * Resolve the branch geofence when employeeId is supplied, otherwise use the company location.
  * requireLocation is a company-wide policy in either case.
  */
-async function readPunchPolicy(employeeId?: string | null): Promise<PunchPolicy> {
-  const dbc = await createClient();
-  const [settings, branchOffice] = await Promise.all([
-    dbc
-      .from('settings')
-      .select('key, value')
-      .in('key', ['office_lat', 'office_lng', 'geofence_radius_m', 'punch_require_location']),
-    employeeId ? readBranchGeofence(employeeId) : Promise.resolve(null),
-  ]);
+async function readPunchPolicy(
+  employeeId?: string | null,
+  client?: QueryClient,
+): Promise<PunchPolicy> {
+  const dbc = client ?? (await createClient());
+  // Sequential queries also work inside a MongoDB transaction (parallel operations do not).
+  const settings = await dbc
+    .from('settings')
+    .select('key, value')
+    .in('key', ['office_lat', 'office_lng', 'geofence_radius_m', 'punch_require_location']);
+  const branchOffice = employeeId ? await readBranchGeofence(employeeId, dbc) : null;
   const { data, error } = settings;
   // Fail CLOSED on a settings read error: defaulting to "location optional"
   // would quietly turn the requirement off the moment the table hiccups.
@@ -273,12 +243,12 @@ function validCoords(coords: PunchCoords | null): PunchCoords | null {
 // reads --
 
 async function readPunchStatus(): Promise<PunchStatus> {
-  const { employeeId } = await employeeContext();
+  const { employeeId, profile } = await employeeContext();
   const dbc = await createClient();
   const now = new Date();
   const today = localParts(now).date;
 
-  const [events, policy, previousDay] = await Promise.all([
+  const [events, policy, previousDay, currentDay] = await Promise.all([
     dbc
       .from('punch_events')
       .select<DayEvent[]>('kind, punched_at, within_geofence, lat, lng')
@@ -292,6 +262,12 @@ async function readPunchStatus(): Promise<PunchStatus> {
       .eq('employee_id', employeeId)
       .eq('work_date', previousWorkDate(today))
       .maybeSingle<SweepClosure>(),
+    dbc
+      .from('attendance_days')
+      .select('is_corrected, auto_close_source, worked_minutes, punch_out')
+      .eq('employee_id', employeeId)
+      .eq('work_date', today)
+      .maybeSingle(),
   ]);
   if (events.error) {
     throw new Error(events.error.message);
@@ -299,6 +275,10 @@ async function readPunchStatus(): Promise<PunchStatus> {
   if (previousDay.error) {
     throw new Error(previousDay.error.message);
   }
+  if (currentDay.error) {
+    throw new Error(currentDay.error.message);
+  }
+  const finalized = !!(currentDay.data?.is_corrected || currentDay.data?.auto_close_source);
 
   // Filter in the business timezone: the >= bound above is a coarse cut in UTC,
   // which for IST (UTC+5:30) can drag in the tail of the previous local day.
@@ -306,7 +286,8 @@ async function readPunchStatus(): Promise<PunchStatus> {
   const last = todays[todays.length - 1] ?? null;
 
   return {
-    status: last?.kind === 'in' ? 'in' : 'out',
+    status: !finalized && last?.kind === 'in' ? 'in' : 'out',
+    punchAccess: readPunchAccess(profile.punch_access),
     // ISO string, not the raw column: PunchStatus crosses into a client
     // component, and a Date there is not the string the UI formats.
     lastPunchAt: last ? punchedAt(last).toISOString() : null,
@@ -314,7 +295,10 @@ async function readPunchStatus(): Promise<PunchStatus> {
     lastWithinGeofence: last?.within_geofence ?? null,
     lastLat: finite(last?.lat),
     lastLng: finite(last?.lng),
-    workedMinutes: sumWorkedMinutes(todays),
+    workedMinutes: finalized
+      ? Number(currentDay.data?.worked_minutes ?? 0)
+      : sumWorkedMinutes(todays),
+    attendanceClosed: finalized,
     geofenceConfigured: policy.office != null,
     requireLocation: policy.requireLocation,
     lastNightSweep: lastNightSweepNotice(previousDay.data, now),
@@ -346,62 +330,22 @@ async function readPunchHistory(): Promise<PunchRecord[]> {
 
 // write --
 
-/**
- * Punch queries always select kind and punched_at. Status and history queries also select optional
- * location fields.
- */
-interface DayEvent {
-  kind: string;
-  /**
-   * Timestamp stored as BSON Date (or legacy ISO string representation).
-   * Parsed via punchedAt() for uniform handling.
-   */
-  punched_at: Date | string;
-  within_geofence?: boolean | null;
-  lat?: number | null;
-  lng?: number | null;
-}
-
-/** Normalize either stored timestamp form for both punch processing and the TV board. */
-function punchInstant(value: Date | string): Date {
-  return value instanceof Date ? value : new Date(value);
-}
-
-/** The event's instant. */
-function punchedAt(event: DayEvent): Date {
-  return punchInstant(event.punched_at);
-}
-
-/**
- * Pair the day's events into sessions and total them. Only CLOSED sessions
- * count — an open punch-in contributes nothing until it is closed, so the
- * register never shows time that has not been worked yet.
- */
-function sumWorkedMinutes(events: DayEvent[]): number {
-  let total = 0;
-  let openedAt: string | null = null;
-  for (const event of events) {
-    const clock = localParts(punchedAt(event)).time;
-    if (event.kind === 'in') {
-      // Consecutive 'in' events keep the earliest — a double tap must not
-      // restart the session and silently drop the elapsed time.
-      openedAt ??= clock;
-    } else if (event.kind === 'out' && openedAt) {
-      total += Math.max(0, toMinutes(clock) - toMinutes(openedAt));
-      openedAt = null;
-    }
-  }
-  return total;
-}
-
 async function recordPunch(kind: PunchKind, coords: PunchCoords | null): Promise<PunchResult> {
-  const { employeeId } = await employeeContext();
-  const now = new Date();
-  const { date } = localParts(now);
+  const { employeeId, profile } = await employeeContext();
+  if (!allowsWebPunch(profile.punch_access)) {
+    throw new Error(webPunchDisabled);
+  }
 
   return withTransaction(
     async (session) => {
+      await lockEmployeePunches(employeeId, session);
+      const now = new Date();
+      const { date } = localParts(now);
       const dbc = await createClient(session);
+      const blocked = await punchWriteReason(employeeId, date, session);
+      if (blocked) {
+        throw new Error(blocked);
+      }
       // reject only genuine sequence errors, never a location
       const { data: priorRaw, error: priorError } = await dbc
         .from('punch_events')
@@ -424,7 +368,7 @@ async function recordPunch(kind: PunchKind, coords: PunchCoords | null): Promise
       }
 
       const point = validCoords(coords);
-      const { office, requireLocation } = await readPunchPolicy(employeeId);
+      const { office, requireLocation } = await readPunchPolicy(employeeId, dbc);
 
       // A required location must be present; being outside the office does not block a punch.
       if (requireLocation && !point) {
@@ -473,20 +417,21 @@ async function resolveDay(
 ): Promise<number> {
   // Store punch times as HH:MM to match the attendance validator. Worked-minute calculations
   // already ignore seconds.
-  const times = events.map((event) => ({
-    kind: event.kind,
-    clock: localParts(punchedAt(event)).time.slice(0, 5),
-  }));
-  const firstIn = times.find((event) => event.kind === 'in')?.clock ?? null;
-  const lastOut = [...times].reverse().find((event) => event.kind === 'out')?.clock ?? null;
-  const workedMinutes = sumWorkedMinutes(events);
+  const { firstIn, lastOut, workedMinutes } = summarizePunches(events);
 
-  const { data: existing } = await dbc
+  const { data: existing, error: existingError } = await dbc
     .from('attendance_days')
-    .select('status')
+    .select('status, is_corrected, auto_close_source')
     .eq('employee_id', employeeId)
     .eq('work_date', workDate)
     .maybeSingle();
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+  if (existing?.is_corrected || existing?.auto_close_source) {
+    throw new Error('This attendance day has been corrected or swept. Ask HR to review it.');
+  }
 
   const status = !existing?.status || existing.status === 'AB' ? 'P' : existing.status;
 
@@ -510,6 +455,11 @@ async function resolveDay(
 }
 
 export {
+  classify,
+  localParts,
+  lockEmployeePunches,
+  resolveDay,
+  type DayEvent,
   dayFloorUtc,
   distanceMetres,
   locationRequired,

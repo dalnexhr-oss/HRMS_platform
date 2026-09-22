@@ -9,7 +9,8 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { todayIST } from '@/lib/format';
 import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/guards';
-import { autoCloseDay, clockToMinutes, getAutoPunchOutMinutes, minutesToClock } from '@/lib/attendance-rules';
+import { getAutoPunchOutMinutes, minutesToClock } from '@/lib/attendance-rules';
+import { closePunchDay } from '@/lib/punch-storage';
 
 type SweepResult =
   { ok: true; closed: number; at: string; date: string } | { ok: false; error: string };
@@ -61,34 +62,12 @@ async function runNightSweep(dateISO?: string): Promise<SweepResult> {
     const failures: string[] = [];
 
     for (const row of open) {
-      const inMin = clockToMinutes(row.punch_in);
-      const result = autoCloseDay(inMin, null, autoOutMin);
-      if (!result) {
-        // unparseable punch-in — leave it for a human
-        continue;
-      }
-
-      const { error: updErr, data: updated } = await dbc
-        .from('attendance_days')
-        .update({
-          punch_out: minutesToClock(result.outMin),
-          worked_minutes: result.workedMin,
-          is_corrected: true,
-          correction_reason: 'Manual night sweep: no closing punch was recorded.',
-          corrected_by: gate.profileId,
-          auto_close_source: 'manual',
-          auto_closed_at: new Date(),
-        })
-        .eq('id', row.id)
-        // Only close it if it is still open — a real punch-out landing mid-sweep wins.
-        .is('punch_out', null)
-        .select('id');
-      if (updErr) {
-        failures.push(updErr.message);
-        continue;
-      }
-      if (updated && updated.length > 0) {
-        closed++;
+      try {
+        if (await closePunchDay(row.id, autoOutMin, 'manual', gate.profileId)) {
+          closed++;
+        }
+      } catch (error) {
+        failures.push(error instanceof Error ? error.message : 'Could not close this day.');
       }
     }
 
@@ -114,4 +93,5 @@ async function runNightSweep(dateISO?: string): Promise<SweepResult> {
   }
 }
 
-export { runNightSweep, type SweepResult };
+export { runNightSweep };
+export type { SweepResult };

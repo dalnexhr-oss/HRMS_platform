@@ -6,10 +6,8 @@ import { usePunchClock, duration } from './usePunchClock';
 
 function PunchToggle() {
   const { toast, toastNode } = useToast();
-  const { state, loading, pending, isIn, worked, loadError, punch } = usePunchClock(
-    'topbar',
-    toast,
-  );
+  const { state, loading, pending, webPunchAllowed, isIn, worked, loadError, punch } =
+    usePunchClock('topbar', toast);
 
   // No clock to offer — an unlinked login, or the status route is down. The
   // card on /me says why; the bar just steps out of the way rather than
@@ -35,9 +33,15 @@ function PunchToggle() {
         type="button"
         className={`btn punch-top-btn${isIn ? ' danger' : ' primary'}`}
         onClick={() => void punch()}
-        disabled={loading || pending || !state}
+        disabled={loading || pending || !state || !webPunchAllowed}
         aria-busy={pending}
-        title={isIn ? 'Punch out for the day' : 'Punch in for the day'}
+        title={
+          state && !webPunchAllowed
+            ? 'Use the ZKTeco machine to punch in or out'
+            : isIn
+              ? 'Punch out for the day'
+              : 'Punch in for the day'
+        }
       >
         {isIn ? 'Punch out' : 'Punch in'}
       </button>

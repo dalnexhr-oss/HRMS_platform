@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { locationRequired, recordPunch } from '@/lib/punch';
+import { webPunchDisabled } from '@/lib/punch-access';
 import type { NextRequest } from 'next/server';
 import type { PunchCoords, PunchKind } from '@/lib/punch';
 
@@ -41,6 +42,10 @@ async function handlePunch(request: NextRequest, kind: PunchKind) {
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : `Unable to punch ${kind}.`;
+
+    if (message === webPunchDisabled) {
+      return NextResponse.json({ error: message, code: 'WEB_PUNCH_DISABLED' }, { status: 403 });
+    }
 
     // A refusal for missing location gets its own code so the UI can show the
     // "unblock location" instructions rather than a generic failure.

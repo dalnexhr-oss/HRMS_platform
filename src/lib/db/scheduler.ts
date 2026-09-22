@@ -8,7 +8,8 @@ import { collections } from '@/lib/db/collections';
 import { scopedFor } from '@/lib/db/repo';
 import { systemScope } from '@/lib/db/scope';
 import { provisionLeaveBalances, scheduled } from '@/lib/db/functions';
-import { autoCloseDay, autoPunchOutMinutesFrom, clockToMinutes, minutesToClock } from '@/lib/attendance-rules';
+import { autoPunchOutMinutesFrom } from '@/lib/attendance-rules';
+import { closePunchDay } from '@/lib/punch-storage';
 import { monthSealReason, periodMonthFor } from '@/lib/payroll-month';
 import { todayIST } from '@/lib/format';
 import { noticeRetentionDays } from '@/lib/constants';
@@ -222,7 +223,6 @@ async function autoPunchOut(targetDate?: string): Promise<JobResult> {
       const row = await settings.findOne({ key: 'auto_punch_out_time' });
       // Share parsing and defaults with the manual sweep.
       const closeMin = autoPunchOutMinutesFrom(row?.value);
-      const closeAt = minutesToClock(closeMin);
 
       const attendance = scopedFor<BaseDoc>(collections.attendanceDays, systemScope);
       const open = await attendance.find({
@@ -233,29 +233,9 @@ async function autoPunchOut(targetDate?: string): Promise<JobResult> {
 
       let closed = 0;
       for (const day of open) {
-        // Use the shared night-shift calculation. Leave invalid punch times unchanged for HR to
-        // review.
-        const result = autoCloseDay(clockToMinutes(day.punch_in), null, closeMin);
-        if (!result) {
-          continue;
+        if (await closePunchDay(day._id, closeMin, 'scheduled', null)) {
+          closed++;
         }
-        const closedAt = new Date();
-        const matched = await attendance.updateOne(
-          { _id: day._id, punch_out: null, updated_at: day.updated_at },
-          {
-            $set: {
-              punch_out: closeAt,
-              worked_minutes: result.workedMin,
-              is_corrected: true,
-              correction_reason: 'Auto punch-out: no closing punch was recorded.',
-              corrected_by: null,
-              auto_close_source: 'scheduled',
-              auto_closed_at: closedAt,
-              updated_at: closedAt,
-            },
-          },
-        );
-        closed += matched;
       }
 
       // Revisit saved closures on retry if notification delivery failed after the attendance write.
@@ -474,6 +454,6 @@ export {
   lifecycleReminders,
   jobs,
   runDailyJobs,
-  type JobResult,
-  type JobName,
 };
+
+export type { JobResult, JobName };

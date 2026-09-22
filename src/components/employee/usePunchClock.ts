@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getPunchStatus, locationPermission, punchIn, punchOut, requestCoords } from '@/lib/actions/punch';
 import { announcePunch, onPunchChange } from '@/lib/punch-bus';
+import { allowsWebPunch, webPunchDisabled } from '@/lib/punch-access';
 import type { PunchSource } from '@/lib/punch-bus';
 import type { LocationFailure, PunchStatusResponse } from '@/lib/actions/punch';
 import type { ToastKind } from '@/components/ui/Toast';
@@ -55,6 +56,7 @@ interface PunchClock {
   state: PunchStatusResponse | null;
   loading: boolean;
   pending: boolean;
+  webPunchAllowed: boolean;
   isIn: boolean;
   worked: number;
   permission: PermissionState | 'unsupported' | null;
@@ -83,6 +85,9 @@ function usePunchClock(
   const [loadError, setLoadError] = useState<string | null>(null);
   const alive = useRef(true);
   const warnedSweep = useRef<string | null>(null);
+  const lastLoadedPunch = useRef<string | undefined>(undefined);
+  const loadSequence = useRef(0);
+  const webPunchAllowed = !!state && allowsWebPunch(state.punchAccess);
 
   useEffect(() => {
     alive.current = true;
@@ -92,32 +97,42 @@ function usePunchClock(
   }, []);
 
   const load = useCallback(async () => {
+    const sequence = ++loadSequence.current;
     try {
       const next = await getPunchStatus();
-      if (alive.current) {
+      if (alive.current && sequence === loadSequence.current) {
+        const key = `${next.lastPunchAt ?? ''}:${next.lastKind ?? ''}:${next.attendanceClosed ?? false}:${next.workedMinutes}`;
+        if (lastLoadedPunch.current !== undefined && lastLoadedPunch.current !== key) {
+          setVersion((n) => n + 1);
+          // The card owns history and month totals; the topbar only needs its own status.
+          if (source === 'card') {
+            router.refresh();
+          }
+        }
+        lastLoadedPunch.current = key;
         setState(next);
         setLoadError(null);
       }
     } catch (reason) {
-      if (alive.current) {
+      if (alive.current && sequence === loadSequence.current) {
         setLoadError(reason instanceof Error ? reason.message : 'Could not load your clock.');
       }
     } finally {
-      if (alive.current) {
+      if (alive.current && sequence === loadSequence.current) {
         setLoading(false);
       }
     }
-  }, []);
+  }, [router, source]);
 
   useEffect(() => {
     void load();
-    // Refresh a tab left open overnight and tabs returning from the background.
+    // Pick up terminal punches as well as tabs left open overnight or returning from the background.
     const refresh = () => {
       if (document.visibilityState === 'visible') {
         void load();
       }
     };
-    const timer = setInterval(refresh, 60_000);
+    const timer = setInterval(refresh, 15_000);
     window.addEventListener('focus', refresh);
     document.addEventListener('visibilitychange', refresh);
     return () => {
@@ -138,13 +153,19 @@ function usePunchClock(
     [source, load],
   );
 
-  // Read the permission on mount and keep it in sync: if the user fixes it in
-  // browser settings, the warning should clear without a page reload.
+  // Watch browser location only after the server allows web punching. Device-only
+  // employees do not need a browser permission or a location warning.
   useEffect(() => {
+    if (!webPunchAllowed) {
+      setPermission(null);
+      setBlocked(null);
+      return;
+    }
+    let cancelled = false;
     let stop: (() => void) | undefined;
     void (async () => {
       const current = await locationPermission();
-      if (!alive.current) {
+      if (!alive.current || cancelled) {
         return;
       }
       setPermission(current);
@@ -157,8 +178,11 @@ function usePunchClock(
           const status = await navigator.permissions.query({
             name: 'geolocation' as PermissionName,
           });
+          if (!alive.current || cancelled) {
+            return;
+          }
           const onChange = () => {
-            if (!alive.current) {
+            if (!alive.current || cancelled) {
               return;
             }
             setPermission(status.state);
@@ -173,8 +197,11 @@ function usePunchClock(
         }
       }
     })();
-    return () => stop?.();
-  }, []);
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [webPunchAllowed]);
 
   // Ticking elapsed time while a session is open. Recomputed from the punch
   // timestamp on every tick rather than incremented, so a backgrounded tab
@@ -197,20 +224,43 @@ function usePunchClock(
     if (!state || pending) {
       return;
     }
+    if (!webPunchAllowed) {
+      toast(webPunchDisabled, 'info');
+      return;
+    }
+    if (state.attendanceClosed) {
+      toast('Today’s attendance was corrected or closed by a sweep. Ask HR to review it.', 'info');
+      return;
+    }
     setPending(true);
     try {
-      // Called straight out of the click so the browser will actually raise its
-      // permission prompt — outside a user gesture it silently refuses to.
-      const [fix, current] = await Promise.all([requestCoords(), getPunchStatus()]);
+      // Refresh access before requesting location in case an admin changed it
+      // while this dashboard was open.
+      const current = await getPunchStatus();
       if (!alive.current) {
         return;
       }
       setState(current);
+      if (!allowsWebPunch(current.punchAccess)) {
+        toast(webPunchDisabled, 'info');
+        return;
+      }
+      if (current.attendanceClosed) {
+        toast(
+          'Today’s attendance was corrected or closed by a sweep. Ask HR to review it.',
+          'info',
+        );
+        return;
+      }
       if (current.lastNightSweep && warnedSweep.current !== current.lastNightSweep.closedAt) {
         toast(current.lastNightSweep.message, 'info');
         warnedSweep.current = current.lastNightSweep.closedAt;
       }
 
+      const fix = await requestCoords();
+      if (!alive.current) {
+        return;
+      }
       if (!fix.ok) {
         setBlocked(fix.reason);
         if (current.requireLocation) {
@@ -259,12 +309,13 @@ function usePunchClock(
         setPending(false);
       }
     }
-  }, [state, pending, toast, load, router, source]);
+  }, [state, pending, webPunchAllowed, toast, load, router, source]);
 
   return {
     state,
     loading,
     pending,
+    webPunchAllowed,
     isIn,
     worked: (state?.workedMinutes ?? 0) + (isIn ? openFor : 0),
     permission,

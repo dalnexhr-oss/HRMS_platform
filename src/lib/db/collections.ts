@@ -1,8 +1,10 @@
 // MongoDB collection names and stored document types.
 import { db } from '@/lib/db/mongo';
+import type { SessionClaims } from '../auth/session';
 import type { Collection, Decimal128, Document } from 'mongodb';
 import type { AppRole } from '@/types/database';
 import type { RequestPerson } from '@/types/requests';
+import type { PunchAccess } from '@/types/punch';
 
 const collections = {
   // Identity: credentials, role, and tab access share the user document.
@@ -101,6 +103,8 @@ interface UserDoc {
 
   // Links to the employees collection. Null for staff with no employee record.
   employee_id: string | null;
+  // Missing on legacy accounts means both web and device punching remain available.
+  punch_access?: PunchAccess;
 
   // When true, immediately denies authentication even if JWT session cookie is unexpired.
   disabled: boolean;
@@ -267,21 +271,20 @@ async function usersCollection(): Promise<Collection<UserDoc>> {
   return (await db()).collection<UserDoc>(collections.users);
 }
 
-export {
-  collections,
-  toPublicUser,
-  collection,
-  usersCollection,
-  type CollectionName,
-  type BaseDoc,
-  type UserDoc,
-  type RequestRouteDoc,
-  type RequestDoc,
-  type PublicUser,
-  type DateOnly,
-  type TimeOnly,
-  type BranchDoc,
-  type DepartmentDoc,
-  type EmployeeStatus,
-  type EmployeeDoc,
+export { collections, toPublicUser, collection, usersCollection };
+
+export type {
+  CollectionName,
+  BaseDoc,
+  SessionClaims,
+  UserDoc,
+  RequestRouteDoc,
+  RequestDoc,
+  PublicUser,
+  DateOnly,
+  TimeOnly,
+  BranchDoc,
+  DepartmentDoc,
+  EmployeeStatus,
+  EmployeeDoc,
 };

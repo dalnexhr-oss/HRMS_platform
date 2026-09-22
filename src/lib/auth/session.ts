@@ -6,6 +6,7 @@ import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { sessionCookie } from '@/lib/auth/session-shared';
 import { usersCollection } from '@/lib/db/collections';
+import { readPunchAccess } from '@/lib/punch-access';
 import { signSession, verifySession, sessionMaxAgeSeconds } from '@/lib/auth/jwt';
 import type { SessionClaims } from '@/lib/auth/jwt';
 import type { UserDoc } from '@/lib/db/collections';
@@ -44,6 +45,7 @@ function toProfile(user: UserDoc): Profile {
     role: user.role,
     branch_id: user.branch_id,
     employee_id: user.employee_id,
+    punch_access: readPunchAccess(user.punch_access),
     avatar: user.avatar,
     // Profile.created_at is a string in the app's types (it came from JSON).
     created_at: user.created_at.toISOString(),
@@ -163,5 +165,6 @@ export {
   getSessionUser,
   refreshSession,
   isStaffRole,
-  type SessionContext,
 };
+
+export type { SessionClaims, SessionContext };

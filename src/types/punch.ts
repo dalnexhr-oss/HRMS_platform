@@ -1,4 +1,5 @@
 type PunchKind = 'in' | 'out';
+type PunchAccess = 'both' | 'web' | 'zkteco';
 
 interface NightSweepNotice {
   workDate: string;
@@ -15,6 +16,7 @@ interface PunchCoords {
 
 interface PunchStatus {
   status: PunchKind;
+  punchAccess: PunchAccess;
   lastPunchAt: string | null;
   lastKind: PunchKind | null;
   /** Null when coordinates or an office location were unavailable. */
@@ -26,6 +28,8 @@ interface PunchStatus {
   geofenceConfigured: boolean;
   requireLocation: boolean;
   lastNightSweep: NightSweepNotice | null;
+  /** A corrected/swept day needs HR review before further attendance changes. */
+  attendanceClosed?: boolean;
 }
 
 interface PunchRecord {
@@ -43,4 +47,12 @@ interface PunchResult {
   workedMinutes: number;
 }
 
-export type { PunchKind, NightSweepNotice, PunchCoords, PunchStatus, PunchRecord, PunchResult };
+export type {
+  PunchKind,
+  PunchAccess,
+  NightSweepNotice,
+  PunchCoords,
+  PunchStatus,
+  PunchRecord,
+  PunchResult,
+};

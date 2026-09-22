@@ -124,6 +124,12 @@ const policies: Partial<Record<string, CollectionPolicy>> = {
     read: (s) => (s.isStaff ? {} : { _id: s.userId }),
     write: (s) => (s.isAdminHr ? {} : { _id: s.userId }),
     insert: insertStaff,
+    // Attendance access must pass the role hierarchy guard in actions/users.ts.
+    check: (s, fields) =>
+      !s.isSystem &&
+      Object.keys(fields).some((key) => key === 'punch_access' || key.startsWith('punch_access.'))
+        ? 'Change punch access through user administration.'
+        : null,
   },
 
   // org
@@ -359,4 +365,5 @@ function policyFor(collection: string): CollectionPolicy | undefined {
   return policies[collection];
 }
 
-export { policies, policyFor, type ScopeFilter, type CollectionPolicy };
+export { policies, policyFor };
+export type { ScopeFilter, CollectionPolicy };

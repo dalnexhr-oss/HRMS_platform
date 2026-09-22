@@ -1775,6 +1775,197 @@ tbody tr:hover {
   color: var(--od);
 }
 
+/* Users fit the main column; long identities wrap instead of widening the page. */
+.users-screen {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+.users-screen > * {
+  min-width: 0;
+}
+.users-screen .users-toolbar {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: 0;
+}
+.users-table-card {
+  width: 100%;
+  min-width: 0;
+  container: user-accounts / inline-size;
+}
+.users-table {
+  width: 100%;
+  table-layout: fixed;
+}
+.users-col-account {
+  width: 26%;
+}
+.users-col-role {
+  width: 16%;
+}
+.users-col-employee {
+  width: 17%;
+}
+.users-col-punch {
+  width: 19%;
+}
+.users-col-signin {
+  width: 12%;
+}
+.users-col-actions {
+  width: 10%;
+}
+.users-table th,
+.users-table td {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.users-table th {
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+}
+.users-table td {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+.users-email,
+.users-employee-code {
+  display: block;
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.users-select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 38px;
+  padding: 7px 8px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--card-solid);
+  color: var(--ink);
+  font: inherit;
+}
+.users-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.users-select:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+.users-actions {
+  position: relative;
+  min-width: 0;
+}
+.users-actions .users-actions-toggle {
+  width: 100%;
+  min-height: 38px;
+  justify-content: center;
+  padding: 7px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.users-actions-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  width: min(220px, calc(100vw - 48px));
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--card-solid);
+  box-shadow: var(--shadow);
+}
+.users-actions-menu .btn {
+  width: 100%;
+  min-width: 0;
+  justify-content: flex-start;
+  white-space: normal;
+  text-align: left;
+  border-color: transparent;
+}
+.users-actions-menu .users-delete {
+  color: var(--ab);
+}
+
+/* Respond to the actual content width, including space taken by the sidebar. */
+@container user-accounts (max-width: 960px) {
+  .users-select,
+  .users-actions .users-actions-toggle {
+    min-height: 44px;
+  }
+  .users-table,
+  .users-table tbody {
+    display: block;
+  }
+  .users-table colgroup {
+    display: none;
+  }
+  .users-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    clip-path: inset(50%);
+    overflow: hidden;
+  }
+  .users-table tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 24px;
+    padding: 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .users-table tr:last-child {
+    border-bottom: 0;
+  }
+  .users-table td {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+  .users-table td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 7px;
+    font: 600 10px/1.5 var(--mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .users-table .users-account,
+  .users-table .users-actions-cell,
+  .users-table .users-empty td {
+    grid-column: 1 / -1;
+  }
+  .users-table .users-actions-cell {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .users-actions-cell .users-actions {
+    width: min(100%, 160px);
+  }
+  .users-table .users-account::before,
+  .users-table .users-actions-cell::before,
+  .users-table .users-empty td::before {
+    display: none;
+  }
+}
+@container user-accounts (max-width: 480px) {
+  .users-table tr {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 16px;
+  }
+}
+
 /* employees */
 .employees-toolbar {
   flex-wrap: wrap;

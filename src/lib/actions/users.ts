@@ -7,6 +7,7 @@ import { requireRoles } from '@/lib/actions/guards';
 import { deleteUserAccounts } from '@/lib/actions/user-deletion';
 import { tierLabel, tierOf } from '@/lib/roles';
 import { isEmployeeAreaRole } from '@/lib/auth';
+import { isPunchAccess, readPunchAccess } from '@/lib/punch-access';
 // validatePassword enforces length limits (10 min, 200 max) before hashing.
 import { hashPassword, validatePassword } from '@/lib/auth/password';
 import { createResetToken, resetTokenTtlMinutes } from '@/lib/auth/reset-tokens';
@@ -17,6 +18,7 @@ import { db, isMongoConfigured, withTransaction } from '@/lib/db/mongo';
 import { escapeHtml, isEmailConfigured, sendEmail } from '@/lib/email';
 import type { EmployeeDoc, UserDoc } from '@/lib/db/collections';
 import type { AppRole } from '@/types/database';
+import type { PunchAccess } from '@/types/punch';
 
 interface ActionResult {
   ok: boolean;
@@ -56,6 +58,7 @@ interface ManagedUser {
   employeeId: string | null;
   employeeCode: string | null;
   employeeName: string | null;
+  punchAccess: PunchAccess;
   lastSignInAt: string | null;
   createdAt: string;
   // When true, login and active sessions are denied.
@@ -146,6 +149,7 @@ async function listUsers(): Promise<
         employeeId: u.employee_id,
         employeeCode: label?.code ?? null,
         employeeName: label?.name ?? null,
+        punchAccess: readPunchAccess(u.punch_access),
         lastSignInAt: u.last_sign_in_at ? u.last_sign_in_at.toISOString() : null,
         createdAt: u.created_at.toISOString(),
         disabled: u.disabled,
@@ -181,6 +185,11 @@ async function createUser(formData: FormData): Promise<ActionResult> {
   const fullName = String(formData.get('full_name') ?? '').trim();
   const role = String(formData.get('role') ?? '').trim() as AppRole;
   const employeeId = String(formData.get('employee_id') ?? '').trim() || null;
+  const punchAccess = formData.get('punch_access') ?? 'both';
+
+  if (!isPunchAccess(punchAccess)) {
+    return { ok: false, error: 'Choose web buttons, ZKTeco, or both for punch access.' };
+  }
 
   if (!emailRe.test(email)) {
     return { ok: false, error: 'Enter a valid email address.' };
@@ -227,6 +236,7 @@ async function createUser(formData: FormData): Promise<ActionResult> {
       branch_id: null,
       avatar: null,
       employee_id: employeeId,
+      punch_access: punchAccess,
       disabled: false,
       token_version: 0,
       tab_access: {},
@@ -248,6 +258,46 @@ async function createUser(formData: FormData): Promise<ActionResult> {
       return { ok: false, error: `An account already exists for ${email}.` };
     }
     return { ok: false, error: e instanceof Error ? e.message : 'Could not create the user.' };
+  }
+}
+
+/** Apply attendance access on the next request without changing the role or employee link. */
+async function updateUserPunchAccess(
+  userId: string,
+  punchAccess: PunchAccess,
+): Promise<ActionResult> {
+  const gate = await requireRoles(userAdminRoles, 'Changing punch access');
+  if (!gate.ok) {
+    return gate;
+  }
+  if (!isMongoConfigured()) {
+    return databaseUnavailable();
+  }
+  if (!isPunchAccess(punchAccess)) {
+    return { ok: false, error: 'Choose a valid punch access option.' };
+  }
+
+  try {
+    const allowed = await assertMayActOnTarget(userId, gate.role);
+    if (!allowed.ok) {
+      return allowed;
+    }
+    const users = await usersCollection();
+    const result = await users.updateOne(
+      { _id: userId, role: allowed.target.role },
+      { $set: { punch_access: punchAccess, updated_at: new Date() } },
+    );
+    if (result.matchedCount !== 1) {
+      return { ok: false, error: 'That account changed. Refresh the user list and try again.' };
+    }
+    revalidatePath('/users');
+    revalidatePath('/me');
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'Could not update punch access.',
+    };
   }
 }
 
@@ -533,10 +583,11 @@ export {
   listUsers,
   createUser,
   updateUserRole,
+  updateUserPunchAccess,
   deleteUser,
   setUserDisabled,
   sendPasswordReset,
   setUserPassword,
-  type ActionResult,
-  type ManagedUser,
 };
+
+export type { ManagedUser, ActionResult };

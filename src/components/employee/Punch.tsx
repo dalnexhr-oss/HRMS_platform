@@ -9,8 +9,19 @@ import { usePunchClock, clock, duration, failureText } from './usePunchClock';
 
 function Punch({ id }: { id?: string }) {
   const { toast, toastNode } = useToast();
-  const { state, loading, pending, isIn, worked, permission, blocked, loadError, version, punch } =
-    usePunchClock('card', toast);
+  const {
+    state,
+    loading,
+    pending,
+    webPunchAllowed,
+    isIn,
+    worked,
+    permission,
+    blocked,
+    loadError,
+    version,
+    punch,
+  } = usePunchClock('card', toast);
 
   return (
     <div className="card punch" id={id}>
@@ -63,7 +74,8 @@ function Punch({ id }: { id?: string }) {
               type="button"
               className={`btn punch-btn${isIn ? ' danger' : ' primary'}`}
               onClick={() => void punch()}
-              disabled={pending || !state}
+              disabled={pending || !state || !webPunchAllowed}
+              aria-describedby={!webPunchAllowed ? 'device-punch-help' : undefined}
               aria-busy={pending}
             >
               {isIn ? 'Punch out' : 'Punch in'}
@@ -71,26 +83,32 @@ function Punch({ id }: { id?: string }) {
           </div>
         )}
 
-        {/* Location state, loudest first. A blocked permission is the one thing
-            that will stop a punch dead, so it is stated before the button is
-            ever pressed — not discovered afterwards. */}
-        {state && (blocked === 'denied' || permission === 'denied') ? (
+        {state && !webPunchAllowed && (
+          <p id="device-punch-help" className="punch-note muted">
+            Use the ZKTeco machine to punch in or out. Your attendance and worked time appear here.
+          </p>
+        )}
+
+        {/* Browser location applies only to employees with web punch access. */}
+        {webPunchAllowed && state && (blocked === 'denied' || permission === 'denied') ? (
           <p className="punch-alert is-bad" role="alert">
             <b>Location is blocked.</b> {failureText.denied}
             {state.requireLocation ? ' You cannot punch until it is allowed.' : ''}
           </p>
-        ) : state && blocked ? (
+        ) : webPunchAllowed && state && blocked ? (
           <p className="punch-alert is-warn" role="alert">
             {failureText[blocked]}
           </p>
-        ) : state?.requireLocation && (permission === 'prompt' || permission === 'unsupported') ? (
+        ) : webPunchAllowed &&
+          state?.requireLocation &&
+          (permission === 'prompt' || permission === 'unsupported') ? (
           <p className="punch-alert is-info">
             Your browser will ask for your location when you punch. It is required, and it is only
             used to mark the punch as at-office or off-site — never to track you.
           </p>
         ) : null}
 
-        {state && !state.geofenceConfigured ? (
+        {webPunchAllowed && state && !state.geofenceConfigured ? (
           <p className="punch-note muted">
             No office location is configured yet, so punches are recorded but not marked at-office
             or off-site. An admin can set one under Settings.
