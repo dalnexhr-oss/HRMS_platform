@@ -6,8 +6,11 @@ import ts from 'typescript';
 // Match the application's alias and relative TypeScript imports in node:test.
 registerHooks({
   resolve(specifier, context, nextResolve) {
-    if (specifier.startsWith('@/')) {
-      const base = new URL(`../src/${specifier.slice(2)}`, import.meta.url).href;
+    if (specifier.startsWith('@/') || specifier.startsWith('@zkteco/')) {
+      const relative = specifier.startsWith('@zkteco/')
+        ? `../zkteco/${specifier.slice(8)}`
+        : `../src/${specifier.slice(2)}`;
+      const base = new URL(relative, import.meta.url).href;
       const url = [`${base}.ts`, `${base}.tsx`].find((candidate) =>
         existsSync(fileURLToPath(candidate)),
       );

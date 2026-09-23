@@ -4,6 +4,7 @@
 // Keep cross-field $expr constraints, format checks, denormalised fields, and additional query
 // indexes here.
 import { BASE_SCHEMA } from './schema-base.mjs';
+import { DEVICE_COLLECTIONS } from '../zkteco/server/schema.mjs';
 
 const TEXT = { bsonType: ['string', 'null'] };
 const REQUEST_PERSON = {
@@ -191,6 +192,7 @@ const OVERRIDES = {
 const APP_ROLES = ['super_admin', 'admin', 'hr', 'manager', 'employee'];
 
 const EXTRA_COLLECTIONS = {
+  ...DEVICE_COLLECTIONS,
   // auth.users (GoTrue) + public.profiles + public.user_tab_access, merged.
   users: {
     validator: {

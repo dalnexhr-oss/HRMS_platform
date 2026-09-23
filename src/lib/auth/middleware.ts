@@ -21,9 +21,13 @@ async function updateSession(request: NextRequest) {
   // parse an HTML login page.
   const isApi = path.startsWith('/api/');
 
-  // Cron authenticates with its own bearer secret and has no browser session. The endpoint refuses
-  // requests when CRON_SECRET is unset.
-  if (path === '/api/cron' || path.startsWith('/api/cron/')) {
+  // Cron and the terminal bridge authenticate with their own bearer secrets, without a browser
+  // session. Their endpoints refuse requests when their respective secrets are unset.
+  if (
+    path === '/api/cron' ||
+    path.startsWith('/api/cron/') ||
+    path === '/api/devices/zkteco/punch'
+  ) {
     return response;
   }
 
