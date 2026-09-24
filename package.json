@@ -23,7 +23,8 @@
     "test:db": "node --import ./tests/register-typescript.mjs --test tests/integration/*.test.mjs zkteco/tests/integration/*.test.mjs",
     "check": "npm run format:check && npm run check:names && npm run lint && npm run typecheck && npm test",
     "device:inspect": "node zkteco/cli/run.mjs inspect",
-    "device:sync-users": "node zkteco/cli/run.mjs sync-users"
+    "device:sync-users": "node zkteco/cli/run.mjs sync-users",
+    "device:roster": "node zkteco/cli/roster.mjs"
   },
   "dependencies": {
     "exceljs": "^4.4.0",
