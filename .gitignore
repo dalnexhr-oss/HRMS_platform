@@ -32,3 +32,8 @@ dalnex-admin-portal.html
 reference for desktop app (1).xlsx
 # typescript
 *.tsbuildinfo
+
+# Local device configuration, roster exports, backups and durable delivery queue
+/.local/
+__pycache__/
+*.pyc

@@ -51,7 +51,7 @@ async function checkDirectory(directory) {
   }
 }
 
-for (const directory of ['src', 'scripts', 'tests']) {
+for (const directory of ['src', 'scripts', 'tests', 'zkteco']) {
   await checkDirectory(directory);
 }
 
