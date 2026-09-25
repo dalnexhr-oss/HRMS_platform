@@ -12,6 +12,9 @@
     "device:configure": "node zkteco/cli/configure.mjs",
     "device:bridge": "node zkteco/cli/run.mjs bridge",
     "device:status": "node zkteco/cli/run.mjs status",
+    "device:roster": "node zkteco/cli/roster.mjs",
+    "device:link": "node zkteco/cli/link.mjs",
+    "device:onboard": "node zkteco/cli/onboard.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "db:setup": "node --env-file=.env.local scripts/db-setup.mjs",
@@ -23,9 +26,7 @@
     "test:db": "node --import ./tests/register-typescript.mjs --test tests/integration/*.test.mjs zkteco/tests/integration/*.test.mjs",
     "check": "npm run format:check && npm run check:names && npm run lint && npm run typecheck && npm test",
     "device:inspect": "node zkteco/cli/run.mjs inspect",
-    "device:sync-users": "node zkteco/cli/run.mjs sync-users",
-    "device:roster": "node zkteco/cli/roster.mjs",
-    "device:link": "node zkteco/cli/link.mjs"
+    "device:sync-users": "node zkteco/cli/run.mjs sync-users"
   },
   "dependencies": {
     "exceljs": "^4.4.0",
