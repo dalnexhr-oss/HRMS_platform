@@ -294,6 +294,9 @@ a {
     box-shadow var(--t-fast) var(--ease),
     border-color var(--t-fast) var(--ease);
 }
+.nav a + a {
+  margin-top: 2.5px;
+}
 .nav a:hover {
   background: rgba(255, 255, 255, 0.14);
   border-color: rgba(255, 255, 255, 0.2);
@@ -2935,11 +2938,6 @@ tbody tr:hover {
 }
 .request-inbox-row:hover {
   background: var(--brand-soft);
-}
-.employee-home {
-  display: inline-flex;
-  max-width: 100%;
-  vertical-align: middle;
 }
 .employee-approval-filters,
 .employee-approval-counts {

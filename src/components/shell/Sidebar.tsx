@@ -12,115 +12,6 @@ import type { NavItem } from '@/lib/constants';
 import type { Route } from 'next';
 import type { AppRole } from '@/types/database';
 
-// Extra icons for tabs absent from Icons.tsx. Navigation rows, groups, and order come from navItems
-// in constants.ts.
-const extraIcons: Record<string, React.ReactNode> = {
-  // Magnifier over a page — reading back who edited attendance.
-  audit: (
-    <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path d="M5 3h9l4 4v4" />
-      <path d="M5 3v18h6" />
-      <circle cx="16.5" cy="16.5" r="3.5" />
-      <path d="M19 19l2.5 2.5" />
-    </svg>
-  ),
-  // Person with a plus — a joiner being brought on.
-  onboarding: (
-    <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <circle cx="10" cy="8" r="3.5" />
-      <path d="M3.5 20a6.5 6.5 0 0113 0" />
-      <path d="M18 6v6M15 9h6" />
-    </svg>
-  ),
-  // Door with an outbound arrow.
-  exits: (
-    <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path d="M14 3H6a1 1 0 00-1 1v16a1 1 0 001 1h8" />
-      <path d="M18 12H10" />
-      <path d="M15 9l3 3-3 3" />
-    </svg>
-  ),
-  // Two people over a dashboard line — the HR overview.
-  hr: (
-    <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <circle cx="9" cy="7" r="3" />
-      <path d="M3 19a6 6 0 0112 0" />
-      <path d="M16.5 4.5a3 3 0 010 5.5" />
-      <path d="M17 13.5a6 6 0 014 5.5" />
-    </svg>
-  ),
-  // Hourglass — entitlement running down.
-  leave: (
-    <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path d="M7 3h10M7 21h10" />
-      <path d="M7 3v3.5L12 12l-5 5.5V21" />
-      <path d="M17 3v3.5L12 12l5 5.5V21" />
-    </svg>
-  ),
-  // Receipt.
-  reimbursements: (
-    <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2z" />
-      <path d="M9 7h6" />
-      <path d="M9 11h6" />
-    </svg>
-  ),
-  // Monitor + stand — IT assets.
-  assets: (
-    <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <rect x="3" y="4" width="18" height="12" rx="1.5" />
-      <path d="M9 20h6" />
-      <path d="M12 16v4" />
-    </svg>
-  ),
-  // Box — inventory.
-  items: (
-    <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path d="M3 7l9-4 9 4-9 4-9-4z" />
-      <path d="M3 7v10l9 4 9-4V7" />
-      <path d="M12 11v10" />
-    </svg>
-  ),
-  // Wide screen on a stand — the wall-mounted attendance board.
-  tv: (
-    <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <rect x="2.5" y="4" width="19" height="13" rx="2" />
-      <path d="M8 21h8" />
-      <path d="M12 17v4" />
-    </svg>
-  ),
-  users: (
-    <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <circle cx="9" cy="8" r="3.2" />
-      <path d="M2.8 20a6.2 6.2 0 0112.4 0" />
-      <path d="M16.5 11.2a3 3 0 000-6" />
-      <path d="M18 20a6 6 0 00-3-5.2" />
-    </svg>
-  ),
-  // Arrow into a tray — the Excel register importer.
-  import: (
-    <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path d="M12 3v12" />
-      <path d="M8 7l4-4 4 4" />
-      <path d="M4 15v4a2 2 0 002 2h12a2 2 0 002-2v-4" />
-    </svg>
-  ),
-};
-
-// Shown only if a NAV row is added without a mark. Deliberately neutral: the
-// previous fallback was the Import arrow, so any unkeyed screen claimed to be
-// an importer.
-const fallbackIcon = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-    <circle cx="12" cy="12" r="8" />
-  </svg>
-);
-
-// Icon for a nav slug, falling back per-screen rather than to one shared mark.
-function iconFor(slug: string) {
-  return icons[slug] ?? extraIcons[slug] ?? fallbackIcon;
-}
-
 // Drop the links this role would only be bounced from — the static gate in constants.ts AND
 // whatever the super admin has switched off on /access. Hiding the link is cosmetic; the (portal)
 // layout is what actually blocks the page.
@@ -213,7 +104,7 @@ function Sidebar({
       />
       <aside className={`sidebar${open ? ' open' : ''}`}>
         <div className="brand">
-          <Brand priority />
+          <Brand href="/today" priority onClick={() => setOpen(false)} />
         </div>
         <nav className="nav" aria-label="Primary">
           {/* Walk groupOrder, not the items: it fixes header order, and a group
@@ -239,7 +130,7 @@ function Sidebar({
                     prefetch={false}
                     aria-current={active === item.slug}
                   >
-                    {iconFor(item.slug)}
+                    {icons[item.slug]}
                     <span className="txt">{item.label}</span>
                   </Link>
                 ))}

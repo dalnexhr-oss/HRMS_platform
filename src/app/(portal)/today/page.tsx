@@ -5,6 +5,11 @@ import { currentPeriodMonth, getActivityFeed, getCelebrationsToday, getCompOffAd
 import type { Loaded } from '@/components/today/TodayBoard';
 import type { SettingView } from '@/lib/queries';
 import type { MarkWatch, RegisterEmployee } from '@/types/domain';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Main dashboard — Dalnex HRMS',
+};
 
 // Read the current date on each request, rather than freezing it at build time.
 export const dynamic = 'force-dynamic';

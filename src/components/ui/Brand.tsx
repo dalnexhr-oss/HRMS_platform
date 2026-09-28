@@ -1,7 +1,9 @@
 import Image from 'next/image';
+import Link from 'next/link';
+import type { Route } from 'next';
+import type { MouseEventHandler } from 'react';
 
-// Shared logo wordmark. CSS inverts the dark artwork on the sidebar and scales it using its
-// original 3334×1142 aspect ratio.
+// The entire wordmark links home. The default route resolves the dashboard by account role.
 
 const intrinsicW = 234;
 const intrinsicH = 80;
@@ -10,12 +12,22 @@ function Brand({
   // Accessible name; the visible "HRMS." suffix is decorative alongside it.
   label = 'Dalnex HRMS',
   priority = false,
+  href = '/',
+  onClick,
 }: {
   label?: string;
   priority?: boolean;
+  href?: Route;
+  onClick?: MouseEventHandler<HTMLAnchorElement>;
 }) {
   return (
-    <span className="brandmark">
+    <Link
+      className="brandmark"
+      href={href}
+      aria-label={`${label} — go to dashboard`}
+      prefetch={false}
+      onClick={onClick}
+    >
       <Image
         src="/logo.png"
         alt={label}
@@ -27,7 +39,7 @@ function Brand({
       <span className="brandmark-txt" aria-hidden="true">
         HRMS<span>.</span>
       </span>
-    </span>
+    </Link>
   );
 }
 

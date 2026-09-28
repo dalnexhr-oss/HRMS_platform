@@ -48,6 +48,11 @@ function EmployeeApprovals({
   return (
     <div className="wrap grid employee-approvals">
       {toastNode}
+      <div>
+        <Link href="/me" className="btn quiet">
+          ← Back to dashboard
+        </Link>
+      </div>
       <div className="card">
         <div className="hd">
           <h3>My approvals</h3>

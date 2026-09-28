@@ -227,7 +227,7 @@ async function MePage() {
         </div>
         <div className="card kpi">
           <div className="lab">
-            <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Open tickets</span>
+            <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Opened tickets</span>
           </div>
           <div className="val" style={{ color: openTickets ? 'var(--lm)' : 'var(--p)' }}>
             {openTickets}

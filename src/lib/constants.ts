@@ -210,7 +210,7 @@ interface NavItem {
 // Sidebar rows in group order. Keep Users and Import here so titles and access rules use the same
 // slugs. Personal account settings belong in the profile menu.
 const navItems: NavItem[] = [
-  { slug: 'today', label: 'Today', group: groups.ATTENDANCE },
+  { slug: 'today', label: 'Main dashboard', group: groups.ATTENDANCE },
   { slug: 'register', label: 'Monthly register', group: groups.ATTENDANCE },
   { slug: 'audit', label: 'Attendance audit', group: groups.ATTENDANCE },
   { slug: 'approvals', label: 'Approvals', group: groups.ATTENDANCE },
@@ -258,18 +258,18 @@ const tabRoleAccess: Record<string, readonly string[]> = {
 // Static titles and fallback subtitles by slug. pageHeader supplies dates and counts from live
 // data.
 const tabTitles: Record<string, [string, string]> = {
-  today: ['Today', 'Live attendance · IST'],
+  today: ['Main dashboard', 'Live attendance  IST'],
   register: ['Monthly register', 'Attendance by month'],
   audit: ['Attendance audit', 'Who edited attendance & why'],
   'leave-management': ['Leave Management', 'Manage employee leave requests'],
-  leave: ['Leave salary', '15-day paid leave & annual payout'],
+  leave: ['Leave salary', 'Leave salary & payroll'],
   exits: ['Exits', 'Clearance, settlement & documents'],
-  onboarding: ['Onboarding', 'Joiner checklists by owner'],
+  onboarding: ['Onboarding', 'Joiner checklist & documents'],
   documents: ['Documents', 'Employee document register'],
   payroll: ['Payroll', 'Salary runs & payslips'],
-  reimbursements: ['Reimbursements', 'Expense claims · approve & pay'],
+  reimbursements: ['Reimbursements', 'Employee claims & approvals'],
   employees: ['Employees', 'Staff directory'],
-  assets: ['Asset management', 'Company IT assets'],
+  assets: ['Asset management', 'IT assets'],
   items: ['Inventory management', 'Stock, tools & assignments'],
   policies: ['Company policies', 'Published to employee dashboards'],
   approvals: ['Approvals', 'Leave & duty requests'],
@@ -385,8 +385,6 @@ export {
   tabTitles,
   pageHeader,
   noticeRetentionDays,
-  type DocumentCategory,
-  type NavGroup,
-  type NavItem,
-  type TopbarStats,
 };
+
+export type { AttendanceStatus, TopbarStats, DocumentCategory, NavGroup, NavItem };

@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
 import { getSession, isStaffRole } from '@/lib/auth';
 import { SignOutButton } from '@/components/auth/SignOutButton';
 import { NotificationBell } from '@/components/shell/NotificationBell';
@@ -31,10 +30,8 @@ async function EmployeeLayout({ children }: { children: React.ReactNode }) {
     <div className="main">
       <div className="topbar">
         <div>
-          <Link href="/me" aria-label="Employee dashboard" className="employee-home">
-            <Brand priority />
-          </Link>
-          <div className="sub">Employee self-service</div>
+          <Brand href="/me" priority />
+          <div className="sub">Employee Dashboard</div>
         </div>
         <div className="grow" />
         <ApprovalsShortcut />
