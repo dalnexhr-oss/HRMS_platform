@@ -1,24 +1,24 @@
 // Server-side data queries. Throw database failures through fail() so callers can distinguish
 // errors from legitimately empty results.
-import { toNumber } from '@/lib/db/money';
+import { toNumber } from '@/lib/db/decimal-conversions';
 import { routingView } from '@/lib/requests/routing-view';
-import { collections } from '@/lib/db/collections';
-import { createClient } from '@/lib/db/server';
+import { collections } from '@/lib/db/collection-registry';
+import { createClient } from '@/lib/db/server-client';
 import { presentCredit } from '@/lib/leave-salary';
 import { presentDaySurplus } from '@/lib/worked-time';
-import { isMongoConfigured } from '@/lib/db/mongo';
-import { deleteExpiredNotices } from '@/lib/db/scheduler';
+import { isMongoConfigured } from '@/lib/db/mongodb-connection';
+import { deleteExpiredNotices } from '@/lib/db/scheduled-jobs';
 import { minutesToHHMM, trimTime } from '@/lib/format';
 import { requiredDocumentCategories } from '@/lib/constants';
 import { defaultWeekOffPolicy, policyFromSettings } from '@/lib/week-off';
-import { afterParentCheck, NotSignedInError, scoped } from '@/lib/db/repo';
-import { queryErrorMessage } from '@/lib/db/errors';
+import { afterParentCheck, NotSignedInError, scoped } from '@/lib/db/scoped-repository';
+import { queryErrorMessage } from '@/lib/db/query-errors';
 import type { WeekOffPolicy } from '@/lib/week-off';
 import type { RequestRouting } from '@/types/requests';
 import type { TopbarStats } from '@/lib/constants';
 import type { RegisterEmployee, PayslipRow, DayCell, TodayKpis, Celebration, PunchLogRow } from '@/types/domain';
 import type { Policy, LeaveType, RequestType } from '@/types/database';
-import type { BranchDoc, DepartmentDoc, EmployeeDoc, EmployeeStatus, UserDoc } from '@/lib/db/collections';
+import type { BranchDoc, DepartmentDoc, EmployeeDoc, EmployeeStatus, UserDoc } from '@/lib/db/collection-registry';
 import type { TabAccess } from '@/lib/access';
 import type { QueryError } from '@/types/query';
 
@@ -1986,7 +1986,7 @@ async function getAssets(): Promise<AssetRow[]> {
     fail('getAssets: could not load assets', res.error);
   }
   // purchase_cost is stored as Decimal128 — money is never a float at rest
-  // (lib/db/money.ts). The screen only displays it, so widen to a number here
+  // (lib/db/decimal-conversions.ts). The screen only displays it, so widen to a number here
   // rather than leaking a BSON type into a client component.
   const rows = (res.data ?? []) as unknown as Array<
     Omit<AssetRow, 'purchase_cost'> & {

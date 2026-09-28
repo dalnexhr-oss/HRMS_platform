@@ -4,10 +4,10 @@
  * Append-only document signatures. Read the timestamp, IP, and user agent on the server; clients
  * provide only the signature content.
  */
-import { queryErrorCodes } from '@/lib/db/errors';
+import { queryErrorCodes } from '@/lib/db/query-errors';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
-import { createClient } from '@/lib/db/server';
+import { createClient } from '@/lib/db/server-client';
 import { getSession } from '@/lib/auth';
 import { requireDb, wroteNothing } from '@/lib/actions/guards';
 

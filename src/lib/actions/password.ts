@@ -6,8 +6,8 @@ import { redirect } from 'next/navigation';
 import { getSession, createSession, destroySession, revokeAllSessions } from '@/lib/auth/session';
 import { hashPassword, validatePassword, verifyPassword } from '@/lib/auth/password';
 import { consumeResetToken, createResetToken, resetTokenTtlMinutes } from '@/lib/auth/reset-tokens';
-import { usersCollection } from '@/lib/db/collections';
-import { isMongoConfigured } from '@/lib/db/mongo';
+import { usersCollection } from '@/lib/db/collection-registry';
+import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { escapeHtml, isEmailConfigured, sendEmail } from '@/lib/email';
 import { appOrigin, originNotConfigured } from '@/lib/auth/origin';
 

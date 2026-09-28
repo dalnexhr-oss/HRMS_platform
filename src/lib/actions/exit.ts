@@ -2,12 +2,12 @@
 
 // Exit stages: initiated → clearance → settlement → completed. Disable the login only at completion
 // so the employee retains access during clearance and settlement.
-import { queryErrorCodes } from '@/lib/db/errors';
+import { queryErrorCodes } from '@/lib/db/query-errors';
 import { revalidatePath } from 'next/cache';
 import { todayIST } from '@/lib/format';
-import { toMoney } from '@/lib/db/money';
+import { toMoney } from '@/lib/db/decimal-conversions';
 import { notifyEmployee } from '@/lib/notify';
-import { createClient } from '@/lib/db/server';
+import { createClient } from '@/lib/db/server-client';
 import { renderLetterPdf } from '@/lib/documents/letters';
 import { deactivateEmployee } from '@/lib/actions/employees';
 import { uploadFileService } from '@/lib/storage';

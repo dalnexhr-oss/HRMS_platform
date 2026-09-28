@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/db/server';
+import { createClient } from '@/lib/db/server-client';
 import { requireRoles, wroteNothing } from '@/lib/actions/guards';
 
 // Upsert a setting without coercing its value. Staff authorization protects payroll, scheduling,

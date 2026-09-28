@@ -3,7 +3,7 @@
 // Recipients may only update their own notification read state. The collection policy supplies
 // recipient scoping.
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/db/server';
+import { createClient } from '@/lib/db/server-client';
 import { requireDb } from '@/lib/actions/guards';
 
 interface ActionResult {

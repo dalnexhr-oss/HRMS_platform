@@ -2,8 +2,8 @@
 // SHA-256 digest. Delete consumed tokens and expire unused ones.
 import 'server-only';
 import { createHash, randomBytes } from 'node:crypto';
-import { db } from '@/lib/db/mongo';
-import { usersCollection } from '@/lib/db/collections';
+import { db } from '@/lib/db/mongodb-connection';
+import { usersCollection } from '@/lib/db/collection-registry';
 
 // How long a reset link stays valid. Short by design.
 const resetTokenTtlMinutes = 60;

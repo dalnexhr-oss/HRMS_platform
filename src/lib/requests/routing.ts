@@ -1,11 +1,11 @@
 import 'server-only';
 import { getSession } from '@/lib/auth';
-import { collections, usersCollection } from '@/lib/db/collections';
-import { db } from '@/lib/db/mongo';
-import { scoped } from '@/lib/db/repo';
+import { collections, usersCollection } from '@/lib/db/collection-registry';
+import { db } from '@/lib/db/mongodb-connection';
+import { scoped } from '@/lib/db/scoped-repository';
 import { notifyProfiles } from '@/lib/notify';
 import { isStaffRole } from '@/lib/roles';
-import type { EmployeeDoc, RequestDoc, RequestRouteDoc } from '@/lib/db/collections';
+import type { EmployeeDoc, RequestDoc, RequestRouteDoc } from '@/lib/db/collection-registry';
 import type { RequestPerson, RequestRecipient } from '@/types/requests';
 
 /** Minimal company directory for recipient selection; credentials and personal contact fields stay private. */

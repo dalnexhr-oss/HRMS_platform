@@ -4,8 +4,8 @@
  * prevents duplicate work when external cron also runs.
  */
 import 'server-only';
-import { autoPunchOut } from './scheduler';
-import { isMongoConfigured } from '@/lib/db/mongo';
+import { autoPunchOut } from './scheduled-jobs';
+import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 
 // The business timezone, as everywhere else in the app. IST has no DST, but
 // deriving the wall clock through Intl rather than hardcoding +05:30 keeps this

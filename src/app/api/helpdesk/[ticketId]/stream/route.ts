@@ -1,9 +1,9 @@
 // Stream helpdesk messages over SSE after checking ticket access. Use MongoDB change streams on
 // replica sets and polling on standalone deployments.
-import { collections } from '@/lib/db/collections';
-import { scoped } from '@/lib/db/repo';
-import { db, supportsTransactions } from '@/lib/db/mongo';
-import { currentScope } from '@/lib/db/scope';
+import { collections } from '@/lib/db/collection-registry';
+import { scoped } from '@/lib/db/scoped-repository';
+import { db, supportsTransactions } from '@/lib/db/mongodb-connection';
+import { currentScope } from '@/lib/db/access-scope';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

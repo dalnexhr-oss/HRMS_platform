@@ -2,13 +2,13 @@
  * Shared upload validation and registration for form-based Server Actions and the streaming
  * document route.
  */
-import { queryErrorCodes } from '@/lib/db/errors';
+import { queryErrorCodes } from '@/lib/db/query-errors';
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/db/server';
-import { db } from '@/lib/db/mongo';
-import { deleteObject } from '@/lib/db/gridfs';
+import { createClient } from '@/lib/db/server-client';
+import { db } from '@/lib/db/mongodb-connection';
+import { deleteObject } from '@/lib/db/gridfs-file-storage';
 import { wroteNothing } from '@/lib/actions/guards';
 import { notifyApprovers } from '@/lib/notify';
 import type { StorageBucket } from '@/lib/storage';

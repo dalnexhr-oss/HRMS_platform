@@ -4,18 +4,18 @@
  */
 import 'server-only';
 import { randomUUID } from 'node:crypto';
-import { collections } from '@/lib/db/collections';
-import { scopedFor } from '@/lib/db/repo';
-import { systemScope } from '@/lib/db/scope';
-import { provisionLeaveBalances, scheduled } from '@/lib/db/functions';
+import { collections } from '@/lib/db/collection-registry';
+import { scopedFor } from '@/lib/db/scoped-repository';
+import { systemScope } from '@/lib/db/access-scope';
+import { provisionLeaveBalances, scheduled } from '@/lib/db/domain-rpc-handlers';
 import { autoPunchOutMinutesFrom } from '@/lib/attendance-rules';
 import { closePunchDay } from '@/lib/punch-storage';
 import { monthSealReason, periodMonthFor } from '@/lib/payroll-month';
 import { todayIST } from '@/lib/format';
 import { noticeRetentionDays } from '@/lib/constants';
 import { lastNightSweepNotice } from '@/lib/night-sweep';
-import { isMongoDuplicateKey } from '@/lib/db/errors';
-import type { BaseDoc } from '@/lib/db/collections';
+import { isMongoDuplicateKey } from '@/lib/db/query-errors';
+import type { BaseDoc } from '@/lib/db/collection-registry';
 import type { PayrollRunSeal } from '@/lib/payroll-month';
 import type { SweepClosure } from '@/lib/night-sweep';
 

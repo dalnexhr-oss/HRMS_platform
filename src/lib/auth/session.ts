@@ -5,11 +5,11 @@ import 'server-only';
 import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { sessionCookie } from '@/lib/auth/session-shared';
-import { usersCollection } from '@/lib/db/collections';
+import { usersCollection } from '@/lib/db/collection-registry';
 import { readPunchAccess } from '@/lib/punch-access';
 import { signSession, verifySession, sessionMaxAgeSeconds } from '@/lib/auth/jwt';
 import type { SessionClaims } from '@/lib/auth/jwt';
-import type { UserDoc } from '@/lib/db/collections';
+import type { UserDoc } from '@/lib/db/collection-registry';
 import type { AppRole, Profile } from '@/types/database';
 
 // Re-exported so callers have one import for everything session-related.

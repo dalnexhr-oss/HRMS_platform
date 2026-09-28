@@ -1,7 +1,7 @@
 // Shared auto punch-out rules for register imports and attendance sweeps. Read the configured
 // closing time so missing punch-outs do not leave worked minutes at zero.
-import { createClient } from '@/lib/db/server';
-import { isMongoConfigured } from '@/lib/db/mongo';
+import { createClient } from '@/lib/db/server-client';
+import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 
 const defaultPunchOutMin = 18 * 60;
 

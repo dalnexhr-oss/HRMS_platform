@@ -2,14 +2,14 @@
 
 // Comp-off lifecycle: staff grant credit for work on a day off; employees apply against available
 // credit; approval stamps the taken day CO and marks the credit used.
-import { queryErrorCodes } from '@/lib/db/errors';
+import { queryErrorCodes } from '@/lib/db/query-errors';
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/db/server';
+import { createClient } from '@/lib/db/server-client';
 import { getSession } from '@/lib/auth';
 import { getWeekOffPolicy } from '@/lib/queries';
 import { isScheduledWeekOff } from '@/lib/week-off';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/guards';
-import { toDecimal } from '@/lib/db/money';
+import { toDecimal } from '@/lib/db/decimal-conversions';
 import { notifyEmployee } from '@/lib/notify';
 import { notifyRequestParticipants, prepareRequestRouting } from '@/lib/requests/routing';
 import { todayIST } from '@/lib/format';

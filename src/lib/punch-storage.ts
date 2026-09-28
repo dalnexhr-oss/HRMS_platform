@@ -1,5 +1,5 @@
 import 'server-only';
-import { db, withTransaction } from '@/lib/db/mongo';
+import { db, withTransaction } from '@/lib/db/mongodb-connection';
 import { monthSealReason, periodMonthFor } from '@/lib/payroll-month';
 import { localParts, dayFloorUtc, summarizePunches } from '@/lib/punch-day';
 import { autoCloseDay, clockToMinutes, minutesToClock } from '@/lib/attendance-rules';
@@ -136,9 +136,4 @@ async function closePunchDay(
   );
 }
 
-export { 
-  lockEmployeePunches,
-  readDayEvents, 
-  punchWriteReason, 
-  closePunchDay 
-};
+export { lockEmployeePunches, readDayEvents, punchWriteReason, closePunchDay };

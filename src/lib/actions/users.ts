@@ -12,11 +12,11 @@ import { isPunchAccess, readPunchAccess } from '@/lib/punch-access';
 import { hashPassword, validatePassword } from '@/lib/auth/password';
 import { createResetToken, resetTokenTtlMinutes } from '@/lib/auth/reset-tokens';
 import { appOrigin, originNotConfigured } from '@/lib/auth/origin';
-import { collections, usersCollection } from '@/lib/db/collections';
-import { isMongoDuplicateKey } from '@/lib/db/errors';
-import { db, isMongoConfigured, withTransaction } from '@/lib/db/mongo';
+import { collections, usersCollection } from '@/lib/db/collection-registry';
+import { isMongoDuplicateKey } from '@/lib/db/query-errors';
+import { db, isMongoConfigured, withTransaction } from '@/lib/db/mongodb-connection';
 import { escapeHtml, isEmailConfigured, sendEmail } from '@/lib/email';
-import type { EmployeeDoc, UserDoc } from '@/lib/db/collections';
+import type { EmployeeDoc, UserDoc } from '@/lib/db/collection-registry';
 import type { AppRole } from '@/types/database';
 import type { PunchAccess } from '@/types/punch';
 

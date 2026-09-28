@@ -1,20 +1,20 @@
 /**
  * Build MongoDB queries and dispatch server-side database functions.
- * Collection access is checked through repo.ts using the query's access scope.
+ * Collection access is checked through scoped-repository.ts using the query's access scope.
  */
 import 'server-only';
-import { NotSignedInError, ScopeError, readFilterFor, scoped, scopedFor } from '@/lib/db/repo';
-import { isMongoDuplicateKey, queryErrorCodes } from '@/lib/db/errors';
-import { currentScope, systemScope } from '@/lib/db/scope';
-import { db } from '@/lib/db/mongo';
-import { columnDefaults, now, today } from '@/lib/db/defaults';
-import { isView, runView } from '@/lib/db/views';
-import { relationshipFor } from '@/lib/db/relationships';
+import { NotSignedInError, ScopeError, readFilterFor, scoped, scopedFor } from '@/lib/db/scoped-repository';
+import { isMongoDuplicateKey, queryErrorCodes } from '@/lib/db/query-errors';
+import { currentScope, systemScope } from '@/lib/db/access-scope';
+import { db } from '@/lib/db/mongodb-connection';
+import { columnDefaults, now, today } from '@/lib/db/document-defaults';
+import { isView, runView } from '@/lib/db/aggregation-views';
+import { relationshipFor } from '@/lib/db/collection-relationships';
 import { todayIST } from '@/lib/format';
 import type { ClientSession, Document, Filter } from 'mongodb';
-import type { Scope } from '@/lib/db/scope';
-import type { ScopedCollection } from '@/lib/db/repo';
-import type { DefaultValue } from '@/lib/db/defaults';
+import type { Scope } from '@/lib/db/access-scope';
+import type { ScopedCollection } from '@/lib/db/scoped-repository';
+import type { DefaultValue } from '@/lib/db/document-defaults';
 import type { QueryError, QueryResult } from '@/types/query';
 
 function toQueryError(e: unknown): QueryError {
@@ -145,7 +145,7 @@ function parseSelect(select: string, parentTable: string): { fields: string[]; e
     if (!relationship) {
       throw new Error(
         `query-client: no relationship declared for '${alias}' on '${parentTable}'. ` +
-          'Add one to src/lib/db/relationships.ts — an embed is never joined on a guess.',
+          'Add one to src/lib/db/collection-relationships.ts — an embed is never joined on a guess.',
       );
     }
 

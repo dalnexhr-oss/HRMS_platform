@@ -1,5 +1,5 @@
 // MongoDB collection names and stored document types.
-import { db } from '@/lib/db/mongo';
+import { db } from '@/lib/db/mongodb-connection';
 import type { SessionClaims } from '../auth/session';
 import type { Collection, Decimal128, Document } from 'mongodb';
 import type { AppRole } from '@/types/database';

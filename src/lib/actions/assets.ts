@@ -1,11 +1,11 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/db/server';
+import { createClient } from '@/lib/db/server-client';
 import { getSession } from '@/lib/auth';
 import { notifyEmployee } from '@/lib/notify';
 import { todayIST } from '@/lib/format';
-import { toMoney } from '@/lib/db/money';
+import { toMoney } from '@/lib/db/decimal-conversions';
 import { parseAssetLink } from '@/lib/asset-link';
 import { getAssetAssignments, getAssetMaintenance } from '@/lib/queries';
 import { requireRoles, wroteNothing } from './guards';
@@ -67,7 +67,7 @@ function assetFields(formData: FormData) {
     const v = String(formData.get(k) ?? '').trim();
     return v || null;
   };
-  // Money is Decimal128 at rest, never a float (lib/db/money.ts).
+  // Money is Decimal128 at rest, never a float (lib/db/decimal-conversions.ts).
   const money = (k: string) => {
     const v = String(formData.get(k) ?? '').trim();
     return v ? toMoney(v) : null;

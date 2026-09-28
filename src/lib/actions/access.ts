@@ -3,8 +3,8 @@
 // Super-admin actions for users.tab_access. Recheck caller and target permissions at the action
 // boundary.
 import { revalidatePath } from 'next/cache';
-import { usersCollection } from '@/lib/db/collections';
-import { createClient } from '@/lib/db/server';
+import { usersCollection } from '@/lib/db/collection-registry';
+import { createClient } from '@/lib/db/server-client';
 import { requireRoles } from '@/lib/actions/guards';
 import { navItems } from '@/lib/constants';
 import { isConfigurableRole, staticallyAllowed } from '@/lib/access';

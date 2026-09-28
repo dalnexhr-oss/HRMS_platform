@@ -1,10 +1,10 @@
 // Create policy-scoped clients for requests and system clients for internal jobs.
 import 'server-only';
-import { createQueryClient, createSystemQueryClient } from '@/lib/db/query-client';
-import { isMongoConfigured } from '@/lib/db/mongo';
-import { registerDbFunctions } from '@/lib/db/functions';
-import { registerPayrollFunctions } from '@/lib/db/payroll';
-import type { QueryClient } from '@/lib/db/query-client';
+import { createQueryClient, createSystemQueryClient } from '@/lib/db/scoped-query-client';
+import { isMongoConfigured } from '@/lib/db/mongodb-connection';
+import { registerDbFunctions } from '@/lib/db/domain-rpc-handlers';
+import { registerPayrollFunctions } from '@/lib/db/payroll-processing';
+import type { QueryClient } from '@/lib/db/scoped-query-client';
 import type { ClientSession } from 'mongodb';
 
 // Register RPC handlers once at client initialization boundary.

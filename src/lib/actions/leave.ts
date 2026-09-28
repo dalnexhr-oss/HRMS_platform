@@ -2,10 +2,10 @@
 
 // Server Actions for paid leave (PL) provisioning and audited manual adjustments.
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/db/server';
+import { createClient } from '@/lib/db/server-client';
 import { getSession } from '@/lib/auth';
 import { requireRoles, wroteNothing } from '@/lib/actions/guards';
-import { toDecimal } from '@/lib/db/money';
+import { toDecimal } from '@/lib/db/decimal-conversions';
 import { notifyEmployee } from '@/lib/notify';
 
 interface ActionResult {

@@ -5,7 +5,7 @@
 // feed; authenticated downloads still work. Collection policies restrict employee records to the
 // caller.
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/db/server';
+import { createClient } from '@/lib/db/server-client';
 import { getSession } from '@/lib/auth';
 import { getHolidays } from '@/lib/queries';
 import { buildIcs } from '@/lib/ics';

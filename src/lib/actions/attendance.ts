@@ -3,7 +3,7 @@
 // Save manual attendance corrections with the reason and actor, then record the change in
 // activity_log. Failed writes must return an error.
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/db/server';
+import { createClient } from '@/lib/db/server-client';
 import { isMongoConfigured } from '@/lib/queries';
 import { getSession } from '@/lib/auth';
 import { hhmmToMinutes } from '@/lib/format';

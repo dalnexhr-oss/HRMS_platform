@@ -2,10 +2,10 @@
 // filters use IST.
 
 import 'server-only';
-import { collections } from '@/lib/db/collections';
-import { scoped, scopedFor } from '@/lib/db/repo';
+import { collections } from '@/lib/db/collection-registry';
+import { scoped, scopedFor } from '@/lib/db/scoped-repository';
 import { todayIST } from '@/lib/format';
-import type { Scope } from '@/lib/db/scope';
+import type { Scope } from '@/lib/db/access-scope';
 import type { Document } from 'mongodb';
 
 // Returns a scoped collection handle. Defaults to active caller session scope.
@@ -283,7 +283,7 @@ function isView(name: string): boolean {
 async function runView(name: string, scope?: Scope): Promise<Document[]> {
   const view = views[name];
   if (!view) {
-    throw new Error(`Unknown view '${name}'. Views live in src/lib/db/views.ts.`);
+    throw new Error(`Unknown view '${name}'. Views live in src/lib/db/aggregation-views.ts.`);
   }
   return view(scope);
 }

@@ -2,15 +2,15 @@
 // system scope.
 import 'server-only';
 import { randomUUID } from 'node:crypto';
-import { collections } from '@/lib/db/collections';
-import { scopedFor } from '@/lib/db/repo';
-import { registerRpc } from '@/lib/db/query-client';
-import { toDecimal } from '@/lib/db/money';
+import { collections } from '@/lib/db/collection-registry';
+import { scopedFor } from '@/lib/db/scoped-repository';
+import { registerRpc } from '@/lib/db/scoped-query-client';
+import { toDecimal } from '@/lib/db/decimal-conversions';
 import { todayIST } from '@/lib/format';
-import { currentScope, systemScope } from '@/lib/db/scope';
+import { currentScope, systemScope } from '@/lib/db/access-scope';
 import type { AppRole } from '@/types/database';
-import type { Scope } from '@/lib/db/scope';
-import type { BaseDoc } from '@/lib/db/collections';
+import type { Scope } from '@/lib/db/access-scope';
+import type { BaseDoc } from '@/lib/db/collection-registry';
 
 // Only internal jobs may set this context; RPC dispatch never accepts it from clients.
 interface Invocation {
@@ -20,7 +20,7 @@ interface Invocation {
 // A request-borne call. The default, and never trusted.
 const request: Invocation = { isScheduler: false };
 
-// An in-process scheduled job. Only db/scheduler.ts may pass this.
+// An in-process scheduled job. Only db/scheduled-jobs.ts may pass this.
 const scheduled: Invocation = { isScheduler: true };
 
 // The signed-in caller, or a refusal. Never falls back to the system.

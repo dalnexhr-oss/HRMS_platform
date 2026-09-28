@@ -1,6 +1,6 @@
 import 'server-only';
-import { usersCollection } from '@/lib/db/collections';
-import { db } from '@/lib/db/mongo';
+import { usersCollection } from '@/lib/db/collection-registry';
+import { db } from '@/lib/db/mongodb-connection';
 import { tierLabel, tierOf } from '@/lib/roles';
 import type { ClientSession } from 'mongodb';
 import type { AppRole } from '@/types/database';

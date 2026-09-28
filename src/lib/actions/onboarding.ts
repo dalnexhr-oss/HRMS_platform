@@ -3,7 +3,7 @@
 // Create onboarding tasks from a template snapshot so later template edits do not change active
 // checklists.
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/db/server';
+import { createClient } from '@/lib/db/server-client';
 import { requireRoles, wroteNothing } from '@/lib/actions/guards';
 import { notifyEmployee } from '@/lib/notify';
 import type { AppRole } from '@/types/database';

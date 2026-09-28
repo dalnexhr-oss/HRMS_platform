@@ -1,6 +1,6 @@
 // Dispatch notifications with system scope. Normal users cannot insert notifications for others.
 // Log delivery failures without failing the business action.
-import { createServiceClient, isServiceRoleConfigured } from '@/lib/db/server';
+import { createServiceClient, isServiceRoleConfigured } from '@/lib/db/server-client';
 import type { AppRole } from '@/types/database';
 
 type NotificationKind =

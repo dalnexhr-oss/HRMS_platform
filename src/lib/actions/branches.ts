@@ -6,13 +6,13 @@
  */
 import { revalidatePath } from 'next/cache';
 import { requireRoles } from '@/lib/actions/guards';
-import { collections } from '@/lib/db/collections';
-import { isMongoDuplicateKey } from '@/lib/db/errors';
-import { scoped } from '@/lib/db/repo';
+import { collections } from '@/lib/db/collection-registry';
+import { isMongoDuplicateKey } from '@/lib/db/query-errors';
+import { scoped } from '@/lib/db/scoped-repository';
 import { States } from '@/lib/constants';
-import { toCoordinate } from '@/lib/db/money';
-import { withTransaction } from '@/lib/db/mongo';
-import type { BranchDoc, EmployeeDoc } from '@/lib/db/collections';
+import { toCoordinate } from '@/lib/db/decimal-conversions';
+import { withTransaction } from '@/lib/db/mongodb-connection';
+import type { BranchDoc, EmployeeDoc } from '@/lib/db/collection-registry';
 
 interface ActionResult {
   ok: boolean;
@@ -30,7 +30,7 @@ function revalidateBranchSurfaces(): void {
   revalidatePath('/today');
 }
 
-// Use the same fallback radius as db/defaults.ts. This required numeric field cannot be saved as
+// Use the same fallback radius as db/document-defaults.ts. This required numeric field cannot be saved as
 // null.
 const defaultGeofenceRadiusM = 150;
 

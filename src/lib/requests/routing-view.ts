@@ -1,4 +1,4 @@
-import type { RequestRouteDoc } from '@/lib/db/collections';
+import type { RequestRouteDoc } from '@/lib/db/collection-registry';
 import type { RequestRouting } from '@/types/requests';
 
 function routingView(route: RequestRouteDoc | null | undefined): RequestRouting | null {

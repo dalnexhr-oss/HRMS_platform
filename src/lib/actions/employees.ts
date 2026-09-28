@@ -1,14 +1,14 @@
 'use server';
 
 // Staff-only employee actions used by the add/edit drawer.
-import { queryErrorCodes } from '@/lib/db/errors';
+import { queryErrorCodes } from '@/lib/db/query-errors';
 import { revalidatePath } from 'next/cache';
-import { usersCollection } from '@/lib/db/collections';
+import { usersCollection } from '@/lib/db/collection-registry';
 import { calculateSalary } from '@/lib/salary';
 import { States } from '@/lib/constants';
 import { getEmployeeForEdit } from '@/lib/queries';
-import { createClient, createServiceClient, isServiceRoleConfigured } from '@/lib/db/server';
-import { fromPaise as formatMoney } from '@/lib/db/money';
+import { createClient, createServiceClient, isServiceRoleConfigured } from '@/lib/db/server-client';
+import { fromPaise as formatMoney } from '@/lib/db/decimal-conversions';
 import { sendEmail, isEmailConfigured } from '@/lib/email';
 import { requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { buildWelcomeEmail } from '@/lib/documents/templates';

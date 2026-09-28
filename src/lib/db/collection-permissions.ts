@@ -3,12 +3,12 @@
  * permissions separate so state-dependent writes can be restricted.
  */
 import 'server-only';
-import { collections } from '@/lib/db/collections';
+import { collections } from '@/lib/db/collection-registry';
 import type { Document } from 'mongodb';
-import type { Scope } from '@/lib/db/scope';
+import type { Scope } from '@/lib/db/access-scope';
 
 // Return a filter to combine with the query, or null to deny access. Policies use Document because
-// they span collection types; repo.ts applies the concrete driver type.
+// they span collection types; scoped-repository.ts applies the concrete driver type.
 type ScopeFilter = Document | null;
 
 interface CollectionPolicy {

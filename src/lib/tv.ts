@@ -1,6 +1,6 @@
 // Build today's TV attendance rows. Use each employee's latest punch event for current in/out
 // state; attendance_days holds daily totals and cannot distinguish a return from lunch.
-import { createClient } from '@/lib/db/server';
+import { createClient } from '@/lib/db/server-client';
 import { todayIST } from '@/lib/format';
 // Share the punch module's day boundaries and timestamp conversion. MongoDB comparisons must use
 // BSON dates for punched_at.

@@ -6,8 +6,8 @@ import { homeForRole } from '@/lib/auth';
 import { isAuthConfigured } from '@/lib/auth/jwt';
 import { verifyPassword } from '@/lib/auth/password';
 import { safeRedirectPath } from '@/lib/auth/redirect';
-import { usersCollection } from '@/lib/db/collections';
-import { isMongoConfigured } from '@/lib/db/mongo';
+import { usersCollection } from '@/lib/db/collection-registry';
+import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { createSession, destroySession, getSession, revokeAllSessions } from '@/lib/auth/session';
 
 interface SignInState {

@@ -3,11 +3,11 @@
  * writes throw ScopeError. Internal jobs can explicitly request system scope.
  */
 import 'server-only';
-import { db } from '@/lib/db/mongo';
-import { policyFor } from '@/lib/db/policies';
-import { currentScope, systemScope } from '@/lib/db/scope';
-import type { CollectionPolicy } from '@/lib/db/policies';
-import type { Scope } from '@/lib/db/scope';
+import { db } from '@/lib/db/mongodb-connection';
+import { policyFor } from '@/lib/db/collection-permissions';
+import { currentScope, systemScope } from '@/lib/db/access-scope';
+import type { CollectionPolicy } from '@/lib/db/collection-permissions';
+import type { Scope } from '@/lib/db/access-scope';
 import type { AggregateOptions, ClientSession, CountDocumentsOptions, Document, Filter, FindOptions, OptionalUnlessRequiredId, UpdateFilter, UpdateOptions } from 'mongodb';
 
 // Thrown when a write is refused. Carries a message safe to show a user.
@@ -333,7 +333,7 @@ function build<T extends Document>(
     // Fail closed. An unlisted collection is a collection nobody has decided
     // the rules for yet, and guessing them is how data leaks.
     throw new Error(
-      `No access policy declared for '${name}'. Add one to src/lib/db/policies.ts ` +
+      `No access policy declared for '${name}'. Add one to src/lib/db/collection-permissions.ts ` +
         'before querying it — collections are denied by default.',
     );
   }

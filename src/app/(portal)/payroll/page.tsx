@@ -1,8 +1,8 @@
 import Link from 'next/link';
-import { createClient } from '@/lib/db/server';
+import { createClient } from '@/lib/db/server-client';
 import { StatutoryExports } from '@/components/payroll/StatutoryExports';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
-import { isMongoConfigured } from '@/lib/db/mongo';
+import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { PayrollTable, RunActions } from '@/components/payroll/PayrollTable';
 import { getPayrollRun, getPayslips, currentPeriodMonth } from '@/lib/queries';
 import { exportPayrollXlsx, exportAttendanceTemplateXlsx } from '@/lib/actions/export';

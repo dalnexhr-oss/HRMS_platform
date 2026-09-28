@@ -1,7 +1,7 @@
 // Internal comp-off settlement helpers. Keep these outside use-server modules; reviewRequest
 // authorizes the caller before invoking them.
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/db/server';
+import { createClient } from '@/lib/db/server-client';
 import { requireOpenPayrollMonth } from '@/lib/actions/guards';
 
 // Stamp the approved day CO before marking its credit used. The adapter cannot share a transaction

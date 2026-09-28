@@ -2,8 +2,8 @@
 // buffering the entire file in a Server Action. Metadata is sent in the query string.
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { isMongoConfigured } from '@/lib/db/mongo';
-import { deleteObject, StorageAccessError } from '@/lib/db/gridfs';
+import { isMongoConfigured } from '@/lib/db/mongodb-connection';
+import { deleteObject, StorageAccessError } from '@/lib/db/gridfs-file-storage';
 import { resolveUploadType, uploadFile } from '@/lib/storage';
 import { maxBytes, recordUploadedDocument, resolveTargetEmployee, uploadBucket } from '@/lib/documents/upload';
 

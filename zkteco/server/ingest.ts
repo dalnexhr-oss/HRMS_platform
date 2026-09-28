@@ -1,10 +1,10 @@
 import 'server-only';
-import { db, withTransaction } from '@/lib/db/mongo';
-import { createQueryClient } from '@/lib/db/query-client';
+import { db, withTransaction } from '@/lib/db/mongodb-connection';
+import { createQueryClient } from '@/lib/db/scoped-query-client';
 import { classify, readPunchPolicy, resolveDay } from '@/lib/punch';
 import { localParts } from '@/lib/punch-day';
 import { punchWriteReason, readDayEvents } from '@/lib/punch-storage';
-import { toCoordinate } from '@/lib/db/money';
+import { toCoordinate } from '@/lib/db/decimal-conversions';
 import { allowsZktecoPunch } from '@/lib/punch-access';
 import { deviceEventId, devicePunchKind } from './protocol';
 import { resolveDeviceEmployee, UnknownDeviceEmployee } from './identity';

@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/db/server';
+import { createClient } from '@/lib/db/server-client';
 import { getSession, isStaffRole } from '@/lib/auth';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { notifyApprovers, notifyEmployee } from '@/lib/notify';

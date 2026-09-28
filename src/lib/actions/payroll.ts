@@ -3,13 +3,13 @@
 // Payroll run and adjustment actions. The payroll RPC handlers enforce state transitions; pass
 // their failures back to the caller.
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/db/server';
-import { isMongoConfigured } from '@/lib/db/mongo';
+import { createClient } from '@/lib/db/server-client';
+import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { getSession } from '@/lib/auth';
 import { notifyEmployee } from '@/lib/notify';
-import { toMoney } from '@/lib/db/money';
-import { queryErrorMessage } from '@/lib/db/errors';
-import { savePayslipAdjustments } from '@/lib/db/payroll';
+import { toMoney } from '@/lib/db/decimal-conversions';
+import { queryErrorMessage } from '@/lib/db/query-errors';
+import { savePayslipAdjustments } from '@/lib/db/payroll-processing';
 import type { Decimal128 } from 'mongodb';
 import type { AppRole } from '@/types/database';
 

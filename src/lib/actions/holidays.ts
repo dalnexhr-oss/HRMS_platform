@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/db/server';
+import { createClient } from '@/lib/db/server-client';
 import { requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { fetchPublicHolidays } from '@/lib/holidays/google-calendar';
 import { allBranches, resolveBranchScope } from '@/lib/actions/branch-helpers';

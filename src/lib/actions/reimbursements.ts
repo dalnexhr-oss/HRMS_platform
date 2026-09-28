@@ -2,14 +2,14 @@
 
 // Recalculate travel claims on the server using distance × the configured rate. Approval adds the
 // claim to the month's payslip adjustment and recomputes pay.
-import { queryErrorCodes } from '@/lib/db/errors';
+import { queryErrorCodes } from '@/lib/db/query-errors';
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/db/server';
+import { createClient } from '@/lib/db/server-client';
 import { getSession } from '@/lib/auth';
 import { getReimbursementRate, getReimbursementEvents } from '@/lib/queries';
 import { uploadFile, signedUrl, resolveUploadType } from '@/lib/storage';
 import { requireDb, requireRoles, requireStaff, wroteNothing } from '@/lib/actions/guards';
-import { toDecimal, toMoney } from '@/lib/db/money';
+import { toDecimal, toMoney } from '@/lib/db/decimal-conversions';
 import { notifyApprovers, notifyEmployee } from '@/lib/notify';
 import type { ReimbursementPurpose } from '@/types/database';
 

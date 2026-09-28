@@ -3,7 +3,7 @@
 //
 // Both fields must be written together: a missing branch name is displayed as company-wide.
 // updateBranch refreshes cached names when a branch is renamed.
-import type { createClient } from '@/lib/db/server';
+import type { createClient } from '@/lib/db/server-client';
 
 type DbClient = Awaited<ReturnType<typeof createClient>>;
 

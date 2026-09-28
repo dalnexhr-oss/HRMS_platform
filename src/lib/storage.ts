@@ -1,8 +1,8 @@
 // Server-side file helpers. Preserve bucket names and <employeeId>/<uuid>-<filename> keys so stored
 // paths remain valid. GridFS checks path access against the caller's session scope.
-import { objectUrl, putObject, statObject } from '@/lib/db/gridfs';
-import { systemScope } from '@/lib/db/scope';
-import type { StorableBody, StorageBucket as GridBucket } from '@/lib/db/gridfs';
+import { objectUrl, putObject, statObject } from '@/lib/db/gridfs-file-storage';
+import { systemScope } from '@/lib/db/access-scope';
+import type { StorableBody, StorageBucket as GridBucket } from '@/lib/db/gridfs-file-storage';
 
 type StorageBucket = GridBucket;
 

@@ -1,7 +1,7 @@
 // Build draft PF, ESIC, and Professional Tax filings from payslips and employee identifiers.
 // Reconcile exported figures before submission.
 import ExcelJS from 'exceljs';
-import { createClient } from '@/lib/db/server';
+import { createClient } from '@/lib/db/server-client';
 import { monthTitle } from '@/lib/excel/build-workbook';
 import { writeBrandHeader } from '@/lib/excel/brand';
 

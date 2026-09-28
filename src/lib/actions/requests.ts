@@ -1,19 +1,19 @@
 'use server';
 
-import { queryErrorCodes } from '@/lib/db/errors';
+import { queryErrorCodes } from '@/lib/db/query-errors';
 import { revalidatePath } from 'next/cache';
-import { createClient, createServiceClient } from '@/lib/db/server';
+import { createClient, createServiceClient } from '@/lib/db/server-client';
 import { isMongoConfigured, getWeekOffPolicy, getHolidays } from '@/lib/queries';
 import { countLeaveDays, isScheduledWeekOff } from '@/lib/week-off';
 import { getSession } from '@/lib/auth';
 import { requireStaff } from '@/lib/actions/guards';
 import { releaseCompOff, settleApprovedCompOff } from '@/lib/comp-off-settle';
-import { toDecimal } from '@/lib/db/money';
+import { toDecimal } from '@/lib/db/decimal-conversions';
 import { notifyApprovers, notifyEmployee } from '@/lib/notify';
 import { todayIST } from '@/lib/format';
 import { notifyRequestParticipants, prepareRequestRouting, reviewRoutedRequest } from '@/lib/requests/routing';
 import type { LeaveType, RequestType } from '@/types/database';
-import type { RequestRouteDoc } from '@/lib/db/collections';
+import type { RequestRouteDoc } from '@/lib/db/collection-registry';
 
 interface ActionResult {
   ok: boolean;

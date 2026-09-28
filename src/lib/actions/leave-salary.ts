@@ -3,12 +3,12 @@
 // Recompute leave-salary amounts on the server from attendance and submitted salaries. Finalizing
 // saves a snapshot; reopening allows corrections; paid rows cannot be reopened.
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/db/server';
+import { createClient } from '@/lib/db/server-client';
 import { requireRoles, wroteNothing } from '@/lib/actions/guards';
 import { notifyEmployee } from '@/lib/notify';
 import { computeLeaveSalary, presenceByMonth } from '@/lib/leave-salary';
 import { inr } from '@/lib/format';
-import { toMoney } from '@/lib/db/money';
+import { toMoney } from '@/lib/db/decimal-conversions';
 
 interface ActionResult {
   ok: boolean;

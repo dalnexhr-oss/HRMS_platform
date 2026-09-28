@@ -6,14 +6,14 @@
 // Payable days also include CO, OH, and WO without requiring punch hours.
 import 'server-only';
 import { randomUUID } from 'node:crypto';
-import { collections } from '@/lib/db/collections';
-import { scopedFor } from '@/lib/db/repo';
-import { systemScope } from '@/lib/db/scope';
-import { withTransaction } from '@/lib/db/mongo';
-import { addPaise, fromPaise, roundToRupee, scalePaise, subPaise, toPaise } from '@/lib/db/money';
-import { registerRpc } from '@/lib/db/query-client';
+import { collections } from '@/lib/db/collection-registry';
+import { scopedFor } from '@/lib/db/scoped-repository';
+import { systemScope } from '@/lib/db/access-scope';
+import { withTransaction } from '@/lib/db/mongodb-connection';
+import { addPaise, fromPaise, roundToRupee, scalePaise, subPaise, toPaise } from '@/lib/db/decimal-conversions';
+import { registerRpc } from '@/lib/db/scoped-query-client';
 import type { ClientSession, Document } from 'mongodb';
-import type { BaseDoc } from '@/lib/db/collections';
+import type { BaseDoc } from '@/lib/db/collection-registry';
 
 // Statuses counted as a full working day.
 const fullDay = ['P', 'T', 'S', 'LM'];

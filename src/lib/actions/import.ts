@@ -3,7 +3,7 @@
 // Preview and commit monthly register imports using the caller's staff scope. Return database
 // failures to the caller.
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/db/server';
+import { createClient } from '@/lib/db/server-client';
 import { getSession } from '@/lib/auth';
 import { isMongoConfigured, getEmployeeCodeMap } from '@/lib/queries';
 import { autoCloseDay, getAutoPunchOutMinutes } from '@/lib/attendance-rules';
