@@ -14,3 +14,9 @@ with access controlled by user roles and permissions.
   assigned approvals.
 - **HR operations:** Manage reimbursements, assets, company policies, notices, and helpdesk tickets.
 - **Administration:** Configure users, permissions, application settings, and review audit activity.
+
+## ZKTeco device attendance
+
+The device integration is maintained in [`zkteco/`](zkteco/README.md). Run `npm run dev`
+and `npm run device:bridge` in separate terminals, or use `npm run dev:device` to start
+both together. The guide covers startup, employee synchronization, and the module layout.
