@@ -6,7 +6,7 @@ const metadata: Metadata = {
   description: 'Live employee attendance for a wall display.',
 };
 
-// Keep navigation outside the scrolling board so it stays attached to the viewport bottom.
+// Place navigation after the board so it appears when the page is scrolled to the bottom.
 function TvLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="tv-shell">

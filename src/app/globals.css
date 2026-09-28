@@ -3537,20 +3537,14 @@ th {
 /* TV attendance board (/tv) */
 /* Everything here is sized in clamp() against the viewport: the same markup has to be legible on a laptop preview and across a room on a 4K wall panel. */
 .tv-shell {
-  --tv-footer-height: calc(72px + env(safe-area-inset-bottom, 0px));
-  position: relative;
-  height: 100dvh;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
   background: var(--paper);
 }
 .tv {
-  /* Reserve a separate scroll area above the footer, including the final row's padding. */
-  position: absolute;
-  inset: 0 0 var(--tv-footer-height);
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-  scrollbar-gutter: stable;
-  scroll-padding-block: var(--gutter);
+  flex: 1;
+  min-width: 0;
   padding: var(--gutter-top) var(--gutter) var(--gutter);
 }
 .tv-head {
@@ -3761,10 +3755,8 @@ th {
   border-color: var(--wo-line);
 }
 .tv-footer {
-  position: absolute;
-  inset: auto 0 0;
-  height: var(--tv-footer-height);
-  z-index: 5;
+  flex-shrink: 0;
+  min-height: calc(72px + env(safe-area-inset-bottom, 0px));
   display: flex;
   align-items: center;
   padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
@@ -4126,15 +4118,9 @@ html {
 /* print — attendance registers & payslips */
 /* Every glass/soft effect is flattened: blur and coloured shadow either vanish or turn to mud on paper, and toner should not be spent on an aurora. */
 @media print {
-  .tv-shell,
-  .tv {
-    height: auto;
-    overflow: visible;
-  }
-  .tv {
-    position: static;
-    inset: auto;
-    scrollbar-gutter: auto;
+  .tv-shell {
+    display: block;
+    min-height: 0;
   }
   .tv-footer {
     display: none;
