@@ -1,5 +1,5 @@
 // Server-side Excel builders. Actions return workbook bytes as base64. Register exports preserve
-// the layout expected by parse-register.ts.
+// the layout expected by parse-monthly-register.ts.
 //
 // B1: year; B2: month; row 3: weekdays; row 4: day numbers and summaries; row 5: employee ID
 // header. Employee blocks start at row 6 with four rows: status, punch-in, punch-out, and worked
@@ -8,8 +8,8 @@ import ExcelJS from 'exceljs';
 import { statusMeta } from '@/lib/constants';
 import { minutesToHHMM } from '@/lib/format';
 import { effectiveFigures } from '@/lib/leave-salary';
-import { writeBrandHeader, writeBrandOverlay } from '@/lib/excel/brand';
-import { statusFill, headerFill, timeFormat, clockToExcelTime } from '@/lib/excel/register-style';
+import { writeBrandHeader, writeBrandOverlay } from '@/lib/excel/workbook-branding';
+import { statusFill, headerFill, timeFormat, clockToExcelTime } from '@/lib/excel/monthly-register-styles';
 import type { ReimbursementView } from '@/lib/queries';
 import type { LeaveSalaryViewRow } from '@/lib/leave-salary-view';
 import type { PayslipRow, PunchLogRow, RegisterEmployee, DayCell } from '@/types/domain';
@@ -54,7 +54,7 @@ function safeText(v: unknown): string {
 }
 
 // geometry
-// Mirrors parse-register.ts so the two stay in lockstep.
+// Mirrors parse-monthly-register.ts so the two stay in lockstep.
 const rowYear = 1;
 const rowMonth = 2;
 const rowWeekdays = 3;
@@ -317,7 +317,7 @@ function writeDailyPunchSheet(
 }
 
 /**
- * Float the logo without inserting rows or changing data cells; parse-register.ts depends on their
+ * Float the logo without inserting rows or changing data cells; parse-monthly-register.ts depends on their
  * fixed positions. Drawing geometry is safe to adjust.
  */
 function brandReferenceSheet(wb: ExcelJS.Workbook, ws: ExcelJS.Worksheet): void {

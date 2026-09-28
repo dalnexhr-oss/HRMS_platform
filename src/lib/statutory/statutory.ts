@@ -2,8 +2,8 @@
 // Reconcile exported figures before submission.
 import ExcelJS from 'exceljs';
 import { createClient } from '@/lib/db/server-client';
-import { monthTitle } from '@/lib/excel/build-workbook';
-import { writeBrandHeader } from '@/lib/excel/brand';
+import { monthTitle } from '@/lib/excel/export-workbooks';
+import { writeBrandHeader } from '@/lib/excel/workbook-branding';
 
 interface StatutoryRow {
   code: string;

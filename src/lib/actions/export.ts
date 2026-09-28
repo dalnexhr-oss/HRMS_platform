@@ -5,7 +5,7 @@ import { getSession } from '@/lib/auth';
 import { buildLeaveSalaryView } from '@/lib/leave-salary-view';
 import { getPayslips, getPunchLogToday, getRegister, getReimbursements, currentPeriodMonth } from '@/lib/queries';
 import { requireRoles, requireStaff } from '@/lib/actions/guards';
-import { attendanceTemplateWorkbook, leaveSalaryWorkbook, payrollWorkbook, punchLogWorkbook, registerWorkbook, registerImportTemplateWorkbook, reimbursementsWorkbook } from '@/lib/excel/build-workbook';
+import { attendanceTemplateWorkbook, leaveSalaryWorkbook, payrollWorkbook, punchLogWorkbook, registerWorkbook, registerImportTemplateWorkbook, reimbursementsWorkbook } from '@/lib/excel/export-workbooks';
 import { getStatutoryRows, buildPfEcr, buildEsicXlsx, buildPtXlsx } from '@/lib/statutory/statutory';
 import type { AppRole } from '@/types/database';
 

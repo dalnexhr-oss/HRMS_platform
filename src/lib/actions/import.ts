@@ -8,8 +8,8 @@ import { getSession } from '@/lib/auth';
 import { isMongoConfigured, getEmployeeCodeMap } from '@/lib/queries';
 import { autoCloseDay, getAutoPunchOutMinutes } from '@/lib/attendance-rules';
 import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/guards';
-import { parseRegisterWorkbook, codeForEmplId, isKnownStatus, minutesToClock } from '@/lib/excel/parse-register';
-import type { ParsedRegister } from '@/lib/excel/parse-register';
+import { parseRegisterWorkbook, codeForEmplId, isKnownStatus, minutesToClock } from '@/lib/excel/parse-monthly-register';
+import type { ParsedRegister } from '@/lib/excel/parse-monthly-register';
 import type { AppRole } from '@/types/database';
 
 interface MatchedEmployee {
