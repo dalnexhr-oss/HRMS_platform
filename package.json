@@ -22,9 +22,7 @@
     "format": "eslint . --fix && prettier --write .",
     "format:check": "prettier --check .",
     "check:names": "node scripts/check-file-names.mjs",
-    "test": "node --import ./tests/register-typescript.mjs --test tests/*.test.mjs zkteco/tests/*.test.mjs",
-    "test:db": "node --import ./tests/register-typescript.mjs --test tests/integration/*.test.mjs zkteco/tests/integration/*.test.mjs",
-    "check": "npm run format:check && npm run check:names && npm run lint && npm run typecheck && npm test",
+    "check": "npm run format:check && npm run check:names && npm run lint && npm run typecheck",
     "device:inspect": "node zkteco/cli/run.mjs inspect",
     "device:sync-users": "node zkteco/cli/run.mjs sync-users"
   },

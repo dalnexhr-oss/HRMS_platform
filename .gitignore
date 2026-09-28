@@ -37,3 +37,4 @@ reference for desktop app (1).xlsx
 /.local/
 __pycache__/
 *.pyc
+.local

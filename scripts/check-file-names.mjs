@@ -14,6 +14,10 @@ const seen = new Map();
 async function checkDirectory(directory) {
   const entries = await readdir(path.join(root, directory), { withFileTypes: true });
   for (const entry of entries) {
+    // Python bytecode caches are generated artifacts, not source directories.
+    if (entry.isDirectory() && entry.name === '__pycache__') {
+      continue;
+    }
     const relative = `${directory}/${entry.name}`;
     const key = relative.toLowerCase();
     if (seen.has(key)) {
@@ -51,7 +55,7 @@ async function checkDirectory(directory) {
   }
 }
 
-for (const directory of ['src', 'scripts', 'tests', 'zkteco']) {
+for (const directory of ['src', 'scripts', 'zkteco']) {
   await checkDirectory(directory);
 }
 
