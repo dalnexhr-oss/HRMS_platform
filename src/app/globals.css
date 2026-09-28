@@ -1514,6 +1514,32 @@ tbody tr:hover {
 .reg-scroll {
   overflow-x: auto;
 }
+/* One scroll container keeps dates aligned with the employee list in both directions. */
+.register-scroll {
+  max-height: clamp(240px, calc(100dvh - 230px), 840px);
+  overflow: auto;
+  isolation: isolate;
+  scroll-padding-top: 54px;
+}
+.register-scroll:focus-visible {
+  outline-offset: -3px;
+}
+.register-scroll .rrow.hd-row {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  box-shadow: 0 1px 0 var(--line-2);
+}
+.register-scroll .emp-cell {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--card-solid);
+  box-shadow: 1px 0 0 var(--line-2);
+}
+.register-scroll .hd-row .emp-cell {
+  background: var(--card-2);
+}
 .reg-table {
   display: grid;
   grid-template-columns: 250px 1fr;
@@ -4139,6 +4165,15 @@ html {
   .punch-scroll {
     max-height: none;
     overflow: visible;
+  }
+  .register,
+  .register-scroll {
+    max-height: none;
+    overflow: visible;
+  }
+  .register-scroll .rrow.hd-row,
+  .register-scroll .emp-cell {
+    position: static;
   }
   html,
   body {

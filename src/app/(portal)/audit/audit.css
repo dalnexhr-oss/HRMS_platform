@@ -1,0 +1,97 @@
+.audit-card {
+  min-width: 0;
+  overflow: hidden;
+  border-color: var(--line-2);
+}
+
+.audit-card .hd {
+  flex-wrap: wrap;
+}
+
+.audit-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.audit-title .ic {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  color: var(--brand);
+}
+
+.audit-scroll {
+  max-height: max(280px, calc(100dvh - 180px));
+  overflow: auto;
+  scroll-padding-top: 48px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(143, 164, 197, 0.7) transparent;
+}
+
+.audit-scroll:focus-visible {
+  outline-offset: -3px;
+}
+
+.audit-table {
+  min-width: 680px;
+  table-layout: fixed;
+}
+
+.audit-col-when {
+  width: 19%;
+}
+
+.audit-col-type {
+  width: 14%;
+}
+
+.audit-col-actor {
+  width: 15%;
+}
+
+.audit-col-employee {
+  width: 18%;
+}
+
+.audit-col-detail {
+  width: 34%;
+}
+
+.audit-table th,
+.audit-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.audit-table th {
+  background: var(--card-2);
+}
+
+.audit-table td {
+  vertical-align: top;
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+.audit-employee-code {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+@media print {
+  .audit-card,
+  .audit-scroll {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .audit-table {
+    min-width: 0;
+  }
+
+  .audit-table th {
+    position: static;
+  }
+}

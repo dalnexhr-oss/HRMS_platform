@@ -1,8 +1,10 @@
-import { redirect } from 'next/navigation';
-import { getAttendanceAudit } from '@/lib/queries';
 import { getSession } from '@/lib/auth';
 import { formatDate } from '@/lib/format';
+import { redirect } from 'next/navigation';
+import { getAttendanceAudit } from '@/lib/queries';
+import { icons } from '@/components/Icons';
 import type { AppRole } from '@/types/database';
+import './audit.css';
 
 // Attendance audit trail is staff-only (super_admin/admin/HR)
 const auditRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
@@ -37,12 +39,13 @@ async function AuditPage() {
 
   return (
     <div className="wrap">
-      <div className="card">
+      <div className="card audit-card">
         <div className="hd">
-          <h3>Attendance audit</h3>
-          <span className="folio">
+          <h3 className="audit-title">
+          <span aria-hidden="true" style={{ marginRight: '0.5em' }}>{icons.recent}</span>
             {entries.length} recent event{entries.length === 1 ? '' : 's'}
-          </span>
+          
+          </h3>
         </div>
         {loadError ? (
           <div className="bd">
@@ -55,21 +58,28 @@ async function AuditPage() {
             </p>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table>
+          <div className="audit-scroll" role="region" aria-label="Attendance audit log" tabIndex={0}>
+            <table className="audit-table sticky-th">
+              <colgroup>
+                <col className="audit-col-when" />
+                <col className="audit-col-type" />
+                <col className="audit-col-actor" />
+                <col className="audit-col-employee" />
+                <col className="audit-col-detail" />
+              </colgroup>
               <thead>
                 <tr>
-                  <th>When</th>
-                  <th>Type</th>
-                  <th>By</th>
-                  <th>Employee</th>
-                  <th>Detail</th>
+                  <th scope="col">When</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">By</th>
+                  <th scope="col">Employee</th>
+                  <th scope="col">Detail</th>
                 </tr>
               </thead>
               <tbody>
                 {entries.map((e) => (
                   <tr key={e.id}>
-                    <td className="mono muted" style={{ whiteSpace: 'nowrap' }}>
+                    <td className="mono muted">
                       {stampTime(e.occurredAt)}
                     </td>
                     <td>
@@ -84,8 +94,8 @@ async function AuditPage() {
                     <td>
                       {e.employeeName ? (
                         <>
-                          {e.employeeName}{' '}
-                          <span className="mono muted" style={{ fontSize: 11 }}>
+                          {e.employeeName}
+                          <span className="mono muted audit-employee-code">
                             {e.employeeCode}
                           </span>
                         </>
@@ -94,7 +104,7 @@ async function AuditPage() {
                       )}
                     </td>
                     {/* Rendered as text by React — activity_log messages are never HTML. */}
-                    <td style={{ fontSize: 13 }}>{e.message}</td>
+                    <td>{e.message}</td>
                   </tr>
                 ))}
               </tbody>

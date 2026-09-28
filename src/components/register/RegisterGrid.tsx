@@ -189,7 +189,12 @@ function RegisterGrid({
           }}
         />
       )}
-      <div className="reg-scroll">
+      <div
+        className="reg-scroll register-scroll"
+        role="region"
+        aria-label="Monthly attendance register"
+        tabIndex={0}
+      >
         <div id="reggrid" style={{ minWidth: 1660 }}>
           {/* header row */}
           <div className="rrow hd-row">
@@ -197,12 +202,15 @@ function RegisterGrid({
               <span
                 className="folio"
                 style={{
-                  font: '600 10px var(--mono)',
-                  letterSpacing: '.14em',
+                  font: '800 14px var(--mono)',
+                  letterSpacing: '.04em',
                   color: 'var(--ink-3)',
+                  fontWeight: '20000',
+                  textTransform: 'uppercase',
+                  textAlign: 'left',
                 }}
               >
-                EMPLOYEE · SUMMARY
+                Employee's
               </span>
             </div>
             <div className="daystrip">
