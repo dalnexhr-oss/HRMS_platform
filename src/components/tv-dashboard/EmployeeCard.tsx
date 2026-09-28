@@ -1,4 +1,4 @@
-// Use text, a dot, and the tile tint to show attendance state on distant displays.
+// Use the shared attendance labels and status-pill colours on every employee card.
 import { presenceLabel } from '@/types/tv';
 import { statusMeta } from '@/lib/constants';
 import type { EmployeeData } from '@/types/tv';
@@ -34,12 +34,12 @@ function EmployeeCard({ employee }: { employee: EmployeeData }) {
   const subtitle = employee.designation || employee.department || employee.branch || employee.code;
 
   return (
-    <article className={`tv-card is-${employee.presence}`}>
+    <article className={`card tv-card is-${employee.presence}`}>
       <div className="tv-card-top">
         <span className="tv-mono" aria-hidden="true">
           {initials(employee.name)}
         </span>
-        <span className="tv-state">
+        <span className="pill tv-state">
           <i className="dot" />
           {presenceLabel[employee.presence]}
         </span>
@@ -51,7 +51,7 @@ function EmployeeCard({ employee }: { employee: EmployeeData }) {
       <p className="tv-foot mono">
         {at ? (
           <>
-            {employee.lastKind === 'in' ? 'In' : 'Out'} {at}
+            {employee.lastKind === 'in' ? 'Check-in' : 'Check-out'} {at}
             {employee.withinGeofence === false ? <span className="tv-flag">off-site</span> : null}
           </>
         ) : employee.presence === 'off' || employee.presence === 'leave' ? (
@@ -60,10 +60,10 @@ function EmployeeCard({ employee }: { employee: EmployeeData }) {
           employee.dayStatus ? (
             statusMeta(employee.dayStatus)[2]
           ) : (
-            'Away'
+            presenceLabel[employee.presence]
           )
         ) : (
-          'No punch yet'
+          'No check-in recorded'
         )}
       </p>
     </article>

@@ -55,11 +55,11 @@ interface BoardData {
 // Kept in step with the band headings in EmployeeScreen — the chip on a card
 // and the heading above it naming the same state differently reads as a bug.
 const presenceLabel: Record<Presence, string> = {
-  in: 'In office',
-  out: 'Clocked out',
-  off: 'Away',
+  in: 'Checked in',
+  out: 'Checked out',
+  off: 'Week off / holiday',
   leave: 'On leave',
-  awaited: 'Not in yet',
+  awaited: 'Yet to check in',
 };
 
 export { presenceLabel, type Presence, type EmployeeData, type BoardTotals, type BoardData };

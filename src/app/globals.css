@@ -2546,6 +2546,8 @@ tbody tr:hover {
   display: inline-flex;
   align-items: center;
   gap: 9px;
+  max-width: 100%;
+  vertical-align: middle;
   line-height: 1;
 }
 .brandmark-img {
@@ -3535,22 +3537,32 @@ th {
 /* TV attendance board (/tv) */
 /* Everything here is sized in clamp() against the viewport: the same markup has to be legible on a laptop preview and across a room on a 4K wall panel. */
 .tv-shell {
-  min-height: 100dvh;
+  --tv-footer-height: calc(72px + env(safe-area-inset-bottom, 0px));
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
   background: var(--paper);
 }
 .tv {
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  padding: clamp(16px, 2.2vw, 34px);
+  /* Reserve a separate scroll area above the footer, including the final row's padding. */
+  position: absolute;
+  inset: 0 0 var(--tv-footer-height);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  scroll-padding-block: var(--gutter);
+  padding: var(--gutter-top) var(--gutter) var(--gutter);
 }
 .tv-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: clamp(16px, 2.5vw, 40px);
   flex-wrap: wrap;
-  padding-bottom: clamp(12px, 1.4vw, 20px);
-  border-bottom: 2px solid var(--line-2);
+  padding: clamp(16px, 1.4vw, 24px);
+  border: 2px solid var(--edge);
+}
+.tv-head-brand {
+  min-width: 0;
 }
 /* The board uses the real <Brand> mark, like the sidebar and login card. It is the largest instance in the app — this is read from across a room — so the logo and the "HRMS." wordmark are scaled together against the viewport. */
 .tv-head-brand .brandmark {
@@ -3582,54 +3594,24 @@ th {
   text-transform: uppercase;
   color: var(--ink-3);
 }
-.tv-exit {
-  display: inline-block;
-  margin-top: 8px;
-  font: 500 12px var(--sans);
-  color: var(--ink-3);
-  opacity: 0.75;
-}
-.tv-exit:hover {
-  color: var(--brand);
-  opacity: 1;
-  text-decoration: underline;
-}
 .tv-kpis {
-  display: flex;
-  gap: clamp(12px, 1.8vw, 30px);
-  margin-left: auto;
-  flex-wrap: wrap;
+  margin-top: var(--gutter);
 }
 .tv-kpi {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  line-height: 1;
+  min-width: 0;
 }
-.tv-kpi-val {
-  font: 800 clamp(26px, 3vw, 58px)/1 var(--display);
-  letter-spacing: -0.04em;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-}
-.tv-kpi.is-in .tv-kpi-val {
+.tv-kpi.is-in .val {
   color: var(--p);
-}
-.tv-kpi-lab {
-  margin-top: 6px;
-  font: 600 clamp(9px, 0.7vw, 13px) var(--mono);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-3);
 }
 .tv-clock {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  margin-left: auto;
   line-height: 1;
 }
 .tv-time {
-  font: 700 clamp(26px, 3vw, 58px)/1 var(--display);
+  font: 700 clamp(26px, 2.2vw, 42px)/1 var(--display);
   letter-spacing: -0.03em;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
@@ -3651,36 +3633,29 @@ th {
   border: 1px solid var(--lm-line);
 }
 .tv-body {
-  flex: 1;
-  padding-top: clamp(14px, 1.6vw, 26px);
+  min-width: 0;
+  margin-top: var(--gutter);
 }
 .tv-empty {
+  margin: 0;
   padding: 60px 20px;
   text-align: center;
   color: var(--ink-3);
   font-size: 16px;
 }
 .tv-band {
-  margin-bottom: clamp(18px, 2vw, 32px);
+  margin-bottom: var(--gutter);
 }
-.tv-band-hd {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 0 clamp(8px, 1vw, 14px);
-  font: 600 clamp(11px, 0.9vw, 16px) var(--mono);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-3);
+.tv-band:last-child {
+  margin-bottom: 0;
+}
+.tv-band > .hd {
+  border-radius: var(--radius) var(--radius) 0 0;
 }
 .tv-band-n {
-  font: 700 clamp(11px, 0.9vw, 16px) var(--mono);
   color: var(--ink);
   background: var(--card-2);
-  border: 1px solid var(--edge);
-  border-radius: 99px;
-  padding: 2px 10px;
-  letter-spacing: 0;
+  border-color: var(--line-2);
 }
 .tv-grid {
   display: grid;
@@ -3689,16 +3664,14 @@ th {
 }
 
 .tv-card {
-  padding: clamp(12px, 1vw, 20px);
-  border-radius: 16px;
-  border: 1px solid var(--edge);
-  background: #fff;
-  box-shadow: var(--shadow);
+  min-width: 0;
+  padding: 18px 20px;
 }
 .tv-card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
 }
 .tv-mono {
@@ -3712,20 +3685,17 @@ th {
   background: linear-gradient(155deg, var(--brand-lift), var(--brand));
 }
 .tv-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font: 600 clamp(9px, 0.68vw, 12px) var(--mono);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  border-color: var(--line-2);
+  background: var(--card-2);
   color: var(--ink-3);
 }
 .tv-state .dot {
+  flex-shrink: 0;
   background: var(--ink-3);
 }
 .tv-name {
   margin: clamp(10px, 0.9vw, 16px) 0 0;
-  font: 700 clamp(15px, 1.25vw, 24px)/1.2 var(--display);
+  font: 700 clamp(14px, 1vw, 20px)/1.3 var(--display);
   letter-spacing: -0.025em;
   color: var(--ink);
   overflow-wrap: anywhere;
@@ -3751,44 +3721,55 @@ th {
   padding: 2px 7px;
   border-radius: 99px;
 }
-/* Presence tints. Each pairs with the spelled-out label in .tv-state, so the board still parses on a washed-out projector or in greyscale. */
-.tv-card.is-in {
-  background: linear-gradient(155deg, #f1f9f4, #e8f4ec);
-  border-color: var(--p-line);
-}
+/* Use the portal's status-pill colours while keeping employee cards on its white surface. */
 .tv-card.is-in .tv-state {
   color: var(--p);
+  background: var(--p-bg);
+  border-color: var(--p-line);
 }
 .tv-card.is-in .tv-state .dot {
   background: var(--p);
   box-shadow: 0 0 0 3px rgba(23, 114, 69, 0.18);
 }
+.tv-card.is-out .tv-state {
+  color: var(--lv);
+  background: var(--lv-bg);
+  border-color: var(--lv-line);
+}
 .tv-card.is-out .tv-state .dot {
   background: var(--lv);
 }
-.tv-card.is-awaited {
-  background: #fdfbf6;
-  border-color: var(--lm-line);
-}
 .tv-card.is-awaited .tv-state {
   color: var(--lm);
+  background: var(--lm-bg);
+  border-color: var(--lm-line);
 }
 .tv-card.is-awaited .tv-state .dot {
   background: var(--lm);
 }
-/* Approved leave is a decision, not an absence — it keeps its own colour rather than being dimmed away like a week off. */
-.tv-card.is-leave {
-  background: linear-gradient(155deg, #f4f6fb, #e9ecf5);
-  border-color: var(--lv-line);
-}
 .tv-card.is-leave .tv-state {
   color: var(--lv);
+  background: var(--lv-bg);
+  border-color: var(--lv-line);
 }
 .tv-card.is-leave .tv-state .dot {
   background: var(--lv);
 }
-.tv-card.is-off {
-  opacity: 0.62;
+.tv-card.is-off .tv-state {
+  color: var(--wo);
+  background: var(--wo-bg);
+  border-color: var(--wo-line);
+}
+.tv-footer {
+  position: absolute;
+  inset: auto 0 0;
+  height: var(--tv-footer-height);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-radius: var(--radius) var(--radius) 0 0;
+  border-bottom: 0;
 }
 
 /* responsive */
@@ -4093,16 +4074,14 @@ html {
     gap: 12px;
   }
   .tv-kpis {
-    margin-left: 0;
-    width: 100%;
-    justify-content: space-between;
     gap: 10px;
   }
   .tv-clock {
     align-items: flex-start;
+    margin-left: 0;
   }
   .tv-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
   }
 }
 
@@ -4147,6 +4126,19 @@ html {
 /* print — attendance registers & payslips */
 /* Every glass/soft effect is flattened: blur and coloured shadow either vanish or turn to mud on paper, and toner should not be spent on an aurora. */
 @media print {
+  .tv-shell,
+  .tv {
+    height: auto;
+    overflow: visible;
+  }
+  .tv {
+    position: static;
+    inset: auto;
+    scrollbar-gutter: auto;
+  }
+  .tv-footer {
+    display: none;
+  }
   .sidebar,
   .topbar,
   .toast-wrap,

@@ -3,22 +3,16 @@
 // Seed the TV board with server data and poll for updates. Keep the last successful result during
 // failures and label it stale when polling falls behind.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { Brand } from '@/components/ui/Brand';
 import { EmployeeCard } from './EmployeeCard';
+import { presenceLabel } from '@/types/tv';
 import type { BoardData, Presence } from '@/types/tv';
 
 const pollMs = 30_000;
 // Mark the board stale after this long without a successful poll.
 const staleMs = 3 * pollMs;
 
-const bands: Array<{ key: Presence; label: string }> = [
-  { key: 'in', label: 'In office' },
-  { key: 'out', label: 'Clocked out' },
-  { key: 'awaited', label: 'Not in yet' },
-  { key: 'off', label: 'Away' },
-  { key: 'leave', label: 'On leave' },
-];
+const bands: Presence[] = ['in', 'out', 'awaited', 'off', 'leave'];
 
 function useNow(intervalMs = 1000) {
   const [now, setNow] = useState<Date | null>(null);
@@ -87,34 +81,11 @@ function EmployeeScreen({ initial }: { initial: BoardData }) {
 
   return (
     <div className="tv">
-      <header className="tv-head">
+      <header className="card tv-head">
         <div className="tv-head-brand">
           {/* The real mark, not a retyped wordmark — same component as the sidebar and the login card, sized for the wall in globals.css. */}
-          <Brand priority />
+          <Brand href="/today" priority />
           <p>Attendance board</p>
-          {/* The board replaces the whole shell, so this is the only way back out for someone who opened it from the sidebar. */}
-          <Link className="tv-exit" href="/today">
-            ← Back to portal
-          </Link>
-        </div>
-
-        <div className="tv-kpis">
-          <div className="tv-kpi is-in">
-            <span className="tv-kpi-val">{totals.in}</span>
-            <span className="tv-kpi-lab">On floor</span>
-          </div>
-          <div className="tv-kpi">
-            <span className="tv-kpi-val">{totals.out}</span>
-            <span className="tv-kpi-lab">Clocked out</span>
-          </div>
-          <div className="tv-kpi">
-            <span className="tv-kpi-val">{totals.awaited}</span>
-            <span className="tv-kpi-lab">Not in yet</span>
-          </div>
-          <div className="tv-kpi">
-            <span className="tv-kpi-val">{totals.headcount}</span>
-            <span className="tv-kpi-lab">Headcount</span>
-          </div>
         </div>
 
         <div className="tv-clock">
@@ -139,6 +110,25 @@ function EmployeeScreen({ initial }: { initial: BoardData }) {
         </div>
       </header>
 
+      <div className="kpis tv-kpis">
+        <div className="card kpi tv-kpi is-in">
+          <div className="lab">{presenceLabel.in}</div>
+          <div className="val">{totals.in}</div>
+        </div>
+        <div className="card kpi tv-kpi">
+          <div className="lab">{presenceLabel.out}</div>
+          <div className="val">{totals.out}</div>
+        </div>
+        <div className="card kpi tv-kpi">
+          <div className="lab">{presenceLabel.awaited}</div>
+          <div className="val">{totals.awaited}</div>
+        </div>
+        <div className="card kpi tv-kpi">
+          <div className="lab">Total employees</div>
+          <div className="val">{totals.headcount}</div>
+        </div>
+      </div>
+
       {stale ? (
         <p className="tv-stale" role="status">
           Connection lost — showing the last update received.
@@ -147,28 +137,32 @@ function EmployeeScreen({ initial }: { initial: BoardData }) {
 
       <div className="tv-body">
         {board.rows.length === 0 ? (
-          <p className="tv-empty">No active employees to show.</p>
+          <p className="card tv-empty">No active employees to show.</p>
         ) : (
-          bands.map(({ key, label }) => {
+          bands.map((key) => {
             const rows = board.rows.filter((row) => row.presence === key);
             if (rows.length === 0) {
               return null;
             }
             return (
-              <section className="tv-band" key={key}>
-                <h2 className="tv-band-hd">
-                  {label} <span className="tv-band-n">{rows.length}</span>
-                </h2>
-                <div className="tv-grid">
-                  {rows.map((row) => (
-                    <EmployeeCard key={row.id} employee={row} />
-                  ))}
+              <section className="card tv-band" key={key}>
+                <div className="hd">
+                  <h3>{presenceLabel[key]}</h3>
+                  <span className="pill tv-band-n">{rows.length}</span>
+                </div>
+                <div className="bd">
+                  <div className="tv-grid">
+                    {rows.map((row) => (
+                      <EmployeeCard key={row.id} employee={row} />
+                    ))}
+                  </div>
                 </div>
               </section>
             );
           })
         )}
       </div>
+
     </div>
   );
 }
