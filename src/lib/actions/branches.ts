@@ -14,7 +14,7 @@ import { toCoordinate } from '@/lib/db/money';
 import { withTransaction } from '@/lib/db/mongo';
 import type { BranchDoc, EmployeeDoc } from '@/lib/db/collections';
 
-export interface ActionResult {
+interface ActionResult {
   ok: boolean;
   error?: string;
 }
@@ -38,7 +38,7 @@ const defaultGeofenceRadiusM = 150;
  * Update a branch's office location in one document. Require both coordinates or neither; clearing
  * them restores the company-wide fallback.
  */
-export async function updateBranchLocation(id: string, formData: FormData): Promise<ActionResult> {
+async function updateBranchLocation(id: string, formData: FormData): Promise<ActionResult> {
   const gate = await requireRoles(branchAdminRoles, 'Setting a branch office location');
   if (!gate.ok) {
     return gate;
@@ -120,7 +120,7 @@ export async function updateBranchLocation(id: string, formData: FormData): Prom
 }
 
 // Rename a branch and/or move it to another state. Admin/HR, like /settings itself.
-export async function updateBranch(id: string, formData: FormData): Promise<ActionResult> {
+async function updateBranch(id: string, formData: FormData): Promise<ActionResult> {
   const gate = await requireRoles(branchAdminRoles, 'Updating a branch');
   if (!gate.ok) {
     return gate;
@@ -178,7 +178,7 @@ export async function updateBranch(id: string, formData: FormData): Promise<Acti
 }
 
 /** Delete a branch only when no employees reference it. */
-export async function deleteBranch(id: string): Promise<ActionResult> {
+async function deleteBranch(id: string): Promise<ActionResult> {
   const gate = await requireRoles(branchAdminRoles, 'Deleting a branch');
   if (!gate.ok) {
     return gate;
@@ -222,3 +222,5 @@ export async function deleteBranch(id: string): Promise<ActionResult> {
     return { ok: false, error: e instanceof Error ? e.message : 'Could not delete the branch.' };
   }
 }
+
+export { updateBranchLocation, updateBranch, deleteBranch, type ActionResult };

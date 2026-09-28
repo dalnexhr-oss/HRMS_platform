@@ -32,7 +32,7 @@ function useNow(intervalMs = 1000) {
   return now;
 }
 
-export function EmployeeScreen({ initial }: { initial: BoardData }) {
+function EmployeeScreen({ initial }: { initial: BoardData }) {
   const [board, setBoard] = useState<BoardData>(initial);
   const [staleSince, setStaleSince] = useState<number | null>(null);
   const now = useNow();
@@ -173,4 +173,4 @@ export function EmployeeScreen({ initial }: { initial: BoardData }) {
   );
 }
 
-export default EmployeeScreen;
+export { EmployeeScreen, EmployeeScreen as default };

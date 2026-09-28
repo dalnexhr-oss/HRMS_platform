@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { requestPasswordReset } from '@/lib/actions/password';
 import type { PasswordState } from '@/lib/actions/password';
 
-export function ResetRequestForm() {
+function ResetRequestForm() {
   const [state, action, pending] = useActionState<PasswordState, FormData>(
     requestPasswordReset,
     {},
@@ -76,3 +76,5 @@ export function ResetRequestForm() {
     </form>
   );
 }
+
+export { ResetRequestForm };

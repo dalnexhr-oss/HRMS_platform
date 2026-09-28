@@ -4,7 +4,7 @@ import type { Collection, Decimal128, Document } from 'mongodb';
 import type { AppRole } from '@/types/database';
 import type { RequestPerson } from '@/types/requests';
 
-export const collections = {
+const collections = {
   // Identity: credentials, role, and tab access share the user document.
   users: 'users',
 
@@ -76,16 +76,16 @@ export const collections = {
   passwordResetTokens: 'password_reset_tokens',
 } as const;
 
-export type CollectionName = (typeof collections)[keyof typeof collections];
+type CollectionName = (typeof collections)[keyof typeof collections];
 
 // Base document interface with UUID string primary key (_id).
-export interface BaseDoc {
+interface BaseDoc {
   _id: string;
   [key: string]: unknown;
 }
 
 // Authenticated user account document, including credentials, role assignment, and access controls.
-export interface UserDoc {
+interface UserDoc {
   _id: string;
 
   // Lowercased at write time; the unique index is the real guarantee.
@@ -118,7 +118,7 @@ export interface UserDoc {
 }
 
 /** Routing and decisions live with the request so forwarding is one atomic document update. */
-export interface RequestRouteDoc {
+interface RequestRouteDoc {
   initial_approver: RequestPerson;
   current_approver: RequestPerson;
   cc: RequestPerson[];
@@ -132,7 +132,7 @@ export interface RequestRouteDoc {
   }>;
 }
 
-export interface RequestDoc {
+interface RequestDoc {
   _id: string;
   employee_id: string;
   employee_name?: string;
@@ -153,10 +153,10 @@ export interface RequestDoc {
 }
 
 // What is safe to hand to a React component. Never includes the hash.
-export type PublicUser = Omit<UserDoc, 'password_hash' | 'token_version'>;
+type PublicUser = Omit<UserDoc, 'password_hash' | 'token_version'>;
 
 // Strip server-only fields before a document crosses into rendering.
-export function toPublicUser(user: UserDoc): PublicUser {
+function toPublicUser(user: UserDoc): PublicUser {
   const { password_hash: _hash, token_version: _v, ...rest } = user;
   return rest;
 }
@@ -164,12 +164,12 @@ export function toPublicUser(user: UserDoc): PublicUser {
 // Org core
 
 // Calendar date represented as ISO-8601 string ("YYYY-MM-DD") to avoid timezone shift on day boundaries.
-export type DateOnly = string;
+type DateOnly = string;
 
 // A time of day, as "HH:MM". BSON has no time type at all.
-export type TimeOnly = string;
+type TimeOnly = string;
 
-export interface BranchDoc {
+interface BranchDoc {
   _id: string;
   // Unique, case-insensitively — the index enforces it.
   name: string;
@@ -184,7 +184,7 @@ export interface BranchDoc {
   created_at: Date;
 }
 
-export interface DepartmentDoc {
+interface DepartmentDoc {
   _id: string;
   name: string;
   branch_id: string | null;
@@ -192,9 +192,9 @@ export interface DepartmentDoc {
 }
 
 // Lifecycle status for employee records.
-export type EmployeeStatus = 'active' | 'on_notice' | 'inactive';
+type EmployeeStatus = 'active' | 'on_notice' | 'inactive';
 
-export interface EmployeeDoc {
+interface EmployeeDoc {
   _id: string;
   // 'DN001'. Unique.
   code: string;
@@ -258,11 +258,30 @@ export interface EmployeeDoc {
 }
 
 // Typed handle for an arbitrary collection.
-export async function collection<T extends Document>(name: CollectionName): Promise<Collection<T>> {
+async function collection<T extends Document>(name: CollectionName): Promise<Collection<T>> {
   return (await db()).collection<T>(name);
 }
 
 // Direct collection handle for user identity queries during unauthenticated sign-in flows.
-export async function usersCollection(): Promise<Collection<UserDoc>> {
+async function usersCollection(): Promise<Collection<UserDoc>> {
   return (await db()).collection<UserDoc>(collections.users);
 }
+
+export {
+  collections,
+  toPublicUser,
+  collection,
+  usersCollection,
+  type CollectionName,
+  type BaseDoc,
+  type UserDoc,
+  type RequestRouteDoc,
+  type RequestDoc,
+  type PublicUser,
+  type DateOnly,
+  type TimeOnly,
+  type BranchDoc,
+  type DepartmentDoc,
+  type EmployeeStatus,
+  type EmployeeDoc,
+};

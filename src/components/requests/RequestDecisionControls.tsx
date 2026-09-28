@@ -10,7 +10,7 @@ import type { RequestActor } from '@/lib/requests/access';
 import type { RequestView } from '@/lib/queries';
 import type { RequestRecipient } from '@/types/requests';
 
-export function RequestDecisionControls({
+function RequestDecisionControls({
   request,
   actor,
   people,
@@ -134,3 +134,5 @@ export function RequestDecisionControls({
     </div>
   );
 }
+
+export { RequestDecisionControls };

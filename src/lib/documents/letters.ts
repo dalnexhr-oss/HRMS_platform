@@ -6,7 +6,7 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { logoAspect, logoPngBytes } from '@/lib/brand/logo';
 import type { PDFFont, PDFPage } from 'pdf-lib';
 
-export interface LetterSpec {
+interface LetterSpec {
   // Heading, e.g. "Relieving Letter" or "Full & Final Settlement".
   title: string;
   // Reference/date line under the title, e.g. "Ref: DN-REL-DN001 · 27 Jul YYYY".
@@ -50,7 +50,7 @@ function wrap(text: string, font: PDFFont, size: number, maxWidth: number): stri
  * Render a letter to PDF bytes. Handles page overflow by adding pages as the
  * cursor runs past the bottom margin.
  */
-export async function renderLetterPdf(spec: LetterSpec): Promise<Uint8Array> {
+async function renderLetterPdf(spec: LetterSpec): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -149,3 +149,5 @@ export async function renderLetterPdf(spec: LetterSpec): Promise<Uint8Array> {
 
   return doc.save();
 }
+
+export { renderLetterPdf, type LetterSpec };

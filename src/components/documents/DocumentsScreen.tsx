@@ -51,7 +51,7 @@ const cols: Array<{
   { key: 'filed', label: 'Filed', kind: 'date', get: (d) => d.uploadedAt.slice(0, 10) },
 ];
 
-export function DocumentsScreen({
+function DocumentsScreen({
   register,
   stats,
   employees,
@@ -473,3 +473,5 @@ function EmployeeLink({
     </button>
   );
 }
+
+export { DocumentsScreen };

@@ -53,7 +53,7 @@ function secondsIntoDay(now: Date): number {
  * Always measured against the absolute wall clock rather than added to the last
  * fire, so the schedule cannot drift over a long-running process.
  */
-export function msUntilNextSweep(now: Date = new Date()): number {
+function msUntilNextSweep(now: Date = new Date()): number {
   return (secondsPerDay - secondsIntoDay(now) + graceSeconds) * 1_000;
 }
 
@@ -92,7 +92,7 @@ function scheduleNext(): void {
  * Set `DISABLE_INTERNAL_CRON=1` to turn this off, for deployments that would
  * rather drive `/api/cron` from a host crontab or a platform scheduler.
  */
-export function startMidnightSweep(): void {
+function startMidnightSweep(): void {
   if (process.env.DISABLE_INTERNAL_CRON) {
     console.info('[midnight-sweep] disabled by DISABLE_INTERNAL_CRON.');
     return;
@@ -115,3 +115,5 @@ export function startMidnightSweep(): void {
   const hours = (msUntilNextSweep() / 3_600_000).toFixed(1);
   console.info(`[midnight-sweep] armed — next run at 00:00 ${timeZone}, in ${hours}h.`);
 }
+
+export { msUntilNextSweep, startMidnightSweep };

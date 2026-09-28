@@ -2,7 +2,7 @@ import type { AttendanceStatus } from '@/types/database';
 
 // Status metadata: short label, CSS class, and display label. Site and travel share the
 // outdoor-duty style.
-export const attendanceStatusMeta: Record<string, [string, string, string]> = {
+const attendanceStatusMeta: Record<string, [string, string, string]> = {
   P: ['P', 'st-P', 'Present'],
   LM: ['LM', 'st-LM', 'Late mark'],
   HD: ['HD', 'st-HD', 'Half day'],
@@ -16,11 +16,11 @@ export const attendanceStatusMeta: Record<string, [string, string, string]> = {
   CO: ['CO', 'st-OH', 'Comp off'],
 };
 
-export function statusMeta(s: AttendanceStatus | string) {
+function statusMeta(s: AttendanceStatus | string) {
   return attendanceStatusMeta[s] ?? attendanceStatusMeta.P;
 }
 
-export const registerLegend: Array<[AttendanceStatus, string]> = [
+const registerLegend: Array<[AttendanceStatus, string]> = [
   ['P', 'Present'],
   ['LM', 'Late mark'],
   ['HD', 'Half day'],
@@ -31,12 +31,12 @@ export const registerLegend: Array<[AttendanceStatus, string]> = [
   ['S', 'Site / travel'],
 ];
 
-export const dow = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+const dow = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
 // Assign branch colors by alphabetical index, shared by the dashboard and employee list. The
 // 20-slot order alternates hues for adjacent segments. Keep text labels and segment gaps as
 // additional cues; check contrast and color-vision distinguishability before changing the palette.
-export const branchPalette = [
+const branchPalette = [
   '#2A78D6', // 1 blue
   '#06809C', // 2 teal
   '#EB6834', // 3 orange
@@ -62,12 +62,12 @@ export const branchPalette = [
 ] as const;
 
 // Colour for the i-th branch (alphabetical index). Wraps past 20 branches.
-export function branchColorAt(i: number): string {
+function branchColorAt(i: number): string {
   return branchPalette[i % branchPalette.length];
 }
 
 // Keep upload categories client-safe. A use-server module cannot export plain constants.
-export const documentCategories = [
+const documentCategories = [
   // onboarding
   'offer_letter',
   'contract',
@@ -85,15 +85,15 @@ export const documentCategories = [
   'other',
 ] as const;
 
-export type DocumentCategory = (typeof documentCategories)[number];
+type DocumentCategory = (typeof documentCategories)[number];
 
 // System-issued documents are verified when generated and cannot be replaced through upload forms.
 // Reissue them from /exits. The experience category is shared with uploads, so use the
 // bucket/source to distinguish an issued letter from an uploaded certificate.
-export const generatedDocumentCategories = ['relieving', 'experience', 'settlement'] as const;
+const generatedDocumentCategories = ['relieving', 'experience', 'settlement'] as const;
 
 // Display names for every category, uploaded or issued.
-export const documentCategoryLabels: Record<string, string> = {
+const documentCategoryLabels: Record<string, string> = {
   offer_letter: 'Offer letter',
   contract: 'Contract / agreement',
   joining_form: 'Joining form',
@@ -114,7 +114,7 @@ export const documentCategoryLabels: Record<string, string> = {
 
 // Choose document labels by source so issued experience letters and uploaded certificates remain
 // distinguishable.
-export function documentCategoryLabel(category: string | null, issued = false): string {
+function documentCategoryLabel(category: string | null, issued = false): string {
   if (!category) {
     return '—';
   }
@@ -126,7 +126,7 @@ export function documentCategoryLabel(category: string | null, issued = false): 
 
 // Required joining documents drive missing-document counts. Additional categories can be uploaded
 // without being reported as missing.
-export const requiredDocumentCategories: readonly string[] = [
+const requiredDocumentCategories: readonly string[] = [
   'offer_letter',
   'contract',
   'id_proof',
@@ -135,7 +135,7 @@ export const requiredDocumentCategories: readonly string[] = [
 
 // Keep branch states in sync with the schema enum. Professional Tax is zero for states without
 // configured pt_slabs.
-export const States = [
+const States = [
   // States (28)
   'Andhra Pradesh',
   'Arunachal Pradesh',
@@ -180,7 +180,7 @@ export const States = [
 // Portal navigation.
 
 // Shared sidebar groups keep navigation labels and grouping consistent.
-export const groups = {
+const groups = {
   ATTENDANCE: 'Attendance',
   WORKFORCE: 'Workforce',
   HR: 'HR',
@@ -189,10 +189,10 @@ export const groups = {
   ADMIN: 'Admin',
 } as const;
 
-export type NavGroup = (typeof groups)[keyof typeof groups];
+type NavGroup = (typeof groups)[keyof typeof groups];
 
 // Render groups in this order and skip groups with no visible tabs.
-export const groupOrder: NavGroup[] = [
+const groupOrder: NavGroup[] = [
   groups.ATTENDANCE,
   groups.WORKFORCE,
   groups.HR,
@@ -201,7 +201,7 @@ export const groupOrder: NavGroup[] = [
   groups.ADMIN,
 ];
 
-export interface NavItem {
+interface NavItem {
   slug: string;
   label: string;
   group: NavGroup;
@@ -209,7 +209,7 @@ export interface NavItem {
 
 // Sidebar rows in group order. Keep Users and Import here so titles and access rules use the same
 // slugs. Personal account settings belong in the profile menu.
-export const navItems: NavItem[] = [
+const navItems: NavItem[] = [
   { slug: 'today', label: 'Today', group: groups.ATTENDANCE },
   { slug: 'register', label: 'Monthly register', group: groups.ATTENDANCE },
   { slug: 'audit', label: 'Attendance audit', group: groups.ATTENDANCE },
@@ -240,7 +240,7 @@ export const navItems: NavItem[] = [
 ];
 
 // Hide tabs unavailable to the role. Pages and actions enforce their own authorization checks.
-export const tabRoleAccess: Record<string, readonly string[]> = {
+const tabRoleAccess: Record<string, readonly string[]> = {
   audit: ['super_admin', 'admin', 'hr'],
   onboarding: ['super_admin', 'admin', 'hr'],
   documents: ['super_admin', 'admin', 'hr'],
@@ -257,7 +257,7 @@ export const tabRoleAccess: Record<string, readonly string[]> = {
 
 // Static titles and fallback subtitles by slug. pageHeader supplies dates and counts from live
 // data.
-export const tabTitles: Record<string, [string, string]> = {
+const tabTitles: Record<string, [string, string]> = {
   today: ['Today', 'Live attendance · IST'],
   register: ['Monthly register', 'Attendance by month'],
   audit: ['Attendance audit', 'Who edited attendance & why'],
@@ -284,7 +284,7 @@ export const tabTitles: Record<string, [string, string]> = {
 
 // Server-formatted dates keep topbar hydration consistent. Keep this client-safe contract outside
 // the server-only queries module.
-export interface TopbarStats {
+interface TopbarStats {
   // e.g. 'Saturday, 25 July YYYY' — today in the business timezone.
   todayLabel: string;
   // e.g. 'July YYYY' — the current payroll period.
@@ -313,7 +313,7 @@ const runStatusLabel: Record<string, string> = {
 // Title + subtitle for a page. Falls back to the static tabTitles row whenever the figure behind a
 // subtitle is unavailable, so a failed count degrades to a plain description rather than to a wrong
 // number.
-export function pageHeader(slug: string, stats?: TopbarStats | null): [string, string] {
+function pageHeader(slug: string, stats?: TopbarStats | null): [string, string] {
   const [title, fallback] = tabTitles[slug] ?? ['', ''];
   if (!stats) {
     return [title, fallback];
@@ -363,4 +363,30 @@ export function pageHeader(slug: string, stats?: TopbarStats | null): [string, s
  * Notice retention in days, shared by scheduled and on-publish cleanup. Delete notices older than
  * the IST cutoff, measured from published_at or created_at for drafts.
  */
-export const noticeRetentionDays = 30;
+const noticeRetentionDays = 30;
+
+export {
+  attendanceStatusMeta,
+  statusMeta,
+  registerLegend,
+  dow,
+  branchPalette,
+  branchColorAt,
+  documentCategories,
+  generatedDocumentCategories,
+  documentCategoryLabels,
+  documentCategoryLabel,
+  requiredDocumentCategories,
+  States,
+  groups,
+  groupOrder,
+  navItems,
+  tabRoleAccess,
+  tabTitles,
+  pageHeader,
+  noticeRetentionDays,
+  type DocumentCategory,
+  type NavGroup,
+  type NavItem,
+  type TopbarStats,
+};

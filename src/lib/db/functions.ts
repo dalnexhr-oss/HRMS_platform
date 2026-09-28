@@ -13,7 +13,7 @@ import type { Scope } from '@/lib/db/scope';
 import type { BaseDoc } from '@/lib/db/collections';
 
 // Only internal jobs may set this context; RPC dispatch never accepts it from clients.
-export interface Invocation {
+interface Invocation {
   readonly isScheduler: boolean;
 }
 
@@ -21,7 +21,7 @@ export interface Invocation {
 const request: Invocation = { isScheduler: false };
 
 // An in-process scheduled job. Only db/scheduler.ts may pass this.
-export const scheduled: Invocation = { isScheduler: true };
+const scheduled: Invocation = { isScheduler: true };
 
 // The signed-in caller, or a refusal. Never falls back to the system.
 async function requireCaller(fn: string): Promise<Scope> {
@@ -53,7 +53,7 @@ async function settingNumeric(key: string, fallback: number): Promise<number> {
 
 // fn_on_leave_today
 
-export interface OnLeaveRow {
+interface OnLeaveRow {
   employee_id: string;
   full_name: string;
   branch: string;
@@ -255,7 +255,7 @@ async function provisionLeaveBalances(
 let registered = false;
 
 /** Wire the TypeScript implementations into the `.rpc()` surface. Idempotent. */
-export function registerDbFunctions(): void {
+function registerDbFunctions(): void {
   if (registered) {
     return;
   }
@@ -269,4 +269,12 @@ export function registerDbFunctions(): void {
   );
 }
 
-export { onLeaveToday, initApprovalSteps, provisionLeaveBalances };
+export {
+  scheduled,
+  registerDbFunctions,
+  onLeaveToday,
+  initApprovalSteps,
+  provisionLeaveBalances,
+  type Invocation,
+  type OnLeaveRow,
+};

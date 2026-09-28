@@ -15,7 +15,7 @@ const channelLabel: Record<NoticeView['channel'], string> = {
   both: 'Both',
 };
 
-export function NoticesScreen({
+function NoticesScreen({
   notices,
   branchNames = [],
 }: {
@@ -270,3 +270,5 @@ function NoticeForm({
     </form>
   );
 }
+
+export { NoticesScreen };

@@ -19,7 +19,7 @@ const amber = '#9a6b00';
 const amberLine = '#e6c877';
 const amberBg = '#fdf6e3';
 
-export function ImportScreen({
+function ImportScreen({
   canImport,
   role,
   currentMonth,
@@ -415,3 +415,5 @@ export function ImportScreen({
     </div>
   );
 }
+
+export { ImportScreen };

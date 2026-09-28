@@ -9,7 +9,7 @@ import type { PasswordState } from '@/lib/actions/password';
 // Mirrors validatePassword() in lib/auth/password.ts.
 const minLen = 10;
 
-export function ChangePasswordForm({ email }: { email?: string | null }) {
+function ChangePasswordForm({ email }: { email?: string | null }) {
   const [state, action, pending] = useActionState<PasswordState, FormData>(changePassword, {});
 
   return (
@@ -74,3 +74,5 @@ export function ChangePasswordForm({ email }: { email?: string | null }) {
     </form>
   );
 }
+
+export { ChangePasswordForm };

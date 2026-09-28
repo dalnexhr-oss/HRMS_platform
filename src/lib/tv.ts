@@ -21,7 +21,7 @@ function dayOf(timestamp: Date | string): string {
 const leaveStauses = new Set(['L', 'CO']);
 const offStauses = new Set(['WO', 'OH']);
 
-export async function readBoard(): Promise<BoardData> {
+async function readBoard(): Promise<BoardData> {
   const dbc = await createClient();
   const date = todayIST();
 
@@ -128,3 +128,5 @@ export async function readBoard(): Promise<BoardData> {
 
   return { date, generatedAt: new Date().toISOString(), rows, totals };
 }
+
+export { readBoard };

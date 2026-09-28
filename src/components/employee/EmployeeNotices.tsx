@@ -8,7 +8,7 @@ import type { NoticeView } from '@/lib/queries';
 
 // Show employee notices and their read receipts. canMark controls receipt actions; the server
 // checks permission when saving.
-export function EmployeeNotices({
+function EmployeeNotices({
   notices,
   readIds = [],
   canMark = false,
@@ -118,3 +118,5 @@ function NoticeItem({
     </div>
   );
 }
+
+export { EmployeeNotices };

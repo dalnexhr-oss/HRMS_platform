@@ -7,7 +7,7 @@ import { readBoard } from '@/lib/tv';
 // Require staff access and fetch fresh attendance data for every board request.
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+async function GET() {
   try {
     const { profile } = await getSession();
     if (!isStaffRole(profile?.role)) {
@@ -26,3 +26,5 @@ export async function GET() {
     );
   }
 }
+
+export { GET };

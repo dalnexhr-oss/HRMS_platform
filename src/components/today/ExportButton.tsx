@@ -14,7 +14,7 @@ interface ExportButtonProps {
 }
 
 // Download the branded punch-log workbook through the shared export button.
-export function ExportButton({ rows, date, disabledReason = null }: ExportButtonProps) {
+function ExportButton({ rows, date, disabledReason = null }: ExportButtonProps) {
   const disabled = disabledReason !== null || rows.length === 0;
   const reason = disabledReason ?? (rows.length === 0 ? 'Nothing to export yet' : null);
 
@@ -34,3 +34,5 @@ export function ExportButton({ rows, date, disabledReason = null }: ExportButton
 
   return <XlsxExportButton action={() => exportPunchLogXlsx(date)} label="Export" />;
 }
+
+export { ExportButton };

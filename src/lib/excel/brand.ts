@@ -9,7 +9,7 @@ import { todayIST } from '@/lib/format';
 import type ExcelJS from 'exceljs';
 
 // The row a banded sheet's data header lands on (rows 1–3 are the band).
-export const headerRow = 4;
+const headerRow = 4;
 
 // One embedded copy of the PNG per workbook, however many sheets use it.
 const logoIds = new WeakMap<ExcelJS.Workbook, number>();
@@ -25,7 +25,7 @@ function logoId(wb: ExcelJS.Workbook): number {
 
 // Float the logo over the sheet at a cell anchor (0-indexed col/row), sized by height in px with
 // the artwork's own aspect. Cells underneath stay untouched.
-export function writeBrandOverlay(
+function writeBrandOverlay(
   wb: ExcelJS.Workbook,
   ws: ExcelJS.Worksheet,
   opts: { col: number; row: number; height: number },
@@ -39,7 +39,7 @@ export function writeBrandOverlay(
 
 // Write the rows 1–3 letterhead: logo, report title, subtitle (defaulting to "Dalnex LLP ·
 // Generated YYYY-MM-DD"). Returns headerRow, where the caller puts its data header.
-export function writeBrandHeader(
+function writeBrandHeader(
   wb: ExcelJS.Workbook,
   ws: ExcelJS.Worksheet,
   opts: { title: string; subtitle?: string },
@@ -57,3 +57,5 @@ export function writeBrandHeader(
 
   return headerRow;
 }
+
+export { headerRow, writeBrandOverlay, writeBrandHeader };

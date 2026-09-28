@@ -38,7 +38,7 @@ function capped(body: ReadableStream<Uint8Array>, limit: number): ReadableStream
   );
 }
 
-export async function POST(req: Request) {
+async function POST(req: Request) {
   if (!isMongoConfigured()) {
     return bad('The database is not configured, so the document was not filed.', 503);
   }
@@ -140,3 +140,5 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true });
 }
+
+export { POST };

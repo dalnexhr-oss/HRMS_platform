@@ -38,7 +38,7 @@ function itemFields(formData: FormData) {
   };
 }
 
-export async function createItem(formData: FormData) {
+async function createItem(formData: FormData) {
   const gate = await requireRoles(itemAdminRoles, 'Adding an item');
   if (!gate.ok) {
     return gate;
@@ -61,7 +61,7 @@ export async function createItem(formData: FormData) {
   return { ok: true };
 }
 
-export async function updateItem(formData: FormData) {
+async function updateItem(formData: FormData) {
   const gate = await requireRoles(itemAdminRoles, 'Updating an item');
   if (!gate.ok) {
     return gate;
@@ -92,7 +92,7 @@ export async function updateItem(formData: FormData) {
   return { ok: true };
 }
 
-export async function deleteItem(id: string) {
+async function deleteItem(id: string) {
   const gate = await requireRoles(itemAdminRoles, 'Deleting an item');
   if (!gate.ok) {
     return gate;
@@ -113,7 +113,7 @@ export async function deleteItem(id: string) {
   return { ok: true };
 }
 
-export async function assignItem(formData: FormData) {
+async function assignItem(formData: FormData) {
   const gate = await requireRoles(itemAdminRoles, 'Assigning an item');
   if (!gate.ok) {
     return gate;
@@ -216,7 +216,7 @@ export async function assignItem(formData: FormData) {
   return { ok: true };
 }
 
-export async function returnAssignment(id: string) {
+async function returnAssignment(id: string) {
   const gate = await requireRoles(itemAdminRoles, 'Returning an item');
   if (!gate.ok) {
     return gate;
@@ -252,7 +252,7 @@ export async function returnAssignment(id: string) {
   return { ok: true };
 }
 
-export async function deleteAssignment(id: string) {
+async function deleteAssignment(id: string) {
   const gate = await requireRoles(itemAdminRoles, 'Deleting an assignment');
   if (!gate.ok) {
     return gate;
@@ -292,6 +292,16 @@ export async function deleteAssignment(id: string) {
 }
 
 /** Client-callable loader for one item's assignment log. */
-export async function fetchItemAssignments(itemId: string): Promise<ItemAssignmentRow[]> {
+async function fetchItemAssignments(itemId: string): Promise<ItemAssignmentRow[]> {
   return getItemAssignments(itemId);
 }
+
+export {
+  createItem,
+  updateItem,
+  deleteItem,
+  assignItem,
+  returnAssignment,
+  deleteAssignment,
+  fetchItemAssignments,
+};

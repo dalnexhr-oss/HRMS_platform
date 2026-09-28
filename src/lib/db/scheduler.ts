@@ -29,7 +29,7 @@ function addDays(date: string, days: number): string {
  *
  * The unique index rejects repeated claims. Claim work before running a job's side effects.
  */
-export async function cronClaim(job: string, runKey: string, detail?: string): Promise<boolean> {
+async function cronClaim(job: string, runKey: string, detail?: string): Promise<boolean> {
   const log = scopedFor<BaseDoc>(collections.cronRunLog, systemScope);
   try {
     await log.insertOne({
@@ -84,7 +84,7 @@ async function claimed(
   }
 }
 
-export interface JobResult {
+interface JobResult {
   job: string;
   ran: boolean;
   affected: number;
@@ -98,7 +98,7 @@ export interface JobResult {
  * drafts. Use separate BSON-date filters for the two cases. Cleanup uses system scope whether
  * triggered by cron or publishing.
  */
-export async function deleteExpiredNotices(retentionDays = noticeRetentionDays): Promise<number> {
+async function deleteExpiredNotices(retentionDays = noticeRetentionDays): Promise<number> {
   const cutoff = new Date(`${addDays(todayIST(), -retentionDays)}T00:00:00Z`);
   const notices = scopedFor<BaseDoc>(collections.notices, systemScope);
   const published = await notices.deleteMany({
@@ -112,7 +112,7 @@ export async function deleteExpiredNotices(retentionDays = noticeRetentionDays):
 }
 
 /** Delete notices that have outlived the retention window. */
-export async function purgeOldNotices(retentionDays = noticeRetentionDays): Promise<JobResult> {
+async function purgeOldNotices(retentionDays = noticeRetentionDays): Promise<JobResult> {
   return claimed(
     'purge-old-notices',
     { job: 'purge_old_notices', runKey: todayIST() },
@@ -124,7 +124,7 @@ export async function purgeOldNotices(retentionDays = noticeRetentionDays): Prom
 // comp-off-expiry
 
 /** Expire comp-offs whose expiry date has passed and that were never used. */
-export async function expireCompOffs(): Promise<JobResult> {
+async function expireCompOffs(): Promise<JobResult> {
   const today = todayIST();
   return claimed(
     'comp-off-expiry',
@@ -155,7 +155,7 @@ export async function expireCompOffs(): Promise<JobResult> {
  *
  * Deduplicated per (asset, warranty date) so each asset is flagged once per expiration cycle.
  */
-export async function warrantyReminders(): Promise<JobResult> {
+async function warrantyReminders(): Promise<JobResult> {
   const today = todayIST();
   const horizon = addDays(today, 30);
 
@@ -201,7 +201,7 @@ export async function warrantyReminders(): Promise<JobResult> {
  * The day is stamped with the configured auto punch-out time and flagged as
  * corrected, so it is visibly a system decision rather than a real punch.
  */
-export async function autoPunchOut(targetDate?: string): Promise<JobResult> {
+async function autoPunchOut(targetDate?: string): Promise<JobResult> {
   const date = targetDate ?? addDays(todayIST(), -1);
   return claimed(
     'attendance-auto-punch-out',
@@ -298,7 +298,7 @@ export async function autoPunchOut(targetDate?: string): Promise<JobResult> {
 // attendance-auto-close-month
 
 /** Stamp the previous month's payroll run as closed, once the month is over. */
-export async function autoCloseMonth(): Promise<JobResult> {
+async function autoCloseMonth(): Promise<JobResult> {
   const today = todayIST();
   const [y, m] = today.split('-').map(Number);
   const prev = m === 1 ? `${y - 1}-12-01` : `${y}-${String(m - 1).padStart(2, '0')}-01`;
@@ -324,7 +324,7 @@ export async function autoCloseMonth(): Promise<JobResult> {
 // leave-annual-provision
 
 /** Open the current leave year. Idempotent through the ledger and by row. */
-export async function leaveAnnualProvision(year?: number): Promise<JobResult> {
+async function leaveAnnualProvision(year?: number): Promise<JobResult> {
   const target = year ?? Number(todayIST().slice(0, 4));
   return claimed(
     'leave-annual-provision',
@@ -339,7 +339,7 @@ export async function leaveAnnualProvision(year?: number): Promise<JobResult> {
 // lifecycle-reminders
 
 /** Nudge staff about exits whose last working day is within a week. */
-export async function lifecycleReminders(): Promise<JobResult> {
+async function lifecycleReminders(): Promise<JobResult> {
   const today = todayIST();
   const horizon = addDays(today, 7);
 
@@ -426,7 +426,7 @@ async function logActivity(eventType: string, message: string): Promise<void> {
 
 // the schedule
 
-export const jobs = {
+const jobs = {
   'purge-old-notices': purgeOldNotices,
   'attendance-auto-punch-out': () => autoPunchOut(),
   'attendance-auto-close-month': autoCloseMonth,
@@ -436,7 +436,7 @@ export const jobs = {
   'lifecycle-reminders': lifecycleReminders,
 } as const;
 
-export type JobName = keyof typeof jobs;
+type JobName = keyof typeof jobs;
 
 /**
  * Run every daily job.
@@ -445,7 +445,7 @@ export type JobName = keyof typeof jobs;
  * warranty-notification failure has no business preventing the month from
  * closing. Each result carries its own outcome.
  */
-export async function runDailyJobs(): Promise<JobResult[]> {
+async function runDailyJobs(): Promise<JobResult[]> {
   const out: JobResult[] = [];
   for (const [name, job] of Object.entries(jobs)) {
     try {
@@ -461,3 +461,19 @@ export async function runDailyJobs(): Promise<JobResult[]> {
   }
   return out;
 }
+
+export {
+  cronClaim,
+  deleteExpiredNotices,
+  purgeOldNotices,
+  expireCompOffs,
+  warrantyReminders,
+  autoPunchOut,
+  autoCloseMonth,
+  leaveAnnualProvision,
+  lifecycleReminders,
+  jobs,
+  runDailyJobs,
+  type JobResult,
+  type JobName,
+};

@@ -46,13 +46,7 @@ const cols: Array<{ key: ColKey; label: string; get: (i: ItemRow) => string; kin
   { key: 'returnable', label: 'Returnable', get: (i) => (i.returnable ? 'Yes' : 'No') },
 ];
 
-export function ItemsScreen({
-  items,
-  employees,
-}: {
-  items: ItemRow[];
-  employees: EmployeeOption[];
-}) {
+function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: EmployeeOption[] }) {
   const router = useRouter();
   const [q, setQ] = useState('');
   const [editDrawer, setEditDrawer] = useState(false);
@@ -309,3 +303,5 @@ function Trunc({ v, w = 150 }: { v: string | null; w?: number }) {
     </span>
   );
 }
+
+export { ItemsScreen };

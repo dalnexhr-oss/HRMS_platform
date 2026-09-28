@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { FlatCompat } from '@eslint/eslintrc';
+import { exportStyleRule } from './scripts/export-style.mjs';
 
 const compat = new FlatCompat({
   baseDirectory: fileURLToPath(new URL('.', import.meta.url)),
@@ -12,7 +13,9 @@ const config = [
   ...compat.extends('next/core-web-vitals'),
   ...compat.plugins('@typescript-eslint'),
   {
+    plugins: { project: { rules: { 'exports-at-end': exportStyleRule } } },
     rules: {
+      'project/exports-at-end': 'error',
       curly: ['error', 'all'],
       'no-var': 'error',
       'prefer-const': 'error',
@@ -84,4 +87,4 @@ const config = [
   },
 ];
 
-export default config;
+export { config as default };

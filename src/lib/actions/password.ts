@@ -11,7 +11,7 @@ import { isMongoConfigured } from '@/lib/db/mongo';
 import { escapeHtml, isEmailConfigured, sendEmail } from '@/lib/email';
 import { appOrigin, originNotConfigured } from '@/lib/auth/origin';
 
-export interface PasswordState {
+interface PasswordState {
   error?: string;
   sent?: boolean;
   done?: boolean;
@@ -22,7 +22,7 @@ export interface PasswordState {
 // Request a reset link
 
 // Initiates password reset flow. Returns uniform success response to prevent account enumeration.
-export async function requestPasswordReset(
+async function requestPasswordReset(
   _prev: PasswordState,
   formData: FormData,
 ): Promise<PasswordState> {
@@ -95,10 +95,7 @@ export async function requestPasswordReset(
 
 // Redeem a reset link
 
-export async function resetPassword(
-  _prev: PasswordState,
-  formData: FormData,
-): Promise<PasswordState> {
+async function resetPassword(_prev: PasswordState, formData: FormData): Promise<PasswordState> {
   const token = String(formData.get('token') ?? '');
   const password = String(formData.get('password') ?? '');
   const confirm = String(formData.get('confirm') ?? '');
@@ -145,10 +142,7 @@ export async function resetPassword(
 
 // Change your own password while signed in
 
-export async function changePassword(
-  _prev: PasswordState,
-  formData: FormData,
-): Promise<PasswordState> {
+async function changePassword(_prev: PasswordState, formData: FormData): Promise<PasswordState> {
   const current = String(formData.get('current') ?? '');
   const password = String(formData.get('password') ?? '');
   const confirm = String(formData.get('confirm') ?? '');
@@ -205,7 +199,7 @@ export async function changePassword(
 }
 
 /** Sign every device out of an account. Used by the account page. */
-export async function signOutEverywhere(): Promise<void> {
+async function signOutEverywhere(): Promise<void> {
   const { userId } = await getSession();
   if (userId) {
     await revokeAllSessions(userId);
@@ -213,3 +207,11 @@ export async function signOutEverywhere(): Promise<void> {
   await destroySession();
   redirect('/login');
 }
+
+export {
+  requestPasswordReset,
+  resetPassword,
+  changePassword,
+  signOutEverywhere,
+  type PasswordState,
+};

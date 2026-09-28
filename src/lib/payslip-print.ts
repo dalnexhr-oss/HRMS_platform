@@ -188,7 +188,7 @@ function payslipHtml(p: PayslipRow, logoUrl: string): string {
  * Open the payslip in a new window ready to print / save as PDF. Returns false
  * if the browser blocked the popup so callers can surface a hint.
  */
-export function printPayslip(p: PayslipRow): boolean {
+function printPayslip(p: PayslipRow): boolean {
   const w = window.open('', '_blank', 'width=820,height=1000');
   if (!w) {
     return false;
@@ -201,3 +201,5 @@ export function printPayslip(p: PayslipRow): boolean {
   w.focus();
   return true;
 }
+
+export { printPayslip };

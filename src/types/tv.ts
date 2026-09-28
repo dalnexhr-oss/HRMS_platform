@@ -2,7 +2,7 @@
 // exposing database imports to components.
 
 // Where an employee stands right now.
-export type Presence =
+type Presence =
   // punched in and still on the clock
   | 'in'
   // punched today, currently clocked out (gone home, or on a break)
@@ -15,7 +15,7 @@ export type Presence =
   | 'leave';
 
 // One employee as the board renders them.
-export interface EmployeeData {
+interface EmployeeData {
   id: string;
   code: string;
   name: string;
@@ -34,7 +34,7 @@ export interface EmployeeData {
   dayStatus: string | null;
 }
 
-export interface BoardTotals {
+interface BoardTotals {
   in: number;
   out: number;
   off: number;
@@ -43,7 +43,7 @@ export interface BoardTotals {
   headcount: number;
 }
 
-export interface BoardData {
+interface BoardData {
   // ISO date in the business timezone.
   date: string;
   // ISO timestamp the board was generated — the "as of" clock on screen.
@@ -54,10 +54,12 @@ export interface BoardData {
 
 // Kept in step with the band headings in EmployeeScreen — the chip on a card
 // and the heading above it naming the same state differently reads as a bug.
-export const presenceLabel: Record<Presence, string> = {
+const presenceLabel: Record<Presence, string> = {
   in: 'In office',
   out: 'Clocked out',
   off: 'Away',
   leave: 'On leave',
   awaited: 'Not in yet',
 };
+
+export { presenceLabel, type Presence, type EmployeeData, type BoardTotals, type BoardData };

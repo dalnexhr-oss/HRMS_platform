@@ -3,7 +3,7 @@
 
 import 'server-only';
 
-export interface Relationship {
+interface Relationship {
   // Target collection name for lookup pipeline; mapped via collectionFor() if aliased.
   table: string;
   // Field on the local document. '_id' when child holds the foreign key.
@@ -22,7 +22,7 @@ const toOne = (table: string, localField: string): Relationship => ({
 });
 
 // Registry indexed by parent collection, then by embed alias in the selection projection.
-export const relationships: Record<string, Record<string, Relationship>> = {
+const relationships: Record<string, Record<string, Relationship>> = {
   // employees and the things hanging off them
   // employees.branch_id -> branches.id, employees.department_id -> departments.id
   employees: {
@@ -79,6 +79,8 @@ export const relationships: Record<string, Record<string, Relationship>> = {
 };
 
 // Returns declared relationship metadata or null if undefined (invoker should fail fast).
-export function relationshipFor(parentTable: string, alias: string): Relationship | null {
+function relationshipFor(parentTable: string, alias: string): Relationship | null {
   return relationships[parentTable]?.[alias] ?? null;
 }
+
+export { relationships, relationshipFor, type Relationship };

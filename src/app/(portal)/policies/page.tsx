@@ -1,7 +1,7 @@
 import { PolicyAdmin } from '@/components/policies/PolicyAdmin';
 import { getAllPolicies, getPolicyAckCounts, getActiveEmployeeCount } from '@/lib/queries';
 
-export default async function PoliciesPage() {
+async function PoliciesPage() {
   const [policies, ackCounts, headcount] = await Promise.all([
     getAllPolicies(),
     getPolicyAckCounts(),
@@ -19,3 +19,5 @@ export default async function PoliciesPage() {
     </div>
   );
 }
+
+export { PoliciesPage as default };

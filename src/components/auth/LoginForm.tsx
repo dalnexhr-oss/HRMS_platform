@@ -7,7 +7,7 @@ import type { SignInState } from '@/lib/actions/auth';
 
 // Accounts are provisioned by HR through Users or db:setup. Any future federated login must
 // restrict access to approved accounts.
-export function LoginForm({ initialError, next }: { initialError?: string; next?: string } = {}) {
+function LoginForm({ initialError, next }: { initialError?: string; next?: string } = {}) {
   const [state, action, pending] = useActionState<SignInState, FormData>(signIn, {});
   const [showPassword, setShowPassword] = useState(false);
 
@@ -91,3 +91,5 @@ export function LoginForm({ initialError, next }: { initialError?: string; next?
     </form>
   );
 }
+
+export { LoginForm };

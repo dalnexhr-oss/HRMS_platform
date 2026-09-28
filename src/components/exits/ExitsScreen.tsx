@@ -24,13 +24,7 @@ const stageLabel: Record<ExitCaseRow['stage'], string> = {
   completed: 'Completed',
 };
 
-export function ExitsScreen({
-  cases,
-  employees,
-}: {
-  cases: ExitCaseRow[];
-  employees: EmployeeOption[];
-}) {
+function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: EmployeeOption[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [openCase, setOpenCase] = useState<ExitCaseRow | null>(null);
@@ -749,3 +743,5 @@ function StartExitForm({
     </div>
   );
 }
+
+export { ExitsScreen };

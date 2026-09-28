@@ -22,7 +22,7 @@ const collectionNames = [
 
 // Only this marker and Node's resolution of Next entry points need adaptation. Application
 // functions, sessions, repository policies, MongoDB operations, and transactions remain real.
-export async function databaseFixture() {
+async function databaseFixture() {
   nextEnv.loadEnvConfig(process.cwd(), true);
   const uri = process.env.MONGO_URI ?? process.env.MONGODB_URI;
   assert.ok(uri, 'Configure MONGO_URI before running database integration tests.');
@@ -177,3 +177,5 @@ export async function databaseFixture() {
     throw error;
   }
 }
+
+export { databaseFixture };

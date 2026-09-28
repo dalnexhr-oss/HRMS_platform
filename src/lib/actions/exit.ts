@@ -17,7 +17,7 @@ import { buildRelievingLetter, buildExperienceLetter, buildFullAndFinalStatement
 import type { ExitInterviewRow } from '@/lib/queries';
 import type { AppRole } from '@/types/database';
 
-export interface ActionResult {
+interface ActionResult {
   ok: boolean;
   error?: string;
   // The action SUCCEEDED but a follow-up needs attention. ok stays true.
@@ -35,7 +35,7 @@ function today(): string {
 }
 
 /** Initiates an exit case and updates employee status to `on_notice`. */
-export async function initiateExit(input: {
+async function initiateExit(input: {
   employeeId: string;
   resignationDate: string;
   lastWorkingDay: string;
@@ -181,7 +181,7 @@ async function seedClearance(
 }
 
 /** Client-callable clearance-checklist fetch (queries.ts is server-only). */
-export async function fetchClearanceItems(exitCaseId: string) {
+async function fetchClearanceItems(exitCaseId: string) {
   return readClearanceItems(exitCaseId);
 }
 
@@ -190,12 +190,15 @@ export async function fetchClearanceItems(exitCaseId: string) {
 /** The standard exit-interview questionnaire, seeded on first open. */
 const interviewQuestions: readonly string[] = [
   'What prompted your decision to leave?',
-  'What did you most enjoy about working here?',
+  'Anything else you would like to tell us?',
+  'What did you most enjoy about your role?',
+  'What did you most enjoy about the company or team?',
+  'What did you like most about the work environment?',
   'What would you change about the role or the team?',
   'Did you feel supported by your reporting manager?',
   'How would you rate the tools and equipment provided?',
   'Would you consider returning in future? Why or why not?',
-  'Anything else you would like to tell us?',
+  'What did you find most challenging about your role or the team?',
 ];
 
 /**
@@ -203,7 +206,7 @@ const interviewQuestions: readonly string[] = [
  *
  * Questions are stored per-instance as individual rows to preserve the exact questionnaire snapshot.
  */
-export async function ensureExitInterview(exitCaseId: string): Promise<ActionResult> {
+async function ensureExitInterview(exitCaseId: string): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Opening the exit interview');
   if (!gate.ok) {
     return gate;
@@ -241,7 +244,7 @@ export async function ensureExitInterview(exitCaseId: string): Promise<ActionRes
  * exit_case_id are never taken from the client, so a respondent cannot rewrite
  * the question they were asked.
  */
-export async function saveExitInterview(
+async function saveExitInterview(
   answers: Array<{ id: string; answer: string }>,
 ): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Saving the exit interview');
@@ -280,14 +283,14 @@ export async function saveExitInterview(
 }
 
 /** Fetch interview rows for the client with an explicit return contract. */
-export async function fetchExitInterview(exitCaseId: string): Promise<ExitInterviewRow[]> {
+async function fetchExitInterview(exitCaseId: string): Promise<ExitInterviewRow[]> {
   return readExitInterview(exitCaseId);
 }
 
 // knowledge transfer
 
 /** Add a handover item, optionally naming who is taking it over. */
-export async function addKtItem(input: {
+async function addKtItem(input: {
   exitCaseId: string;
   task: string;
   handoverTo?: string | null;
@@ -330,7 +333,7 @@ export async function addKtItem(input: {
 }
 
 /** Updates handover item status ('pending' | 'in_progress' | 'done'). */
-export async function setKtStatus(id: string, status: string): Promise<ActionResult> {
+async function setKtStatus(id: string, status: string): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Updating a handover item');
   if (!gate.ok) {
     return gate;
@@ -357,7 +360,7 @@ export async function setKtStatus(id: string, status: string): Promise<ActionRes
 }
 
 /** Remove a handover item. */
-export async function deleteKtItem(id: string): Promise<ActionResult> {
+async function deleteKtItem(id: string): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Deleting a handover item');
   if (!gate.ok) {
     return gate;
@@ -381,12 +384,12 @@ export async function deleteKtItem(id: string): Promise<ActionResult> {
 }
 
 /** Client-callable handover-list fetch. */
-export async function fetchKtItems(exitCaseId: string) {
+async function fetchKtItems(exitCaseId: string) {
   return readKtItems(exitCaseId);
 }
 
 /** Re-scan the asset/item registers for this exit (HR hits this after returns). */
-export async function refreshExitClearance(exitCaseId: string): Promise<ActionResult> {
+async function refreshExitClearance(exitCaseId: string): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Refreshing clearance');
   if (!gate.ok) {
     return gate;
@@ -411,7 +414,7 @@ export async function refreshExitClearance(exitCaseId: string): Promise<ActionRe
 }
 
 /** Tick off one clearance line. */
-export async function setClearanceItemCleared(id: string, cleared: boolean): Promise<ActionResult> {
+async function setClearanceItemCleared(id: string, cleared: boolean): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Clearing an exit item');
   if (!gate.ok) {
     return gate;
@@ -439,7 +442,7 @@ export async function setClearanceItemCleared(id: string, cleared: boolean): Pro
 }
 
 /** Move the case to the next stage. Clearance must actually be clear first. */
-export async function setExitStage(
+async function setExitStage(
   exitCaseId: string,
   stage: 'initiated' | 'clearance' | 'settlement' | 'completed',
 ): Promise<ActionResult> {
@@ -549,7 +552,7 @@ export async function setExitStage(
  * Populates initial settlement figures from outstanding reimbursements, approved leave encashment,
  * and unreturned asset values. Stored values may be manually adjusted prior to finalizing settlement.
  */
-export async function prepareFullAndFinal(exitCaseId: string): Promise<ActionResult> {
+async function prepareFullAndFinal(exitCaseId: string): Promise<ActionResult> {
   const gate = await requireRoles(exitRoles, 'Preparing the settlement');
   if (!gate.ok) {
     return gate;
@@ -615,7 +618,7 @@ export async function prepareFullAndFinal(exitCaseId: string): Promise<ActionRes
 }
 
 /** Override the derived settlement figures, recomputing the net. */
-export async function updateFullAndFinal(
+async function updateFullAndFinal(
   exitCaseId: string,
   fields: {
     salaryPayable: number;
@@ -668,7 +671,7 @@ export async function updateFullAndFinal(
 }
 
 /** Approve, then pay, the settlement. */
-export async function setFullAndFinalStatus(
+async function setFullAndFinalStatus(
   exitCaseId: string,
   status: 'approved' | 'paid',
 ): Promise<ActionResult> {
@@ -706,7 +709,7 @@ export async function setFullAndFinalStatus(
  * Generate the exit PDF under system scope and store it in the employee's generated-documents
  * folder.
  */
-export async function generateExitDocument(
+async function generateExitDocument(
   exitCaseId: string,
   kind: 'relieving' | 'experience' | 'fnf',
 ): Promise<ActionResult & { path?: string }> {
@@ -836,3 +839,23 @@ export async function generateExitDocument(
   revalidatePath('/exits');
   return { ok: true, path: up.path };
 }
+
+export {
+  initiateExit,
+  fetchClearanceItems,
+  ensureExitInterview,
+  saveExitInterview,
+  fetchExitInterview,
+  addKtItem,
+  setKtStatus,
+  deleteKtItem,
+  fetchKtItems,
+  refreshExitClearance,
+  setClearanceItemCleared,
+  setExitStage,
+  prepareFullAndFinal,
+  updateFullAndFinal,
+  setFullAndFinalStatus,
+  generateExitDocument,
+  type ActionResult,
+};

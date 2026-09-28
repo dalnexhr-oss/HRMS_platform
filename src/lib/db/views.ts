@@ -270,7 +270,7 @@ const views: Record<string, (scope?: Scope) => Promise<Document[]>> = {
   v_exit_clearance_pending: exitClearancePending,
 };
 
-export function isView(name: string): boolean {
+function isView(name: string): boolean {
   return name in views;
 }
 
@@ -280,10 +280,12 @@ export function isView(name: string): boolean {
  * @param name View identifier
  * @param scope Optional execution authorization scope (defaults to caller's session)
  */
-export async function runView(name: string, scope?: Scope): Promise<Document[]> {
+async function runView(name: string, scope?: Scope): Promise<Document[]> {
   const view = views[name];
   if (!view) {
     throw new Error(`Unknown view '${name}'. Views live in src/lib/db/views.ts.`);
   }
   return view(scope);
 }
+
+export { isView, runView };

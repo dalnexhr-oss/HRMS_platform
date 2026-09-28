@@ -8,17 +8,17 @@ import type { createClient } from '@/lib/db/server';
 type DbClient = Awaited<ReturnType<typeof createClient>>;
 
 // The denormalised branch columns: an id and the canonical name beside it.
-export interface BranchScope {
+interface BranchScope {
   branch_id: string | null;
   branch_name: string | null;
 }
 
 // Both columns for "all branches" — the shape an empty selection resolves to.
-export const allBranches: BranchScope = { branch_id: null, branch_name: null };
+const allBranches: BranchScope = { branch_id: null, branch_name: null };
 
 // Resolve the canonical name from the branch record. Blank or unknown names retain the existing
 // all-branches behavior.
-export async function resolveBranchScope(dbc: DbClient, branch: string): Promise<BranchScope> {
+async function resolveBranchScope(dbc: DbClient, branch: string): Promise<BranchScope> {
   const name = branch.trim();
   if (!name) {
     return allBranches;
@@ -29,3 +29,5 @@ export async function resolveBranchScope(dbc: DbClient, branch: string): Promise
   }
   return { branch_id: data.id, branch_name: data.name };
 }
+
+export { allBranches, resolveBranchScope, type BranchScope };

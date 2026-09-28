@@ -2,13 +2,7 @@
 
 // Last-resort boundary: catches errors thrown in the root layout itself, where
 // no other error.tsx applies. It must render its own <html>/<body>.
-export default function GlobalError({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <html lang="en">
       <body style={{ fontFamily: 'system-ui, sans-serif', margin: 0 }}>
@@ -72,3 +66,5 @@ export default function GlobalError({
     </html>
   );
 }
+
+export { GlobalError as default };

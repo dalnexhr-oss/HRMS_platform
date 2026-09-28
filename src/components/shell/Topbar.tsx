@@ -8,7 +8,7 @@ import { ProfileMenu } from '@/components/shell/ProfileMenu';
 import type { TopbarStats } from '@/lib/constants';
 import type { NotificationRow } from '@/lib/queries';
 
-export function Topbar({
+function Topbar({
   // Let ProfileMenu use its neutral fallback when the profile has no name.
   name = null,
   avatar = null,
@@ -57,3 +57,5 @@ export function Topbar({
     </div>
   );
 }
+
+export { Topbar };

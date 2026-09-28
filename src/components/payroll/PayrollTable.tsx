@@ -16,7 +16,7 @@ interface ActionResult {
 }
 
 // One payslip's manual adjustments, as loaded by the page.
-export interface PayslipAdjustments {
+interface PayslipAdjustments {
   advanceRecovery: number;
   bonus: number;
   lossDamage: number;
@@ -26,7 +26,7 @@ export interface PayslipAdjustments {
   remarks: string;
 }
 
-export const emptyAdjustments: PayslipAdjustments = {
+const emptyAdjustments: PayslipAdjustments = {
   advanceRecovery: 0,
   bonus: 0,
   lossDamage: 0,
@@ -58,7 +58,7 @@ function daysInPeriod(periodMonth: string | null | undefined): number | null {
 
 // Client-side run actions rendered inside the page's run banner.
 
-export function RunActions({
+function RunActions({
   run,
   payslipCount,
   periodMonth,
@@ -196,7 +196,7 @@ export function RunActions({
 
 // payroll table
 
-export function PayrollTable({
+function PayrollTable({
   payslips,
   run,
   monthLabel,
@@ -553,3 +553,5 @@ function AdjRow({
     </div>
   );
 }
+
+export { emptyAdjustments, RunActions, PayrollTable, type PayslipAdjustments };

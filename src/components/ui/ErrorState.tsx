@@ -3,7 +3,7 @@
 // Shared error UI for portal and employee route boundaries, with retry and sign-out actions.
 import { SignOutButton } from '@/components/auth/SignOutButton';
 
-export function ErrorState({
+function ErrorState({
   error,
   reset,
   area,
@@ -36,3 +36,5 @@ export function ErrorState({
     </div>
   );
 }
+
+export { ErrorState };

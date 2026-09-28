@@ -63,7 +63,7 @@ function stamp(iso: string | null): string {
     : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export function UsersScreen({
+function UsersScreen({
   users,
   employees,
   callerRole,
@@ -518,3 +518,5 @@ function AddUserDrawer({
     </>
   );
 }
+
+export { UsersScreen };

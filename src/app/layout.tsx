@@ -4,7 +4,7 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 
-export const metadata: Metadata = {
+const metadata: Metadata = {
   title: 'Dalnex HRMS — Admin Portal',
   description: 'Attendance & payroll admin portal for Dalnex.',
 };
@@ -12,14 +12,14 @@ export const metadata: Metadata = {
 /**
  * The viewport configuration for the application.
  */
-export const viewport: Viewport = {
+const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
   themeColor: '#FFFFFF',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
@@ -34,3 +34,5 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
+
+export { metadata, viewport, RootLayout as default };

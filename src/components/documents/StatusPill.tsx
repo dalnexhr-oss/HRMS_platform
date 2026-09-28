@@ -10,7 +10,7 @@ const pillMeta: Record<string, { label: string; color: string }> = {
   superseded: { label: 'Superseded', color: 'var(--ink-2)' },
 };
 
-export function StatusPill({ row }: { row: EmployeeDocumentRow }) {
+function StatusPill({ row }: { row: EmployeeDocumentRow }) {
   const meta = pillMeta[row.status] ?? pillMeta.awaiting;
   return (
     <span className="pill" style={{ borderColor: meta.color, color: meta.color }}>
@@ -19,3 +19,5 @@ export function StatusPill({ row }: { row: EmployeeDocumentRow }) {
     </span>
   );
 }
+
+export { StatusPill };

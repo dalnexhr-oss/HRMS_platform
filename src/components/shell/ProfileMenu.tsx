@@ -14,7 +14,7 @@ const roleLabel: Record<string, string> = {
   intern: 'Intern',
 };
 
-export function ProfileMenu({
+function ProfileMenu({
   name,
   avatar,
   role,
@@ -92,3 +92,5 @@ export function ProfileMenu({
     </div>
   );
 }
+
+export { ProfileMenu };

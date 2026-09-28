@@ -1,9 +1,9 @@
-export const assetLinkMaxLength = 1024;
+const assetLinkMaxLength = 1024;
 
 type AssetLinkResult = { ok: true; url: string | null } | { ok: false; error: string };
 
 /** Only web URLs can be saved as a scannable asset destination. Blank removes the mapping. */
-export function parseAssetLink(value: unknown): AssetLinkResult {
+function parseAssetLink(value: unknown): AssetLinkResult {
   const text = typeof value === 'string' ? value.trim() : '';
   if (!text) {
     return { ok: true, url: null };
@@ -24,3 +24,5 @@ export function parseAssetLink(value: unknown): AssetLinkResult {
     return { ok: false, error: 'Enter a valid web link for the QR code.' };
   }
 }
+
+export { assetLinkMaxLength, parseAssetLink };

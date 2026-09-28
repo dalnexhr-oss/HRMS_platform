@@ -12,10 +12,10 @@ import { requireRoles, wroteNothing } from './guards';
 import type { AppRole } from '@/types/database';
 
 // Client-callable wrappers for the per-asset drawer (queries.ts is server-only).
-export async function fetchAssetAssignments(assetId: string) {
+async function fetchAssetAssignments(assetId: string) {
   return getAssetAssignments(assetId);
 }
-export async function fetchAssetMaintenance(assetId: string) {
+async function fetchAssetMaintenance(assetId: string) {
   return getAssetMaintenance(assetId);
 }
 
@@ -92,7 +92,7 @@ function assetFields(formData: FormData) {
   };
 }
 
-export async function createAsset(formData: FormData) {
+async function createAsset(formData: FormData) {
   const gate = await requireRoles(assetAdminRoles, 'Adding an asset');
   if (!gate.ok) {
     return gate;
@@ -126,7 +126,7 @@ export async function createAsset(formData: FormData) {
   return { ok: true };
 }
 
-export async function updateAsset(formData: FormData) {
+async function updateAsset(formData: FormData) {
   const gate = await requireRoles(assetAdminRoles, 'Updating an asset');
   if (!gate.ok) {
     return gate;
@@ -169,7 +169,7 @@ export async function updateAsset(formData: FormData) {
   return { ok: true };
 }
 
-export async function updateAssetQrLink(
+async function updateAssetQrLink(
   assetId: string,
   value: string,
 ): Promise<{ ok: true; url: string | null } | { ok: false; error: string }> {
@@ -202,7 +202,7 @@ export async function updateAssetQrLink(
 }
 
 // Assign an asset to an employee (single holder). Snapshots name/code + notifies them.
-export async function assignAsset(formData: FormData) {
+async function assignAsset(formData: FormData) {
   const gate = await requireRoles(assetAdminRoles, 'Assigning an asset');
   if (!gate.ok) {
     return gate;
@@ -285,7 +285,7 @@ export async function assignAsset(formData: FormData) {
 }
 
 // Clear an asset's assignment (return/unassign) and notify the prior holder.
-export async function unassignAsset(id: string) {
+async function unassignAsset(id: string) {
   const gate = await requireRoles(assetAdminRoles, 'Unassigning an asset');
   if (!gate.ok) {
     return gate;
@@ -354,7 +354,7 @@ export async function unassignAsset(id: string) {
 }
 
 // Log a maintenance/service event for an asset (admin/HR).
-export async function createAssetMaintenance(formData: FormData) {
+async function createAssetMaintenance(formData: FormData) {
   const gate = await requireRoles(assetAdminRoles, 'Logging maintenance');
   if (!gate.ok) {
     return gate;
@@ -422,7 +422,7 @@ export async function createAssetMaintenance(formData: FormData) {
   return { ok: true };
 }
 
-export async function deleteAsset(id: string) {
+async function deleteAsset(id: string) {
   const gate = await requireRoles(assetAdminRoles, 'Deleting an asset');
   if (!gate.ok) {
     return gate;
@@ -442,3 +442,15 @@ export async function deleteAsset(id: string) {
   revalidatePath('/assets');
   return { ok: true };
 }
+
+export {
+  fetchAssetAssignments,
+  fetchAssetMaintenance,
+  createAsset,
+  updateAsset,
+  updateAssetQrLink,
+  assignAsset,
+  unassignAsset,
+  createAssetMaintenance,
+  deleteAsset,
+};

@@ -149,7 +149,7 @@ async function loadAdjustments(payslipIds: string[]): Promise<Record<string, Pay
   return map;
 }
 
-export default async function PayrollPage({
+async function PayrollPage({
   searchParams,
 }: {
   // Next 15: searchParams is a Promise.
@@ -263,3 +263,5 @@ export default async function PayrollPage({
     </div>
   );
 }
+
+export { PayrollPage as default };

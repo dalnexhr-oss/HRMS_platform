@@ -2,7 +2,7 @@
 // ARGB fills.
 
 // Attendance status fills from the reference workbook.
-export const statusFill: Record<string, string> = {
+const statusFill: Record<string, string> = {
   P: 'FF70AD47', // green — present (verified in reference)
   HD: 'FFBFBFBF', // grey — half day (verified)
   WO: 'FFFFFF00', // yellow — week off (verified)
@@ -18,7 +18,7 @@ export const statusFill: Record<string, string> = {
 };
 
 // Header fills, likewise taken from the reference sheet.
-export const headerFill = {
+const headerFill = {
   // B1 year + B2 month.
   period: 'FFFFC000',
   // Row 3 weekday names.
@@ -32,11 +32,11 @@ export const headerFill = {
 } as const;
 
 // The reference sheet formats every punch/duration cell as h:mm.
-export const timeFormat = 'h:mm';
+const timeFormat = 'h:mm';
 
 // Convert HH:MM to an Excel day fraction. Native time cells preserve formatting and round-trip
 // through excelValueToMinutes.
-export function clockToExcelTime(clock: string | null): number | null {
+function clockToExcelTime(clock: string | null): number | null {
   if (!clock) {
     return null;
   }
@@ -50,3 +50,5 @@ export function clockToExcelTime(clock: string | null): number | null {
   }
   return mins / 1440;
 }
+
+export { statusFill, headerFill, timeFormat, clockToExcelTime };

@@ -15,7 +15,7 @@ import { notifyRequestParticipants, prepareRequestRouting, reviewRoutedRequest }
 import type { LeaveType, RequestType } from '@/types/database';
 import type { RequestRouteDoc } from '@/lib/db/collections';
 
-export interface ActionResult {
+interface ActionResult {
   ok: boolean;
   error?: string;
   // The decision saved, but a follow-up operation failed. Treat ok: true with a warning as a
@@ -315,7 +315,7 @@ async function decideApprovalStep(
  * Decide a pending request. Select the updated row to distinguish a saved decision from an
  * already-reviewed or policy-blocked request.
  */
-export async function reviewRequest(
+async function reviewRequest(
   id: string,
   decision: 'approved' | 'rejected',
   /** Approver decision reason, stored on request and displayed to employee. */
@@ -569,7 +569,7 @@ export async function reviewRequest(
  * Create a request for the signed-in employee. Derive employee_id from the session; the collection
  * policy also enforces ownership.
  */
-export async function createRequest(formData: FormData): Promise<ActionResult> {
+async function createRequest(formData: FormData): Promise<ActionResult> {
   // validate the form before touching auth or the network
   const type = String(formData.get('type') ?? '').trim() as RequestType;
   if (!requestTypes.includes(type)) {
@@ -698,7 +698,7 @@ export async function createRequest(formData: FormData): Promise<ActionResult> {
  * Withdraw an owned, pending request. Check the returned row so wrong-owner, reviewed, and
  * policy-blocked updates cannot report success.
  */
-export async function cancelRequest(id: string): Promise<ActionResult> {
+async function cancelRequest(id: string): Promise<ActionResult> {
   if (!isMongoConfigured()) {
     return {
       ok: false,
@@ -752,3 +752,5 @@ export async function cancelRequest(id: string): Promise<ActionResult> {
   revalidatePath(`/requests/${id}`);
   return { ok: true };
 }
+
+export { reviewRequest, createRequest, cancelRequest, type ActionResult };

@@ -45,7 +45,7 @@ function monthLabel(periodMonth: string): string {
  * The employee's own month strip — the register's day-cell language, for a
  * single person. Read-only: no cell here is editable from the employee side.
  */
-export function MyAttendance({
+function MyAttendance({
   days,
   periodMonth,
   id,
@@ -171,3 +171,5 @@ export function MyAttendance({
     </div>
   );
 }
+
+export { MyAttendance };

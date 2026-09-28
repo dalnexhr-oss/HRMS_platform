@@ -7,7 +7,7 @@ import { fetchPublicHolidays } from '@/lib/holidays/google-calendar';
 import { allBranches, resolveBranchScope } from '@/lib/actions/branch-helpers';
 
 // Add an official holiday. Blank branch = all branches (branch_id null).
-export async function addHoliday(formData: FormData) {
+async function addHoliday(formData: FormData) {
   const holidayDate = String(formData.get('holiday_date') ?? '').trim();
   const name = String(formData.get('name') ?? '').trim();
   const branch = String(formData.get('branch') ?? '').trim();
@@ -44,13 +44,13 @@ export async function addHoliday(formData: FormData) {
   return { ok: true };
 }
 
-export type ImportHolidaysResult =
+type ImportHolidaysResult =
   | { ok: true; imported: number; skipped: number; tentative: string[]; year: number }
   | { ok: false; error: string };
 
 // Import company-wide holidays from Google's India calendar. Skip existing dates to preserve HR
 // edits and branch-specific holidays on repeat imports.
-export async function importHolidaysFromGoogle(year: number): Promise<ImportHolidaysResult> {
+async function importHolidaysFromGoogle(year: number): Promise<ImportHolidaysResult> {
   const gate = await requireStaff('Importing holidays');
   if (!gate.ok) {
     return gate;
@@ -113,7 +113,7 @@ export async function importHolidaysFromGoogle(year: number): Promise<ImportHoli
 }
 
 /** Delete a holiday by id. */
-export async function deleteHoliday(id: string) {
+async function deleteHoliday(id: string) {
   const gate = await requireStaff('Deleting a holiday');
   if (!gate.ok) {
     return gate;
@@ -134,3 +134,5 @@ export async function deleteHoliday(id: string) {
   revalidatePath('/holidays');
   return { ok: true };
 }
+
+export { addHoliday, importHolidaysFromGoogle, deleteHoliday, type ImportHolidaysResult };

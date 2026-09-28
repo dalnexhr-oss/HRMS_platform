@@ -4,22 +4,22 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { formatDate, todayIST } from '@/lib/format';
 
-export type SortDir = 'asc' | 'desc';
+type SortDir = 'asc' | 'desc';
 
-export type ColKind = 'text' | 'number' | 'date';
+type ColKind = 'text' | 'number' | 'date';
 
 const sortLabels: Record<ColKind, [asc: string, desc: string]> = {
   text: ['Sort A → Z', 'Sort Z → A'],
   number: ['Sort low → high', 'Sort high → low'],
   date: ['Sort oldest → newest', 'Sort newest → oldest'],
 };
-export interface DateRange {
+interface DateRange {
   from: string;
   to: string;
   blank?: boolean;
 }
 
-export const noRange: DateRange = { from: '', to: '' };
+const noRange: DateRange = { from: '', to: '' };
 
 const blankTokens = new Set(['', '—']);
 
@@ -103,12 +103,12 @@ function rangeLabel(r: DateRange): string {
 }
 
 /** True once a date filter would actually narrow the table. */
-export function rangeActive(r?: DateRange): boolean {
+function rangeActive(r?: DateRange): boolean {
   return !!r && (r.blank === true || r.from !== '' || r.to !== '');
 }
 
 /** Does a cell's date fall inside the filter? Inclusive at both ends. */
-export function inDateRange(value: string, r?: DateRange): boolean {
+function inDateRange(value: string, r?: DateRange): boolean {
   if (!r || !rangeActive(r)) {
     return true;
   }
@@ -131,7 +131,7 @@ export function inDateRange(value: string, r?: DateRange): boolean {
 
 // menu
 
-export function ThMenu({
+function ThMenu({
   label,
   kind = 'text',
   sortDir,
@@ -459,12 +459,7 @@ export function ThMenu({
  * Sort by the column's value type. Compare dates as instants and keep blanks last in both
  * directions.
  */
-export function sortRows<T>(
-  rows: T[],
-  value: (row: T) => string,
-  kind: ColKind,
-  dir: SortDir,
-): T[] {
+function sortRows<T>(rows: T[], value: (row: T) => string, kind: ColKind, dir: SortDir): T[] {
   const sign = dir === 'asc' ? 1 : -1;
   return [...rows].sort((x, y) => {
     const a = value(x);
@@ -482,6 +477,18 @@ export function sortRows<T>(
 }
 
 /** Distinct values, in that column's own order, for its filter list. */
-export function distinctValues(values: string[], kind: ColKind = 'text'): string[] {
+function distinctValues(values: string[], kind: ColKind = 'text'): string[] {
   return sortRows([...new Set(values)], (v) => v, kind, 'asc');
 }
+
+export {
+  noRange,
+  rangeActive,
+  inDateRange,
+  ThMenu,
+  sortRows,
+  distinctValues,
+  type SortDir,
+  type ColKind,
+  type DateRange,
+};

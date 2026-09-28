@@ -5,7 +5,7 @@ import { createClient } from '@/lib/db/server';
 import { monthTitle } from '@/lib/excel/build-workbook';
 import { writeBrandHeader } from '@/lib/excel/brand';
 
-export interface StatutoryRow {
+interface StatutoryRow {
   code: string;
   name: string;
   uan: string | null;
@@ -34,7 +34,7 @@ function daysInMonth(periodMonth: string): number {
  * Load the statutory rows for a month's locked/draft run. Requires a database
  * connection — callers gate on requireStaff() first, which guarantees one.
  */
-export async function getStatutoryRows(periodMonth: string): Promise<StatutoryRow[]> {
+async function getStatutoryRows(periodMonth: string): Promise<StatutoryRow[]> {
   const start = `${periodMonth.slice(0, 7)}-01`;
   const dbc = await createClient();
 
@@ -101,7 +101,7 @@ function ecrField(v: unknown): string {
     .trim();
 }
 
-export function buildPfEcr(rows: StatutoryRow[], periodMonth: string): string {
+function buildPfEcr(rows: StatutoryRow[], periodMonth: string): string {
   const nDays = daysInMonth(periodMonth);
   const lines: string[] = [];
   for (const r of rows) {
@@ -155,10 +155,7 @@ function header(row: ExcelJS.Row): void {
 // ESIC
 
 // ESIC monthly contribution as .xlsx — covered employees only (esic_employee > 0).
-export async function buildEsicXlsx(
-  rows: StatutoryRow[],
-  periodMonth: string,
-): Promise<Uint8Array> {
+async function buildEsicXlsx(rows: StatutoryRow[], periodMonth: string): Promise<Uint8Array> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Dalnex HRMS';
   const ws = wb.addWorksheet(`ESIC ${monthTitle(periodMonth)}`);
@@ -201,7 +198,7 @@ export async function buildEsicXlsx(
 // Professional Tax
 
 /** PT summary as .xlsx, grouped by branch state, with per-state totals. */
-export async function buildPtXlsx(rows: StatutoryRow[], periodMonth: string): Promise<Uint8Array> {
+async function buildPtXlsx(rows: StatutoryRow[], periodMonth: string): Promise<Uint8Array> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Dalnex HRMS';
   const ws = wb.addWorksheet(`PT ${monthTitle(periodMonth)}`);
@@ -244,3 +241,5 @@ export async function buildPtXlsx(rows: StatutoryRow[], periodMonth: string): Pr
   ws.getColumn(4).numFmt = '#,##0';
   return bytes(wb);
 }
+
+export { getStatutoryRows, buildPfEcr, buildEsicXlsx, buildPtXlsx, type StatutoryRow };

@@ -3,7 +3,7 @@
 // Use useConfirm() to await a confirmation and render confirmDialog once in the calling component.
 import { useCallback, useEffect, useState } from 'react';
 
-export interface ConfirmOptions {
+interface ConfirmOptions {
   title?: string;
   message: string;
   confirmLabel?: string;
@@ -100,7 +100,7 @@ type Pending = ConfirmOptions & { resolve: (v: boolean) => void };
  * Promise-based confirm. `confirm(opts)` resolves true/false; render the returned
  * `confirmDialog` node once in your component tree.
  */
-export function useConfirm() {
+function useConfirm() {
   const [pending, setPending] = useState<Pending | null>(null);
 
   const confirm = useCallback(
@@ -130,3 +130,5 @@ export function useConfirm() {
 
   return { confirm, confirmDialog };
 }
+
+export { useConfirm, type ConfirmOptions };

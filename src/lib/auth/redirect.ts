@@ -8,7 +8,7 @@ const base = 'https://redirect.invalid';
 // The path to redirect to, or null when the value cannot be trusted. Returns a
 // path-with-query-and-fragment, never an absolute URL, so the caller can hand it straight to
 // redirect().
-export function safeRedirectPath(value: string | null | undefined): string | null {
+function safeRedirectPath(value: string | null | undefined): string | null {
   if (!value) {
     return null;
   }
@@ -53,3 +53,5 @@ export function safeRedirectPath(value: string | null | undefined): string | nul
 
   return `${url.pathname}${url.search}${url.hash}`;
 }
+
+export { safeRedirectPath };

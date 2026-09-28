@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 // 404 for any unmatched route. Kept minimal and self-contained so it renders
 // even outside the portal/employee shells.
-export default function NotFound() {
+function NotFound() {
   return (
     <div
       style={{
@@ -40,3 +40,5 @@ export default function NotFound() {
     </div>
   );
 }
+
+export { NotFound as default };

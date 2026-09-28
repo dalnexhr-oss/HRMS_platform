@@ -48,7 +48,7 @@ const cols: Array<{ key: ColKey; label: string; kind?: ColKind; get: (a: AssetRo
   { key: 'storage', label: 'Storage', get: (a) => a.storage ?? '—' },
 ];
 
-export function AssetsScreen({
+function AssetsScreen({
   assets,
   employees,
   summary = [],
@@ -385,3 +385,5 @@ function Trunc({ v, w = 150 }: { v: string | null; w?: number }) {
     </span>
   );
 }
+
+export { AssetsScreen };

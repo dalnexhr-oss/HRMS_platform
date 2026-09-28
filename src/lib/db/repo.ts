@@ -11,7 +11,7 @@ import type { Scope } from '@/lib/db/scope';
 import type { AggregateOptions, ClientSession, CountDocumentsOptions, Document, Filter, FindOptions, OptionalUnlessRequiredId, UpdateFilter, UpdateOptions } from 'mongodb';
 
 // Thrown when a write is refused. Carries a message safe to show a user.
-export class ScopeError extends Error {
+class ScopeError extends Error {
   readonly userFacing = true;
   constructor(message: string) {
     super(message);
@@ -36,7 +36,7 @@ function and<T extends Document>(scope: Document, query: Filter<T>): Filter<T> {
   return { $and: clauses } as Filter<T>;
 }
 
-export class ScopedCollection<T extends Document> {
+class ScopedCollection<T extends Document> {
   constructor(
     private readonly name: string,
     private readonly policy: CollectionPolicy,
@@ -299,7 +299,7 @@ function same(a: unknown, b: unknown): boolean {
 }
 
 // Thrown when a scoped repository is requested with nobody signed in.
-export class NotSignedInError extends Error {
+class NotSignedInError extends Error {
   readonly userFacing = true;
   constructor() {
     super('You are not signed in.');
@@ -310,7 +310,7 @@ export class NotSignedInError extends Error {
 // Return the collection's scoped read filter for use in $lookup pipelines. Joined collections need
 // their own policies in addition to the base collection's filter. Denied or unlisted collections
 // return a filter matching nothing.
-export function readFilterFor(collection: string, scope: Scope, viaParent?: string): Document {
+function readFilterFor(collection: string, scope: Scope, viaParent?: string): Document {
   const policy = policyFor(collection);
   if (!policy) {
     return matchNothing;
@@ -342,7 +342,7 @@ function build<T extends Document>(
 
 // A collection scoped to the signed-in caller. Throws NotSignedInError when there is no session, so
 // a page that forgets its auth check fails loudly instead of querying as nobody.
-export async function scoped<T extends Document>(
+async function scoped<T extends Document>(
   name: string,
   session?: ClientSession,
 ): Promise<ScopedCollection<T>> {
@@ -354,7 +354,7 @@ export async function scoped<T extends Document>(
 }
 
 // A collection scoped to a caller you already resolved.
-export function scopedFor<T extends Document>(
+function scopedFor<T extends Document>(
   name: string,
   scope: Scope,
   session?: ClientSession,
@@ -365,12 +365,23 @@ export function scopedFor<T extends Document>(
 // System-scoped access for background jobs, maintenance tasks, and schema routines.
 // Bypasses collection-level security policies; results must not be returned directly to
 // unauthenticated clients.
-export function systemCollection<T extends Document>(name: string): ScopedCollection<T> {
+function systemCollection<T extends Document>(name: string): ScopedCollection<T> {
   return build<T>(name, systemScope);
 }
 
 // System-scoped access for child entity queries where authorization has already been verified
 // against the parent entity (e.g. ticket comments gated by verified ticket ownership).
-export function afterParentCheck<T extends Document>(name: string): ScopedCollection<T> {
+function afterParentCheck<T extends Document>(name: string): ScopedCollection<T> {
   return build<T>(name, systemScope);
 }
+
+export {
+  ScopeError,
+  ScopedCollection,
+  NotSignedInError,
+  readFilterFor,
+  scoped,
+  scopedFor,
+  systemCollection,
+  afterParentCheck,
+};

@@ -9,7 +9,7 @@ import { getMyNotifications, getUnreadNotificationCount, getTopbarStats, getMyTa
 import type { Route } from 'next';
 
 // Shared portal shell. Each route renders inside the main content area.
-export default async function PortalLayout({ children }: { children: React.ReactNode }) {
+async function PortalLayout({ children }: { children: React.ReactNode }) {
   const [{ profile, email }, notifications, unread, stats, hdrs] = await Promise.all([
     getSession(),
     getMyNotifications(),
@@ -62,3 +62,5 @@ export default async function PortalLayout({ children }: { children: React.React
     </div>
   );
 }
+
+export { PortalLayout as default };

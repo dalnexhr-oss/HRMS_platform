@@ -8,7 +8,7 @@ function heldPill(returned: boolean): React.CSSProperties {
     : { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
 }
 
-export function MyItems({ items, id }: { items: MyItemRow[]; id?: string }) {
+function MyItems({ items, id }: { items: MyItemRow[]; id?: string }) {
   const held = items.filter((i) => !i.returned).length;
 
   return (
@@ -65,3 +65,5 @@ export function MyItems({ items, id }: { items: MyItemRow[]; id?: string }) {
     </div>
   );
 }
+
+export { MyItems };

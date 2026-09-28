@@ -12,7 +12,7 @@ const ownerLabel: Record<string, string> = {
   intern: 'You',
 };
 
-export function MyOnboarding({ tasks, id }: { tasks: OnboardingTaskRow[]; id?: string }) {
+function MyOnboarding({ tasks, id }: { tasks: OnboardingTaskRow[]; id?: string }) {
   if (tasks.length === 0) {
     // nothing in flight — don't show an empty card
     return null;
@@ -87,3 +87,5 @@ export function MyOnboarding({ tasks, id }: { tasks: OnboardingTaskRow[]; id?: s
     </div>
   );
 }
+
+export { MyOnboarding };

@@ -5,7 +5,7 @@ import { getNoticePdfUrl } from '@/lib/actions/notices';
 
 // Open the PDF tab during the click event, before resolving its URL. Clear opener manually; the
 // noopener feature would make window.open return null.
-export async function openNoticePdf(id: string, onError: (message: string) => void) {
+async function openNoticePdf(id: string, onError: (message: string) => void) {
   const win = window.open('about:blank', '_blank');
   if (win) {
     win.opener = null;
@@ -23,3 +23,5 @@ export async function openNoticePdf(id: string, onError: (message: string) => vo
     window.location.href = res.url;
   }
 }
+
+export { openNoticePdf };

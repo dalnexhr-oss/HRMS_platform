@@ -8,7 +8,7 @@ import { requireRoles, wroteNothing } from '@/lib/actions/guards';
 import { toDecimal } from '@/lib/db/money';
 import { notifyEmployee } from '@/lib/notify';
 
-export interface ActionResult {
+interface ActionResult {
   ok: boolean;
   error?: string;
 }
@@ -24,9 +24,7 @@ function validYear(y: number): boolean {
  * Provisions annual paid leave (PL) entitlement for active employees.
  * Idempotent: safe to run multiple times for the same calendar year.
  */
-export async function provisionLeaveYear(
-  year: number,
-): Promise<ActionResult & { created?: number }> {
+async function provisionLeaveYear(year: number): Promise<ActionResult & { created?: number }> {
   const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Provisioning leave balances');
   if (!gate.ok) {
     return gate;
@@ -59,7 +57,7 @@ export async function provisionLeaveYear(
  * Applies an audited manual credit or debit to an employee's paid-leave (PL) balance.
  * Concurrently inserts an audit trail record in leave_balance_adjustments.
  */
-export async function adjustLeaveBalance(input: {
+async function adjustLeaveBalance(input: {
   employeeId: string;
   year: number;
   delta: number;
@@ -147,3 +145,5 @@ export async function adjustLeaveBalance(input: {
   revalidatePath('/me');
   return { ok: true };
 }
+
+export { provisionLeaveYear, adjustLeaveBalance, type ActionResult };

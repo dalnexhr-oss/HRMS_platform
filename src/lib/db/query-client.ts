@@ -17,8 +17,6 @@ import type { ScopedCollection } from '@/lib/db/repo';
 import type { DefaultValue } from '@/lib/db/defaults';
 import type { QueryError, QueryResult } from '@/types/query';
 
-export type { QueryError, QueryResult } from '@/types/query';
-
 function toQueryError(e: unknown): QueryError {
   if (e instanceof ScopeError) {
     return { message: e.message, code: queryErrorCodes.permissionDenied };
@@ -1120,7 +1118,7 @@ function operatorClause(field: string, op: string, value: unknown): Document {
 
 // client
 
-export interface QueryClient {
+interface QueryClient {
   from<T = Document[]>(table: string): QueryBuilder<T>;
   rpc<T = unknown>(name: string, args?: Document): Promise<QueryResult<T>>;
 }
@@ -1128,7 +1126,7 @@ export interface QueryClient {
 /**
  * Construct the query adapter synchronously. Each query resolves its access scope at execution.
  */
-export function createQueryClient(asSystem = false, session?: ClientSession): QueryClient {
+function createQueryClient(asSystem = false, session?: ClientSession): QueryClient {
   return {
     from<T = Document[]>(table: string) {
       return new QueryBuilder<T>(table, asSystem, session);
@@ -1156,7 +1154,7 @@ export function createQueryClient(asSystem = false, session?: ClientSession): Qu
  * System-scoped client bypassing collection-level security policies.
  * Reserved for scheduled background jobs, maintenance tasks, and automated jobs.
  */
-export function createSystemQueryClient(): QueryClient {
+function createSystemQueryClient(): QueryClient {
   return createQueryClient(true);
 }
 
@@ -1165,11 +1163,21 @@ export function createSystemQueryClient(): QueryClient {
  */
 const rpc = new Map<string, (args: Document) => Promise<unknown>>();
 
-export function registerRpc(name: string, fn: (args: Document) => Promise<unknown>): void {
+function registerRpc(name: string, fn: (args: Document) => Promise<unknown>): void {
   rpc.set(name, fn);
 }
 
 /** Unscoped handle, for the few jobs that legitimately run as the system. */
-export async function rawDb() {
+async function rawDb() {
   return db();
 }
+
+export {
+  createQueryClient,
+  createSystemQueryClient,
+  registerRpc,
+  rawDb,
+  type QueryError,
+  type QueryResult,
+  type QueryClient,
+};

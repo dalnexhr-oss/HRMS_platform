@@ -24,7 +24,7 @@ const statusStyle: Record<string, React.CSSProperties> = {
   blocked: { borderColor: 'var(--line-2)', color: 'var(--hd)' },
 };
 
-export function OnboardingScreen({
+function OnboardingScreen({
   tasks,
   templates,
   employees,
@@ -390,3 +390,5 @@ function AddTaskForm({
     </div>
   );
 }
+
+export { OnboardingScreen };

@@ -3,7 +3,7 @@ import { employeeApprovals } from '@/lib/requests/employee-approvals';
 import type { RequestView } from '@/lib/queries';
 import type { RequestActor } from '@/lib/requests/access';
 
-export function EmployeeApprovalSummary({
+function EmployeeApprovalSummary({
   requests,
   actor,
 }: {
@@ -36,3 +36,5 @@ export function EmployeeApprovalSummary({
     </div>
   );
 }
+
+export { EmployeeApprovalSummary };

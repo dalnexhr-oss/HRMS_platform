@@ -43,7 +43,7 @@ const popupBlocked =
 
 // The payslip table is a single card, so it can be embedded in the employee dashboard or on its own
 // page. The id prop is used to anchor the card from the nav link on the employee dashboard.
-export function MyPayslips({ payslips, id }: { payslips: PayslipRow[]; id?: string }) {
+function MyPayslips({ payslips, id }: { payslips: PayslipRow[]; id?: string }) {
   const [open, setOpen] = useState<number | null>(null);
 
   return (
@@ -202,3 +202,5 @@ function Kv({ label, value, total }: { label: string; value: string; total?: boo
     </div>
   );
 }
+
+export { MyPayslips };

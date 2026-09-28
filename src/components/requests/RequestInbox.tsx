@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { RequestView } from '@/lib/queries';
 
-export function RequestInbox({ requests, userId }: { requests: RequestView[]; userId: string }) {
+function RequestInbox({ requests, userId }: { requests: RequestView[]; userId: string }) {
   const received = requests.filter(
     ({ routing }) =>
       routing &&
@@ -40,3 +40,5 @@ export function RequestInbox({ requests, userId }: { requests: RequestView[]; us
     </div>
   );
 }
+
+export { RequestInbox };

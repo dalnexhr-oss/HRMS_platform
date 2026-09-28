@@ -4,7 +4,7 @@
 import { useToast } from '@/components/ui/Toast';
 import { usePunchClock, duration } from './usePunchClock';
 
-export function PunchToggle() {
+function PunchToggle() {
   const { toast, toastNode } = useToast();
   const { state, loading, pending, isIn, worked, loadError, punch } = usePunchClock(
     'topbar',
@@ -45,4 +45,4 @@ export function PunchToggle() {
   );
 }
 
-export default PunchToggle;
+export { PunchToggle, PunchToggle as default };

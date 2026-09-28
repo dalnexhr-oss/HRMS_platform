@@ -2,4 +2,6 @@
 // of this module.
 
 // Session cookie name. Changing it signs everybody out.
-export const sessionCookie = 'dalnex_session';
+const sessionCookie = 'dalnex_session';
+
+export { sessionCookie };

@@ -1,5 +1,5 @@
 // Shown while the employee dashboard's server data loads.
-export default function EmployeeLoading() {
+function EmployeeLoading() {
   return (
     <div className="wrap">
       <div className="card">
@@ -12,3 +12,5 @@ export default function EmployeeLoading() {
     </div>
   );
 }
+
+export { EmployeeLoading as default };

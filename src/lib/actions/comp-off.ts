@@ -14,7 +14,7 @@ import { notifyEmployee } from '@/lib/notify';
 import { notifyRequestParticipants, prepareRequestRouting } from '@/lib/requests/routing';
 import { todayIST } from '@/lib/format';
 
-export interface ActionResult {
+interface ActionResult {
   ok: boolean;
   error?: string;
 }
@@ -26,7 +26,7 @@ const offDayStatuses = ['WO', 'OH'] as const;
 
 // Grant a comp-off credit for an off day the employee worked. The unique (employee_id, earned_date)
 // constraint makes a double-grant a no-op error rather than a duplicate credit.
-export async function grantCompOff(employeeId: string, earnedDate: string): Promise<ActionResult> {
+async function grantCompOff(employeeId: string, earnedDate: string): Promise<ActionResult> {
   const gate = await requireStaff('Granting a comp off');
   if (!gate.ok) {
     return gate;
@@ -108,7 +108,7 @@ export async function grantCompOff(employeeId: string, earnedDate: string): Prom
  * Raises a request(type='comp_off') and marks the credit 'applied' so it cannot
  * be spent twice while the request is pending.
  */
-export async function applyCompOff(formData: FormData): Promise<ActionResult> {
+async function applyCompOff(formData: FormData): Promise<ActionResult> {
   const requestedId = String(formData.get('comp_off_id') ?? '').trim();
   const takeDate = String(formData.get('take_date') ?? '').trim();
   const reason = String(formData.get('reason') ?? '').trim() || null;
@@ -241,10 +241,7 @@ export async function applyCompOff(formData: FormData): Promise<ActionResult> {
  * Toggles applicability of an available comp-off credit.
  * When marked non-applicable, credit remains recorded but cannot be claimed by employee.
  */
-export async function setCompOffApplicability(
-  id: string,
-  applicable: boolean,
-): Promise<ActionResult> {
+async function setCompOffApplicability(id: string, applicable: boolean): Promise<ActionResult> {
   const gate = await requireStaff('Updating a comp off');
   if (!gate.ok) {
     return gate;
@@ -294,3 +291,5 @@ export async function setCompOffApplicability(
   revalidatePath('/me');
   return { ok: true };
 }
+
+export { grantCompOff, applyCompOff, setCompOffApplicability, type ActionResult };

@@ -43,7 +43,7 @@ function daysInMonth(periodMonth: string): number {
 
 // Calculates professional tax based on state, gross pay, gender, and month.
 // Precedence order: month-specific > gender-specific > highest min_gross threshold.
-export async function professionalTax(
+async function professionalTax(
   state: string | null,
   grossPaise: number,
   gender: string,
@@ -87,7 +87,7 @@ export async function professionalTax(
   return matching.length ? toPaise(matching[0].amount as never) : 0;
 }
 
-export interface PayslipComputation {
+interface PayslipComputation {
   payable_days: number;
   worked_minutes: number;
   target_minutes: number;
@@ -111,10 +111,7 @@ export interface PayslipComputation {
  * Computes earnings, deductions, and net payable amounts for an employee in a payroll run,
  * persisting the resulting draft/recomputed payslip.
  */
-export async function computePayslip(
-  employeeId: string,
-  runId: string,
-): Promise<PayslipComputation> {
+async function computePayslip(employeeId: string, runId: string): Promise<PayslipComputation> {
   return withTransaction(
     async (session) => {
       await reserveOpenRun(runId, session);
@@ -358,7 +355,7 @@ async function reserveOpenRun(runId: string, session?: ClientSession): Promise<v
 }
 
 /** Recompute the complete run atomically so locking cannot freeze a partially updated batch. */
-export async function computeRun(runId: string): Promise<void> {
+async function computeRun(runId: string): Promise<void> {
   await withTransaction(
     async (session) => {
       await reserveOpenRun(runId, session);
@@ -380,7 +377,7 @@ export async function computeRun(runId: string): Promise<void> {
 }
 
 /** Save adjustments and their calculated amounts under the same run reservation. */
-export async function savePayslipAdjustments(payslipId: string, values: Document): Promise<void> {
+async function savePayslipAdjustments(payslipId: string, values: Document): Promise<void> {
   await withTransaction(
     async (session) => {
       const payslips = scopedFor<BaseDoc>(collections.payslips, systemScope, session);
@@ -410,7 +407,7 @@ export async function savePayslipAdjustments(payslipId: string, values: Document
  * Executed inside an atomic transaction to ensure payslip states and run lock
  * status transition synchronously.
  */
-export async function lockRun(runId: string): Promise<void> {
+async function lockRun(runId: string): Promise<void> {
   await withTransaction(
     async (session) => {
       await reserveOpenRun(runId, session);
@@ -431,7 +428,7 @@ export async function lockRun(runId: string): Promise<void> {
  * Transitions a locked payroll run and all its payslips to 'paid' status.
  * Requires the run to be in 'locked' status prior to transition.
  */
-export async function markRunPaid(runId: string): Promise<void> {
+async function markRunPaid(runId: string): Promise<void> {
   await withTransaction(
     async (session) => {
       const status = await runStatus(runId, session);
@@ -455,7 +452,7 @@ export async function markRunPaid(runId: string): Promise<void> {
 
 let registered = false;
 
-export function registerPayrollFunctions(): void {
+function registerPayrollFunctions(): void {
   if (registered) {
     return;
   }
@@ -478,3 +475,14 @@ export function registerPayrollFunctions(): void {
     return null;
   });
 }
+
+export {
+  professionalTax,
+  computePayslip,
+  computeRun,
+  savePayslipAdjustments,
+  lockRun,
+  markRunPaid,
+  registerPayrollFunctions,
+  type PayslipComputation,
+};

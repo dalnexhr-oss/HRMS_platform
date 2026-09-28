@@ -3,7 +3,7 @@ import 'server-only';
 import { getSessionUser } from '@/lib/auth/session';
 import type { AppRole } from '@/types/database';
 
-export interface Scope {
+interface Scope {
   userId: string;
   // employees._id for this account, or null for staff with no employee record.
   employeeId: string | null;
@@ -20,7 +20,7 @@ export interface Scope {
 }
 
 // System scope with full privileges for cron jobs and background tasks.
-export const systemScope: Scope = {
+const systemScope: Scope = {
   userId: '__system__',
   employeeId: null,
   role: 'super_admin',
@@ -31,7 +31,7 @@ export const systemScope: Scope = {
   isSystem: true,
 };
 
-export function scopeForRole(userId: string, role: AppRole, employeeId: string | null): Scope {
+function scopeForRole(userId: string, role: AppRole, employeeId: string | null): Scope {
   const isStaff = role === 'super_admin' || role === 'admin' || role === 'hr';
   return {
     userId,
@@ -48,10 +48,12 @@ export function scopeForRole(userId: string, role: AppRole, employeeId: string |
 
 // Read the request-cached session, including disabled and token-version checks. Revoked sessions
 // have no scope.
-export async function currentScope(): Promise<Scope | null> {
+async function currentScope(): Promise<Scope | null> {
   const user = await getSessionUser();
   if (!user) {
     return null;
   }
   return scopeForRole(user._id, user.role, user.employee_id);
 }
+
+export { systemScope, scopeForRole, currentScope, type Scope };

@@ -11,7 +11,7 @@
 // sending.
 
 // Escape database and user text before inserting it into HTML email bodies.
-export function escapeHtml(value: string): string {
+function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -20,7 +20,7 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
-export interface SendEmailInput {
+interface SendEmailInput {
   to: string | string[];
   subject: string;
   // Plain-text body.
@@ -67,7 +67,7 @@ function smtpConfig(): SmtpConfig | null {
 }
 
 // True when a host + from-address are present. Check before offering email.
-export function isEmailConfigured(): boolean {
+function isEmailConfigured(): boolean {
   return smtpConfig() !== null;
 }
 
@@ -79,7 +79,7 @@ function warn(context: string, detail: unknown): void {
   );
 }
 
-export interface SendResult {
+interface SendResult {
   ok: boolean;
   id?: string;
   error?: string;
@@ -90,7 +90,7 @@ export interface SendResult {
  * {ok:false} on any failure so callers may surface a soft warning ("saved, but
  * the welcome email could not be sent").
  */
-export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
+async function sendEmail(input: SendEmailInput): Promise<SendResult> {
   const cfg = smtpConfig();
   if (!cfg) {
     warn(input.subject, 'SMTP_HOST or EMAIL_FROM is not set, so email is disabled.');
@@ -126,3 +126,5 @@ export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
     return { ok: false, error: e instanceof Error ? e.message : 'Email send failed.' };
   }
 }
+
+export { escapeHtml, isEmailConfigured, sendEmail, type SendEmailInput, type SendResult };

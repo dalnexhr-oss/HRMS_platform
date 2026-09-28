@@ -3,11 +3,11 @@
 // off-site.
 
 // A Google Maps pin at the punch's coordinates, in whichever app the device has.
-export function mapsUrl(lat: number, lng: number): string {
+function mapsUrl(lat: number, lng: number): string {
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 }
 
-export function GeoChip({
+function GeoChip({
   withinGeofence,
   lat,
   lng,
@@ -52,4 +52,4 @@ export function GeoChip({
   );
 }
 
-export default GeoChip;
+export { mapsUrl, GeoChip, GeoChip as default };

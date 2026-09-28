@@ -4,7 +4,7 @@ import { useId, useState } from 'react';
 import type { RequestRecipient } from '@/types/requests';
 
 /** Searchable company-account tags. The submitted values are IDs, never free-form email addresses. */
-export function RecipientPicker({
+function RecipientPicker({
   label,
   name,
   people,
@@ -149,3 +149,5 @@ export function RecipientPicker({
     </div>
   );
 }
+
+export { RecipientPicker };

@@ -1,19 +1,19 @@
-export type PunchKind = 'in' | 'out';
+type PunchKind = 'in' | 'out';
 
-export interface NightSweepNotice {
+interface NightSweepNotice {
   workDate: string;
   punchOut: string;
   closedAt: string;
   message: string;
 }
 
-export interface PunchCoords {
+interface PunchCoords {
   latitude: number;
   longitude: number;
   accuracy?: number | null;
 }
 
-export interface PunchStatus {
+interface PunchStatus {
   status: PunchKind;
   lastPunchAt: string | null;
   lastKind: PunchKind | null;
@@ -28,7 +28,7 @@ export interface PunchStatus {
   lastNightSweep: NightSweepNotice | null;
 }
 
-export interface PunchRecord {
+interface PunchRecord {
   type: PunchKind;
   timestamp: string;
   withinGeofence: boolean | null;
@@ -36,9 +36,11 @@ export interface PunchRecord {
   lng: number | null;
 }
 
-export interface PunchResult {
+interface PunchResult {
   kind: PunchKind;
   punchedAt: string;
   withinGeofence: boolean | null;
   workedMinutes: number;
 }
+
+export type { PunchKind, NightSweepNotice, PunchCoords, PunchStatus, PunchRecord, PunchResult };

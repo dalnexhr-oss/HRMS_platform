@@ -3,7 +3,7 @@
 import { createServiceClient, isServiceRoleConfigured } from '@/lib/db/server';
 import type { AppRole } from '@/types/database';
 
-export type NotificationKind =
+type NotificationKind =
   | 'notice'
   | 'policy'
   | 'request'
@@ -17,7 +17,7 @@ export type NotificationKind =
   | 'warranty'
   | 'system';
 
-export interface NotifyInput {
+interface NotifyInput {
   kind: NotificationKind;
   title: string;
   body?: string | null;
@@ -68,7 +68,7 @@ async function dispatch(recipientIds: string[], input: NotifyInput): Promise<voi
 }
 
 /** Notify specific profile ids. */
-export async function notifyProfiles(profileIds: string[], input: NotifyInput): Promise<void> {
+async function notifyProfiles(profileIds: string[], input: NotifyInput): Promise<void> {
   await dispatch(profileIds, input);
 }
 
@@ -76,7 +76,7 @@ export async function notifyProfiles(profileIds: string[], input: NotifyInput): 
  * Notify the profile linked to an employee record (if any). Used for
  * "your claim was approved" style messages.
  */
-export async function notifyEmployee(employeeId: string | null, input: NotifyInput): Promise<void> {
+async function notifyEmployee(employeeId: string | null, input: NotifyInput): Promise<void> {
   if (!employeeId) {
     return;
   }
@@ -103,7 +103,7 @@ export async function notifyEmployee(employeeId: string | null, input: NotifyInp
 }
 
 /** Notify everyone who can approve things — mirrors guards.ts writeRoles. */
-export async function notifyApprovers(input: NotifyInput, exceptProfileId?: string): Promise<void> {
+async function notifyApprovers(input: NotifyInput, exceptProfileId?: string): Promise<void> {
   if (!isServiceRoleConfigured()) {
     warn(input.kind, 'MONGO_URI is not set, so notifications are disabled.');
     return;
@@ -131,7 +131,7 @@ export async function notifyApprovers(input: NotifyInput, exceptProfileId?: stri
  * like a published notice or policy. The actor is excluded: publishing a notice
  * should not notify the person who just published it.
  */
-export async function notifyEveryone(input: NotifyInput, exceptProfileId?: string): Promise<void> {
+async function notifyEveryone(input: NotifyInput, exceptProfileId?: string): Promise<void> {
   if (!isServiceRoleConfigured()) {
     warn(input.kind, 'MONGO_URI is not set, so notifications are disabled.');
     return;
@@ -150,3 +150,12 @@ export async function notifyEveryone(input: NotifyInput, exceptProfileId?: strin
     warn(input.kind, e);
   }
 }
+
+export {
+  notifyProfiles,
+  notifyEmployee,
+  notifyApprovers,
+  notifyEveryone,
+  type NotificationKind,
+  type NotifyInput,
+};

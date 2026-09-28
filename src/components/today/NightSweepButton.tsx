@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { runNightSweep } from '@/lib/actions/sweep';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 
-export function NightSweepButton({ date }: { date: string }) {
+function NightSweepButton({ date }: { date: string }) {
   const router = useRouter();
   const { confirm, confirmDialog } = useConfirm();
   const [pending, start] = useTransition();
@@ -65,3 +65,5 @@ export function NightSweepButton({ date }: { date: string }) {
     </>
   );
 }
+
+export { NightSweepButton };

@@ -19,7 +19,7 @@ const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 // RFC 5545 UTC date-time, e.g. '20260729T101530Z'.
 const icsStamp = /^\d{8}T\d{6}Z$/;
 
-export interface CalendarEvent {
+interface CalendarEvent {
   // Globally unique, STABLE id for this event. Re-exporting the same holiday must reuse the same UID, otherwise subscribers accumulate duplicates instead of seeing an update. Prefer `${table}-${row.id}@dalnex-hrms`.
   uid: string;
   // First day, 'YYYY-MM-DD'.
@@ -35,7 +35,7 @@ export interface CalendarEvent {
   allDay?: boolean;
 }
 
-export interface BuildIcsOptions {
+interface BuildIcsOptions {
   // Shown as the calendar's name in most clients via X-WR-CALNAME.
   calName?: string;
   // Supply DTSTAMP as YYYYMMDDTHHMMSSZ or ISO-8601 to make exports deterministic. One timestamp
@@ -119,7 +119,7 @@ function toIcsStamp(value?: string): string {
  * Escape backslashes before commas and semicolons, and encode newlines as literal \n. Leave colons
  * and quotes unchanged in ICS TEXT values.
  */
-export function escapeIcsText(v: string): string {
+function escapeIcsText(v: string): string {
   return v
     .replace(/\\/g, '\\\\')
     .replace(/;/g, '\\;')
@@ -131,7 +131,7 @@ export function escapeIcsText(v: string): string {
  * Fold at 75 UTF-8 octets per RFC 5545 §3.1. Continuation lines start with one space, leaving 74
  * octets for content. Count encoded bytes, not JavaScript string length.
  */
-export function foldLine(line: string): string {
+function foldLine(line: string): string {
   if (octetLength(line) <= maxOctets) {
     return line;
   }
@@ -160,7 +160,7 @@ export function foldLine(line: string): string {
 }
 
 /** 'YYYY-08-15' -> '20260815'. Inverse of the parser's `toISO`. */
-export function icsDate(iso: string): string {
+function icsDate(iso: string): string {
   assertIsoDate(iso, 'date');
   return iso.replace(/-/g, '');
 }
@@ -169,7 +169,7 @@ export function icsDate(iso: string): string {
  * Add whole days to YYYY-MM-DD in UTC so daylight-saving transitions cannot shift calendar end
  * dates.
  */
-export function addDays(iso: string, n: number): string {
+function addDays(iso: string, n: number): string {
   assertIsoDate(iso, 'date');
   const [y, m, d] = iso.split('-').map(Number);
   const shifted = new Date(Date.UTC(y, m - 1, d) + n * 86_400_000);
@@ -242,7 +242,7 @@ function buildEvent(ev: CalendarEvent, stamp: string): string[] {
  * @param events Events with stable UIDs.
  * @param opts Calendar name and optional timestamp; pass the timestamp for deterministic output.
  */
-export function buildIcs(events: CalendarEvent[], opts: BuildIcsOptions = {}): string {
+function buildIcs(events: CalendarEvent[], opts: BuildIcsOptions = {}): string {
   const stamp = toIcsStamp(opts.timestamp);
   const calName = opts.calName?.trim() || 'Dalnex HRMS';
 
@@ -264,3 +264,13 @@ export function buildIcs(events: CalendarEvent[], opts: BuildIcsOptions = {}): s
   lines.push('END:VCALENDAR');
   return lines.join(crlf) + crlf;
 }
+
+export {
+  escapeIcsText,
+  foldLine,
+  icsDate,
+  addDays,
+  buildIcs,
+  type CalendarEvent,
+  type BuildIcsOptions,
+};

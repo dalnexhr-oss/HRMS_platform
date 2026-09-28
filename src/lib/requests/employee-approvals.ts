@@ -4,7 +4,7 @@ import type { RequestView } from '@/lib/queries';
 import type { EmployeeApprovalView } from '@/types/requests';
 
 /** Keep personal decisions separate from the request's eventual outcome after other reviews. */
-export function employeeApprovals(requests: RequestView[], actor: RequestActor) {
+function employeeApprovals(requests: RequestView[], actor: RequestActor) {
   const all = requests
     .filter(
       ({ employeeId, routing }) =>
@@ -29,9 +29,11 @@ export function employeeApprovals(requests: RequestView[], actor: RequestActor) 
   return { all, pending, reviewed, cc };
 }
 
-export const employeeApprovalViews: Array<{ value: EmployeeApprovalView; label: string }> = [
+const employeeApprovalViews: Array<{ value: EmployeeApprovalView; label: string }> = [
   { value: 'pending', label: 'Awaiting me' },
   { value: 'reviewed', label: 'Reviewed by me' },
   { value: 'cc', label: 'CC' },
   { value: 'all', label: 'All requests' },
 ];
+
+export { employeeApprovals, employeeApprovalViews };

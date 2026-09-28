@@ -16,7 +16,7 @@ const offDayStatuses = new Set(['WO', 'OH']);
 
 // Comp-off eligibility includes both WO/OH stamps and scheduled days off. An employee can be
 // stamped P after working a scheduled day off.
-export function isCompOffEligible(cell: DayCell | undefined, scheduledOff = false): boolean {
+function isCompOffEligible(cell: DayCell | undefined, scheduledOff = false): boolean {
   if (!cell) {
     return false;
   }
@@ -64,7 +64,7 @@ interface Target {
   seq: number;
 }
 
-export function RegisterGrid({
+function RegisterGrid({
   employees,
   days,
   weekOffs,
@@ -725,3 +725,5 @@ function formatHrs(min: number): string {
   const m = min % 60;
   return `${h}:${String(m).padStart(2, '0')}`;
 }
+
+export { isCompOffEligible, RegisterGrid };

@@ -7,9 +7,7 @@ import { PunchHistory } from './PunchHistory';
 import { GeoChip } from './GeoChip';
 import { usePunchClock, clock, duration, failureText } from './usePunchClock';
 
-export { duration } from './usePunchClock';
-
-export function Punch({ id }: { id?: string }) {
+function Punch({ id }: { id?: string }) {
   const { toast, toastNode } = useToast();
   const { state, loading, pending, isIn, worked, permission, blocked, loadError, version, punch } =
     usePunchClock('card', toast);
@@ -105,4 +103,4 @@ export function Punch({ id }: { id?: string }) {
   );
 }
 
-export default Punch;
+export { duration, Punch, Punch as default };

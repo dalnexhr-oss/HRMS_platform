@@ -19,7 +19,7 @@ import type { LeaveSalaryViewRow } from '@/lib/leave-salary-view';
 // Pure module (no server deps) — safe here for the same reason inr/minutesToHHMM are.
 
 // 'YYYY-MM-01' -> 'June YYYY'.
-export function monthTitle(periodMonth: string): string {
+function monthTitle(periodMonth: string): string {
   const d = new Date(`${periodMonth.slice(0, 7)}-01T00:00:00Z`);
   if (Number.isNaN(d.getTime())) {
     return periodMonth;
@@ -275,7 +275,7 @@ function writeFlatSummarySheet(
 }
 
 /** Per-employee-per-day punch detail: date, status, in, out, total. */
-export function writeDailyPunchSheet(
+function writeDailyPunchSheet(
   wb: ExcelJS.Workbook,
   ws: ExcelJS.Worksheet,
   employees: RegisterEmployee[],
@@ -334,7 +334,7 @@ function brandReferenceSheet(wb: ExcelJS.Workbook, ws: ExcelJS.Worksheet): void 
  * The register export: the company's own layout first (re-importable), then a
  * flat one-row-per-employee summary, then per-day punch detail.
  */
-export async function registerWorkbook(
+async function registerWorkbook(
   employees: RegisterEmployee[],
   days: number[],
   periodMonth: string,
@@ -396,7 +396,7 @@ function blankBlock(i: number): RegisterEmployee {
  * (`blankBlocks` empty employee blocks) plus a "How to fill this in" sheet with
  * the column guide and status legend.
  */
-export async function registerImportTemplateWorkbook(
+async function registerImportTemplateWorkbook(
   periodMonth: string,
   blankBlocks = 20,
 ): Promise<Uint8Array> {
@@ -501,7 +501,7 @@ function safeSheetName(name: string, fallback: string): string {
  * Build a monthly attendance worksheet per employee with daily punches and summary totals, for
  * distribution alongside payslips.
  */
-export async function attendanceTemplateWorkbook(
+async function attendanceTemplateWorkbook(
   employees: RegisterEmployee[],
   periodMonth: string,
 ): Promise<Uint8Array> {
@@ -585,7 +585,7 @@ const purposeLabel: Record<string, string> = {
 };
 
 /** The claim sheet, column-for-column as the business records it. */
-export async function reimbursementsWorkbook(claims: ReimbursementView[]): Promise<Uint8Array> {
+async function reimbursementsWorkbook(claims: ReimbursementView[]): Promise<Uint8Array> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Dalnex HRMS';
   const ws = wb.addWorksheet('Reimbursement claims');
@@ -656,7 +656,7 @@ export async function reimbursementsWorkbook(claims: ReimbursementView[]): Promi
 
 // payroll
 
-export async function payrollWorkbook(
+async function payrollWorkbook(
   payslips: PayslipRow[],
   periodMonth: string,
   /** Register rows for the same month, so payroll carries each day's in/out. */
@@ -763,10 +763,7 @@ const monthShort = [
  * Export one annual leave-salary row per employee. effectiveFigures uses frozen snapshots for
  * finalized/paid rows and live values for drafts, matching the screen.
  */
-export async function leaveSalaryWorkbook(
-  rows: LeaveSalaryViewRow[],
-  year: number,
-): Promise<Uint8Array> {
+async function leaveSalaryWorkbook(rows: LeaveSalaryViewRow[], year: number): Promise<Uint8Array> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Dalnex HRMS';
   const ws = wb.addWorksheet(`Leave salary ${year}`);
@@ -861,7 +858,7 @@ export async function leaveSalaryWorkbook(
  * The Today board's punch log — same columns the on-screen table (and the old
  * CSV export) shows, statusMeta giving the same label the <Stamp> renders.
  */
-export async function punchLogWorkbook(
+async function punchLogWorkbook(
   rows: PunchLogRow[],
   /** The log's business date (Asia/Kolkata, 'YYYY-MM-DD'). */
   date: string,
@@ -901,3 +898,15 @@ export async function punchLogWorkbook(
 
   return toBytes(wb);
 }
+
+export {
+  monthTitle,
+  writeDailyPunchSheet,
+  registerWorkbook,
+  registerImportTemplateWorkbook,
+  attendanceTemplateWorkbook,
+  reimbursementsWorkbook,
+  payrollWorkbook,
+  leaveSalaryWorkbook,
+  punchLogWorkbook,
+};

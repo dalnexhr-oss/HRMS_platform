@@ -6,7 +6,7 @@ import { headers } from 'next/headers';
 
 // Require APP_URL in production for outgoing email links. Development may fall back to request
 // host headers; return null if no usable origin is available.
-export async function appOrigin(): Promise<string | null> {
+async function appOrigin(): Promise<string | null> {
   const configured = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL;
   if (configured) {
     return configured.replace(/\/$/, '');
@@ -23,6 +23,8 @@ export async function appOrigin(): Promise<string | null> {
 }
 
 // Shown when APP_URL is missing in production — a deployment fault, not a user one.
-export const originNotConfigured =
+const originNotConfigured =
   'This site’s address is not configured, so a reset link cannot be sent. ' +
   'Ask an administrator to set APP_URL.';
+
+export { appOrigin, originNotConfigured };

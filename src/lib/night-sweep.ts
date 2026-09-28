@@ -1,7 +1,7 @@
 import { todayIST } from '@/lib/format';
 import type { NightSweepNotice } from '@/types/punch';
 
-export interface SweepClosure {
+interface SweepClosure {
   work_date: string;
   punch_in: string | null;
   punch_out: string | null;
@@ -9,17 +9,14 @@ export interface SweepClosure {
   auto_closed_at?: Date | string | null;
 }
 
-export function previousWorkDate(date: string): string {
+function previousWorkDate(date: string): string {
   const previous = new Date(`${date}T00:00:00Z`);
   previous.setUTCDate(previous.getUTCDate() - 1);
   return previous.toISOString().slice(0, 10);
 }
 
 /** Missing punches alone are not evidence that the scheduled sweep ran. */
-export function lastNightSweepNotice(
-  day: SweepClosure | null,
-  now = new Date(),
-): NightSweepNotice | null {
+function lastNightSweepNotice(day: SweepClosure | null, now = new Date()): NightSweepNotice | null {
   if (
     !day ||
     day.auto_close_source !== 'scheduled' ||
@@ -45,3 +42,5 @@ export function lastNightSweepNotice(
     message: `You missed your punch-out on ${day.work_date}. Last night’s automatic sweep closed your attendance at ${day.punch_out} IST. Contact HR if this time needs correcting.`,
   };
 }
+
+export { previousWorkDate, lastNightSweepNotice, type SweepClosure };

@@ -36,7 +36,7 @@ async function fileToAvatarDataUrl(file: File): Promise<string> {
   return canvas.toDataURL('image/jpeg', 0.82);
 }
 
-export function AvatarMenu({
+function AvatarMenu({
   name,
   avatar,
   align = 'right',
@@ -193,3 +193,5 @@ export function AvatarMenu({
     </div>
   );
 }
+
+export { AvatarMenu };

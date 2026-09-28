@@ -7,7 +7,7 @@ import type { AppRole } from '@/types/database';
 // Document management is accessible to super_admin/admin/HR.
 const documentRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
-export default async function DocumentsPage() {
+async function DocumentsPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
   if (!role || !documentRoles.includes(role)) {
@@ -24,3 +24,5 @@ export default async function DocumentsPage() {
 
   return <DocumentsScreen register={register} stats={stats} employees={employees} />;
 }
+
+export { DocumentsPage as default };

@@ -8,7 +8,7 @@ import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { notifyEveryone } from '@/lib/notify';
 
 /** Records an employee's acknowledgement of a company policy. */
-export async function acknowledgePolicy(policyId: string) {
+async function acknowledgePolicy(policyId: string) {
   const db = requireDb('Marking a policy as read');
   if (!db.ok) {
     return db;
@@ -85,7 +85,7 @@ async function clearPolicyNag(
 }
 
 /** Staff creates a company policy (published immediately unless left as draft). */
-export async function createPolicy(formData: FormData) {
+async function createPolicy(formData: FormData) {
   const gate = await requireStaff('Creating a policy');
   if (!gate.ok) {
     return gate;
@@ -141,7 +141,7 @@ export async function createPolicy(formData: FormData) {
 }
 
 /** Staff toggles a policy's published state. */
-export async function setPolicyPublished(policyId: string, published: boolean) {
+async function setPolicyPublished(policyId: string, published: boolean) {
   const gate = await requireStaff('Publishing a policy');
   if (!gate.ok) {
     return gate;
@@ -188,7 +188,7 @@ export async function setPolicyPublished(policyId: string, published: boolean) {
 }
 
 /** Edit an existing policy's content. Staff-only. Leaves published state alone. */
-export async function updatePolicy(id: string, formData: FormData) {
+async function updatePolicy(id: string, formData: FormData) {
   const gate = await requireStaff('Editing a policy');
   if (!gate.ok) {
     return gate;
@@ -231,7 +231,7 @@ export async function updatePolicy(id: string, formData: FormData) {
 }
 
 /** Delete a policy. Its acknowledgements cascade away (FK on delete cascade). */
-export async function deletePolicy(id: string) {
+async function deletePolicy(id: string) {
   const gate = await requireStaff('Deleting a policy');
   if (!gate.ok) {
     return gate;
@@ -253,3 +253,5 @@ export async function deletePolicy(id: string) {
   revalidatePath('/me');
   return { ok: true };
 }
+
+export { acknowledgePolicy, createPolicy, setPolicyPublished, updatePolicy, deletePolicy };

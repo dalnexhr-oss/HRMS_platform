@@ -12,7 +12,7 @@ import type { EmployeeDoc } from '@/lib/db/collections';
 type DeleteResult = { ok: true; warning?: string } | { ok: false; error: string };
 
 /** Remove an inactive employee and linked logins while retaining referenced historical records. */
-export async function deleteEmployee(code: string): Promise<DeleteResult> {
+async function deleteEmployee(code: string): Promise<DeleteResult> {
   const gate = await requireStaff('Deleting an employee');
   if (!gate.ok) {
     return gate;
@@ -100,3 +100,5 @@ export async function deleteEmployee(code: string): Promise<DeleteResult> {
     };
   }
 }
+
+export { deleteEmployee };

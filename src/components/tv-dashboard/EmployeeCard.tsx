@@ -29,7 +29,7 @@ function clock(value: string | null): string | null {
     : new Intl.DateTimeFormat('en-IN', timeFmt).format(date);
 }
 
-export function EmployeeCard({ employee }: { employee: EmployeeData }) {
+function EmployeeCard({ employee }: { employee: EmployeeData }) {
   const at = clock(employee.lastPunchAt);
   const subtitle = employee.designation || employee.department || employee.branch || employee.code;
 
@@ -70,4 +70,4 @@ export function EmployeeCard({ employee }: { employee: EmployeeData }) {
   );
 }
 
-export default EmployeeCard;
+export { EmployeeCard, EmployeeCard as default };

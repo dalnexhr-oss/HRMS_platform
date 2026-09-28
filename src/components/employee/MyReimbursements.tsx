@@ -41,7 +41,7 @@ function statusPillStyle(status: ReimbursementView['status']): React.CSSProperti
   return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
 }
 
-export function MyReimbursements({
+function MyReimbursements({
   claims,
   ratePerKm,
   canClaim,
@@ -468,3 +468,5 @@ function ReceiptUpload({
     </>
   );
 }
+
+export { MyReimbursements };

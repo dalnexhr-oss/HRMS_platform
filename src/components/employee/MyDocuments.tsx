@@ -66,7 +66,7 @@ const categoryLabel: Record<string, string> = {
   settlement: 'Full & final statement',
 };
 
-export function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?: string }) {
+function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?: string }) {
   const router = useRouter();
   const [category, setCategory] = useState<string>('id_proof');
   const [busy, setBusy] = useState(false);
@@ -271,3 +271,5 @@ export function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[
     </div>
   );
 }
+
+export { MyDocuments };

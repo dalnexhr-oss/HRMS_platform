@@ -7,7 +7,7 @@ import { getSession } from '@/lib/auth';
 import { requireDb, wroteNothing } from '@/lib/actions/guards';
 import { isAvatarPresetId } from '@/lib/avatar-presets';
 
-export interface ActionResult {
+interface ActionResult {
   ok: boolean;
   error?: string;
 }
@@ -20,7 +20,7 @@ const dataUrlRe = /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/]+=*$/;
 // Set (or clear) the current user's avatar. null → remove (fall back to initials) 'preset:<id>' → a
 // bundled shadcn avatar image 'data:image/…' → a small, client-resized photo Anything else is
 // rejected.
-export async function updateAvatar(value: string | null): Promise<ActionResult> {
+async function updateAvatar(value: string | null): Promise<ActionResult> {
   const db = requireDb('Updating your picture');
   if (!db.ok) {
     return db;
@@ -67,3 +67,5 @@ export async function updateAvatar(value: string | null): Promise<ActionResult> 
   revalidatePath('/', 'layout');
   return { ok: true };
 }
+
+export { updateAvatar, type ActionResult };

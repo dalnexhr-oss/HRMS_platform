@@ -13,7 +13,7 @@ interface State {
   error?: string;
 }
 
-export function AddAssetDrawer({
+function AddAssetDrawer({
   open,
   onClose,
   asset = null,
@@ -293,3 +293,5 @@ function Field({
     </div>
   );
 }
+
+export { AddAssetDrawer };

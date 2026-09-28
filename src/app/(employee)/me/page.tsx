@@ -23,7 +23,7 @@ import type { CompOffRow, HolidayView, LeaveBalanceRow, NoticeView, PayrollRunVi
 import type { DayCell, PayslipRow } from '@/types/domain';
 
 // Employee self-service dashboard. This is the default landing page for employees after login, and the hub for all their self-service needs. It shows a snapshot of their attendance, payslips, requests, tickets, policies, and other relevant information.
-export default async function MePage() {
+async function MePage() {
   const { profile, email } = await getSession();
   const employeeId = profile?.employee_id ?? null;
   const periodMonth = currentPeriodMonth();
@@ -422,3 +422,5 @@ function monthYear(periodMonth: string): string {
     timeZone: 'UTC',
   });
 }
+
+export { MePage as default };

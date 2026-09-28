@@ -7,7 +7,7 @@ import { canReviewRequest } from '@/lib/requests/access';
 import { RequestRoutingSummary } from '@/components/requests/RequestRoutingSummary';
 import { RequestDecisionControls } from '@/components/requests/RequestDecisionControls';
 
-export default async function RequestPage({ params }: { params: Promise<{ requestId: string }> }) {
+async function RequestPage({ params }: { params: Promise<{ requestId: string }> }) {
   const { profile } = await getSession();
   if (!profile) {
     redirect('/login');
@@ -58,3 +58,5 @@ export default async function RequestPage({ params }: { params: Promise<{ reques
     </main>
   );
 }
+
+export { RequestPage as default };

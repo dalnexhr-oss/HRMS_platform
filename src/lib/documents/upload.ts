@@ -15,15 +15,15 @@ import type { StorageBucket } from '@/lib/storage';
 import type { AppRole } from '@/types/database';
 
 /** Roles permitted to file documents for other employees and verify submissions. */
-export const verifyRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
+const verifyRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 /** Target storage bucket for uploaded documents. */
-export const uploadBucket: StorageBucket = 'employee-documents';
+const uploadBucket: StorageBucket = 'employee-documents';
 
 /** Maximum permitted document size in bytes (10 MB). */
-export const maxBytes = 10 * 1024 * 1024;
+const maxBytes = 10 * 1024 * 1024;
 
-export interface Filer {
+interface Filer {
   id: string;
   role: AppRole;
   fullName: string | null;
@@ -34,7 +34,7 @@ export interface Filer {
  * Resolves and validates the target employee ID for an upload.
  * Enforces that non-staff callers can only file documents against their own employee record.
  */
-export function resolveTargetEmployee(
+function resolveTargetEmployee(
   filer: Filer,
   requested: string,
 ): { ok: true; employeeId: string; isStaff: boolean } | { ok: false; error: string } {
@@ -55,7 +55,7 @@ export function resolveTargetEmployee(
 /**
  * Persists document metadata in the register after storage write succeeds and notifies HR.
  */
-export async function recordUploadedDocument(input: {
+async function recordUploadedDocument(input: {
   filer: Filer;
   employeeId: string;
   isStaff: boolean;
@@ -151,3 +151,12 @@ async function discardUnfiledUpload(storagePath: string): Promise<void> {
     console.error('Could not clean up an unfiled document upload:', error);
   }
 }
+
+export {
+  verifyRoles,
+  uploadBucket,
+  maxBytes,
+  resolveTargetEmployee,
+  recordUploadedDocument,
+  type Filer,
+};

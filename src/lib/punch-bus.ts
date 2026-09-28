@@ -6,9 +6,9 @@
 const eventName = 'hrms:punch-changed';
 
 // Whoever raised the punch. Only used to skip the sender's own listener.
-export type PunchSource = 'topbar' | 'card';
+type PunchSource = 'topbar' | 'card';
 
-export function announcePunch(source: PunchSource): void {
+function announcePunch(source: PunchSource): void {
   if (typeof window === 'undefined') {
     return;
   }
@@ -16,7 +16,7 @@ export function announcePunch(source: PunchSource): void {
 }
 
 // Subscribe to punches made *elsewhere*. Returns the unsubscribe function.
-export function onPunchChange(self: PunchSource, handler: () => void): () => void {
+function onPunchChange(self: PunchSource, handler: () => void): () => void {
   if (typeof window === 'undefined') {
     return () => {};
   }
@@ -29,3 +29,5 @@ export function onPunchChange(self: PunchSource, handler: () => void): () => voi
   window.addEventListener(eventName, listener);
   return () => window.removeEventListener(eventName, listener);
 }
+
+export { announcePunch, onPunchChange, type PunchSource };

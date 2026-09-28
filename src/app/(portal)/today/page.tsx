@@ -70,7 +70,7 @@ function marksWatchFrom(register: RegisterEmployee[], threshold: number): MarkWa
 }
 
 // Live operational dashboard.
-export default async function TodayPage() {
+async function TodayPage() {
   const periodMonth = currentPeriodMonth();
   const [board, punchLog, celebrations, activity, run, register, settings, compOffs] =
     await Promise.all([
@@ -115,3 +115,5 @@ export default async function TodayPage() {
     </>
   );
 }
+
+export { TodayPage as default };

@@ -2,7 +2,7 @@
 import type { AttendanceStatus, Gender, IndianState } from './database';
 
 // A register row: employee + monthly summary + 30-day strip.
-export interface RegisterEmployee {
+interface RegisterEmployee {
   id: string;
   code: string;
   name: string;
@@ -23,7 +23,7 @@ export interface RegisterEmployee {
   days: DayCell[];
 }
 
-export interface DayCell {
+interface DayCell {
   day: number;
   status: AttendanceStatus;
   in: string | null;
@@ -33,7 +33,7 @@ export interface DayCell {
 }
 
 // A payslip joined to its employee for the payroll table.
-export interface PayslipRow {
+interface PayslipRow {
   id: string;
   code: string;
   name: string;
@@ -66,7 +66,7 @@ export interface PayslipRow {
   bonus: number;
 }
 
-export interface TodayKpis {
+interface TodayKpis {
   headcount: number;
   present: number;
   inOffice: number;
@@ -75,7 +75,7 @@ export interface TodayKpis {
   byBranch: Array<{ branch: string; count: number }>;
 }
 
-export interface Celebration {
+interface Celebration {
   id: string;
   name: string;
   branch: string;
@@ -84,14 +84,14 @@ export interface Celebration {
   years: number;
 }
 
-export interface MarkWatch {
+interface MarkWatch {
   employeeId: string;
   name: string;
   marks: number;
   threshold: number;
 }
 
-export interface PunchLogRow {
+interface PunchLogRow {
   code: string;
   name: string;
   branch: string;
@@ -100,3 +100,13 @@ export interface PunchLogRow {
   active: string | null;
   status: AttendanceStatus;
 }
+
+export type {
+  RegisterEmployee,
+  DayCell,
+  PayslipRow,
+  TodayKpis,
+  Celebration,
+  MarkWatch,
+  PunchLogRow,
+};

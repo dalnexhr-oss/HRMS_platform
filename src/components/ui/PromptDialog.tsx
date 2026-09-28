@@ -4,7 +4,7 @@
 // matchToken requires a case-insensitive match; validate returns an error string or null.
 import { useCallback, useEffect, useState } from 'react';
 
-export interface PromptOptions {
+interface PromptOptions {
   title?: string;
   message: string;
   // Prefilled input value.
@@ -164,7 +164,7 @@ type Pending = PromptOptions & { resolve: (v: string | null) => void };
  * Promise-based prompt. `prompt(opts)` resolves the typed string, or null when
  * cancelled; render the returned `promptDialog` node once in your component tree.
  */
-export function usePrompt() {
+function usePrompt() {
   const [pending, setPending] = useState<Pending | null>(null);
 
   const prompt = useCallback(
@@ -200,3 +200,5 @@ export function usePrompt() {
 
   return { prompt, promptDialog };
 }
+
+export { usePrompt, type PromptOptions };

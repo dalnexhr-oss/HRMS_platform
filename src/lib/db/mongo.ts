@@ -5,7 +5,7 @@ import type { Db, ClientSession } from 'mongodb';
 const uri = process.env.MONGO_URI ?? process.env.MONGODB_URI;
 
 // True when a connection string is configured.
-export function isMongoConfigured(): boolean {
+function isMongoConfigured(): boolean {
   return Boolean(uri);
 }
 
@@ -34,7 +34,7 @@ function connect(): Promise<MongoClient> {
 
 // Returns the shared MongoClient instance. Rejections are evicted immediately to avoid caching
 // transient connection failures across hot reloads.
-export function client(): Promise<MongoClient> {
+function client(): Promise<MongoClient> {
   if (globalForMongo.__dalnexMongo) {
     return globalForMongo.__dalnexMongo;
   }
@@ -49,13 +49,13 @@ export function client(): Promise<MongoClient> {
 }
 
 // The application database, as named in the connection string.
-export async function db(): Promise<Db> {
+async function db(): Promise<Db> {
   return (await client()).db();
 }
 
 // Checks whether the deployment topology supports multi-document transactions (replica set or
 // mongos). Cached after initial probe.
-export async function supportsTransactions(): Promise<boolean> {
+async function supportsTransactions(): Promise<boolean> {
   if (globalForMongo.__dalnexTxnSupport !== undefined) {
     return globalForMongo.__dalnexTxnSupport;
   }
@@ -72,7 +72,7 @@ let warnedStandalone = false;
  * supplied session. Required transactions refuse standalone databases; other callers execute
  * without a transaction and emit a warning.
  */
-export async function withTransaction<T>(
+async function withTransaction<T>(
   fn: (session: ClientSession | undefined) => Promise<T>,
   options: { required?: boolean } = {},
 ): Promise<T> {
@@ -108,3 +108,5 @@ export async function withTransaction<T>(
     await session.endSession();
   }
 }
+
+export { isMongoConfigured, client, db, supportsTransactions, withTransaction };

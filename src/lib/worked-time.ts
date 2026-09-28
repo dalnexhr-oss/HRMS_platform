@@ -1,5 +1,5 @@
 /** Standard attendance day: 9 hours 15 minutes, measured in whole minutes. */
-export const standardDayMinutes = 9 * 60 + 15;
+const standardDayMinutes = 9 * 60 + 15;
 
 // Match the attendance strip's definition of being at work; paid leave and half-days are separate.
 const presentStatuses = new Set(['P', 'LM', 'S', 'T']);
@@ -11,7 +11,7 @@ interface WorkedDay {
 }
 
 /** Net surplus on present days in the selected month through today (both dates are IST dates). */
-export function presentDaySurplus(
+function presentDaySurplus(
   days: readonly WorkedDay[],
   periodMonth: string,
   today: string,
@@ -34,3 +34,5 @@ export function presentDaySurplus(
     surplusMinutes: Math.max(0, workedMinutes - presentDays * standardDayMinutes),
   };
 }
+
+export { standardDayMinutes, presentDaySurplus };

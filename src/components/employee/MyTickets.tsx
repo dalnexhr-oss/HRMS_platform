@@ -27,7 +27,7 @@ function statusPillStyle(status: TicketView['status']): React.CSSProperties {
 
 // The employee's own helpdesk tickets, plus a raise-ticket form. Each ticket opens a real-time chat
 // window with HR.
-export function MyTickets({
+function MyTickets({
   tickets,
   comments = {},
   selfId = null,
@@ -165,3 +165,5 @@ function NewTicketForm() {
     </form>
   );
 }
+
+export { MyTickets };

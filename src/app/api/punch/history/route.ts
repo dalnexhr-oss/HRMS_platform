@@ -3,7 +3,7 @@ import { readPunchHistory } from '@/lib/punch';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+async function GET() {
   try {
     return NextResponse.json({ punches: await readPunchHistory() });
   } catch (error) {
@@ -13,3 +13,5 @@ export async function GET() {
     );
   }
 }
+
+export { GET };

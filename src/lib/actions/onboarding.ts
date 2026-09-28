@@ -8,7 +8,7 @@ import { requireRoles, wroteNothing } from '@/lib/actions/guards';
 import { notifyEmployee } from '@/lib/notify';
 import type { AppRole } from '@/types/database';
 
-export interface ActionResult {
+interface ActionResult {
   ok: boolean;
   error?: string;
 }
@@ -21,7 +21,7 @@ const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
  * Instantiates onboarding tasks for an employee from the specified (or default active) template.
  * Idempotent: returns early if onboarding tasks already exist for the employee.
  */
-export async function startOnboarding(
+async function startOnboarding(
   employeeId: string,
   templateId?: string,
 ): Promise<ActionResult & { created?: number }> {
@@ -116,7 +116,7 @@ export async function startOnboarding(
  *
  * Reopening clears done_by and done_at to maintain audit integrity.
  */
-export async function setOnboardingTaskStatus(
+async function setOnboardingTaskStatus(
   id: string,
   status: (typeof taskStatuses)[number],
 ): Promise<ActionResult> {
@@ -156,7 +156,7 @@ export async function setOnboardingTaskStatus(
 }
 
 /** Add a one-off step to someone's checklist, beyond whatever the template gave them. */
-export async function addOnboardingTask(input: {
+async function addOnboardingTask(input: {
   employeeId: string;
   title: string;
   assigneeRole?: string;
@@ -203,7 +203,7 @@ export async function addOnboardingTask(input: {
 }
 
 /** Remove a step. Used for steps added by mistake or made irrelevant by the role. */
-export async function deleteOnboardingTask(id: string): Promise<ActionResult> {
+async function deleteOnboardingTask(id: string): Promise<ActionResult> {
   const gate = await requireRoles(onboardingRoles, 'Removing an onboarding step');
   if (!gate.ok) {
     return gate;
@@ -225,3 +225,11 @@ export async function deleteOnboardingTask(id: string): Promise<ActionResult> {
   revalidatePath('/me');
   return { ok: true };
 }
+
+export {
+  startOnboarding,
+  setOnboardingTaskStatus,
+  addOnboardingTask,
+  deleteOnboardingTask,
+  type ActionResult,
+};

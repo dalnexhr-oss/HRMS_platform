@@ -5,7 +5,7 @@ import { getRequestRecipients } from '@/lib/requests/routing';
 import { redirect } from 'next/navigation';
 
 // Load requests for the approval queue. Decisions are handled by Server Actions.
-export default async function ApprovalsPage() {
+async function ApprovalsPage() {
   const [requests, people, { profile }] = await Promise.all([
     getRequests(),
     getRequestRecipients(),
@@ -22,3 +22,5 @@ export default async function ApprovalsPage() {
     />
   );
 }
+
+export { ApprovalsPage as default };

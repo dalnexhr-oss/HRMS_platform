@@ -2,7 +2,7 @@
 // component has no hooks; AvatarMenu handles editing.
 import { isAvatarPresetId, avatarPresetSrc } from '@/lib/avatar-presets';
 
-export function initials(name: string | null | undefined): string {
+function initials(name: string | null | undefined): string {
   return (name ?? '')
     .split(' ')
     .map((p) => p[0])
@@ -13,7 +13,7 @@ export function initials(name: string | null | undefined): string {
 }
 
 // The inner content of an avatar chip: photo, preset image, or initials.
-export function AvatarInner({ name, avatar }: { name?: string | null; avatar?: string | null }) {
+function AvatarInner({ name, avatar }: { name?: string | null; avatar?: string | null }) {
   if (avatar && avatar.startsWith('data:image/')) {
     // A data-URL photo — next/image can't optimise these.
     // eslint-disable-next-line @next/next/no-img-element
@@ -30,7 +30,7 @@ export function AvatarInner({ name, avatar }: { name?: string | null; avatar?: s
 }
 
 // A display-only avatar chip. `className` lets callers size it per surface.
-export function Avatar({
+function Avatar({
   name,
   avatar,
   className = '',
@@ -45,3 +45,5 @@ export function Avatar({
     </span>
   );
 }
+
+export { initials, AvatarInner, Avatar };

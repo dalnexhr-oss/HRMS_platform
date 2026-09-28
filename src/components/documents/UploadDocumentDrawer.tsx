@@ -13,10 +13,10 @@ interface State {
   error?: string;
 }
 
-export type DrawerTarget =
+type DrawerTarget =
   { mode: 'upload'; employeeId?: string } | { mode: 'replace'; document: EmployeeDocumentRow };
 
-export function UploadDocumentDrawer({
+function UploadDocumentDrawer({
   target,
   employees,
   onClose,
@@ -169,3 +169,5 @@ export function UploadDocumentDrawer({
     </>
   );
 }
+
+export { UploadDocumentDrawer, type DrawerTarget };

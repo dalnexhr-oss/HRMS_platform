@@ -4,8 +4,7 @@ import { objectUrl, putObject, statObject } from '@/lib/db/gridfs';
 import { systemScope } from '@/lib/db/scope';
 import type { StorableBody, StorageBucket as GridBucket } from '@/lib/db/gridfs';
 
-export type StorageBucket = GridBucket;
-export type { StorableBody };
+type StorageBucket = GridBucket;
 
 // Strip path separators and odd characters from a user-supplied filename.
 function safeName(filename: string): string {
@@ -34,11 +33,11 @@ const uploadKindExits = {
   receipt: ['pdf', 'png', 'jpg', 'jpeg', 'webp'],
 } as const;
 
-export type UploadKind = keyof typeof uploadKindExits;
+type UploadKind = keyof typeof uploadKindExits;
 
 // Validate a user upload's filename against the whitelist for its kind and return the contentType
 // to store. Refuses unknown/missing extensions.
-export function resolveUploadType(
+function resolveUploadType(
   filename: string,
   kind: UploadKind,
 ): { ok: true; contentType: string } | { ok: false; error: string } {
@@ -63,7 +62,7 @@ function objectPath(employeeId: string, filename: string): string {
   return `${employeeId}/${crypto.randomUUID()}-${safeName(filename)}`;
 }
 
-export interface UploadResult {
+interface UploadResult {
   ok: boolean;
   path?: string;
   // Bytes actually written. Worth reporting because a streamed body has no
@@ -77,7 +76,7 @@ export interface UploadResult {
  * Upload bytes to a bucket under the employee's own folder. Returns the stored
  * path — persist it on the owning row.
  */
-export async function uploadFile(
+async function uploadFile(
   bucket: StorageBucket,
   employeeId: string,
   filename: string,
@@ -101,7 +100,7 @@ export async function uploadFile(
  * company-wide files (notice attachments), where the rule is staff-write /
  * everyone-read instead of folder-scoped.
  */
-export async function uploadSharedFile(
+async function uploadSharedFile(
   bucket: StorageBucket,
   folder: string,
   filename: string,
@@ -124,7 +123,7 @@ export async function uploadSharedFile(
  * Upload generated documents under system scope. Employees must not be able to author files in
  * generated-documents.
  */
-export async function uploadFileService(
+async function uploadFileService(
   bucket: StorageBucket,
   employeeId: string,
   filename: string,
@@ -147,7 +146,7 @@ export async function uploadFileService(
  * Return the authenticated app URL for a private object after checking ownership. The URL carries
  * no credentials; the file route rechecks access on every request.
  */
-export async function signedUrl(
+async function signedUrl(
   bucket: StorageBucket,
   path: string,
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
@@ -163,3 +162,15 @@ export async function signedUrl(
     return { ok: false, error: e instanceof Error ? e.message : 'Could not open the file.' };
   }
 }
+
+export {
+  resolveUploadType,
+  uploadFile,
+  uploadSharedFile,
+  uploadFileService,
+  signedUrl,
+  type StorageBucket,
+  type StorableBody,
+  type UploadKind,
+  type UploadResult,
+};

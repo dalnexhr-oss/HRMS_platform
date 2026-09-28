@@ -10,14 +10,14 @@ import type { AppRole } from '@/types/database';
 type DbClient = Awaited<ReturnType<typeof createClient>>;
 
 /** Roles authorized to perform administrative write mutations. */
-export const writeRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
+const writeRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
-export type StaffGate =
+type StaffGate =
   | { ok: true; profileId: string; employeeId: string | null; role: AppRole }
   | { ok: false; error: string };
 
 /** Validates an administrative staff session (super_admin, admin, hr) with an active DB connection. */
-export async function requireStaff(action = 'This action'): Promise<StaffGate> {
+async function requireStaff(action = 'This action'): Promise<StaffGate> {
   if (!isMongoConfigured()) {
     return {
       ok: false,
@@ -42,7 +42,7 @@ export async function requireStaff(action = 'This action'): Promise<StaffGate> {
  * user administration. Returns the caller's own role so the action can apply
  * finer rules (e.g. only a super admin may mint another super admin).
  */
-export async function requireRoles(
+async function requireRoles(
   roles: readonly AppRole[],
   action = 'This action',
 ): Promise<{ ok: true; profileId: string; role: AppRole } | { ok: false; error: string }> {
@@ -70,7 +70,7 @@ export async function requireRoles(
  * they don't need a staff role, but a write with no database is still a failure, not
  * a fake success.
  */
-export function requireDb(action = 'This action'): { ok: true } | { ok: false; error: string } {
+function requireDb(action = 'This action'): { ok: true } | { ok: false; error: string } {
   if (!isMongoConfigured()) {
     return {
       ok: false,
@@ -84,7 +84,7 @@ export function requireDb(action = 'This action'): { ok: true } | { ok: false; e
  * Reject attendance writes in locked or paid payroll months. If the status lookup fails, refuse the
  * write. The shared rule lives in payroll-month.ts; workDate uses YYYY-MM-DD.
  */
-export async function requireOpenPayrollMonth(
+async function requireOpenPayrollMonth(
   dbc: DbClient,
   workDate: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -112,6 +112,16 @@ export async function requireOpenPayrollMonth(
  * — the standard signature of a policy-filtered or stale-id no-op, which the
  * query layer reports as success because matching no rows is not an error.
  */
-export function wroteNothing(data: unknown[] | null): boolean {
+function wroteNothing(data: unknown[] | null): boolean {
   return !data || data.length === 0;
 }
+
+export {
+  writeRoles,
+  requireStaff,
+  requireRoles,
+  requireDb,
+  requireOpenPayrollMonth,
+  wroteNothing,
+  type StaffGate,
+};

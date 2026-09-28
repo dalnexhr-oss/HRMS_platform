@@ -10,14 +10,14 @@ import { usersCollection } from '@/lib/db/collections';
 import { isMongoConfigured } from '@/lib/db/mongo';
 import { createSession, destroySession, getSession, revokeAllSessions } from '@/lib/auth/session';
 
-export interface SignInState {
+interface SignInState {
   error?: string;
 }
 
 // Uniform error message for authentication failures to prevent account enumeration.
 const badCredentials = 'That email and password do not match an account.';
 
-export async function signIn(_prev: SignInState, formData: FormData): Promise<SignInState> {
+async function signIn(_prev: SignInState, formData: FormData): Promise<SignInState> {
   const email = String(formData.get('email') ?? '')
     .trim()
     .toLowerCase();
@@ -62,7 +62,7 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
 
 // Bump token_version to revoke all sessions. Clearing this browser's cookie alone leaves other
 // copies valid.
-export async function signOut() {
+async function signOut() {
   const { userId } = await getSession();
   if (userId) {
     await revokeAllSessions(userId);
@@ -75,3 +75,5 @@ export async function signOut() {
 // on a missing account as on a real one. Its plaintext is unknown and unused.
 const dummyHash =
   'scrypt$65536$8$1$CftBGH0+i21Hii5EPwDwQg==$CsAkgiwdSpCsLUVtHuOVbTMKVzfOfRfzRHrH+962fr+pEP6ZSr0n2BNFkhPBOxBMn8m8o/Bd2imihYsJE2m9Ng==';
+
+export { signIn, signOut, type SignInState };

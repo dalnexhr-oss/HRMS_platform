@@ -4,7 +4,7 @@ import { getDocumentUrl } from '@/lib/actions/documents';
 
 // Open the tab during the click event, before resolving the file URL, to avoid popup blocking. Omit
 // the noopener feature because it makes window.open return null; clear opener manually instead.
-export async function openDocument(id: string, onError: (message: string) => void): Promise<void> {
+async function openDocument(id: string, onError: (message: string) => void): Promise<void> {
   const win = window.open('about:blank', '_blank');
   if (win) {
     win.opener = null;
@@ -24,3 +24,5 @@ export async function openDocument(id: string, onError: (message: string) => voi
     window.location.href = res.url;
   }
 }
+
+export { openDocument };

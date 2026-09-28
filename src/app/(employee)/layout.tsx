@@ -10,7 +10,7 @@ import { getMyNotifications, getUnreadNotificationCount } from '@/lib/queries';
 import { ApprovalsShortcut } from '@/components/employee/ApprovalsShortcut';
 
 // Employee self-service shell
-export default async function EmployeeLayout({ children }: { children: React.ReactNode }) {
+async function EmployeeLayout({ children }: { children: React.ReactNode }) {
   const [{ profile, email }, notifications, unread] = await Promise.all([
     getSession(),
     getMyNotifications(),
@@ -63,3 +63,5 @@ export default async function EmployeeLayout({ children }: { children: React.Rea
     </div>
   );
 }
+
+export { EmployeeLayout as default };

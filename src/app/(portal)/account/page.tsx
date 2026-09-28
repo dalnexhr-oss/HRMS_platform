@@ -3,7 +3,7 @@ import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm';
 import { AvatarMenu } from '@/components/shell/AvatarMenu';
 
 // Personal staff settings; company settings live at /settings.
-export default async function AccountPage() {
+async function AccountPage() {
   const { profile, email } = await getSession();
 
   return (
@@ -49,3 +49,5 @@ export default async function AccountPage() {
     </div>
   );
 }
+
+export { AccountPage as default };

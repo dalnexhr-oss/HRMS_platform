@@ -14,7 +14,7 @@ import type { CalendarEvent } from '@/lib/ics';
 // Always evaluated per-request: the feed is per-user and changes as leave is approved.
 export const dynamic = 'force-dynamic';
 
-export async function GET(): Promise<Response> {
+async function GET(): Promise<Response> {
   const { profile } = await getSession();
   if (!profile) {
     return new NextResponse('Sign in to fetch your calendar.', { status: 401 });
@@ -88,3 +88,5 @@ export async function GET(): Promise<Response> {
     },
   });
 }
+
+export { GET };

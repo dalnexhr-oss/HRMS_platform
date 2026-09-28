@@ -15,7 +15,7 @@ function base64ToBlob(base64: string, mime: string): Blob {
   return new Blob([bytes], { type: mime });
 }
 
-export function XlsxExportButton({
+function XlsxExportButton({
   action,
   label = 'Export .xlsx',
   className = 'btn',
@@ -68,3 +68,5 @@ export function XlsxExportButton({
     </>
   );
 }
+
+export { XlsxExportButton };

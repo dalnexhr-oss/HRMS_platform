@@ -4,7 +4,7 @@
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { exportPfEcr, exportEsic, exportPt } from '@/lib/actions/export';
 
-export function StatutoryExports({
+function StatutoryExports({
   periodMonth,
   disabled = false,
 }: {
@@ -25,3 +25,5 @@ export function StatutoryExports({
     </span>
   );
 }
+
+export { StatutoryExports };

@@ -89,7 +89,7 @@ function dateRange(startIso: string, endIso: string): string {
   return `${fmt(startIso)} – ${fmt(endIso)}`;
 }
 
-export function ApplyLeave({
+function ApplyLeave({
   requests,
   balances,
   canApply,
@@ -395,3 +395,5 @@ function NewRequestForm({
     </form>
   );
 }
+
+export { ApplyLeave };

@@ -37,7 +37,7 @@ const statusColor: Record<string, string> = {
   paid: 'var(--p)',
 };
 
-export function LeaveSalaryAdmin({
+function LeaveSalaryAdmin({
   year,
   migrated,
   rows,
@@ -723,3 +723,5 @@ function AdjustForm({
     </div>
   );
 }
+
+export { LeaveSalaryAdmin };

@@ -10,7 +10,7 @@ import { computeLeaveSalary, presenceByMonth } from '@/lib/leave-salary';
 import { inr } from '@/lib/format';
 import { toMoney } from '@/lib/db/money';
 
-export interface ActionResult {
+interface ActionResult {
   ok: boolean;
   error?: string;
 }
@@ -49,7 +49,7 @@ async function loadPresence(
  * attendance, snapshot everything. Refused once the row is finalized or paid —
  * reopen it first, so a "quick edit" cannot bypass the lock.
  */
-export async function saveLeaveSalaryWorking(input: {
+async function saveLeaveSalaryWorking(input: {
   employeeId: string;
   year: number;
   salaryBefore: number;
@@ -181,7 +181,7 @@ export async function saveLeaveSalaryWorking(input: {
  * Lock a draft: recompute one last time (attendance may have moved since the
  * save) and stamp the result. From here the figures on the row ARE the payout.
  */
-export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
+async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
   const gate = await requireRoles(
     ['super_admin', 'admin', 'hr'],
     'Finalizing a leave-salary working',
@@ -279,7 +279,7 @@ export async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
 }
 
 /** Unlock a finalized working for correction. Paid stays paid. */
-export async function reopenLeaveSalary(id: string): Promise<ActionResult> {
+async function reopenLeaveSalary(id: string): Promise<ActionResult> {
   const gate = await requireRoles(
     ['super_admin', 'admin', 'hr'],
     'Reopening a leave-salary working',
@@ -313,7 +313,7 @@ export async function reopenLeaveSalary(id: string): Promise<ActionResult> {
 }
 
 /** Mark a finalized working paid: stamp who/when, tell the employee. */
-export async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
+async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
   const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Marking a leave salary paid');
   if (!gate.ok) {
     return gate;
@@ -388,3 +388,11 @@ export async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
   revalidatePath('/me');
   return { ok: true };
 }
+
+export {
+  saveLeaveSalaryWorking,
+  finalizeLeaveSalary,
+  reopenLeaveSalary,
+  markLeaveSalaryPaid,
+  type ActionResult,
+};

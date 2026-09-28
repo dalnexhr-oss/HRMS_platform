@@ -41,7 +41,7 @@ function toChains(rows: EmployeeDocumentRow[]): DocumentChain[] {
   return chains.sort((a, b) => b.current.uploadedAt.localeCompare(a.current.uploadedAt));
 }
 
-export function EmployeeDocumentsPanel({
+function EmployeeDocumentsPanel({
   employee,
   onClose,
   onReplace,
@@ -351,3 +351,5 @@ export function EmployeeDocumentsPanel({
     </>
   );
 }
+
+export { EmployeeDocumentsPanel };

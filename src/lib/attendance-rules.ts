@@ -3,12 +3,12 @@
 import { createClient } from '@/lib/db/server';
 import { isMongoConfigured } from '@/lib/db/mongo';
 
-export const defaultPunchOutMin = 18 * 60;
+const defaultPunchOutMin = 18 * 60;
 
 const minutesPerDay = 1440;
 
 // 'HH:MM' (or 'HH:MM:SS') -> minutes since midnight, or null.
-export function clockToMinutes(value: unknown): number | null {
+function clockToMinutes(value: unknown): number | null {
   if (typeof value !== 'string') {
     return null;
   }
@@ -21,7 +21,7 @@ export function clockToMinutes(value: unknown): number | null {
 }
 
 // minutes since midnight -> 'HH:MM'.
-export function minutesToClock(mins: number): string {
+function minutesToClock(mins: number): string {
   const m = ((Math.round(mins) % minutesPerDay) + minutesPerDay) % minutesPerDay;
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 }
@@ -30,7 +30,7 @@ export function minutesToClock(mins: number): string {
  * Parse auto_punch_out_time as minutes since midnight. Accept bare or JSON-quoted time strings; use
  * the shared fallback for missing or malformed settings.
  */
-export function autoPunchOutMinutesFrom(value: unknown): number {
+function autoPunchOutMinutesFrom(value: unknown): number {
   const raw = typeof value === 'string' ? value.trim().replace(/^"(.*)"$/, '$1') : value;
   return clockToMinutes(raw) ?? defaultPunchOutMin;
 }
@@ -40,7 +40,7 @@ export function autoPunchOutMinutesFrom(value: unknown): number {
  * session. Falls back to 18:00 when the setting is missing, unreadable or
  * unparseable.
  */
-export async function getAutoPunchOutMinutes(): Promise<number> {
+async function getAutoPunchOutMinutes(): Promise<number> {
   if (!isMongoConfigured()) {
     return defaultPunchOutMin;
   }
@@ -60,7 +60,7 @@ export async function getAutoPunchOutMinutes(): Promise<number> {
   }
 }
 
-export interface ClosedDay {
+interface ClosedDay {
   outMin: number;
   workedMin: number;
   /** True when this day was closed automatically rather than by a real punch. */
@@ -71,7 +71,7 @@ export interface ClosedDay {
  * Close a day with a punch-in and no punch-out. Return null when no closure is needed. If closing
  * time precedes punch-in, wrap to the following day for night shifts.
  */
-export function autoCloseDay(
+function autoCloseDay(
   inMin: number | null,
   outMin: number | null,
   autoOutMin: number,
@@ -82,3 +82,13 @@ export function autoCloseDay(
   const span = autoOutMin >= inMin ? autoOutMin - inMin : autoOutMin + minutesPerDay - inMin;
   return { outMin: autoOutMin, workedMin: Math.max(0, span), autoClosed: true };
 }
+
+export {
+  defaultPunchOutMin,
+  clockToMinutes,
+  minutesToClock,
+  autoPunchOutMinutesFrom,
+  getAutoPunchOutMinutes,
+  autoCloseDay,
+  type ClosedDay,
+};

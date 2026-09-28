@@ -6,7 +6,7 @@ import Image from 'next/image';
 const intrinsicW = 234;
 const intrinsicH = 80;
 
-export function Brand({
+function Brand({
   // Accessible name; the visible "HRMS." suffix is decorative alongside it.
   label = 'Dalnex HRMS',
   priority = false,
@@ -30,3 +30,5 @@ export function Brand({
     </span>
   );
 }
+
+export { Brand };

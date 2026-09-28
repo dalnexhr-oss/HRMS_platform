@@ -2,7 +2,7 @@ import { getHolidays, getWeekOffPolicy, getBranches, currentPeriodMonth } from '
 import { HolidaysScreen } from '@/components/holidays/HolidaysScreen';
 import { describePolicy } from '@/lib/week-off';
 
-export default async function HolidaysPage() {
+async function HolidaysPage() {
   const [holidays, policy, branches] = await Promise.all([
     getHolidays(),
     getWeekOffPolicy(),
@@ -21,3 +21,5 @@ export default async function HolidaysPage() {
     />
   );
 }
+
+export { HolidaysPage as default };

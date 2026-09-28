@@ -6,7 +6,7 @@ import type { AppRole } from '@/types/database';
 // Match commitImport's staff role gate. The action and collection policy also enforce access.
 const importRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
-export default async function ImportPage() {
+async function ImportPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
 
@@ -19,3 +19,5 @@ export default async function ImportPage() {
     />
   );
 }
+
+export { ImportPage as default };

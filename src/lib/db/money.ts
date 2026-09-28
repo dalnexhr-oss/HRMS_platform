@@ -3,10 +3,10 @@
 import { Decimal128 } from 'mongodb';
 import { parseMoneyPaise } from '@/lib/money';
 
-export type MoneyInput = Decimal128 | number | string | null | undefined;
+type MoneyInput = Decimal128 | number | string | null | undefined;
 
 // Paise for a stored/typed value. Exact; throws on nonsense rather than NaN.
-export function toPaise(value: MoneyInput): number {
+function toPaise(value: MoneyInput): number {
   if (value === null || value === undefined) {
     return 0;
   }
@@ -15,7 +15,7 @@ export function toPaise(value: MoneyInput): number {
 }
 
 /** A Decimal128 for storage, from paise. */
-export function fromPaise(paise: number): Decimal128 {
+function fromPaise(paise: number): Decimal128 {
   if (!Number.isInteger(paise)) {
     throw new TypeError(`Paise must be a whole number, got ${paise}`);
   }
@@ -29,7 +29,7 @@ export function fromPaise(paise: number): Decimal128 {
 }
 
 /** A Decimal128 for storage, from anything. Use on every write of an amount. */
-export function toMoney(value: MoneyInput): Decimal128 {
+function toMoney(value: MoneyInput): Decimal128 {
   return fromPaise(toPaise(value));
 }
 
@@ -37,13 +37,13 @@ export function toMoney(value: MoneyInput): Decimal128 {
  * Converts numeric quantities (such as leave day balances or rates) into Decimal128
  * to satisfy schema decimal validation without floating-point representation.
  */
-export const toDecimal = toMoney;
+const toDecimal = toMoney;
 
 /**
  * Formats geographical coordinates (latitude/longitude) as 6-decimal-place Decimal128.
  * Returns null for absent or non-finite values.
  */
-export function toCoordinate(value: number | null | undefined): Decimal128 | null {
+function toCoordinate(value: number | null | undefined): Decimal128 | null {
   if (value === null || value === undefined || !Number.isFinite(value)) {
     return null;
   }
@@ -56,12 +56,12 @@ export function toCoordinate(value: number | null | undefined): Decimal128 | nul
  * Never feed the result back into a calculation — that is the float64 problem
  * this module exists to avoid. Compute in paise, convert once at the edge.
  */
-export function toNumber(value: MoneyInput): number {
+function toNumber(value: MoneyInput): number {
   return toPaise(value) / 100;
 }
 
 /** Formatted for the UI, e.g. "₹1,23,456.00" in the Indian digit grouping. */
-export function formatMoney(value: MoneyInput, withSymbol = true): string {
+function formatMoney(value: MoneyInput, withSymbol = true): string {
   const formatted = new Intl.NumberFormat('en-IN', {
     style: withSymbol ? 'currency' : 'decimal',
     currency: 'INR',
@@ -73,11 +73,11 @@ export function formatMoney(value: MoneyInput, withSymbol = true): string {
 
 // Arithmetic. All of it in paise, so all of it exact.
 
-export function addPaise(...values: MoneyInput[]): number {
+function addPaise(...values: MoneyInput[]): number {
   return values.reduce<number>((sum, v) => sum + toPaise(v), 0);
 }
 
-export function subPaise(from: MoneyInput, ...values: MoneyInput[]): number {
+function subPaise(from: MoneyInput, ...values: MoneyInput[]): number {
   return values.reduce<number>((rest, v) => rest - toPaise(v), toPaise(from));
 }
 
@@ -85,7 +85,7 @@ export function subPaise(from: MoneyInput, ...values: MoneyInput[]): number {
  * Multiplies a monetary amount in paise by a scalar ratio, applying symmetric
  * half-away-from-zero rounding to preserve sign-agnostic symmetry on deductions.
  */
-export function scalePaise(value: MoneyInput, ratio: number): number {
+function scalePaise(value: MoneyInput, ratio: number): number {
   if (!Number.isFinite(ratio)) {
     throw new TypeError(`Ratio must be finite, got ${ratio}`);
   }
@@ -96,13 +96,13 @@ export function scalePaise(value: MoneyInput, ratio: number): number {
 /**
  * Rounds paise to the nearest 100 paise (whole rupee) using half-away-from-zero rounding.
  */
-export function roundToRupee(paise: number): number {
+function roundToRupee(paise: number): number {
   const rupees = paise / 100;
   return (rupees < 0 ? -Math.round(-rupees) : Math.round(rupees)) * 100;
 }
 
 /** Split proportionally without losing a paisa — the remainder goes to the first. */
-export function dividePaise(total: number, parts: number): number[] {
+function dividePaise(total: number, parts: number): number[] {
   if (parts <= 0) {
     return [];
   }
@@ -111,3 +111,19 @@ export function dividePaise(total: number, parts: number): number[] {
   out[0] += total - base * parts;
   return out;
 }
+
+export {
+  toPaise,
+  fromPaise,
+  toMoney,
+  toDecimal,
+  toCoordinate,
+  toNumber,
+  formatMoney,
+  addPaise,
+  subPaise,
+  scalePaise,
+  roundToRupee,
+  dividePaise,
+  type MoneyInput,
+};

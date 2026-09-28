@@ -2,13 +2,13 @@
 // Calendar API credentials.
 
 // Google's public holiday calendars, by region.
-export const holidayCalendars = {
+const holidayCalendars = {
   india: 'en.indian#holiday@group.v.calendar.google.com',
 } as const;
 
-export type HolidayRegion = keyof typeof holidayCalendars;
+type HolidayRegion = keyof typeof holidayCalendars;
 
-export interface CalendarHoliday {
+interface CalendarHoliday {
   // 'YYYY-MM-DD'
   date: string;
   name: string;
@@ -45,7 +45,7 @@ function toISO(yyyymmdd: string): string {
  * Return only public holidays for the requested year. Observances are excluded because they are not
  * days off.
  */
-export function parseHolidayIcs(ics: string, year: number): CalendarHoliday[] {
+function parseHolidayIcs(ics: string, year: number): CalendarHoliday[] {
   const text = unfold(ics);
   const out: CalendarHoliday[] = [];
   const seen = new Set<string>();
@@ -89,7 +89,7 @@ export function parseHolidayIcs(ics: string, year: number): CalendarHoliday[] {
 }
 
 /** Fetch and parse a year's public holidays. Throws with a readable message. */
-export async function fetchPublicHolidays(
+async function fetchPublicHolidays(
   year: number,
   region: HolidayRegion = 'india',
 ): Promise<CalendarHoliday[]> {
@@ -118,3 +118,11 @@ export async function fetchPublicHolidays(
 
   return parseHolidayIcs(ics, year);
 }
+
+export {
+  holidayCalendars,
+  parseHolidayIcs,
+  fetchPublicHolidays,
+  type HolidayRegion,
+  type CalendarHoliday,
+};

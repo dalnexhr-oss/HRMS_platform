@@ -2,7 +2,7 @@
 import { formatDate } from '@/lib/format';
 import type { MyAssetRow } from '@/lib/queries';
 
-export function MyAssets({ assets, id }: { assets: MyAssetRow[]; id?: string }) {
+function MyAssets({ assets, id }: { assets: MyAssetRow[]; id?: string }) {
   return (
     <div className="card" id={id}>
       <div className="hd">
@@ -46,3 +46,5 @@ export function MyAssets({ assets, id }: { assets: MyAssetRow[]; id?: string }) 
     </div>
   );
 }
+
+export { MyAssets };

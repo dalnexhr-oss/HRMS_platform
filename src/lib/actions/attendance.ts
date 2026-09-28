@@ -10,7 +10,7 @@ import { hhmmToMinutes } from '@/lib/format';
 import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/guards';
 import type { AppRole, AttendanceStatus } from '@/types/database';
 
-export interface CorrectionState {
+interface CorrectionState {
   ok?: boolean;
   error?: string;
   // The write SUCCEEDED but a follow-up needs attention (e.g. the audit-log entry failed). ok stays
@@ -68,7 +68,7 @@ const dateRe = /^\d{4}-\d{2}-\d{2}$/;
  * Correct one employee's attendance and record an audit entry. Limit callers to writeRoles; the
  * collection policy enforces the same restriction.
  */
-export async function correctAttendance(formData: FormData): Promise<CorrectionState> {
+async function correctAttendance(formData: FormData): Promise<CorrectionState> {
   // inputs
   const employeeId = str(formData.get('employee_id'));
   const workDate = str(formData.get('work_date'));
@@ -273,7 +273,7 @@ export async function correctAttendance(formData: FormData): Promise<CorrectionS
   return { ok: true };
 }
 
-export interface BulkTarget {
+interface BulkTarget {
   employeeId: string;
   workDate: string;
 }
@@ -283,7 +283,7 @@ export interface BulkTarget {
  * whole batch if any month is closed. Clear punches and worked minutes because this changes day
  * status, not punch times.
  */
-export async function correctAttendanceBulk(input: {
+async function correctAttendanceBulk(input: {
   targets: BulkTarget[];
   status: string;
   reason: string;
@@ -373,3 +373,5 @@ export async function correctAttendanceBulk(input: {
   }
   return { ok: true };
 }
+
+export { correctAttendance, correctAttendanceBulk, type CorrectionState, type BulkTarget };

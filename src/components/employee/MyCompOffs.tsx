@@ -39,7 +39,7 @@ function pillLabel(c: CompOffRow): string {
   return statusLabel[c.status];
 }
 
-export function MyCompOffs({
+function MyCompOffs({
   compOffs,
   canApply,
   blockedReason,
@@ -155,3 +155,5 @@ function ApplyForm({ available, people }: { available: CompOffRow[]; people: Req
     </form>
   );
 }
+
+export { MyCompOffs };

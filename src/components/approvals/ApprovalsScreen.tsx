@@ -53,7 +53,7 @@ function dateRange(startIso: string, endIso: string): string {
   return `${dayOf(startIso)} ${startMonth} – ${dayOf(endIso)} ${endMonth}`;
 }
 
-export function ApprovalsScreen({
+function ApprovalsScreen({
   requests,
   actor,
   people,
@@ -230,3 +230,5 @@ function requestSentence(r: RequestView) {
     </>
   );
 }
+
+export { ApprovalsScreen };

@@ -6,9 +6,9 @@ import type { LeaveSalaryWorkingRow } from '@/lib/queries';
 import type { LeaveSalaryResult } from '@/lib/leave-salary';
 
 // Increment month when nothing is saved: April — appraisals land in March.
-export const defaultIncrementMonth = 4;
+const defaultIncrementMonth = 4;
 
-export interface LeaveSalaryViewRow {
+interface LeaveSalaryViewRow {
   employeeId: string;
   code: string;
   name: string;
@@ -34,14 +34,14 @@ export interface LeaveSalaryViewRow {
   drift: boolean;
 }
 
-export interface LeaveSalaryView {
+interface LeaveSalaryView {
   year: number;
   // Indicates availability of saved workings collection.
   migrated: boolean;
   rows: LeaveSalaryViewRow[];
 }
 
-export async function buildLeaveSalaryView(year: number): Promise<LeaveSalaryView> {
+async function buildLeaveSalaryView(year: number): Promise<LeaveSalaryView> {
   const [roster, presence, workings] = await Promise.all([
     getLeaveSalaryRoster(year),
     getLeaveSalaryPresence(year),
@@ -105,3 +105,10 @@ export async function buildLeaveSalaryView(year: number): Promise<LeaveSalaryVie
 
   return { year, migrated: workings !== null, rows };
 }
+
+export {
+  defaultIncrementMonth,
+  buildLeaveSalaryView,
+  type LeaveSalaryViewRow,
+  type LeaveSalaryView,
+};

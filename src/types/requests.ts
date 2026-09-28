@@ -1,16 +1,16 @@
-export interface RequestPerson {
+interface RequestPerson {
   id: string;
   name: string;
   email: string;
 }
 
-export interface RequestRecipient extends RequestPerson {
+interface RequestRecipient extends RequestPerson {
   employeeId: string | null;
   /** Company role, department, and employee code for searching the directory. */
   detail: string;
 }
 
-export interface RequestApproval {
+interface RequestApproval {
   approver: RequestPerson;
   decision: 'approved' | 'rejected';
   decidedAt: string;
@@ -18,7 +18,7 @@ export interface RequestApproval {
   forwardedTo: RequestPerson | null;
 }
 
-export interface RequestRouting {
+interface RequestRouting {
   initialApprover: RequestPerson;
   currentApprover: RequestPerson;
   cc: RequestPerson[];
@@ -26,4 +26,12 @@ export interface RequestRouting {
   revision: number;
 }
 
-export type EmployeeApprovalView = 'all' | 'pending' | 'reviewed' | 'cc';
+type EmployeeApprovalView = 'all' | 'pending' | 'reviewed' | 'cc';
+
+export type {
+  RequestPerson,
+  RequestRecipient,
+  RequestApproval,
+  RequestRouting,
+  EmployeeApprovalView,
+};

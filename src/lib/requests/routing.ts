@@ -9,7 +9,7 @@ import type { EmployeeDoc, RequestDoc, RequestRouteDoc } from '@/lib/db/collecti
 import type { RequestPerson, RequestRecipient } from '@/types/requests';
 
 /** Minimal company directory for recipient selection; credentials and personal contact fields stay private. */
-export async function getRequestRecipients(): Promise<RequestRecipient[]> {
+async function getRequestRecipients(): Promise<RequestRecipient[]> {
   const { profile } = await getSession();
   if (!profile) {
     return [];
@@ -103,7 +103,7 @@ async function resolveRecipient(id: string, requesterEmployeeId: string): Promis
   };
 }
 
-export async function prepareRequestRouting(formData: FormData, employeeId: string) {
+async function prepareRequestRouting(formData: FormData, employeeId: string) {
   const approverId = String(formData.get('approver_id') ?? '').trim();
   const ccIds = [
     ...new Set(
@@ -147,7 +147,7 @@ export async function prepareRequestRouting(formData: FormData, employeeId: stri
 }
 
 /** Commit a decision and optional handoff together; stale tabs cannot approve the next stage. */
-export async function reviewRoutedRequest(
+async function reviewRoutedRequest(
   id: string,
   decision: 'approved' | 'rejected',
   remark: string | null,
@@ -278,7 +278,7 @@ export async function reviewRoutedRequest(
 }
 
 /** Notify the selected recipient, CC, and earlier reviewers with a link all roles can open. */
-export async function notifyRequestParticipants(
+async function notifyRequestParticipants(
   requestId: string,
   route: RequestRouteDoc,
   title: string,
@@ -301,3 +301,10 @@ export async function notifyRequestParticipants(
     },
   );
 }
+
+export {
+  getRequestRecipients,
+  prepareRequestRouting,
+  reviewRoutedRequest,
+  notifyRequestParticipants,
+};

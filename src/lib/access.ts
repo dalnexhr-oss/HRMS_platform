@@ -3,13 +3,13 @@
 import { tabRoleAccess } from '@/lib/constants';
 import type { AppRole } from '@/types/database';
 
-export const configurableRoles: readonly AppRole[] = ['admin', 'hr'];
+const configurableRoles: readonly AppRole[] = ['admin', 'hr'];
 
 // Per-account overrides. Missing entries leave the role's default access unchanged.
-export type TabAccess = Record<string, boolean>;
+type TabAccess = Record<string, boolean>;
 
 // Check the static role gate before applying per-account restrictions.
-export function staticallyAllowed(role: AppRole | null | undefined, slug: string): boolean {
+function staticallyAllowed(role: AppRole | null | undefined, slug: string): boolean {
   const allowed = tabRoleAccess[slug];
   if (!allowed) {
     // ungated tab — every staff role reaches it
@@ -19,16 +19,12 @@ export function staticallyAllowed(role: AppRole | null | undefined, slug: string
 }
 
 // True when this account's role may be customised at all.
-export function isConfigurableRole(role: AppRole | null | undefined): boolean {
+function isConfigurableRole(role: AppRole | null | undefined): boolean {
   return !!role && configurableRoles.includes(role);
 }
 
 // Super admins retain access so they can restore another account's permissions.
-export function canAccessTab(
-  role: AppRole | null | undefined,
-  slug: string,
-  access: TabAccess,
-): boolean {
+function canAccessTab(role: AppRole | null | undefined, slug: string, access: TabAccess): boolean {
   if (role === 'super_admin') {
     return true;
   }
@@ -45,6 +41,15 @@ export function canAccessTab(
 }
 
 // Slug for a portal pathname: '/assets/x' -> 'assets'. '' for the root.
-export function slugFromPathname(pathname: string): string {
+function slugFromPathname(pathname: string): string {
   return pathname.split('/').filter(Boolean)[0] ?? '';
 }
+
+export {
+  configurableRoles,
+  staticallyAllowed,
+  isConfigurableRole,
+  canAccessTab,
+  slugFromPathname,
+  type TabAccess,
+};

@@ -23,7 +23,7 @@ function salaryPaise(value: string): number | null {
 }
 
 /** Shared by the live form and server save; all returned amounts are integer paise. */
-export function calculateSalary(input: SalaryInput): SalaryCalculation {
+function calculateSalary(input: SalaryInput): SalaryCalculation {
   const gross = salaryPaise(input.gross_monthly);
   const basic = salaryPaise(input.basic_da);
   const hra = salaryPaise(input.hra);
@@ -53,3 +53,5 @@ export function calculateSalary(input: SalaryInput): SalaryCalculation {
   }
   return { ok: true, gross, basic, hra, special };
 }
+
+export { calculateSalary };

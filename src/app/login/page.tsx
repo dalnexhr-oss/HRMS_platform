@@ -3,11 +3,11 @@ import { Brand } from '@/components/ui/Brand';
 import { safeRedirectPath } from '@/lib/auth/redirect';
 import type { Metadata } from 'next';
 
-export const metadata: Metadata = { title: 'Sign in — Dalnex HRMS' };
+const metadata: Metadata = { title: 'Sign in — Dalnex HRMS' };
 
 // Show sign-in errors from middleware or password reset. The next parameter preserves the requested
 // destination.
-export default async function LoginPage({
+async function LoginPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string | string[]; next?: string | string[] }>;
@@ -30,3 +30,6 @@ export default async function LoginPage({
     </div>
   );
 }
+
+export { metadata};
+export { LoginPage as default };

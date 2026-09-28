@@ -7,7 +7,7 @@ import type { AppRole } from '@/types/database';
 // Match the exit actions' staff role gate.
 const exitAdminRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
-export default async function ExitsPage() {
+async function ExitsPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
   if (!role || !exitAdminRoles.includes(role)) {
@@ -17,3 +17,5 @@ export default async function ExitsPage() {
   const [cases, employees] = await Promise.all([getExitCases(), getEmployeeOptions()]);
   return <ExitsScreen cases={cases} employees={employees} />;
 }
+
+export { ExitsPage as default };

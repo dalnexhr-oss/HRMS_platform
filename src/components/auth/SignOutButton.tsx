@@ -2,7 +2,7 @@
 
 import { signOut } from '@/lib/actions/auth';
 
-export function SignOutButton({ label = 'Sign out' }: { label?: string }) {
+function SignOutButton({ label = 'Sign out' }: { label?: string }) {
   return (
     <form action={signOut}>
       <button className="btn quiet" type="submit">
@@ -11,3 +11,5 @@ export function SignOutButton({ label = 'Sign out' }: { label?: string }) {
     </form>
   );
 }
+
+export { SignOutButton };

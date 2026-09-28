@@ -241,7 +241,7 @@ function parseSalary(
  * The edit form includes identity, bank, and salary details. Require write-level access even
  * though this operation only reads.
  */
-export async function fetchEmployeeForEdit(code: string): Promise<EmployeeEditRow | null> {
+async function fetchEmployeeForEdit(code: string): Promise<EmployeeEditRow | null> {
   const gate = await requireStaff('Loading an employee for editing');
   if (!gate.ok) {
     return null;
@@ -385,7 +385,7 @@ async function provisionCurrentLeaveYear(
   await dbc.rpc('fn_provision_leave_balances', { p_year: year });
 }
 
-export async function createEmployee(formData: FormData) {
+async function createEmployee(formData: FormData) {
   const gate = await requireStaff('Adding an employee');
   if (!gate.ok) {
     return gate;
@@ -533,7 +533,7 @@ export async function createEmployee(formData: FormData) {
  * Update an existing employee, keyed by its (immutable) code carried in a hidden
  * `original_code` field. Same validation as create.
  */
-export async function updateEmployee(formData: FormData) {
+async function updateEmployee(formData: FormData) {
   const gate = await requireStaff('Updating an employee');
   if (!gate.ok) {
     return gate;
@@ -645,7 +645,7 @@ export async function updateEmployee(formData: FormData) {
 }
 
 /** Deactivate an employee (status -> 'inactive'). Keyed by code. */
-export async function deactivateEmployee(code: string) {
+async function deactivateEmployee(code: string) {
   const gate = await requireStaff('Deactivating an employee');
   if (!gate.ok) {
     return gate;
@@ -687,7 +687,7 @@ export async function deactivateEmployee(code: string) {
 }
 
 /** Bring a deactivated employee back onto the active roster. */
-export async function reactivateEmployee(code: string) {
+async function reactivateEmployee(code: string) {
   const gate = await requireStaff('Reactivating an employee');
   if (!gate.ok) {
     return gate;
@@ -730,3 +730,11 @@ export async function reactivateEmployee(code: string) {
   revalidatePath('/leave');
   return { ok: true };
 }
+
+export {
+  fetchEmployeeForEdit,
+  createEmployee,
+  updateEmployee,
+  deactivateEmployee,
+  reactivateEmployee,
+};

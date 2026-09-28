@@ -6,7 +6,7 @@ import { updateAssetQrLink } from '@/lib/actions/assets';
 import { assetLinkMaxLength } from '@/lib/asset-link';
 import { AssetQrCode } from './AssetQrCode';
 
-export function AssetQrEditor({
+function AssetQrEditor({
   assetId,
   name,
   url,
@@ -78,3 +78,5 @@ export function AssetQrEditor({
     </div>
   );
 }
+
+export { AssetQrEditor };

@@ -4,16 +4,16 @@
 import { Decimal128 } from 'mongodb';
 
 // Marker for `now()` — resolved per insert, never at module load.
-export const now = Symbol('now');
+const now = Symbol('now');
 // Marker for `current_date` — an IST calendar date, as `YYYY-MM-DD`.
-export const today = Symbol('today');
+const today = Symbol('today');
 
 const money = (v: string): Decimal128 => Decimal128.fromString(v);
 
-export type DefaultValue = string | number | boolean | Decimal128 | object | symbol | null;
+type DefaultValue = string | number | boolean | Decimal128 | object | symbol | null;
 
 // Mapping of collection -> field -> default value or resolver symbol.
-export const columnDefaults: Record<string, Record<string, DefaultValue>> = {
+const columnDefaults: Record<string, Record<string, DefaultValue>> = {
   acknowledgements: {
     signed_at: now,
   },
@@ -238,3 +238,5 @@ export const columnDefaults: Record<string, Record<string, DefaultValue>> = {
     updated_at: now,
   },
 };
+
+export { now, today, columnDefaults, type DefaultValue };

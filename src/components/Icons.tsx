@@ -7,7 +7,7 @@ const svg = (children: ReactNode) => (
   </svg>
 );
 
-export const icons: Record<string, ReactNode> = {
+const icons: Record<string, ReactNode> = {
   today: svg(
     <>
       <circle cx="12" cy="12" r="9" />
@@ -70,3 +70,5 @@ export const icons: Record<string, ReactNode> = {
     </>,
   ),
 };
+
+export { icons };

@@ -12,7 +12,7 @@ registerDbFunctions();
 registerPayrollFunctions();
 
 // Request-scoped client. Every query it runs is filtered by the caller's policy.
-export async function createClient(session?: ClientSession): Promise<QueryClient> {
+async function createClient(session?: ClientSession): Promise<QueryClient> {
   if (!isMongoConfigured()) {
     throw new Error('MONGO_URI is not set. Add it to .env.local and restart.');
   }
@@ -20,7 +20,7 @@ export async function createClient(session?: ClientSession): Promise<QueryClient
 }
 
 // Server-only client for privileged background jobs.
-export function createServiceClient(): QueryClient {
+function createServiceClient(): QueryClient {
   if (!isMongoConfigured()) {
     throw new Error(
       'createServiceClient: MONGO_URI is not set, so privileged operations ' +
@@ -31,6 +31,8 @@ export function createServiceClient(): QueryClient {
 }
 
 // Returns true when the underlying database connection is configured and available for service operations.
-export function isServiceRoleConfigured(): boolean {
+function isServiceRoleConfigured(): boolean {
   return isMongoConfigured();
 }
+
+export { createClient, createServiceClient, isServiceRoleConfigured };

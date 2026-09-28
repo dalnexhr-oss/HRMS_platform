@@ -12,7 +12,7 @@ import type { AttendanceStatus } from '@/types/database';
 // Presence credit per attendance status. Week-offs, holidays and comp-offs COUNT as present — the
 // sheet's 344.5-of-365 sample year is impossible otherwise. Only Absent and Leave reduce the
 // payout; a half day is half.
-export const presentCredit: Record<AttendanceStatus, number> = {
+const presentCredit: Record<AttendanceStatus, number> = {
   P: 1,
   LM: 1,
   S: 1,
@@ -27,7 +27,7 @@ export const presentCredit: Record<AttendanceStatus, number> = {
 
 // Sum credit-weighted presence by calendar month, with January at index 0. Ignore malformed dates,
 // unknown statuses, and rows outside the requested year.
-export function presenceByMonth(rows: Array<{ workDate: string; status: string }>): number[] {
+function presenceByMonth(rows: Array<{ workDate: string; status: string }>): number[] {
   const months = new Array(12).fill(0);
   for (const row of rows) {
     const month = Number(row.workDate?.slice(5, 7));
@@ -39,7 +39,7 @@ export function presenceByMonth(rows: Array<{ workDate: string; status: string }
   return months;
 }
 
-export interface LeaveSalaryInput {
+interface LeaveSalaryInput {
   year: number;
   // Monthly gross before the increment.
   salaryBefore: number;
@@ -55,7 +55,7 @@ export interface LeaveSalaryInput {
   calendarDaysP2Override?: number | null;
 }
 
-export interface PeriodFigures {
+interface PeriodFigures {
   // Whole months in the period (3 / 9 for the default April split).
   months: number;
   // Real calendar days — leap-safe (Jan–Mar is 91 in 2028, 90 in 2025).
@@ -68,7 +68,7 @@ export interface PeriodFigures {
   payable: number;
 }
 
-export interface LeaveSalaryResult {
+interface LeaveSalaryResult {
   // Before the increment (empty period when incrementMonth = 1).
   p1: PeriodFigures;
   // From the increment on.
@@ -126,7 +126,7 @@ function withCalendarOverride(
   return { ...f, calendarDays: days, payable: round2(f.entitled * (f.presentDays / days)) };
 }
 
-export function computeLeaveSalary(input: LeaveSalaryInput): LeaveSalaryResult {
+function computeLeaveSalary(input: LeaveSalaryInput): LeaveSalaryResult {
   const { year, salaryBefore, salaryAfter, monthlyPresence } = input;
   // An out-of-range increment month would silently misshape both periods;
   // clamp to [1, 12] so p1 is at most Jan–Nov and p2 at least December.
@@ -144,7 +144,7 @@ export function computeLeaveSalary(input: LeaveSalaryInput): LeaveSalaryResult {
 }
 
 // The stored figures of a saved working, as every surface consumes them.
-export interface WorkingSnapshot {
+interface WorkingSnapshot {
   status: 'draft' | 'finalized' | 'paid';
   presentP1: number;
   presentP2: number;
@@ -155,7 +155,7 @@ export interface WorkingSnapshot {
   totalAmount: number;
 }
 
-export interface EffectiveFigures {
+interface EffectiveFigures {
   presentP1: number;
   presentP2: number;
   calendarDaysP1: number;
@@ -168,7 +168,7 @@ export interface EffectiveFigures {
 // The figures a row should REPORT: the frozen snapshot once finalized/paid, the live computation
 // while still a draft (or unsaved). One rule, applied by the page table AND the .xlsx export, so
 // screen and sheet cannot disagree.
-export function effectiveFigures(
+function effectiveFigures(
   working: WorkingSnapshot | null,
   live: LeaveSalaryResult,
 ): EffectiveFigures {
@@ -193,3 +193,15 @@ export function effectiveFigures(
     total: live.total,
   };
 }
+
+export {
+  presentCredit,
+  presenceByMonth,
+  computeLeaveSalary,
+  effectiveFigures,
+  type LeaveSalaryInput,
+  type PeriodFigures,
+  type LeaveSalaryResult,
+  type WorkingSnapshot,
+  type EffectiveFigures,
+};

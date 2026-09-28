@@ -38,7 +38,7 @@ function groupByDay(punches: PunchRecord[]): Array<[string, PunchRecord[]]> {
   return [...groups.entries()];
 }
 
-export function PunchHistory({ refreshKey = 0 }: { refreshKey?: number }) {
+function PunchHistory({ refreshKey = 0 }: { refreshKey?: number }) {
   const [punches, setPunches] = useState<PunchRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -114,4 +114,4 @@ export function PunchHistory({ refreshKey = 0 }: { refreshKey?: number }) {
   );
 }
 
-export default PunchHistory;
+export { PunchHistory, PunchHistory as default };

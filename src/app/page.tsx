@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { getSession, homeForRole } from '@/lib/auth';
 
 // Resolve the signed-in user's home by role: staff use /today and employees use /me.
-export default async function Home() {
+async function Home() {
   const { profile } = await getSession();
   // An account without a profile has no authorized home.
   if (!profile) {
@@ -10,3 +10,5 @@ export default async function Home() {
   }
   redirect(homeForRole(profile.role));
 }
+
+export { Home as default };

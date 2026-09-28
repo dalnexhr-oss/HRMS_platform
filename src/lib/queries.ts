@@ -23,7 +23,6 @@ import type { TabAccess } from '@/lib/access';
 import type { QueryError } from '@/types/query';
 
 // Expose database availability alongside the query helpers.
-export { isMongoConfigured };
 
 // utils
 
@@ -45,7 +44,7 @@ function isoOrNull(value: unknown): string | null {
 }
 
 // Returns the first day of the current month in IST ('YYYY-MM-01') as the default accounting period.
-export function currentPeriodMonth(): string {
+function currentPeriodMonth(): string {
   return `${todayISO().slice(0, 8)}01`;
 }
 
@@ -131,7 +130,7 @@ function mapPayslip(p: any): PayslipRow {
 }
 
 // register
-export async function getRegister(
+async function getRegister(
   periodMonth: string = currentPeriodMonth(),
   branch?: string | null,
 ): Promise<RegisterEmployee[]> {
@@ -239,7 +238,7 @@ export async function getRegister(
 }
 
 // register reconciliation
-export interface LeaveRegisterMismatch {
+interface LeaveRegisterMismatch {
   employeeId: string;
   code: string;
   name: string;
@@ -273,7 +272,7 @@ function isoDaysInRange(
  * Find approved leave days still missing from the register or marked AB. Preserve existing leave,
  * off-day, and presence stamps. This query reports gaps without changing attendance.
  */
-export async function getLeaveRegisterMismatches(
+async function getLeaveRegisterMismatches(
   periodMonth: string = currentPeriodMonth(),
   branch?: string | null,
 ): Promise<LeaveRegisterMismatch[]> {
@@ -340,7 +339,7 @@ export async function getLeaveRegisterMismatches(
 }
 
 // e-signatures
-export interface AcknowledgementRow {
+interface AcknowledgementRow {
   id: string;
   documentKind: string;
   documentId: string | null;
@@ -352,7 +351,7 @@ export interface AcknowledgementRow {
  * Append-only employee signatures, including typed name, server timestamp, and request IP. Policy
  * read receipts are stored separately.
  */
-export async function getMyAcknowledgements(employeeId: string): Promise<AcknowledgementRow[]> {
+async function getMyAcknowledgements(employeeId: string): Promise<AcknowledgementRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('acknowledgements')
@@ -378,15 +377,15 @@ export async function getMyAcknowledgements(employeeId: string): Promise<Acknowl
  * replaced through uploads; use source to distinguish issued experience letters from uploaded
  * certificates.
  */
-export type DocumentSource = 'uploaded' | 'issued';
+type DocumentSource = 'uploaded' | 'issued';
 
 /**
  * Document status: awaiting review, returned with an HR remark, verified, or superseded by a newer
  * version.
  */
-export type DocumentStatus = 'awaiting' | 'returned' | 'verified' | 'superseded';
+type DocumentStatus = 'awaiting' | 'returned' | 'verified' | 'superseded';
 
-export interface EmployeeDocumentRow {
+interface EmployeeDocumentRow {
   id: string;
   employeeId: string;
   code: string;
@@ -445,7 +444,7 @@ function mapDocument(r: any): EmployeeDocumentRow {
  * Return the employee's current documents, newest first, without storage paths. Staff can read
  * superseded versions through getEmployeeDocumentHistory.
  */
-export async function getEmployeeDocuments(employeeId: string): Promise<EmployeeDocumentRow[]> {
+async function getEmployeeDocuments(employeeId: string): Promise<EmployeeDocumentRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('employee_documents')
@@ -464,9 +463,7 @@ export async function getEmployeeDocuments(employeeId: string): Promise<Employee
  * drill-down. Superseded rows are included; `isCurrent` and `docGroup` are what
  * the panel groups on.
  */
-export async function getEmployeeDocumentHistory(
-  employeeId: string,
-): Promise<EmployeeDocumentRow[]> {
+async function getEmployeeDocumentHistory(employeeId: string): Promise<EmployeeDocumentRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('employee_documents')
@@ -483,7 +480,7 @@ export async function getEmployeeDocumentHistory(
  * Return current document versions for the register. Keep superseded versions in each document's
  * history.
  */
-export async function getDocumentRegister(): Promise<EmployeeDocumentRow[]> {
+async function getDocumentRegister(): Promise<EmployeeDocumentRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('employee_documents')
@@ -500,7 +497,7 @@ export async function getDocumentRegister(): Promise<EmployeeDocumentRow[]> {
  * Return current documents awaiting HR verification. Superseded versions are excluded from the
  * review queue.
  */
-export async function getUnverifiedDocuments(): Promise<EmployeeDocumentRow[]> {
+async function getUnverifiedDocuments(): Promise<EmployeeDocumentRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('employee_documents')
@@ -514,7 +511,7 @@ export async function getUnverifiedDocuments(): Promise<EmployeeDocumentRow[]> {
   return (data ?? []).map(mapDocument);
 }
 
-export interface DocumentStats {
+interface DocumentStats {
   /** Current documents on file, all employees. */
   total: number;
   awaiting: number;
@@ -532,7 +529,7 @@ export interface DocumentStats {
 }
 
 /** Derive document KPIs from the same register data used by the table. */
-export function documentStats(
+function documentStats(
   register: EmployeeDocumentRow[],
   activeEmployeeIds: string[],
 ): DocumentStats {
@@ -577,7 +574,7 @@ export function documentStats(
 }
 
 // onboarding
-export interface OnboardingTaskRow {
+interface OnboardingTaskRow {
   id: string;
   employeeId: string;
   code: string;
@@ -588,7 +585,7 @@ export interface OnboardingTaskRow {
   dueDate: string | null;
 }
 
-export interface OnboardingTemplateRow {
+interface OnboardingTemplateRow {
   id: string;
   name: string;
   active: boolean;
@@ -613,7 +610,7 @@ function mapOnboardingTask(r: any): OnboardingTaskRow {
 }
 
 /** Return onboarding tasks by due date, with undated tasks last so overdue work appears first. */
-export async function getOnboardingBoard(): Promise<OnboardingTaskRow[]> {
+async function getOnboardingBoard(): Promise<OnboardingTaskRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('onboarding_tasks')
@@ -627,7 +624,7 @@ export async function getOnboardingBoard(): Promise<OnboardingTaskRow[]> {
 }
 
 /** One employee's own checklist — the read-only card on /me. */
-export async function getMyOnboardingTasks(employeeId: string): Promise<OnboardingTaskRow[]> {
+async function getMyOnboardingTasks(employeeId: string): Promise<OnboardingTaskRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('onboarding_tasks')
@@ -642,7 +639,7 @@ export async function getMyOnboardingTasks(employeeId: string): Promise<Onboardi
 }
 
 /** Load reusable checklists with an embedded step count. Templates without items have zero steps. */
-export async function getOnboardingTemplates(): Promise<OnboardingTemplateRow[]> {
+async function getOnboardingTemplates(): Promise<OnboardingTemplateRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('onboarding_templates')
@@ -660,7 +657,7 @@ export async function getOnboardingTemplates(): Promise<OnboardingTemplateRow[]>
 }
 
 // exits
-export interface ExitCaseRow {
+interface ExitCaseRow {
   id: string;
   employeeId: string;
   code: string;
@@ -680,7 +677,7 @@ export interface ExitCaseRow {
 }
 
 /** Every exit case with its clearance and settlement state — the HR exits board. */
-export async function getExitCases(): Promise<ExitCaseRow[]> {
+async function getExitCases(): Promise<ExitCaseRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('exit_cases')
@@ -730,7 +727,7 @@ export async function getExitCases(): Promise<ExitCaseRow[]> {
   });
 }
 
-export interface ExitInterviewRow {
+interface ExitInterviewRow {
   id: string;
   question: string;
   answer: string | null;
@@ -738,7 +735,7 @@ export interface ExitInterviewRow {
 }
 
 /** Read interview answers in insertion order. Each exit stores its own questionnaire snapshot. */
-export async function getExitInterview(exitCaseId: string): Promise<ExitInterviewRow[]> {
+async function getExitInterview(exitCaseId: string): Promise<ExitInterviewRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('exit_interviews')
@@ -756,7 +753,7 @@ export async function getExitInterview(exitCaseId: string): Promise<ExitIntervie
   }));
 }
 
-export interface KtItemRow {
+interface KtItemRow {
   id: string;
   task: string;
   handoverTo: string | null;
@@ -766,7 +763,7 @@ export interface KtItemRow {
 }
 
 /** One exit case's knowledge-transfer items. */
-export async function getKtItems(exitCaseId: string): Promise<KtItemRow[]> {
+async function getKtItems(exitCaseId: string): Promise<KtItemRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('knowledge_transfer_items')
@@ -786,7 +783,7 @@ export async function getKtItems(exitCaseId: string): Promise<KtItemRow[]> {
   }));
 }
 
-export interface ClearanceItemRow {
+interface ClearanceItemRow {
   id: string;
   area: string;
   description: string | null;
@@ -794,7 +791,7 @@ export interface ClearanceItemRow {
 }
 
 /** The clearance checklist for one exit case. */
-export async function getClearanceItems(exitCaseId: string): Promise<ClearanceItemRow[]> {
+async function getClearanceItems(exitCaseId: string): Promise<ClearanceItemRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('exit_clearance_items')
@@ -812,7 +809,7 @@ export async function getClearanceItems(exitCaseId: string): Promise<ClearanceIt
 // an annual leave-salary working per employee. The old encashment/adjustment
 // list queries died with the PL/CL/SL screen; the tables themselves remain.
 
-export interface LeaveBalanceAdminRow {
+interface LeaveBalanceAdminRow {
   employeeId: string;
   code: string;
   name: string;
@@ -822,7 +819,7 @@ export interface LeaveBalanceAdminRow {
 }
 
 /** Every employee's PAID-LEAVE pool for a year — the pool card on /leave. */
-export async function getLeaveBalancesForYear(year: number): Promise<LeaveBalanceAdminRow[]> {
+async function getLeaveBalancesForYear(year: number): Promise<LeaveBalanceAdminRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('leave_balances')
@@ -845,7 +842,7 @@ export async function getLeaveBalancesForYear(year: number): Promise<LeaveBalanc
     .sort((a, b) => a.code.localeCompare(b.code));
 }
 
-export interface LeaveSalaryWorkingRow {
+interface LeaveSalaryWorkingRow {
   id: string;
   employeeId: string;
   year: number;
@@ -873,9 +870,7 @@ export interface LeaveSalaryWorkingRow {
  * Return saved leave-salary workings, or null when the collection is unavailable. An empty array
  * means no workings have been saved.
  */
-export async function getLeaveSalaryWorkings(
-  year: number,
-): Promise<LeaveSalaryWorkingRow[] | null> {
+async function getLeaveSalaryWorkings(year: number): Promise<LeaveSalaryWorkingRow[] | null> {
   const dbc = await createClient();
   const res = await dbc
     .from('leave_salary_workings')
@@ -914,7 +909,7 @@ export async function getLeaveSalaryWorkings(
   }));
 }
 
-export interface LeaveSalaryEmployee {
+interface LeaveSalaryEmployee {
   id: string;
   code: string;
   name: string;
@@ -928,7 +923,7 @@ export interface LeaveSalaryEmployee {
  * PLUS anyone off it who already has a saved working for the year — a mid-year
  * leaver's payout row must not vanish the day HR marks them inactive.
  */
-export async function getLeaveSalaryRoster(year: number): Promise<LeaveSalaryEmployee[]> {
+async function getLeaveSalaryRoster(year: number): Promise<LeaveSalaryEmployee[]> {
   const dbc = await createClient();
 
   const { data, error } = await dbc
@@ -972,7 +967,7 @@ export async function getLeaveSalaryRoster(year: number): Promise<LeaveSalaryEmp
  * Aggregate annual presence across paged attendance rows. Use unique-key ordering so page
  * boundaries cannot repeat or omit attendance.
  */
-export async function getLeaveSalaryPresence(year: number): Promise<Record<string, number[]>> {
+async function getLeaveSalaryPresence(year: number): Promise<Record<string, number[]>> {
   const dbc = await createClient();
   const pageSize = 1000;
   const byEmployee: Record<string, number[]> = {};
@@ -1006,7 +1001,7 @@ export async function getLeaveSalaryPresence(year: number): Promise<Record<strin
 }
 
 // attendance audit
-export interface AuditEntry {
+interface AuditEntry {
   id: string;
   eventType: string;
   message: string;
@@ -1019,7 +1014,7 @@ export interface AuditEntry {
 /** Attendance-related audit trail (corrections, imports, night sweeps), newest
  *  first. Reads activity_log; messages are rendered as TEXT only (stored-XSS
  *  safe). Staff-gated by the activity_log read policy. */
-export async function getAttendanceAudit(limit = 200): Promise<AuditEntry[]> {
+async function getAttendanceAudit(limit = 200): Promise<AuditEntry[]> {
   const log = await scoped(collections.activityLog);
   const rows = await log.find(
     { event_type: { $in: ['attendance_correction', 'register_import', 'night_sweep'] } },
@@ -1071,9 +1066,7 @@ export async function getAttendanceAudit(limit = 200): Promise<AuditEntry[]> {
 }
 
 // payroll
-export async function getPayslips(
-  periodMonth: string = currentPeriodMonth(),
-): Promise<PayslipRow[]> {
+async function getPayslips(periodMonth: string = currentPeriodMonth()): Promise<PayslipRow[]> {
   const { start } = monthRange(periodMonth);
   const dbc = await createClient();
 
@@ -1109,7 +1102,7 @@ export async function getPayslips(
 }
 
 // payroll runs
-export interface PayrollRunView {
+interface PayrollRunView {
   id: string;
   periodMonth: string;
   status: 'draft' | 'in_review' | 'locked' | 'paid';
@@ -1136,14 +1129,14 @@ function mapRun(r: any): PayrollRunView {
 }
 
 /** Every payroll run, newest month first. */
-export async function getPayrollRuns(): Promise<PayrollRunView[]> {
+async function getPayrollRuns(): Promise<PayrollRunView[]> {
   const runs = await scoped(collections.payrollRuns);
   const rows = await runs.find({}, { sort: { period_month: -1 } });
   return rows.map(mapRun);
 }
 
 /** A single run by month, or null when that month has no run yet. */
-export async function getPayrollRun(periodMonth: string): Promise<PayrollRunView | null> {
+async function getPayrollRun(periodMonth: string): Promise<PayrollRunView | null> {
   const { start } = monthRange(periodMonth);
   const runs = await scoped(collections.payrollRuns);
   const row = await runs.findOne({ period_month: start });
@@ -1151,7 +1144,7 @@ export async function getPayrollRun(periodMonth: string): Promise<PayrollRunView
 }
 
 // branches
-export interface BranchRow {
+interface BranchRow {
   id: string;
   name: string;
   state: string;
@@ -1164,7 +1157,7 @@ export interface BranchRow {
 }
 
 /** All branches, alphabetical. */
-export async function getBranches(): Promise<BranchRow[]> {
+async function getBranches(): Promise<BranchRow[]> {
   const branches = await scoped<BranchDoc>(collections.branches);
   const rows = await branches.find(
     {},
@@ -1203,7 +1196,7 @@ function numberOrNull(value: unknown): number | null {
 
 // today board
 /** Today's headcount / attendance KPIs, aggregated from v_today_board. */
-export async function getTodayBoard(): Promise<TodayKpis> {
+async function getTodayBoard(): Promise<TodayKpis> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('v_today_board')
@@ -1231,7 +1224,7 @@ export async function getTodayBoard(): Promise<TodayKpis> {
 
 // punch log
 /** Today's punch log, earliest punch first. */
-export async function getPunchLogToday(): Promise<PunchLogRow[]> {
+async function getPunchLogToday(): Promise<PunchLogRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('attendance_days')
@@ -1284,7 +1277,7 @@ export async function getPunchLogToday(): Promise<PunchLogRow[]> {
 
 // celebrations
 /** Today's birthdays and work anniversaries, from v_celebrations. */
-export async function getCelebrationsToday(): Promise<Celebration[]> {
+async function getCelebrationsToday(): Promise<Celebration[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('v_celebrations')
@@ -1304,14 +1297,14 @@ export async function getCelebrationsToday(): Promise<Celebration[]> {
 }
 
 // activity
-export interface ActivityRow {
+interface ActivityRow {
   id: string;
   when: string;
   message: string;
 }
 
 /** The dashboard activity feed, newest first. */
-export async function getActivityFeed(limit = 20): Promise<ActivityRow[]> {
+async function getActivityFeed(limit = 20): Promise<ActivityRow[]> {
   const log = await scoped(collections.activityLog);
   const rows = await log.find(
     {},
@@ -1327,7 +1320,7 @@ export async function getActivityFeed(limit = 20): Promise<ActivityRow[]> {
 // employee self-service
 
 /** One employee's day strip for a month. */
-export async function getMyAttendance(
+async function getMyAttendance(
   employeeId: string,
   periodMonth: string = currentPeriodMonth(),
 ): Promise<DayCell[]> {
@@ -1355,7 +1348,7 @@ export async function getMyAttendance(
 }
 
 /** One employee's payslips, newest month first. */
-export async function getMyPayslips(employeeId: string): Promise<PayslipRow[]> {
+async function getMyPayslips(employeeId: string): Promise<PayslipRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('payslips')
@@ -1378,7 +1371,7 @@ export async function getMyPayslips(employeeId: string): Promise<PayslipRow[]> {
 }
 
 /** One employee's leave / duty requests, newest first. */
-export async function getMyRequests(employeeId: string): Promise<RequestView[]> {
+async function getMyRequests(employeeId: string): Promise<RequestView[]> {
   const dbc = await createClient();
   const res = await dbc
     .from('requests')
@@ -1396,7 +1389,7 @@ export async function getMyRequests(employeeId: string): Promise<RequestView[]> 
 const ticketCols =
   'id, subject, body, category, status, created_at, resolution_note, employees(code, full_name)';
 
-export async function getMyTickets(employeeId: string): Promise<TicketView[]> {
+async function getMyTickets(employeeId: string): Promise<TicketView[]> {
   const dbc = await createClient();
   const res = await dbc
     .from('helpdesk_tickets')
@@ -1410,7 +1403,7 @@ export async function getMyTickets(employeeId: string): Promise<TicketView[]> {
 }
 
 // leave balances
-export interface LeaveBalanceRow {
+interface LeaveBalanceRow {
   type: LeaveType;
   balance: number;
 }
@@ -1420,7 +1413,7 @@ export interface LeaveBalanceRow {
  * leave-salary policy: historic CL/SL rows survive in the table but would
  * render retired pills on the dashboard.
  */
-export async function getLeaveBalances(employeeId: string): Promise<LeaveBalanceRow[]> {
+async function getLeaveBalances(employeeId: string): Promise<LeaveBalanceRow[]> {
   const balances = await scoped(collections.leaveBalances);
   const rows = await balances.find({
     employee_id: employeeId,
@@ -1432,14 +1425,14 @@ export async function getLeaveBalances(employeeId: string): Promise<LeaveBalance
 
 // employee code map
 /** employees.code -> employees.id, for the Excel importer. */
-export async function getEmployeeCodeMap(): Promise<Record<string, string>> {
+async function getEmployeeCodeMap(): Promise<Record<string, string>> {
   const employees = await scoped<EmployeeDoc>(collections.employees);
   const rows = await employees.find({}, { projection: { code: 1 } });
   return Object.fromEntries(rows.map((e) => [e.code, e._id]));
 }
 
 // employees
-export interface EmployeeListRow {
+interface EmployeeListRow {
   code: string;
   name: string;
   branch: string;
@@ -1458,7 +1451,7 @@ export interface EmployeeListRow {
 
 /** Employee roster. Active-only by default; pass includeInactive to also return
  *  deactivated employees (so the UI can offer a "reactivate"). */
-export async function getEmployees(includeInactive = false): Promise<EmployeeListRow[]> {
+async function getEmployees(includeInactive = false): Promise<EmployeeListRow[]> {
   const employees = await scoped<EmployeeDoc>(collections.employees);
   // Reads denormalized branch_name directly without additional collection lookup.
   const rows = await employees.find(
@@ -1486,7 +1479,7 @@ export async function getEmployees(includeInactive = false): Promise<EmployeeLis
 }
 
 // notifications
-export interface NotificationRow {
+interface NotificationRow {
   id: string;
   kind: string;
   title: string;
@@ -1500,7 +1493,7 @@ export interface NotificationRow {
  * Read the caller's notifications through recipient-scoped policies. Absorb only missing-session
  * errors so layouts can finish their login redirect; propagate other failures.
  */
-export async function getMyNotifications(limit = 20): Promise<NotificationRow[]> {
+async function getMyNotifications(limit = 20): Promise<NotificationRow[]> {
   try {
     const notifications = await scoped(collections.notifications);
     const rows = await notifications.find({}, { sort: { created_at: -1 }, limit });
@@ -1522,7 +1515,7 @@ export async function getMyNotifications(limit = 20): Promise<NotificationRow[]>
 }
 
 /** Unread count for the topbar badge. Absorbs a missing session only — see above. */
-export async function getUnreadNotificationCount(): Promise<number> {
+async function getUnreadNotificationCount(): Promise<number> {
   try {
     const notifications = await scoped(collections.notifications);
     return await notifications.countDocuments({ read_at: null });
@@ -1539,7 +1532,7 @@ export async function getUnreadNotificationCount(): Promise<number> {
  * Read the configured week-off schedule. Missing or unreadable settings default to Sundays and
  * Saturdays other than the second and fourth.
  */
-export async function getWeekOffPolicy(): Promise<WeekOffPolicy> {
+async function getWeekOffPolicy(): Promise<WeekOffPolicy> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('settings')
@@ -1554,14 +1547,14 @@ export async function getWeekOffPolicy(): Promise<WeekOffPolicy> {
 }
 
 // employee pick options
-export interface EmployeeOption {
+interface EmployeeOption {
   id: string;
   code: string;
   name: string;
 }
 
 /** Active employees as {id, code, name} — for "link this login to an employee". */
-export async function getEmployeeOptions(): Promise<EmployeeOption[]> {
+async function getEmployeeOptions(): Promise<EmployeeOption[]> {
   const employees = await scoped<EmployeeDoc>(collections.employees);
   const rows = await employees.find(
     { status: 'active', deleted_at: null },
@@ -1571,7 +1564,7 @@ export async function getEmployeeOptions(): Promise<EmployeeOption[]> {
 }
 
 // reimbursements
-export interface ReimbursementView {
+interface ReimbursementView {
   id: string;
   employeeId: string;
   employeeName: string;
@@ -1625,7 +1618,7 @@ function mapReimbursement(r: any): ReimbursementView {
 }
 
 /** One lifecycle event on a claim's timeline. */
-export interface ReimbursementEvent {
+interface ReimbursementEvent {
   id: string;
   action: string;
   fromStatus: string | null;
@@ -1636,7 +1629,7 @@ export interface ReimbursementEvent {
 }
 
 /** A claim's timeline, oldest first (reads as a story). */
-export async function getReimbursementEvents(claimId: string): Promise<ReimbursementEvent[]> {
+async function getReimbursementEvents(claimId: string): Promise<ReimbursementEvent[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('reimbursement_events')
@@ -1658,7 +1651,7 @@ export async function getReimbursementEvents(claimId: string): Promise<Reimburse
 }
 
 /** Every claim, newest first — the staff review queue. */
-export async function getReimbursements(): Promise<ReimbursementView[]> {
+async function getReimbursements(): Promise<ReimbursementView[]> {
   const dbc = await createClient();
   const res = await dbc
     .from('reimbursement_claims')
@@ -1671,7 +1664,7 @@ export async function getReimbursements(): Promise<ReimbursementView[]> {
 }
 
 /** One employee's own claims, newest first. */
-export async function getMyReimbursements(employeeId: string): Promise<ReimbursementView[]> {
+async function getMyReimbursements(employeeId: string): Promise<ReimbursementView[]> {
   const dbc = await createClient();
   const res = await dbc
     .from('reimbursement_claims')
@@ -1685,7 +1678,7 @@ export async function getMyReimbursements(employeeId: string): Promise<Reimburse
 }
 
 /** The ₹/km rate used to auto-calculate travel claims (settings-driven). */
-export async function getReimbursementRate(): Promise<number> {
+async function getReimbursementRate(): Promise<number> {
   const fallback = 3.5;
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -1701,7 +1694,7 @@ export async function getReimbursementRate(): Promise<number> {
 }
 
 // comp offs
-export interface CompOffRow {
+interface CompOffRow {
   id: string;
   employeeId: string;
   earnedDate: string;
@@ -1733,7 +1726,7 @@ function mapCompOff(c: any): CompOffRow {
  * un-granted eligible day from one that has already been credited.
  * Keyed by `${employeeId}|${earnedDate}` at the callsite.
  */
-export async function getCompOffsForMonth(
+async function getCompOffsForMonth(
   periodMonth: string = currentPeriodMonth(),
 ): Promise<CompOffRow[]> {
   const { start, end } = monthRange(periodMonth);
@@ -1750,7 +1743,7 @@ export async function getCompOffsForMonth(
 }
 
 /** One employee's comp-off credits, newest earned first. */
-export async function getMyCompOffs(employeeId: string): Promise<CompOffRow[]> {
+async function getMyCompOffs(employeeId: string): Promise<CompOffRow[]> {
   const dbc = await createClient();
   const res = await dbc
     .from('comp_offs')
@@ -1764,7 +1757,7 @@ export async function getMyCompOffs(employeeId: string): Promise<CompOffRow[]> {
 }
 
 /** A live (not yet spent/expired) credit with its owner, for the admin card. */
-export interface CompOffAdminRow extends CompOffRow {
+interface CompOffAdminRow extends CompOffRow {
   code: string;
   name: string;
 }
@@ -1774,7 +1767,7 @@ export interface CompOffAdminRow extends CompOffRow {
  * the admin dashboard's comp-off card: per-employee balances plus the
  * applicable/not-applicable switch per credit.
  */
-export async function getCompOffAdmin(): Promise<CompOffAdminRow[]> {
+async function getCompOffAdmin(): Promise<CompOffAdminRow[]> {
   const dbc = await createClient();
   const fields = (cols: string) => `${cols}, employees(code, full_name)`;
   const res = await dbc
@@ -1795,7 +1788,7 @@ export async function getCompOffAdmin(): Promise<CompOffAdminRow[]> {
 }
 
 /** Full editable fields for one employee, keyed by code. Null when not found. */
-export interface EmployeeEditRow {
+interface EmployeeEditRow {
   code: string;
   full_name: string;
   // employment_type: EmploymentType;
@@ -1826,7 +1819,7 @@ export interface EmployeeEditRow {
   special_allowance: number;
 }
 
-export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow | null> {
+async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow | null> {
   const dbc = await createClient();
   const fullCols = `code, full_name, employment_type, designation, gender, date_of_joining, date_of_birth, whatsapp,
      mobile_official, mobile_personal, email_official, email_personal, aadhaar,
@@ -1884,7 +1877,7 @@ export async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow 
 }
 
 /** Distinct department names — suggestions for the Add/Edit Employee combobox. */
-export async function getDepartments(): Promise<string[]> {
+async function getDepartments(): Promise<string[]> {
   const departments = await scoped<DepartmentDoc>(collections.departments);
   const rows = await departments.find({}, { projection: { name: 1 }, sort: { name: 1 } });
   // The same department name can exist under several branches, so the list is
@@ -1894,7 +1887,7 @@ export async function getDepartments(): Promise<string[]> {
 
 // items
 /** One inventory item with derived quantities from v_items. */
-export interface ItemRow {
+interface ItemRow {
   id: string;
   item_code: string | null;
   item_name: string;
@@ -1910,7 +1903,7 @@ export interface ItemRow {
   quantity_remaining: number;
 }
 
-export async function getItems(): Promise<ItemRow[]> {
+async function getItems(): Promise<ItemRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('v_items')
@@ -1926,7 +1919,7 @@ export async function getItems(): Promise<ItemRow[]> {
 }
 
 /** One assignment (issuance) of an item to an employee. */
-export interface ItemAssignmentRow {
+interface ItemAssignmentRow {
   id: string;
   item_id: string;
   person_name: string | null;
@@ -1939,7 +1932,7 @@ export interface ItemAssignmentRow {
   remarks: string | null;
 }
 
-export async function getItemAssignments(itemId: string): Promise<ItemAssignmentRow[]> {
+async function getItemAssignments(itemId: string): Promise<ItemAssignmentRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('item_assignments')
@@ -1957,7 +1950,7 @@ export async function getItemAssignments(itemId: string): Promise<ItemAssignment
 
 // assets
 /** One row of the IT asset register. Admin/HR only. */
-export interface AssetRow {
+interface AssetRow {
   id: string;
   qr_url: string | null;
   purchase_date: string | null;
@@ -1986,7 +1979,7 @@ const assetCols = `id, purchase_date, purchase_cost, desktop_name, asset_categor
    warranty_upto, warranty_renew, product_id, device_id, processor, ram, graphics_card, storage,
    antivirus, qr_url, assigned_employee_id, assigned_person_name, assigned_employee_code, assigned_date`;
 
-export async function getAssets(): Promise<AssetRow[]> {
+async function getAssets(): Promise<AssetRow[]> {
   const dbc = await createClient();
   const res = await dbc.from('assets').select(assetCols).order('desktop_name');
   if (res.error) {
@@ -2008,7 +2001,7 @@ export async function getAssets(): Promise<AssetRow[]> {
 }
 
 /** Asset stock summary from v_asset_summary. */
-export interface AssetSummaryRow {
+interface AssetSummaryRow {
   category: string;
   total: number;
   assigned: number;
@@ -2016,7 +2009,7 @@ export interface AssetSummaryRow {
   warranty_expiring: number;
 }
 
-export async function getAssetSummary(): Promise<AssetSummaryRow[]> {
+async function getAssetSummary(): Promise<AssetSummaryRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('v_asset_summary')
@@ -2034,7 +2027,7 @@ export async function getAssetSummary(): Promise<AssetSummaryRow[]> {
 }
 
 /** One asset transfer-history row. */
-export interface AssetAssignmentRow {
+interface AssetAssignmentRow {
   id: string;
   asset_id: string;
   person_name: string | null;
@@ -2046,7 +2039,7 @@ export interface AssetAssignmentRow {
   remarks: string | null;
 }
 
-export async function getAssetAssignments(assetId: string): Promise<AssetAssignmentRow[]> {
+async function getAssetAssignments(assetId: string): Promise<AssetAssignmentRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('asset_assignments')
@@ -2062,7 +2055,7 @@ export async function getAssetAssignments(assetId: string): Promise<AssetAssignm
 }
 
 /** One asset maintenance row. */
-export interface AssetMaintenanceRow {
+interface AssetMaintenanceRow {
   id: string;
   asset_id: string;
   maint_date: string;
@@ -2074,7 +2067,7 @@ export interface AssetMaintenanceRow {
   created_by: string | null;
 }
 
-export async function getAssetMaintenance(assetId: string): Promise<AssetMaintenanceRow[]> {
+async function getAssetMaintenance(assetId: string): Promise<AssetMaintenanceRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('asset_maintenance')
@@ -2092,7 +2085,7 @@ export async function getAssetMaintenance(assetId: string): Promise<AssetMainten
 
 // employee assets / items
 /** An asset currently assigned to the signed-in employee. */
-export interface MyAssetRow {
+interface MyAssetRow {
   id: string;
   desktop_name: string;
   brand: string | null;
@@ -2101,7 +2094,7 @@ export interface MyAssetRow {
   assigned_date: string | null;
 }
 
-export async function getMyAssets(employeeId: string): Promise<MyAssetRow[]> {
+async function getMyAssets(employeeId: string): Promise<MyAssetRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('assets')
@@ -2116,7 +2109,7 @@ export async function getMyAssets(employeeId: string): Promise<MyAssetRow[]> {
 }
 
 /** An item issued to the signed-in employee. */
-export interface MyItemRow {
+interface MyItemRow {
   id: string;
   itemName: string;
   category: string | null;
@@ -2127,7 +2120,7 @@ export interface MyItemRow {
   returnedDate: string | null;
 }
 
-export async function getMyItems(employeeId: string): Promise<MyItemRow[]> {
+async function getMyItems(employeeId: string): Promise<MyItemRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('item_assignments')
@@ -2152,7 +2145,7 @@ export async function getMyItems(employeeId: string): Promise<MyItemRow[]> {
 }
 
 // employee overview
-export interface EmployeeOverview {
+interface EmployeeOverview {
   name: string;
   code: string;
   branch: string;
@@ -2174,7 +2167,7 @@ export interface EmployeeOverview {
   targetHours: string;
 }
 
-export async function getEmployeeOverview(
+async function getEmployeeOverview(
   employeeId: string | null,
   fallbackName?: string | null,
   periodMonth: string = currentPeriodMonth(),
@@ -2290,7 +2283,7 @@ export async function getEmployeeOverview(
 }
 
 // policies
-export interface PolicyView {
+interface PolicyView {
   id: string;
   title: string;
   category: string | null;
@@ -2302,7 +2295,7 @@ export interface PolicyView {
 }
 
 /** Published policies for an employee, flagged with whether they've acknowledged. */
-export async function getEmployeePolicies(employeeId: string | null): Promise<PolicyView[]> {
+async function getEmployeePolicies(employeeId: string | null): Promise<PolicyView[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('policies')
@@ -2331,7 +2324,7 @@ export async function getEmployeePolicies(employeeId: string | null): Promise<Po
  * Count policy receipts by policy ID. Collection policies let staff see all receipts and employees
  * see only their own.
  */
-export async function getPolicyAckCounts(): Promise<Record<string, number>> {
+async function getPolicyAckCounts(): Promise<Record<string, number>> {
   const acks = await scoped(collections.policyAcknowledgements);
   // Counted in the database rather than by pulling every receipt across and
   // tallying them in JavaScript, which is what the row-by-row version did.
@@ -2342,7 +2335,7 @@ export async function getPolicyAckCounts(): Promise<Record<string, number>> {
 }
 
 /** Active headcount — the denominator for "n/N read". */
-export async function getActiveEmployeeCount(): Promise<number> {
+async function getActiveEmployeeCount(): Promise<number> {
   try {
     const employees = await scoped<EmployeeDoc>(collections.employees);
     return await employees.countDocuments({ status: 'active' });
@@ -2352,14 +2345,14 @@ export async function getActiveEmployeeCount(): Promise<number> {
 }
 
 /** All policies for the admin management screen. */
-export async function getAllPolicies(): Promise<Policy[]> {
+async function getAllPolicies(): Promise<Policy[]> {
   const policies = await scoped(collections.policies);
   const rows = await policies.find({}, { sort: { updated_at: -1 } });
   return rows.map((r) => ({ ...r, id: r._id })) as unknown as Policy[];
 }
 
 // holidays
-export interface HolidayView {
+interface HolidayView {
   id: string;
   date: string;
   name: string;
@@ -2367,7 +2360,7 @@ export interface HolidayView {
 }
 
 /** Company holidays, sorted ascending by date. */
-export async function getHolidays(): Promise<HolidayView[]> {
+async function getHolidays(): Promise<HolidayView[]> {
   const holidays = await scoped(collections.holidays);
   const rows = await holidays.find({}, { sort: { holiday_date: 1 } });
   return rows.map((h) => ({
@@ -2380,7 +2373,7 @@ export async function getHolidays(): Promise<HolidayView[]> {
 }
 
 // notices
-export interface NoticeView {
+interface NoticeView {
   id: string;
   title: string;
   body: string | null;
@@ -2394,7 +2387,7 @@ export interface NoticeView {
 }
 
 /** Notices, newest first. */
-export async function getNotices(): Promise<NoticeView[]> {
+async function getNotices(): Promise<NoticeView[]> {
   const notices = await scoped(collections.notices);
   const rows = await notices.find({}, { sort: { created_at: -1 } });
   return rows.map((n) => ({
@@ -2411,7 +2404,7 @@ export async function getNotices(): Promise<NoticeView[]> {
 }
 
 /** The ids of notices this employee has marked read (for the dashboard). */
-export async function getReadNoticeIds(employeeId: string | null): Promise<string[]> {
+async function getReadNoticeIds(employeeId: string | null): Promise<string[]> {
   if (!employeeId) {
     return [];
   }
@@ -2430,7 +2423,7 @@ export async function getReadNoticeIds(employeeId: string | null): Promise<strin
  * Run best-effort notice cleanup when staff publish. Use the scheduler's retention implementation
  * and keep cleanup failures from blocking the publish flow.
  */
-export async function purgeExpiredNotices(): Promise<void> {
+async function purgeExpiredNotices(): Promise<void> {
   try {
     await deleteExpiredNotices();
   } catch {
@@ -2439,7 +2432,7 @@ export async function purgeExpiredNotices(): Promise<void> {
 }
 
 // helpdesk
-export interface TicketView {
+interface TicketView {
   id: string;
   subject: string;
   body: string | null;
@@ -2466,7 +2459,7 @@ function mapTicket(t: any): TicketView {
 }
 
 /** Helpdesk tickets, open first then newest. */
-export async function getTickets(): Promise<TicketView[]> {
+async function getTickets(): Promise<TicketView[]> {
   const dbc = await createClient();
   const res = await dbc
     .from('helpdesk_tickets')
@@ -2482,7 +2475,7 @@ export async function getTickets(): Promise<TicketView[]> {
 }
 
 // helpdesk thread
-export interface TicketComment {
+interface TicketComment {
   id: string;
   ticketId: string;
   body: string;
@@ -2515,9 +2508,7 @@ function mapComment(c: any): TicketComment {
  * Group ticket comments oldest first. Check parent-ticket ownership before reading; the comment
  * collection alone does not enforce thread access.
  */
-export async function getTicketComments(
-  ticketIds: string[],
-): Promise<Record<string, TicketComment[]>> {
+async function getTicketComments(ticketIds: string[]): Promise<Record<string, TicketComment[]>> {
   if (ticketIds.length === 0) {
     return {};
   }
@@ -2548,7 +2539,7 @@ export async function getTicketComments(
 }
 
 // settings
-export interface SettingView {
+interface SettingView {
   key: string;
   value: unknown;
   label: string | null;
@@ -2579,7 +2570,7 @@ function prettyClock(value: unknown): string | null {
  * Load topbar counts in parallel. Individual failures return null so pageHeader can use static
  * subtitles without failing the portal layout.
  */
-export async function getTopbarStats(): Promise<TopbarStats> {
+async function getTopbarStats(): Promise<TopbarStats> {
   const now = new Date();
   const ist = 'Asia/Kolkata';
   const fmt = (opts: Intl.DateTimeFormatOptions) =>
@@ -2632,7 +2623,7 @@ export async function getTopbarStats(): Promise<TopbarStats> {
   }
 }
 
-export async function getSettings(): Promise<SettingView[]> {
+async function getSettings(): Promise<SettingView[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('settings')
@@ -2650,7 +2641,7 @@ export async function getSettings(): Promise<SettingView[]> {
 }
 
 // requests
-export interface RequestView {
+interface RequestView {
   id: string;
   employeeId: string;
   employeeName: string;
@@ -2698,7 +2689,7 @@ const requestFields = `id, employee_id, employee_name, employee_code, employee_b
   balance_after, review_remark, created_at, reviewed_at, employees(code, full_name, branches(name))`;
 
 /** Leave / duty requests, pending first then reviewed. */
-export async function getRequests(): Promise<RequestView[]> {
+async function getRequests(): Promise<RequestView[]> {
   const dbc = await createClient();
   const res = await dbc
     .from('requests')
@@ -2714,7 +2705,7 @@ export async function getRequests(): Promise<RequestView[]> {
 }
 
 /** The same policy-scoped request view is available to staff, the applicant, and tagged people. */
-export async function getRequest(id: string): Promise<RequestView | null> {
+async function getRequest(id: string): Promise<RequestView | null> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('requests')
@@ -2728,7 +2719,7 @@ export async function getRequest(id: string): Promise<RequestView | null> {
 }
 
 // on leave today
-export interface OnLeaveTodayRow {
+interface OnLeaveTodayRow {
   employeeId: string;
   name: string;
   branch: string;
@@ -2740,7 +2731,7 @@ export interface OnLeaveTodayRow {
  * Return colleagues on approved leave today in IST through fn_on_leave_today.
  * Report query failures through the shared error handler.
  */
-export async function getOnLeaveToday(): Promise<OnLeaveTodayRow[]> {
+async function getOnLeaveToday(): Promise<OnLeaveTodayRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc.rpc('fn_on_leave_today');
   // The database client registers this handler during initialization.
@@ -2761,7 +2752,7 @@ export async function getOnLeaveToday(): Promise<OnLeaveTodayRow[]> {
  * Read the signed-in account's tab-access map. Missing entries mean allowed within the static role
  * gate; a missing map behaves as an empty map.
  */
-export async function getMyTabAccess(userId: string | null): Promise<TabAccess> {
+async function getMyTabAccess(userId: string | null): Promise<TabAccess> {
   if (!userId) {
     return {};
   }
@@ -2771,3 +2762,126 @@ export async function getMyTabAccess(userId: string | null): Promise<TabAccess> 
   const user = await users.findOne({ _id: userId }, { projection: { tab_access: 1 } });
   return (user?.tab_access as TabAccess) ?? {};
 }
+
+export {
+  isMongoConfigured,
+  currentPeriodMonth,
+  getRegister,
+  getLeaveRegisterMismatches,
+  getMyAcknowledgements,
+  getEmployeeDocuments,
+  getEmployeeDocumentHistory,
+  getDocumentRegister,
+  getUnverifiedDocuments,
+  documentStats,
+  getOnboardingBoard,
+  getMyOnboardingTasks,
+  getOnboardingTemplates,
+  getExitCases,
+  getExitInterview,
+  getKtItems,
+  getClearanceItems,
+  getLeaveBalancesForYear,
+  getLeaveSalaryWorkings,
+  getLeaveSalaryRoster,
+  getLeaveSalaryPresence,
+  getAttendanceAudit,
+  getPayslips,
+  getPayrollRuns,
+  getPayrollRun,
+  getBranches,
+  getTodayBoard,
+  getPunchLogToday,
+  getCelebrationsToday,
+  getActivityFeed,
+  getMyAttendance,
+  getMyPayslips,
+  getMyRequests,
+  getMyTickets,
+  getLeaveBalances,
+  getEmployeeCodeMap,
+  getEmployees,
+  getMyNotifications,
+  getUnreadNotificationCount,
+  getWeekOffPolicy,
+  getEmployeeOptions,
+  getReimbursementEvents,
+  getReimbursements,
+  getMyReimbursements,
+  getReimbursementRate,
+  getCompOffsForMonth,
+  getMyCompOffs,
+  getCompOffAdmin,
+  getEmployeeForEdit,
+  getDepartments,
+  getItems,
+  getItemAssignments,
+  getAssets,
+  getAssetSummary,
+  getAssetAssignments,
+  getAssetMaintenance,
+  getMyAssets,
+  getMyItems,
+  getEmployeeOverview,
+  getEmployeePolicies,
+  getPolicyAckCounts,
+  getActiveEmployeeCount,
+  getAllPolicies,
+  getHolidays,
+  getNotices,
+  getReadNoticeIds,
+  purgeExpiredNotices,
+  getTickets,
+  getTicketComments,
+  getTopbarStats,
+  getSettings,
+  getRequests,
+  getRequest,
+  getOnLeaveToday,
+  getMyTabAccess,
+  type LeaveRegisterMismatch,
+  type AcknowledgementRow,
+  type DocumentSource,
+  type DocumentStatus,
+  type EmployeeDocumentRow,
+  type DocumentStats,
+  type OnboardingTaskRow,
+  type OnboardingTemplateRow,
+  type ExitCaseRow,
+  type ExitInterviewRow,
+  type KtItemRow,
+  type ClearanceItemRow,
+  type LeaveBalanceAdminRow,
+  type LeaveSalaryWorkingRow,
+  type LeaveSalaryEmployee,
+  type AuditEntry,
+  type PayrollRunView,
+  type BranchRow,
+  type ActivityRow,
+  type LeaveBalanceRow,
+  type EmployeeListRow,
+  type NotificationRow,
+  type EmployeeOption,
+  type ReimbursementView,
+  type ReimbursementEvent,
+  type CompOffRow,
+  type CompOffAdminRow,
+  type EmployeeEditRow,
+  type ItemRow,
+  type ItemAssignmentRow,
+  type AssetRow,
+  type AssetSummaryRow,
+  type AssetAssignmentRow,
+  type AssetMaintenanceRow,
+  type MyAssetRow,
+  type MyItemRow,
+  type EmployeeOverview,
+  type PolicyView,
+  type HolidayView,
+  type NoticeView,
+  type TicketView,
+  type TicketComment,
+  type SettingView,
+  type RequestView,
+  type OnLeaveTodayRow,
+};

@@ -9,7 +9,7 @@ import { States } from '@/lib/constants';
 import { SalaryFields } from './SalaryFields';
 import type { EmployeeEditRow, BranchRow } from '@/lib/queries';
 
-export function AddEmployeeDrawer({
+function AddEmployeeDrawer({
   open,
   onClose,
   employee = null,
@@ -441,3 +441,5 @@ function SelectField({
     </div>
   );
 }
+
+export { AddEmployeeDrawer };

@@ -1,6 +1,6 @@
 // Portal loading skeleton. CSS animations keep this a Server Component; plx-prefixed styles are
 // local to this layout.
-export default function PortalLoading() {
+function PortalLoading() {
   const stats = [0, 1, 2];
   const rows = [0, 1, 2, 3, 4];
 
@@ -181,3 +181,5 @@ export default function PortalLoading() {
     </div>
   );
 }
+
+export { PortalLoading as default };

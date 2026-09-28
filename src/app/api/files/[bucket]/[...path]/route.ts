@@ -14,7 +14,7 @@ const buckets: ReadonlySet<string> = new Set([
   'notice-attachments',
 ]);
 
-export async function GET(
+async function GET(
   _req: Request,
   { params }: { params: Promise<{ bucket: string; path: string[] }> },
 ) {
@@ -54,3 +54,5 @@ export async function GET(
     return NextResponse.json({ error: 'Could not read that file.' }, { status: 500 });
   }
 }
+
+export { GET };

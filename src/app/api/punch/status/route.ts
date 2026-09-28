@@ -4,7 +4,7 @@ import { readPunchStatus } from '@/lib/punch';
 // Always live: a cached punch status would show a stale in/out state.
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+async function GET() {
   try {
     return NextResponse.json(await readPunchStatus());
   } catch (error) {
@@ -14,3 +14,5 @@ export async function GET() {
     );
   }
 }
+
+export { GET };

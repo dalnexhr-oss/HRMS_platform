@@ -65,7 +65,7 @@ function fromRow(r: any): TicketComment {
   };
 }
 
-export function TicketChatDrawer({
+function TicketChatDrawer({
   ticket,
   initialComments,
   selfId,
@@ -259,3 +259,5 @@ export function TicketChatDrawer({
     </>
   );
 }
+
+export { TicketChatDrawer };

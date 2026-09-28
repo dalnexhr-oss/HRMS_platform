@@ -1,7 +1,7 @@
 // Shared week-off rules. Defaults work the second and fourth Saturdays; other Saturdays and all
 // Sundays are off. Settings can override both parts of the schedule.
 
-export interface WeekOffPolicy {
+interface WeekOffPolicy {
   // Weekdays always off, JS getUTCDay(): 0=Sunday … 6=Saturday.
   weekOffWeekdays: number[];
   // Saturdays of the month that ARE worked (1=first … 5=fifth).
@@ -9,7 +9,7 @@ export interface WeekOffPolicy {
 }
 
 // Sundays off; Saturdays off except the 2nd and 4th, which are worked.
-export const defaultWeekOffPolicy: WeekOffPolicy = {
+const defaultWeekOffPolicy: WeekOffPolicy = {
   weekOffWeekdays: [0, 6],
   workingSaturdays: [2, 4],
 };
@@ -27,10 +27,7 @@ function numberList(value: unknown): number[] | null {
 
 // Build a policy from raw settings values, falling back per-field so one bad setting can't silently
 // disable the whole schedule.
-export function policyFromSettings(
-  weekOffWeekdays: unknown,
-  workingSaturdays: unknown,
-): WeekOffPolicy {
+function policyFromSettings(weekOffWeekdays: unknown, workingSaturdays: unknown): WeekOffPolicy {
   return {
     weekOffWeekdays: numberList(weekOffWeekdays) ?? defaultWeekOffPolicy.weekOffWeekdays,
     workingSaturdays: numberList(workingSaturdays) ?? defaultWeekOffPolicy.workingSaturdays,
@@ -47,7 +44,7 @@ function utcDate(dateISO: string): Date | null {
  * Which occurrence of its weekday this date is within its month.
  * The 8th of a month is always the 2nd of that weekday, the 15th the 3rd, etc.
  */
-export function weekdayOrdinal(dateISO: string): number | null {
+function weekdayOrdinal(dateISO: string): number | null {
   const d = utcDate(dateISO);
   if (!d) {
     return null;
@@ -62,7 +59,7 @@ export function weekdayOrdinal(dateISO: string): number | null {
  * WORKING day even though Saturday is in `weekOffWeekdays` — that exception is
  * the whole point of the rule.
  */
-export function isScheduledWeekOff(
+function isScheduledWeekOff(
   dateISO: string,
   policy: WeekOffPolicy = defaultWeekOffPolicy,
 ): boolean {
@@ -89,7 +86,7 @@ export function isScheduledWeekOff(
  * enabled, count non-working days only when leave days bracket them inside the span. Never charge
  * leading or trailing days off. holidays contains YYYY-MM-DD strings.
  */
-export function countLeaveDays(
+function countLeaveDays(
   startISO: string,
   endISO: string,
   opts: {
@@ -135,7 +132,7 @@ export function countLeaveDays(
 }
 
 /** Days-of-month that are scheduled week-offs for a 'YYYY-MM-01' period. */
-export function weekOffDaysInMonth(
+function weekOffDaysInMonth(
   periodMonth: string,
   policy: WeekOffPolicy = defaultWeekOffPolicy,
 ): number[] {
@@ -158,7 +155,7 @@ export function weekOffDaysInMonth(
 }
 
 /** Human summary for the settings/register UI, e.g. "Sun off · Sat off except 2nd, 4th". */
-export function describePolicy(policy: WeekOffPolicy = defaultWeekOffPolicy): string {
+function describePolicy(policy: WeekOffPolicy = defaultWeekOffPolicy): string {
   const names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const off = policy.weekOffWeekdays.filter((d) => d !== saturday).map((d) => names[d] ?? d);
   const parts: string[] = [];
@@ -178,3 +175,14 @@ export function describePolicy(policy: WeekOffPolicy = defaultWeekOffPolicy): st
   }
   return parts.join(' · ');
 }
+
+export {
+  defaultWeekOffPolicy,
+  policyFromSettings,
+  weekdayOrdinal,
+  isScheduledWeekOff,
+  countLeaveDays,
+  weekOffDaysInMonth,
+  describePolicy,
+  type WeekOffPolicy,
+};

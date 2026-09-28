@@ -20,7 +20,7 @@ function stampTime(iso: string): string {
     : `${formatDate(iso.slice(0, 10))} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
 }
 
-export default async function AuditPage() {
+async function AuditPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
   if (!role || !auditRoles.includes(role)) {
@@ -105,3 +105,5 @@ export default async function AuditPage() {
     </div>
   );
 }
+
+export { AuditPage as default };

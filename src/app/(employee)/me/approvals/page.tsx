@@ -5,7 +5,7 @@ import { getRequestRecipients } from '@/lib/requests/routing';
 import { employeeApprovalViews } from '@/lib/requests/employee-approvals';
 import { EmployeeApprovals } from '@/components/employee/EmployeeApprovals';
 
-export default async function EmployeeApprovalsPage({
+async function EmployeeApprovalsPage({
   searchParams,
 }: {
   searchParams: Promise<{ view?: string | string[] }>;
@@ -34,3 +34,5 @@ export default async function EmployeeApprovalsPage({
     />
   );
 }
+
+export { EmployeeApprovalsPage as default };

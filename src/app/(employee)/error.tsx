@@ -2,7 +2,7 @@
 
 import { ErrorState } from '@/components/ui/ErrorState';
 
-export default function EmployeeError({
+function EmployeeError({
   error,
   reset,
 }: {
@@ -11,3 +11,5 @@ export default function EmployeeError({
 }) {
   return <ErrorState error={error} reset={reset} area="dashboard" />;
 }
+
+export { EmployeeError as default };

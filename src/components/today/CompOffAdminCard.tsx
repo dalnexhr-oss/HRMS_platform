@@ -9,7 +9,7 @@ import { setCompOffApplicability } from '@/lib/actions/comp-off';
 import { useToast } from '@/components/ui/Toast';
 import type { CompOffAdminRow } from '@/lib/queries';
 
-export function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; error?: string }) {
+function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; error?: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -143,3 +143,5 @@ export function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; err
     </div>
   );
 }
+
+export { CompOffAdminCard };

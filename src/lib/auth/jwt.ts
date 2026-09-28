@@ -6,15 +6,15 @@ import type { JWTPayload } from 'jose';
 import type { AppRole } from '@/types/database';
 
 // How long an issued token stays valid. One year unless overridden.
-export const sessionMaxAgeDays = Number(process.env.SESSION_MAX_AGE_DAYS ?? 365);
-export const sessionMaxAgeSeconds = sessionMaxAgeDays * 24 * 60 * 60;
+const sessionMaxAgeDays = Number(process.env.SESSION_MAX_AGE_DAYS ?? 365);
+const sessionMaxAgeSeconds = sessionMaxAgeDays * 24 * 60 * 60;
 
 const issuer = 'dalnex-hrms';
 const audience = 'dalnex-hrms-session';
 const alg = 'HS256';
 
 // Claims carried in the session cookie. Kept small — it ships on every request.
-export interface SessionClaims {
+interface SessionClaims {
   // users._id
   sub: string;
   email: string;
@@ -44,13 +44,13 @@ function secretKey(): Uint8Array {
 }
 
 // True when a usable AUTH_SECRET is configured. Never throws.
-export function isAuthConfigured(): boolean {
+function isAuthConfigured(): boolean {
   const secret = process.env.AUTH_SECRET;
   return Boolean(secret && secret.length >= 32);
 }
 
 // Issue a session token for a user.
-export async function signSession(claims: SessionClaims): Promise<string> {
+async function signSession(claims: SessionClaims): Promise<string> {
   return new SignJWT({ ...claims } as unknown as JWTPayload)
     .setProtectedHeader({ alg })
     .setSubject(claims.sub)
@@ -65,7 +65,7 @@ export async function signSession(claims: SessionClaims): Promise<string> {
  * Verify signature, issuer, audience, and expiry; return null on failure. Server callers must also
  * use assertLiveSession to check revocation against the database.
  */
-export async function verifySession(token: string): Promise<SessionClaims | null> {
+async function verifySession(token: string): Promise<SessionClaims | null> {
   try {
     const { payload } = await jwtVerify(token, secretKey(), {
       issuer,
@@ -88,3 +88,12 @@ export async function verifySession(token: string): Promise<SessionClaims | null
     return null;
   }
 }
+
+export {
+  sessionMaxAgeDays,
+  sessionMaxAgeSeconds,
+  isAuthConfigured,
+  signSession,
+  verifySession,
+  type SessionClaims,
+};

@@ -16,7 +16,7 @@ import { maxBytes, recordUploadedDocument, resolveTargetEmployee, uploadBucket, 
 import { getEmployeeDocuments as readEmployeeDocuments, getEmployeeDocumentHistory as readEmployeeDocumentHistory } from '@/lib/queries';
 import type { StorageBucket } from '@/lib/storage';
 
-export interface ActionResult {
+interface ActionResult {
   ok: boolean;
   error?: string;
 }
@@ -25,7 +25,7 @@ export interface ActionResult {
  * Uploads and records an employee document via Server Action (staff drawer workflow).
  * Self-service employee locker uploads stream via `/api/documents/upload` instead.
  */
-export async function uploadEmployeeDocument(formData: FormData): Promise<ActionResult> {
+async function uploadEmployeeDocument(formData: FormData): Promise<ActionResult> {
   const db = requireDb('Uploading a document');
   if (!db.ok) {
     return db;
@@ -90,7 +90,7 @@ export async function uploadEmployeeDocument(formData: FormData): Promise<Action
  * Replaces an existing document with a new version, preserving the original.
  * This ensures audit continuity — the previous document remains on file even after replacement.
  */
-export async function replaceEmployeeDocument(
+async function replaceEmployeeDocument(
   previousId: string,
   formData: FormData,
 ): Promise<ActionResult> {
@@ -232,7 +232,7 @@ export async function replaceEmployeeDocument(
  * Verify a filed document or clear its verification with a return reason. Employee policies do not
  * permit deleting or replacing it directly.
  */
-export async function verifyEmployeeDocument(
+async function verifyEmployeeDocument(
   id: string,
   verified: boolean,
   remark?: string,
@@ -284,7 +284,7 @@ export async function verifyEmployeeDocument(
  * Delete a document as staff. If it is the current version, restore the preceding version so the
  * remaining chain stays visible.
  */
-export async function deleteEmployeeDocument(id: string): Promise<ActionResult> {
+async function deleteEmployeeDocument(id: string): Promise<ActionResult> {
   const gate = await requireRoles(verifyRoles, 'Deleting a document');
   if (!gate.ok) {
     return gate;
@@ -324,7 +324,7 @@ export async function deleteEmployeeDocument(id: string): Promise<ActionResult> 
 }
 
 /** Client-callable history for one employee (queries.ts is server-only). */
-export async function fetchEmployeeDocumentHistory(employeeId: string) {
+async function fetchEmployeeDocumentHistory(employeeId: string) {
   const gate = await requireRoles(verifyRoles, 'Viewing an employee’s documents');
   if (!gate.ok) {
     return [];
@@ -333,9 +333,7 @@ export async function fetchEmployeeDocumentHistory(employeeId: string) {
 }
 
 /** Resolve a document's file URL. The row read scopes who may ask. */
-export async function getDocumentUrl(
-  id: string,
-): Promise<{ ok: boolean; url?: string; error?: string }> {
+async function getDocumentUrl(id: string): Promise<{ ok: boolean; url?: string; error?: string }> {
   const db = requireDb('Opening a document');
   if (!db.ok) {
     return db;
@@ -364,6 +362,17 @@ export async function getDocumentUrl(
 }
 
 /** Client-callable document list for one employee (queries.ts is server-only). */
-export async function fetchEmployeeDocuments(employeeId: string) {
+async function fetchEmployeeDocuments(employeeId: string) {
   return readEmployeeDocuments(employeeId);
 }
+
+export {
+  uploadEmployeeDocument,
+  replaceEmployeeDocument,
+  verifyEmployeeDocument,
+  deleteEmployeeDocument,
+  fetchEmployeeDocumentHistory,
+  getDocumentUrl,
+  fetchEmployeeDocuments,
+  type ActionResult,
+};

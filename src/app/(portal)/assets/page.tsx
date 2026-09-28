@@ -7,7 +7,7 @@ import type { AppRole } from '@/types/database';
 // Asset Management is accessible to super_admin/admin/HR .
 const assetAdminRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
-export default async function AssetsPage() {
+async function AssetsPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
   if (!role || !assetAdminRoles.includes(role)) {
@@ -21,3 +21,5 @@ export default async function AssetsPage() {
   ]);
   return <AssetsScreen assets={assets} employees={employees} summary={summary} />;
 }
+
+export { AssetsPage as default };

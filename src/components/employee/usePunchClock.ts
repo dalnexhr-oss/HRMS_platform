@@ -17,7 +17,7 @@ const timeFmt: Intl.DateTimeFormatOptions = {
   timeZone: 'Asia/Kolkata',
 };
 
-export function clock(value: string | null): string {
+function clock(value: string | null): string {
   if (!value) {
     return '—';
   }
@@ -30,7 +30,7 @@ export function clock(value: string | null): string {
 // The duration is always rounded down to the nearest minute, so a punch that is 1h 59m 59s long is
 // reported as 1h 59m. The server does the same rounding, so the two numbers always match.
 
-export function duration(minutes: number): string {
+function duration(minutes: number): string {
   const safe = Math.max(0, Math.floor(minutes));
   const hours = Math.floor(safe / 60);
   return hours > 0 ? `${hours}h ${safe % 60}m` : `${safe}m`;
@@ -40,7 +40,7 @@ export function duration(minutes: number): string {
  * Return a location error with the appropriate recovery action. Denied permission requires a change
  * in browser settings.
  */
-export const failureText: Record<LocationFailure, string> = {
+const failureText: Record<LocationFailure, string> = {
   denied:
     'Location is blocked for this site. Change your browser settings to allow it, then try again.',
   unavailable:
@@ -51,7 +51,7 @@ export const failureText: Record<LocationFailure, string> = {
     'geolocation support. Try a different browser or device.',
 };
 
-export interface PunchClock {
+interface PunchClock {
   state: PunchStatusResponse | null;
   loading: boolean;
   pending: boolean;
@@ -67,7 +67,7 @@ export interface PunchClock {
   punch: () => Promise<void>;
 }
 
-export function usePunchClock(
+function usePunchClock(
   source: PunchSource,
   toast: (message: string, kind?: ToastKind) => void,
 ): PunchClock {
@@ -274,3 +274,5 @@ export function usePunchClock(
     punch,
   };
 }
+
+export { clock, duration, failureText, usePunchClock, type PunchClock };

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-export function ApprovalsShortcut() {
+function ApprovalsShortcut() {
   const pathname = usePathname();
   const active = pathname === '/me/approvals';
   return (
@@ -33,3 +33,5 @@ export function ApprovalsShortcut() {
     </Link>
   );
 }
+
+export { ApprovalsShortcut };

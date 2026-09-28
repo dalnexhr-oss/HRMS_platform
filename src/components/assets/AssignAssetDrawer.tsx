@@ -14,7 +14,7 @@ interface State {
   error?: string;
 }
 
-export function AssignAssetDrawer({
+function AssignAssetDrawer({
   asset,
   employees,
   onClose,
@@ -319,3 +319,5 @@ export function AssignAssetDrawer({
     </>
   );
 }
+
+export { AssignAssetDrawer };

@@ -18,7 +18,7 @@ import { escapeHtml, isEmailConfigured, sendEmail } from '@/lib/email';
 import type { EmployeeDoc, UserDoc } from '@/lib/db/collections';
 import type { AppRole } from '@/types/database';
 
-export interface ActionResult {
+interface ActionResult {
   ok: boolean;
   error?: string;
 }
@@ -48,7 +48,7 @@ const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Case-insensitive lookup, matching the users_email_unique index.
 const emailCollation = { locale: 'en', strength: 2 } as const;
 
-export interface ManagedUser {
+interface ManagedUser {
   id: string;
   email: string;
   fullName: string | null;
@@ -111,7 +111,7 @@ async function employeeLabels(
 }
 
 /** Every login account with its role and linked employee. */
-export async function listUsers(): Promise<
+async function listUsers(): Promise<
   { ok: true; users: ManagedUser[] } | { ok: false; error: string }
 > {
   const gate = await requireRoles(userAdminRoles, 'Viewing user accounts');
@@ -165,7 +165,7 @@ export async function listUsers(): Promise<
  * works immediately even where SMTP is not configured. The user can change it
  * from "My account", and an admin can trigger a reset email.
  */
-export async function createUser(formData: FormData): Promise<ActionResult> {
+async function createUser(formData: FormData): Promise<ActionResult> {
   const gate = await requireRoles(userAdminRoles, 'Adding a user');
   if (!gate.ok) {
     return gate;
@@ -252,7 +252,7 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
 }
 
 /** Change an existing account's role (and employee link when it becomes one). */
-export async function updateUserRole(
+async function updateUserRole(
   userId: string,
   role: AppRole,
   employeeId: string | null,
@@ -332,7 +332,7 @@ export async function updateUserRole(
  * - Explicitly invalidates active password reset tokens to prevent credential reuse.
  * - Prevents self-deletion, deleting superior roles, or deleting the last admin account.
  */
-export async function deleteUser(userId: string): Promise<ActionResult> {
+async function deleteUser(userId: string): Promise<ActionResult> {
   const gate = await requireRoles(userAdminRoles, 'Deleting a user');
   if (!gate.ok) {
     return gate;
@@ -362,7 +362,7 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
  * Enable or disable sign-in while retaining the account and its audit history. Session validation
  * checks disabled on every request.
  */
-export async function setUserDisabled(userId: string, disabled: boolean): Promise<ActionResult> {
+async function setUserDisabled(userId: string, disabled: boolean): Promise<ActionResult> {
   const gate = await requireRoles(userAdminRoles, 'Changing sign-in access');
   if (!gate.ok) {
     return gate;
@@ -407,7 +407,7 @@ export async function setUserDisabled(userId: string, disabled: boolean): Promis
 }
 
 /** Admin-triggered password reset email (the user then sets their own). */
-export async function sendPasswordReset(email: string): Promise<ActionResult> {
+async function sendPasswordReset(email: string): Promise<ActionResult> {
   const gate = await requireRoles(userAdminRoles, 'Sending a password reset');
   if (!gate.ok) {
     return gate;
@@ -481,7 +481,7 @@ export async function sendPasswordReset(email: string): Promise<ActionResult> {
 }
 
 /** Set a new password for an account directly (admin/HR, e.g. no email access). */
-export async function setUserPassword(userId: string, password: string): Promise<ActionResult> {
+async function setUserPassword(userId: string, password: string): Promise<ActionResult> {
   const gate = await requireRoles(userAdminRoles, 'Setting a password');
   if (!gate.ok) {
     return gate;
@@ -528,3 +528,15 @@ export async function setUserPassword(userId: string, password: string): Promise
     return { ok: false, error: e instanceof Error ? e.message : 'Could not set the password.' };
   }
 }
+
+export {
+  listUsers,
+  createUser,
+  updateUserRole,
+  deleteUser,
+  setUserDisabled,
+  sendPasswordReset,
+  setUserPassword,
+  type ActionResult,
+  type ManagedUser,
+};

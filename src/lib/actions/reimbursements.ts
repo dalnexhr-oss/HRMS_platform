@@ -13,7 +13,7 @@ import { toDecimal, toMoney } from '@/lib/db/money';
 import { notifyApprovers, notifyEmployee } from '@/lib/notify';
 import type { ReimbursementPurpose } from '@/types/database';
 
-export interface ActionResult {
+interface ActionResult {
   ok: boolean;
   error?: string;
   // The action SUCCEEDED but a side-effect needs attention (payroll run locked, payslip missing,
@@ -79,7 +79,7 @@ function money(v: FormDataEntryValue | null): number | null {
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
 }
 
-export async function createReimbursement(formData: FormData): Promise<ActionResult> {
+async function createReimbursement(formData: FormData): Promise<ActionResult> {
   // validate before touching auth or the network
   const description = String(formData.get('description') ?? '').trim();
   const purpose = String(formData.get('purpose') ?? '').trim() as ReimbursementPurpose;
@@ -281,7 +281,7 @@ async function addToPayroll(
   return null;
 }
 
-export async function reviewReimbursement(
+async function reviewReimbursement(
   id: string,
   decision: 'approved' | 'rejected',
   remark?: string,
@@ -420,7 +420,7 @@ export async function reviewReimbursement(
  * Finalize a claim in finance_review. Admin approval credits payroll; rejection returns it to the
  * employee with a reason.
  */
-export async function financeReviewReimbursement(
+async function financeReviewReimbursement(
   id: string,
   decision: 'approved' | 'rejected',
   remark?: string,
@@ -508,7 +508,7 @@ export async function financeReviewReimbursement(
  * to own + pending/rejected rows; the travel amount is recomputed server-side,
  * exactly as at creation, so it never trusts the browser.
  */
-export async function updateReimbursement(id: string, formData: FormData): Promise<ActionResult> {
+async function updateReimbursement(id: string, formData: FormData): Promise<ActionResult> {
   const description = String(formData.get('description') ?? '').trim();
   const purpose = String(formData.get('purpose') ?? '').trim() as ReimbursementPurpose;
   const claimDate = String(formData.get('claim_date') ?? '').trim();
@@ -623,7 +623,7 @@ export async function updateReimbursement(id: string, formData: FormData): Promi
 }
 
 /** Employee withdraws their OWN still-pending claim. The write policy restricts it to that. */
-export async function deleteReimbursement(id: string): Promise<ActionResult> {
+async function deleteReimbursement(id: string): Promise<ActionResult> {
   const db = requireDb('Withdrawing a reimbursement claim');
   if (!db.ok) {
     return db;
@@ -657,10 +657,7 @@ export async function deleteReimbursement(id: string): Promise<ActionResult> {
  * paid it, WHEN, and the payment reference — 'paid' with no such record was
  * unverifiable.
  */
-export async function markReimbursementPaid(
-  id: string,
-  paymentRef?: string,
-): Promise<ActionResult> {
+async function markReimbursementPaid(id: string, paymentRef?: string): Promise<ActionResult> {
   const gate = await requireStaff('Marking a claim paid');
   if (!gate.ok) {
     return gate;
@@ -714,10 +711,7 @@ export async function markReimbursementPaid(
 }
 
 /** Attaches or replaces a receipt file on an open reimbursement claim owned by the employee. */
-export async function uploadReimbursementReceipt(
-  id: string,
-  formData: FormData,
-): Promise<ActionResult> {
+async function uploadReimbursementReceipt(id: string, formData: FormData): Promise<ActionResult> {
   const db = requireDb('Attaching a receipt');
   if (!db.ok) {
     return db;
@@ -804,7 +798,7 @@ export async function uploadReimbursementReceipt(
 }
 
 // Resolve a claim receipt's file URL. The row read scopes it to owner or staff.
-export async function getReceiptUrl(
+async function getReceiptUrl(
   claimId: string,
 ): Promise<{ ok: boolean; url?: string; error?: string }> {
   const db = requireDb('Opening a receipt');
@@ -830,6 +824,19 @@ export async function getReceiptUrl(
 }
 
 // Client-callable timeline fetch for a claim (queries.ts is server-only).
-export async function fetchClaimEvents(claimId: string) {
+async function fetchClaimEvents(claimId: string) {
   return getReimbursementEvents(claimId);
 }
+
+export {
+  createReimbursement,
+  reviewReimbursement,
+  financeReviewReimbursement,
+  updateReimbursement,
+  deleteReimbursement,
+  markReimbursementPaid,
+  uploadReimbursementReceipt,
+  getReceiptUrl,
+  fetchClaimEvents,
+  type ActionResult,
+};

@@ -26,7 +26,7 @@ async function getHeadcount(): Promise<number | null> {
   }
 }
 
-export default async function HrDashboardPage() {
+async function HrDashboardPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
   if (!role || !hrRoles.includes(role)) {
@@ -99,3 +99,5 @@ export default async function HrDashboardPage() {
     </div>
   );
 }
+
+export { HrDashboardPage as default };

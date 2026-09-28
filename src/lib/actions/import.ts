@@ -12,13 +12,13 @@ import { parseRegisterWorkbook, codeForEmplId, isKnownStatus, minutesToClock } f
 import type { ParsedRegister } from '@/lib/excel/parse-register';
 import type { AppRole } from '@/types/database';
 
-export interface MatchedEmployee {
+interface MatchedEmployee {
   code: string;
   name: string;
   days: number;
 }
 
-export interface ImportPreview {
+interface ImportPreview {
   periodMonth: string;
   daysInMonth: number;
   matched: MatchedEmployee[];
@@ -29,9 +29,9 @@ export interface ImportPreview {
   totalRows: number;
 }
 
-export type PreviewResult = { ok: true; preview: ImportPreview } | { ok: false; error: string };
+type PreviewResult = { ok: true; preview: ImportPreview } | { ok: false; error: string };
 
-export type CommitResult =
+type CommitResult =
   | { ok: true; inserted: number; updated: number; skipped: number; errors: string[] }
   | { ok: false; error: string };
 
@@ -229,7 +229,7 @@ function planImport(
 
 // preview
 
-export async function previewImport(formData: FormData): Promise<PreviewResult> {
+async function previewImport(formData: FormData): Promise<PreviewResult> {
   try {
     // Authorize before parsing an uploaded workbook or returning employee matches in the preview.
     const gate = await requireStaff('Previewing the register');
@@ -308,7 +308,7 @@ function explainWriteError(message: string, code?: string): string {
   return code ? `${message} (${code})` : message;
 }
 
-export async function commitImport(formData: FormData): Promise<CommitResult> {
+async function commitImport(formData: FormData): Promise<CommitResult> {
   // 1. A write is impossible without a database. Never pretend otherwise.
   if (!isMongoConfigured()) {
     return { ok: false, error: 'The database is not configured, so nothing can be imported.' };
@@ -431,3 +431,12 @@ export async function commitImport(formData: FormData): Promise<CommitResult> {
     return { ok: false, error: errMessage(e) };
   }
 }
+
+export {
+  previewImport,
+  commitImport,
+  type MatchedEmployee,
+  type ImportPreview,
+  type PreviewResult,
+  type CommitResult,
+};

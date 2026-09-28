@@ -53,7 +53,7 @@ function caught(context: string, e: unknown): { ok: false; error: string } {
  * Creates a new payroll run in 'draft' status for the specified period month (YYYY-MM-01).
  * Working days and target minutes are computed per-employee during the compute stage.
  */
-export async function openRun(periodMonth: string): Promise<{ ok: boolean; error?: string }> {
+async function openRun(periodMonth: string): Promise<{ ok: boolean; error?: string }> {
   const context = 'Start payroll run';
   try {
     const g = await gate();
@@ -132,12 +132,12 @@ async function callRunRpc(
  * Recompute draft payslips for active and on-notice employees and stamp
  * drafts_computed_at. Raises (and therefore returns ok:false) on a locked run.
  */
-export async function computeRun(runId: string): Promise<{ ok: boolean; error?: string }> {
+async function computeRun(runId: string): Promise<{ ok: boolean; error?: string }> {
   return callRunRpc('fn_compute_run', runId, 'Recompute drafts');
 }
 
 /** Freeze the run and mark its payslips generated. Irreversible. */
-export async function lockRun(runId: string): Promise<{ ok: boolean; error?: string }> {
+async function lockRun(runId: string): Promise<{ ok: boolean; error?: string }> {
   const res = await callRunRpc('fn_lock_run', runId, 'Lock run');
   // Locking is the moment payslips become final, so tell each employee theirs
   // is ready. Best-effort: a notification failure never un-locks the run.
@@ -182,7 +182,7 @@ async function notifyPayslipsReady(runId: string): Promise<void> {
 }
 
 /** Mark a locked run (and its payslips) paid. */
-export async function markRunPaid(runId: string): Promise<{ ok: boolean; error?: string }> {
+async function markRunPaid(runId: string): Promise<{ ok: boolean; error?: string }> {
   return callRunRpc('fn_mark_run_paid', runId, 'Mark run paid');
 }
 
@@ -235,9 +235,7 @@ function money(formData: FormData, key: MoneyField): number | string {
  * Expects: payslipId, advance_recovery, loss_damage, last_month_balance,
  * reimbursement_bonus, remarks.
  */
-export async function saveAdjustments(
-  formData: FormData,
-): Promise<{ ok: boolean; error?: string }> {
+async function saveAdjustments(formData: FormData): Promise<{ ok: boolean; error?: string }> {
   const context = 'Save adjustments';
   try {
     const payslipId = String(formData.get('payslipId') ?? '').trim();
@@ -275,3 +273,5 @@ export async function saveAdjustments(
     return caught(context, e);
   }
 }
+
+export { openRun, computeRun, lockRun, markRunPaid, saveAdjustments };

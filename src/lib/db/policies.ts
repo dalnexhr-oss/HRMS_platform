@@ -9,9 +9,9 @@ import type { Scope } from '@/lib/db/scope';
 
 // Return a filter to combine with the query, or null to deny access. Policies use Document because
 // they span collection types; repo.ts applies the concrete driver type.
-export type ScopeFilter = Document | null;
+type ScopeFilter = Document | null;
 
-export interface CollectionPolicy {
+interface CollectionPolicy {
   // Rows this caller may see.
   read(scope: Scope): ScopeFilter;
   // Rows this caller may update or delete.
@@ -117,7 +117,7 @@ const staffManagedEmployeeReadable = (field = 'employee_id'): CollectionPolicy =
   insert: insertStaff,
 });
 
-export const policies: Partial<Record<string, CollectionPolicy>> = {
+const policies: Partial<Record<string, CollectionPolicy>> = {
   // Account reads are broader than writes. Users may edit their own profile; users.ts separately
   // enforces role and tab-access privileges.
   [collections.users]: {
@@ -355,6 +355,8 @@ export const policies: Partial<Record<string, CollectionPolicy>> = {
 };
 
 // The policy for a collection, or undefined when none is declared (deny).
-export function policyFor(collection: string): CollectionPolicy | undefined {
+function policyFor(collection: string): CollectionPolicy | undefined {
   return policies[collection];
 }
+
+export { policies, policyFor, type ScopeFilter, type CollectionPolicy };

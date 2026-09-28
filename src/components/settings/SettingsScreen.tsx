@@ -10,7 +10,7 @@ import { updateBranch, deleteBranch, updateBranchLocation } from '@/lib/actions/
 import type { ToastKind } from '@/components/ui/Toast';
 import type { SettingView, BranchRow } from '@/lib/queries';
 
-export function SettingsScreen({
+function SettingsScreen({
   settings,
   branches = [],
 }: {
@@ -528,3 +528,5 @@ function SettingRow({
     </div>
   );
 }
+
+export { SettingsScreen };

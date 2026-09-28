@@ -28,7 +28,7 @@ function readCoords(body: unknown): PunchCoords | null {
   };
 }
 
-export async function handlePunch(request: NextRequest, kind: PunchKind) {
+async function handlePunch(request: NextRequest, kind: PunchKind) {
   try {
     const body = await request.json().catch(() => ({}));
     const result = await recordPunch(kind, readCoords(body));
@@ -53,3 +53,5 @@ export async function handlePunch(request: NextRequest, kind: PunchKind) {
     return NextResponse.json({ error: message }, { status: conflict ? 409 : 400 });
   }
 }
+
+export { handlePunch };

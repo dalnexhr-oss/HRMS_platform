@@ -6,7 +6,7 @@ import type { ClientSession } from 'mongodb';
 import type { AppRole } from '@/types/database';
 
 /** Shared account deletion rules for Users and employee deletion. Caller supplies a staff gate. */
-export async function deleteUserAccounts(
+async function deleteUserAccounts(
   userIds: string[],
   caller: { profileId: string; role: AppRole },
   session?: ClientSession,
@@ -64,3 +64,5 @@ export async function deleteUserAccounts(
     }
   }
 }
+
+export { deleteUserAccounts };

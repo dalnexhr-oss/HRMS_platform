@@ -1,6 +1,6 @@
 import type { RequestRouting } from '@/types/requests';
 
-export function RequestRoutingSummary({
+function RequestRoutingSummary({
   routing,
   status,
 }: {
@@ -53,3 +53,5 @@ export function RequestRoutingSummary({
     </div>
   );
 }
+
+export { RequestRoutingSummary };

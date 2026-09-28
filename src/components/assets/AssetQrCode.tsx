@@ -1,7 +1,7 @@
 import { QRCodeSVG } from 'qrcode.react';
 import { parseAssetLink } from '@/lib/asset-link';
 
-export function AssetQrCode({ url, name }: { url: string | null; name: string }) {
+function AssetQrCode({ url, name }: { url: string | null; name: string }) {
   const link = parseAssetLink(url);
   if (!link.ok || !link.url) {
     return (
@@ -33,3 +33,5 @@ export function AssetQrCode({ url, name }: { url: string | null; name: string })
     </div>
   );
 }
+
+export { AssetQrCode };

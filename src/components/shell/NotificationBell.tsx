@@ -69,7 +69,7 @@ function ago(iso: string): string {
   return `${Math.round(hrs / 24)}d ago`;
 }
 
-export function NotificationBell({
+function NotificationBell({
   notifications,
   unread,
 }: {
@@ -312,3 +312,5 @@ export function NotificationBell({
     </div>
   );
 }
+
+export { NotificationBell };

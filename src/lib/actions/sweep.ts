@@ -11,7 +11,7 @@ import { todayIST } from '@/lib/format';
 import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/guards';
 import { autoCloseDay, clockToMinutes, getAutoPunchOutMinutes, minutesToClock } from '@/lib/attendance-rules';
 
-export type SweepResult =
+type SweepResult =
   { ok: true; closed: number; at: string; date: string } | { ok: false; error: string };
 
 interface OpenDay {
@@ -23,7 +23,7 @@ interface OpenDay {
 
 // Close every open day on `dateISO` ('YYYY-MM-DD'). Defaults to today in the business timezone
 // (Asia/Kolkata) — the sweep is a same-evening job.
-export async function runNightSweep(dateISO?: string): Promise<SweepResult> {
+async function runNightSweep(dateISO?: string): Promise<SweepResult> {
   const gate = await requireStaff('Running the night sweep');
   if (!gate.ok) {
     return gate;
@@ -113,3 +113,5 @@ export async function runNightSweep(dateISO?: string): Promise<SweepResult> {
     return { ok: false, error: e instanceof Error ? e.message : 'The night sweep failed.' };
   }
 }
+
+export { runNightSweep, type SweepResult };

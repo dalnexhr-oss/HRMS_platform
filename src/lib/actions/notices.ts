@@ -50,7 +50,7 @@ async function uploadNoticePdf(
 }
 
 /** Employee marks a notice as read on their dashboard. Idempotent. */
-export async function markNoticeRead(noticeId: string) {
+async function markNoticeRead(noticeId: string) {
   const db = requireDb('Marking a notice as read');
   if (!db.ok) {
     return db;
@@ -79,7 +79,7 @@ export async function markNoticeRead(noticeId: string) {
  * Publish a notice. Blank branch = all branches (branch_id null).
  * When the "publish" checkbox is on, published_at is stamped now (else null → draft).
  */
-export async function createNotice(formData: FormData) {
+async function createNotice(formData: FormData) {
   const title = String(formData.get('title') ?? '').trim();
   const body = String(formData.get('body') ?? '').trim();
   const channelRaw = String(formData.get('channel') ?? 'app').trim();
@@ -161,7 +161,7 @@ export async function createNotice(formData: FormData) {
 /** Edit an existing notice's content (title/body/channel/branch/PDF). Staff-only.
  *  Does not change its published state — that's the Publish/Unpublish toggle.
  *  A newly chosen PDF replaces the old one; the "remove_pdf" checkbox clears it. */
-export async function updateNotice(id: string, formData: FormData) {
+async function updateNotice(id: string, formData: FormData) {
   const title = String(formData.get('title') ?? '').trim();
   const body = String(formData.get('body') ?? '').trim();
   const channelRaw = String(formData.get('channel') ?? 'app').trim();
@@ -220,7 +220,7 @@ export async function updateNotice(id: string, formData: FormData) {
  * Publish or unpublish an existing notice. Publishing stamps published_at now
  * (and notifies everyone); unpublishing clears it back to a draft.
  */
-export async function setNoticePublished(id: string, published: boolean) {
+async function setNoticePublished(id: string, published: boolean) {
   const gate = await requireStaff(published ? 'Publishing a notice' : 'Unpublishing a notice');
   if (!gate.ok) {
     return gate;
@@ -273,9 +273,7 @@ export async function setNoticePublished(id: string, published: boolean) {
  * Generates an authenticated download URL for a notice PDF attachment.
  * Accessible to any authenticated user within audience scope.
  */
-export async function getNoticePdfUrl(
-  id: string,
-): Promise<{ ok: boolean; url?: string; error?: string }> {
+async function getNoticePdfUrl(id: string): Promise<{ ok: boolean; url?: string; error?: string }> {
   const db = requireDb('Opening a notice PDF');
   if (!db.ok) {
     return db;
@@ -299,7 +297,7 @@ export async function getNoticePdfUrl(
 }
 
 /** Delete a notice by id. */
-export async function deleteNotice(id: string) {
+async function deleteNotice(id: string) {
   const gate = await requireStaff('Deleting a notice');
   if (!gate.ok) {
     return gate;
@@ -321,3 +319,12 @@ export async function deleteNotice(id: string) {
   revalidatePath('/me');
   return { ok: true };
 }
+
+export {
+  markNoticeRead,
+  createNotice,
+  updateNotice,
+  setNoticePublished,
+  getNoticePdfUrl,
+  deleteNotice,
+};

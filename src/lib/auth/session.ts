@@ -12,9 +12,8 @@ import type { UserDoc } from '@/lib/db/collections';
 import type { AppRole, Profile } from '@/types/database';
 
 // Re-exported so callers have one import for everything session-related.
-export { sessionCookie };
 
-export interface SessionContext {
+interface SessionContext {
   userId: string | null;
   email: string | null;
   profile: Profile | null;
@@ -53,7 +52,7 @@ function toProfile(user: UserDoc): Profile {
 
 // Issue a token for `user` and write the session cookie. Callable only where cookies are writable —
 // Server Actions and Route Handlers, not Server Components.
-export async function createSession(user: UserDoc): Promise<void> {
+async function createSession(user: UserDoc): Promise<void> {
   const claims: SessionClaims = {
     sub: user._id,
     email: user.email,
@@ -67,14 +66,14 @@ export async function createSession(user: UserDoc): Promise<void> {
 
 // Clear this browser's cookie. Sign-out must also call revokeAllSessions to invalidate other
 // copies of the token.
-export async function destroySession(): Promise<void> {
+async function destroySession(): Promise<void> {
   (await cookies()).set(sessionCookie, '', cookieOptions(0));
 }
 
 // Invalidate every token issued to an account, on every device. Call on sign-out, password change,
 // role change, and when disabling a login. Returns the new version, or null when the user no longer
 // exists.
-export async function revokeAllSessions(userId: string): Promise<number | null> {
+async function revokeAllSessions(userId: string): Promise<number | null> {
   const users = await usersCollection();
   const result = await users.findOneAndUpdate(
     { _id: userId },
@@ -85,13 +84,13 @@ export async function revokeAllSessions(userId: string): Promise<number | null> 
 }
 
 // The raw token, unverified. Use getSession() unless you need the string.
-export async function readSessionToken(): Promise<string | null> {
+async function readSessionToken(): Promise<string | null> {
   return (await cookies()).get(sessionCookie)?.value ?? null;
 }
 
 // Resolve the user once per request. Invalid, revoked, disabled, or missing sessions return empty;
 // database outages still throw.
-export const getSession = cache(async function getSession(): Promise<SessionContext> {
+const getSession = cache(async function getSession(): Promise<SessionContext> {
   const token = await readSessionToken();
   if (!token) {
     return empty;
@@ -120,7 +119,7 @@ export const getSession = cache(async function getSession(): Promise<SessionCont
 });
 
 // The full user document for the signed-in account, or null.
-export const getSessionUser = cache(async function getSessionUser(): Promise<UserDoc | null> {
+const getSessionUser = cache(async function getSessionUser(): Promise<UserDoc | null> {
   const token = await readSessionToken();
   if (!token) {
     return null;
@@ -141,7 +140,7 @@ export const getSessionUser = cache(async function getSessionUser(): Promise<Use
 
 // Refresh the cookie after claim changes the caller should survive, such as their own password
 // update and token_version bump.
-export async function refreshSession(userId: string): Promise<void> {
+async function refreshSession(userId: string): Promise<void> {
   const users = await usersCollection();
   const user = await users.findOne({ _id: userId });
   if (user && !user.disabled) {
@@ -150,6 +149,19 @@ export async function refreshSession(userId: string): Promise<void> {
 }
 
 // True when the role belongs to the staff portal. Mirrors lib/auth.ts.
-export function isStaffRole(role: AppRole | null | undefined): boolean {
+function isStaffRole(role: AppRole | null | undefined): boolean {
   return role === 'super_admin' || role === 'admin' || role === 'hr';
 }
+
+export {
+  sessionCookie,
+  createSession,
+  destroySession,
+  revokeAllSessions,
+  readSessionToken,
+  getSession,
+  getSessionUser,
+  refreshSession,
+  isStaffRole,
+  type SessionContext,
+};

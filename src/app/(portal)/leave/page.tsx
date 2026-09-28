@@ -12,11 +12,7 @@ const leaveAdminRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
 const yearRe = /^\d{4}$/;
 
-export default async function LeavePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ y?: string }>;
-}) {
+async function LeavePage({ searchParams }: { searchParams: Promise<{ y?: string }> }) {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
   if (!role || !leaveAdminRoles.includes(role)) {
@@ -44,3 +40,5 @@ export default async function LeavePage({
     />
   );
 }
+
+export { LeavePage as default };

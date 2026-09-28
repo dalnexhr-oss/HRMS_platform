@@ -11,7 +11,7 @@ import { createClient } from '@/lib/db/server';
 import { getSession } from '@/lib/auth';
 import { requireDb, wroteNothing } from '@/lib/actions/guards';
 
-export interface ActionResult {
+interface ActionResult {
   ok: boolean;
   error?: string;
 }
@@ -22,7 +22,7 @@ const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Record the signed-in employee's signature. documentId is optional; when present, the unique
 // index prevents signing the same document twice. Reissued documents use a new ID.
-export async function acknowledgeDocument(input: {
+async function acknowledgeDocument(input: {
   kind: string;
   documentId?: string | null;
   signedName: string;
@@ -102,3 +102,5 @@ export async function acknowledgeDocument(input: {
   revalidatePath('/me');
   return { ok: true };
 }
+
+export { acknowledgeDocument, type ActionResult };

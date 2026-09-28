@@ -8,7 +8,7 @@ import type { AppRole } from '@/types/database';
 // Match the onboarding actions and collection policies.
 const onboardingRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
-export default async function OnboardingPage() {
+async function OnboardingPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
   if (!role || !onboardingRoles.includes(role)) {
@@ -47,3 +47,5 @@ export default async function OnboardingPage() {
     </>
   );
 }
+
+export { OnboardingPage as default };

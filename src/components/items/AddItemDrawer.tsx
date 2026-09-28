@@ -13,7 +13,7 @@ interface State {
 
 const statusOptions = ['In Stock', 'Low Stock', 'Out of Stock', 'Discontinued'];
 
-export function AddItemDrawer({
+function AddItemDrawer({
   open,
   onClose,
   item = null,
@@ -205,3 +205,5 @@ function SelectField({
     </div>
   );
 }
+
+export { AddItemDrawer };

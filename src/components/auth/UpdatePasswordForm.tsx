@@ -9,7 +9,7 @@ import type { PasswordState } from '@/lib/actions/password';
 // Mirrors validatePassword() in lib/auth/password.ts.
 const minLen = 10;
 
-export function UpdatePasswordForm({ token }: { token?: string }) {
+function UpdatePasswordForm({ token }: { token?: string }) {
   const [state, action, pending] = useActionState<PasswordState, FormData>(resetPassword, {});
 
   // Reject a missing token before the user enters a new password.
@@ -92,3 +92,5 @@ export function UpdatePasswordForm({ token }: { token?: string }) {
     </form>
   );
 }
+
+export { UpdatePasswordForm };

@@ -8,7 +8,7 @@ import { createPolicy, updatePolicy, deletePolicy, setPolicyPublished } from '@/
 import type { ToastKind } from '@/components/ui/Toast';
 import type { Policy } from '@/types/database';
 
-export function PolicyAdmin({
+function PolicyAdmin({
   policies,
   ackCounts = {},
   headcount = 0,
@@ -268,3 +268,5 @@ function PolicyForm({
     </form>
   );
 }
+
+export { PolicyAdmin };

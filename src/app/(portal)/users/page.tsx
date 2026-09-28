@@ -8,7 +8,7 @@ import type { AppRole } from '@/types/database';
 // Match the user administration actions' staff role gate.
 const userAdminRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
-export default async function UsersPage() {
+async function UsersPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
   if (!role || !userAdminRoles.includes(role)) {
@@ -27,3 +27,5 @@ export default async function UsersPage() {
     />
   );
 }
+
+export { UsersPage as default };

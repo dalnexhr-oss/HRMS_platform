@@ -11,7 +11,7 @@ import { branchColorAt } from '@/lib/constants';
 import { deleteEmployee } from '@/lib/actions/employee-deletion';
 import type { EmployeeListRow, EmployeeEditRow, BranchRow } from '@/lib/queries';
 
-export function EmployeesScreen({
+function EmployeesScreen({
   rows,
   departments,
   branches = [],
@@ -345,3 +345,5 @@ export function EmployeesScreen({
     </div>
   );
 }
+
+export { EmployeesScreen };

@@ -6,9 +6,9 @@ import { db } from '@/lib/db/mongo';
 import { usersCollection } from '@/lib/db/collections';
 
 // How long a reset link stays valid. Short by design.
-export const resetTokenTtlMinutes = 60;
+const resetTokenTtlMinutes = 60;
 
-export const resetTokensCollection = 'password_reset_tokens';
+const resetTokensCollection = 'password_reset_tokens';
 
 interface ResetTokenDoc {
   _id: string;
@@ -34,7 +34,7 @@ async function tokens() {
 
 // Return the raw reset token for the email link. Remove existing tokens first so a new request
 // invalidates earlier links.
-export async function createResetToken(
+async function createResetToken(
   userId: string,
   requestedIp: string | null = null,
 ): Promise<string> {
@@ -59,7 +59,7 @@ export async function createResetToken(
   return raw;
 }
 
-export interface ResetTokenClaim {
+interface ResetTokenClaim {
   userId: string;
   tokenVersion: number;
 }
@@ -81,7 +81,7 @@ async function currentClaim(doc: ResetTokenDoc | null): Promise<ResetTokenClaim 
 
 // Atomically spend the link. The password write must also compare tokenVersion so a password
 // change between consumption and the write cannot be undone by the older link.
-export async function consumeResetToken(raw: string): Promise<ResetTokenClaim | null> {
+async function consumeResetToken(raw: string): Promise<ResetTokenClaim | null> {
   if (!raw) {
     return null;
   }
@@ -94,7 +94,7 @@ export async function consumeResetToken(raw: string): Promise<ResetTokenClaim | 
 }
 
 // True when a token would be accepted, without spending it.
-export async function peekResetToken(raw: string): Promise<boolean> {
+async function peekResetToken(raw: string): Promise<boolean> {
   if (!raw) {
     return false;
   }
@@ -105,3 +105,12 @@ export async function peekResetToken(raw: string): Promise<boolean> {
   });
   return (await currentClaim(doc)) !== null;
 }
+
+export {
+  resetTokenTtlMinutes,
+  resetTokensCollection,
+  createResetToken,
+  consumeResetToken,
+  peekResetToken,
+  type ResetTokenClaim,
+};

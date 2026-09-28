@@ -4,7 +4,7 @@
 // clicked.
 import { useCallback, useEffect, useState } from 'react';
 
-export type ToastKind = 'info' | 'error' | 'success';
+type ToastKind = 'info' | 'error' | 'success';
 
 interface ToastItem {
   id: number;
@@ -31,7 +31,7 @@ function ToastRow({ toast, onDone }: { toast: ToastItem; onDone: () => void }) {
   );
 }
 
-export function useToast() {
+function useToast() {
   const [items, setItems] = useState<ToastItem[]>([]);
 
   const dismiss = useCallback((id: number) => {
@@ -54,3 +54,5 @@ export function useToast() {
 
   return { toast, toastNode };
 }
+
+export { useToast, type ToastKind };

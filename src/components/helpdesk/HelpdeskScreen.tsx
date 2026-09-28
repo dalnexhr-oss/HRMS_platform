@@ -25,7 +25,7 @@ function statusPillStyle(status: TicketStatus): React.CSSProperties {
   return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
 }
 
-export function HelpdeskScreen({
+function HelpdeskScreen({
   tickets,
   comments = {},
   selfId = null,
@@ -175,3 +175,5 @@ function NewTicketForm() {
     </form>
   );
 }
+
+export { HelpdeskScreen };

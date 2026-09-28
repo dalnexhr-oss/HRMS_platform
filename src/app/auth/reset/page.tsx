@@ -2,9 +2,9 @@ import { ResetRequestForm } from '@/components/auth/ResetRequestForm';
 import { Brand } from '@/components/ui/Brand';
 import type { Metadata } from 'next';
 
-export const metadata: Metadata = { title: 'Reset password — Dalnex HRMS' };
+const metadata: Metadata = { title: 'Reset password — Dalnex HRMS' };
 
-export default function ResetPage() {
+function ResetPage() {
   return (
     <div className="login-shell">
       <div className="login-card card">
@@ -18,3 +18,7 @@ export default function ResetPage() {
     </div>
   );
 }
+
+export { metadata };
+export { ResetPage as default };
+

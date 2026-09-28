@@ -9,7 +9,7 @@ import { currentScope } from '@/lib/db/scope';
 import type { GridFSFile, ObjectId } from 'mongodb';
 import type { Scope } from '@/lib/db/scope';
 
-export type StorageBucket =
+type StorageBucket =
   'employee-documents' | 'reimbursement-receipts' | 'generated-documents' | 'notice-attachments';
 
 // Buckets partitioned by employee ID prefix. Unlisted buckets are company-wide (staff write,
@@ -36,7 +36,7 @@ function ownerOf(path: string): string | null {
   return first && first !== path ? first : null;
 }
 
-export class StorageAccessError extends Error {
+class StorageAccessError extends Error {
   readonly userFacing = true;
   constructor(message = 'You do not have access to that file.') {
     super(message);
@@ -83,7 +83,7 @@ function assertMayWrite(scope: Scope, bucket: StorageBucket, path: string): void
   }
 }
 
-export interface StoredFile {
+interface StoredFile {
   id: string;
   path: string;
   contentType: string;
@@ -113,7 +113,7 @@ async function findFile(bucket: StorageBucket, path: string): Promise<GridFSFile
  * putObject accepts buffered bytes or a streaming source. Blob and ReadableStream inputs are
  * uploaded without buffering the full file.
  */
-export type StorableBody = ArrayBuffer | Uint8Array | Blob | ReadableStream<Uint8Array>;
+type StorableBody = ArrayBuffer | Uint8Array | Blob | ReadableStream<Uint8Array>;
 
 /**
  * Streams payload to GridFS at the specified bucket path.
@@ -121,7 +121,7 @@ export type StorableBody = ArrayBuffer | Uint8Array | Blob | ReadableStream<Uint
  * Consumes source streams directly chunk-by-chunk to avoid loading large files into memory.
  * Automatically cleans up partial chunks via stream abort upon pipeline failure.
  */
-export async function putObject(
+async function putObject(
   bucket: StorageBucket,
   path: string,
   body: StorableBody,
@@ -161,7 +161,7 @@ export async function putObject(
 }
 
 // Read a whole object. Used by the PDF pipeline and the download route.
-export async function getObject(
+async function getObject(
   bucket: StorageBucket,
   path: string,
   scope?: Scope,
@@ -187,7 +187,7 @@ export async function getObject(
 }
 
 // Metadata without transferring the bytes.
-export async function statObject(
+async function statObject(
   bucket: StorageBucket,
   path: string,
   scope?: Scope,
@@ -199,11 +199,7 @@ export async function statObject(
 }
 
 // Deletes all revisions matching the given path.
-export async function deleteObject(
-  bucket: StorageBucket,
-  path: string,
-  scope?: Scope,
-): Promise<boolean> {
+async function deleteObject(bucket: StorageBucket, path: string, scope?: Scope): Promise<boolean> {
   const s = scope ?? (await requireScope());
   assertMayWrite(s, bucket, path);
 
@@ -216,6 +212,18 @@ export async function deleteObject(
 }
 
 // Generates the relative API route URL for streaming the target file with session authentication.
-export function objectUrl(bucket: StorageBucket, path: string): string {
+function objectUrl(bucket: StorageBucket, path: string): string {
   return `/api/files/${bucket}/${path.split('/').map(encodeURIComponent).join('/')}`;
 }
+
+export {
+  StorageAccessError,
+  putObject,
+  getObject,
+  statObject,
+  deleteObject,
+  objectUrl,
+  type StorageBucket,
+  type StoredFile,
+  type StorableBody,
+};

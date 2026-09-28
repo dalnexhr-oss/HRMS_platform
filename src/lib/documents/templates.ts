@@ -144,7 +144,7 @@ function clean(value: string | null | undefined): string {
 }
 
 /** Shared identity/date fields of the two separation letters. */
-export interface SeparationLetterInput {
+interface SeparationLetterInput {
   employeeName: string;
   employeeCode: string;
   /** Role held at separation. Omitted from the prose entirely when absent. */
@@ -161,7 +161,7 @@ export interface SeparationLetterInput {
  * Relieving letter confirming separation dates, designation, surviving confidentiality
  * obligations, and distinct settlement handling.
  */
-export function buildRelievingLetter(input: SeparationLetterInput): LetterSpec {
+function buildRelievingLetter(input: SeparationLetterInput): LetterSpec {
   const name = clean(input.employeeName);
   const code = clean(input.employeeCode);
   const role = clean(input.designation);
@@ -199,7 +199,7 @@ export function buildRelievingLetter(input: SeparationLetterInput): LetterSpec {
  * Experience/service certificate addressed to third parties, stating verified dates of employment,
  * designation, and total tenure.
  */
-export function buildExperienceLetter(input: SeparationLetterInput): LetterSpec {
+function buildExperienceLetter(input: SeparationLetterInput): LetterSpec {
   const name = clean(input.employeeName);
   const code = clean(input.employeeCode);
   const role = clean(input.designation);
@@ -242,7 +242,7 @@ export function buildExperienceLetter(input: SeparationLetterInput): LetterSpec 
 }
 
 /** Line items of a full & final settlement, as computed by the payroll layer. */
-export interface FullAndFinalInput {
+interface FullAndFinalInput {
   employeeName: string;
   employeeCode: string;
   /** 'YYYY-MM-DD'. */
@@ -267,7 +267,7 @@ export interface FullAndFinalInput {
  * Generates full & final settlement letter specification.
  * Preserves the approved netPayable amount verbatim to ensure alignment with financial disbursements.
  */
-export function buildFullAndFinalStatement(input: FullAndFinalInput): LetterSpec {
+function buildFullAndFinalStatement(input: FullAndFinalInput): LetterSpec {
   const name = clean(input.employeeName);
   const code = clean(input.employeeCode);
   const lastDay = formatDate(input.lastWorkingDay);
@@ -321,7 +321,7 @@ export function buildFullAndFinalStatement(input: FullAndFinalInput): LetterSpec
 }
 
 /** Inputs for the welcome email sent when an employee record goes live. */
-export interface WelcomeEmailInput {
+interface WelcomeEmailInput {
   employeeName: string;
   employeeCode: string;
   /** 'YYYY-MM-DD' — first day at work. */
@@ -331,7 +331,7 @@ export interface WelcomeEmailInput {
 }
 
 /** Shape accepted by sendEmail() in src/lib/email.ts (minus `to`). */
-export interface WelcomeEmail {
+interface WelcomeEmail {
   subject: string;
   text: string;
   html: string;
@@ -344,7 +344,7 @@ export interface WelcomeEmail {
  * Build matching text and HTML welcome emails. Escape interpolated HTML and only make HTTP(S)
  * portal URLs clickable.
  */
-export function buildWelcomeEmail(input: WelcomeEmailInput): WelcomeEmail {
+function buildWelcomeEmail(input: WelcomeEmailInput): WelcomeEmail {
   const name = clean(input.employeeName);
   const code = clean(input.employeeCode);
   const start = formatDate(input.startDate);
@@ -426,3 +426,14 @@ export function buildWelcomeEmail(input: WelcomeEmailInput): WelcomeEmail {
     ],
   };
 }
+
+export {
+  buildRelievingLetter,
+  buildExperienceLetter,
+  buildFullAndFinalStatement,
+  buildWelcomeEmail,
+  type SeparationLetterInput,
+  type FullAndFinalInput,
+  type WelcomeEmailInput,
+  type WelcomeEmail,
+};

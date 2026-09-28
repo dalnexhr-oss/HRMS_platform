@@ -12,7 +12,7 @@ interface SalaryValues {
 
 const defaultSalary: SalaryValues = { gross_monthly: 30_000, basic_da: 15_000, hra: 9_000 };
 
-export function SalaryFields({ initial = defaultSalary }: { initial?: SalaryValues }) {
+function SalaryFields({ initial = defaultSalary }: { initial?: SalaryValues }) {
   const id = useId();
   // The drawer's keyed form remounts this state when another employee is opened.
   const [amounts, setAmounts] = useState(() => ({
@@ -76,3 +76,5 @@ export function SalaryFields({ initial = defaultSalary }: { initial?: SalaryValu
     </>
   );
 }
+
+export { SalaryFields };

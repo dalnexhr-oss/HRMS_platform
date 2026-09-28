@@ -23,7 +23,7 @@ const saltBytes = 16;
 const maxmem = 192 * 1024 * 1024;
 
 // Hash a plaintext password for storage.
-export async function hashPassword(password: string): Promise<string> {
+async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(saltBytes);
   const hash = await scryptAsync(password.normalize('NFKC'), salt, keyLength, {
     N: scryptN,
@@ -44,7 +44,7 @@ export async function hashPassword(password: string): Promise<string> {
 // Check a password against a stored hash. Returns false rather than throwing on a malformed or
 // unrecognised hash — a corrupt row must read as "wrong password", never as a 500 that tells an
 // attacker the account exists.
-export async function verifyPassword(password: string, stored: string): Promise<boolean> {
+async function verifyPassword(password: string, stored: string): Promise<boolean> {
   try {
     const [scheme, n, r, p, saltB64, hashB64] = stored.split('$');
     if (scheme !== 'scrypt') {
@@ -70,7 +70,7 @@ export async function verifyPassword(password: string, stored: string): Promise<
 // Minimum password rules for the sign-up and reset paths. Length is the only requirement that
 // measurably helps; character-class rules push people towards "Password1!" and were dropped
 // deliberately.
-export function validatePassword(password: string): string | null {
+function validatePassword(password: string): string | null {
   if (password.length < 10) {
     return 'Use at least 10 characters.';
   }
@@ -81,8 +81,10 @@ export function validatePassword(password: string): string | null {
 }
 
 // A random password for invite flows, shown once and never stored in clear.
-export function generatePassword(): string {
+function generatePassword(): string {
   // base64url over 18 bytes → 24 URL-safe characters, no ambiguity about
   // padding or shell-unsafe symbols.
   return randomBytes(18).toString('base64url');
 }
+
+export { hashPassword, verifyPassword, validatePassword, generatePassword };

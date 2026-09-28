@@ -40,7 +40,7 @@ function statusPillStyle(status: ReimbursementView['status']): React.CSSProperti
 
 type Filter = 'pending' | 'all';
 
-export function ReimbursementsScreen({
+function ReimbursementsScreen({
   claims,
   callerRole,
 }: {
@@ -355,3 +355,5 @@ export function ReimbursementsScreen({
     </div>
   );
 }
+
+export { ReimbursementsScreen };

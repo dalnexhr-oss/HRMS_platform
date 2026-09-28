@@ -8,7 +8,7 @@ import { acknowledgeDocument } from '@/lib/actions/acknowledge';
 import { useToast } from '@/components/ui/Toast';
 import type { ToastKind } from '@/components/ui/Toast';
 
-export function SignPanel({
+function SignPanel({
   kind,
   documentId,
   label = 'Sign to acknowledge',
@@ -92,3 +92,5 @@ export function SignPanel({
     </>
   );
 }
+
+export { SignPanel };

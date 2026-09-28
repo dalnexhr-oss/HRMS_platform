@@ -5,7 +5,7 @@ import { verifySession } from '@/lib/auth/jwt';
 import { sessionCookie } from '@/lib/auth/session-shared';
 import type { NextRequest } from 'next/server';
 
-export async function updateSession(request: NextRequest) {
+async function updateSession(request: NextRequest) {
   // Forward the pathname for the portal layout's tab-access check. Copy request headers because
   // they may be immutable in this runtime.
   const requestHeaders = new Headers(request.headers);
@@ -74,3 +74,5 @@ export async function updateSession(request: NextRequest) {
 
   return response;
 }
+
+export { updateSession };

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { RecipientPicker } from './RecipientPicker';
 import type { RequestRecipient } from '@/types/requests';
 
-export function RequestRecipients({
+function RequestRecipients({
   people,
   disabled,
 }: {
@@ -39,3 +39,5 @@ export function RequestRecipients({
     </>
   );
 }
+
+export { RequestRecipients };

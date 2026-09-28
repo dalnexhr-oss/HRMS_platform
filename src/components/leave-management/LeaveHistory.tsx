@@ -53,7 +53,7 @@ function stamp(iso: string | null): string {
   });
 }
 
-export function LeaveHistory({ requests }: { requests: RequestView[] }) {
+function LeaveHistory({ requests }: { requests: RequestView[] }) {
   const [tab, setTab] = useState<StatusTab>('all');
   const [query, setQuery] = useState('');
 
@@ -200,3 +200,5 @@ export function LeaveHistory({ requests }: { requests: RequestView[] }) {
     </div>
   );
 }
+
+export { LeaveHistory };

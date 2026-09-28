@@ -9,7 +9,7 @@ import { useToast } from '@/components/ui/Toast';
 import type { ToastKind } from '@/components/ui/Toast';
 import type { HolidayView } from '@/lib/queries';
 
-export function HolidaysScreen({
+function HolidaysScreen({
   holidays,
   year,
   weekOffSummary,
@@ -284,3 +284,5 @@ function AddHolidayForm({
     </form>
   );
 }
+
+export { HolidaysScreen };

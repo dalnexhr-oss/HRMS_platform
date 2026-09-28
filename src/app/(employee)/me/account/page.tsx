@@ -4,7 +4,7 @@ import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm';
 import { AvatarMenu } from '@/components/shell/AvatarMenu';
 
 // Employee account settings. Staff use /account.
-export default async function EmployeeAccountPage() {
+async function EmployeeAccountPage() {
   const { profile, email } = await getSession();
 
   return (
@@ -56,3 +56,5 @@ export default async function EmployeeAccountPage() {
     </div>
   );
 }
+
+export { EmployeeAccountPage as default };

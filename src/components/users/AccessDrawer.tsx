@@ -10,14 +10,14 @@ import { canAccessTab, staticallyAllowed } from '@/lib/access';
 import type { TabAccess } from '@/lib/access';
 import type { AppRole } from '@/types/database';
 
-export interface AccessTarget {
+interface AccessTarget {
   id: string;
   email: string;
   fullName: string | null;
   role: AppRole;
 }
 
-export function AccessDrawer({
+function AccessDrawer({
   user,
   onClose,
   onToast,
@@ -222,3 +222,5 @@ export function AccessDrawer({
     </>
   );
 }
+
+export { AccessDrawer, type AccessTarget };

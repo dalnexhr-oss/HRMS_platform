@@ -17,8 +17,6 @@ const businessTimeZone = 'Asia/Kolkata';
 // geofence_radius_m, or the geofence_radius_m setting, overrides it.
 const defaultGeoRadius = 100;
 
-export type { PunchKind, PunchCoords, PunchStatus, PunchRecord, PunchResult } from '@/types/punch';
-
 // time helpers --
 
 // Today's date and wall-clock time in the business timezone, not the server's.
@@ -51,7 +49,7 @@ function toMinutes(value: string): number {
  * This includes early IST punches. Return a Date because punched_at is stored as BSON date, not a
  * string.
  */
-export function dayFloorUtc(date: string): Date {
+function dayFloorUtc(date: string): Date {
   const floor = new Date(`${date}T00:00:00Z`);
   floor.setUTCDate(floor.getUTCDate() - 1);
   return floor;
@@ -64,7 +62,7 @@ export function dayFloorUtc(date: string): Date {
  * approximation — at a 50m radius the difference is immaterial, but this stays
  * correct if the radius is ever widened to cover a campus.
  */
-export function distanceMetres(aLat: number, aLng: number, bLat: number, bLng: number): number {
+function distanceMetres(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const earthRadiusM = 6_371_000;
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const dLat = toRad(bLat - aLat);
@@ -87,17 +85,17 @@ function numericSetting(value: unknown): number | null {
   return null;
 }
 
-export interface OfficeGeofence {
+interface OfficeGeofence {
   latitude: number;
   longitude: number;
   radiusM: number;
 }
 
 /** Thrown when a punch arrives with no location and the policy demands one. */
-export const locationRequired =
+const locationRequired =
   'Location is required to punch. Allow location access for this site, then try again.';
 
-export interface PunchPolicy {
+interface PunchPolicy {
   office: OfficeGeofence | null;
   /**
    * Require coordinates when enabled. Enforce this on the server; an off-site location remains a
@@ -171,7 +169,7 @@ async function readBranchGeofence(employeeId: string): Promise<OfficeGeofence | 
  * Resolve the branch geofence when employeeId is supplied, otherwise use the company location.
  * requireLocation is a company-wide policy in either case.
  */
-export async function readPunchPolicy(employeeId?: string | null): Promise<PunchPolicy> {
+async function readPunchPolicy(employeeId?: string | null): Promise<PunchPolicy> {
   const dbc = await createClient();
   const [settings, branchOffice] = await Promise.all([
     dbc
@@ -214,9 +212,7 @@ export async function readPunchPolicy(employeeId?: string | null): Promise<Punch
 }
 
 /** The office point that applies to one employee, or null when none is set. */
-export async function readOfficeGeofence(
-  employeeId?: string | null,
-): Promise<OfficeGeofence | null> {
+async function readOfficeGeofence(employeeId?: string | null): Promise<OfficeGeofence | null> {
   return (await readPunchPolicy(employeeId)).office;
 }
 
@@ -276,7 +272,7 @@ function validCoords(coords: PunchCoords | null): PunchCoords | null {
 
 // reads --
 
-export async function readPunchStatus(): Promise<PunchStatus> {
+async function readPunchStatus(): Promise<PunchStatus> {
   const { employeeId } = await employeeContext();
   const dbc = await createClient();
   const now = new Date();
@@ -325,7 +321,7 @@ export async function readPunchStatus(): Promise<PunchStatus> {
   };
 }
 
-export async function readPunchHistory(): Promise<PunchRecord[]> {
+async function readPunchHistory(): Promise<PunchRecord[]> {
   const { employeeId } = await employeeContext();
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -367,7 +363,7 @@ interface DayEvent {
 }
 
 /** Normalize either stored timestamp form for both punch processing and the TV board. */
-export function punchInstant(value: Date | string): Date {
+function punchInstant(value: Date | string): Date {
   return value instanceof Date ? value : new Date(value);
 }
 
@@ -398,10 +394,7 @@ function sumWorkedMinutes(events: DayEvent[]): number {
   return total;
 }
 
-export async function recordPunch(
-  kind: PunchKind,
-  coords: PunchCoords | null,
-): Promise<PunchResult> {
+async function recordPunch(kind: PunchKind, coords: PunchCoords | null): Promise<PunchResult> {
   const { employeeId } = await employeeContext();
   const now = new Date();
   const { date } = localParts(now);
@@ -515,3 +508,22 @@ async function resolveDay(
   }
   return workedMinutes;
 }
+
+export {
+  dayFloorUtc,
+  distanceMetres,
+  locationRequired,
+  readPunchPolicy,
+  readOfficeGeofence,
+  readPunchStatus,
+  readPunchHistory,
+  punchInstant,
+  recordPunch,
+  type PunchKind,
+  type PunchCoords,
+  type PunchStatus,
+  type PunchRecord,
+  type PunchResult,
+  type OfficeGeofence,
+  type PunchPolicy,
+};

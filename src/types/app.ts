@@ -2,10 +2,10 @@
 // lib/db/collections.ts; queries.ts converts timestamps to strings for the UI.
 
 // Keep attendance statuses in sync with the attendance_days validator and display metadata.
-export type AttendanceStatus = 'P' | 'LM' | 'HD' | 'L' | 'WO' | 'OH' | 'AB' | 'S' | 'T' | 'CO';
-export type Gender = 'Male' | 'Female' | 'Other';
-export type EmployeeStatus = 'active' | 'on_notice' | 'inactive';
-export type IndianState =
+type AttendanceStatus = 'P' | 'LM' | 'HD' | 'L' | 'WO' | 'OH' | 'AB' | 'S' | 'T' | 'CO';
+type Gender = 'Male' | 'Female' | 'Other';
+type EmployeeStatus = 'active' | 'on_notice' | 'inactive';
+type IndianState =
   | 'Maharashtra'
   | 'Gujarat'
   | 'Delhi'
@@ -37,21 +37,21 @@ export type IndianState =
   | 'Mizoram'
   | 'Sikkim'
   | 'Puducherry';
-export type RequestType = 'leave' | 'site_visit' | 'outdoor_duty' | 'wfh' | 'comp_off';
-export type RequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
-export type LeaveType = 'PL' | 'CL' | 'SL' | 'LWP';
-export type PayrollStatus = 'draft' | 'in_review' | 'locked' | 'paid';
-export type PayslipStatus = 'draft' | 'queued' | 'generated' | 'paid';
-export type NoticeChannel = 'app' | 'whatsapp' | 'both';
-export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
-export type AppRole = 'super_admin' | 'admin' | 'hr' | 'employee' | 'intern';
-export type ReimbursementPurpose = 'travel' | 'material_purchase' | 'other';
+type RequestType = 'leave' | 'site_visit' | 'outdoor_duty' | 'wfh' | 'comp_off';
+type RequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+type LeaveType = 'PL' | 'CL' | 'SL' | 'LWP';
+type PayrollStatus = 'draft' | 'in_review' | 'locked' | 'paid';
+type PayslipStatus = 'draft' | 'queued' | 'generated' | 'paid';
+type NoticeChannel = 'app' | 'whatsapp' | 'both';
+type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
+type AppRole = 'super_admin' | 'admin' | 'hr' | 'employee' | 'intern';
+type ReimbursementPurpose = 'travel' | 'material_purchase' | 'other';
 // 'finance_review' is the optional second (Finance)
 // approval stage that sits between HR approval and the payroll credit.
-export type ReimbursementStatus = 'pending' | 'finance_review' | 'approved' | 'rejected' | 'paid';
-export type CompOffStatus = 'available' | 'applied' | 'used' | 'expired';
+type ReimbursementStatus = 'pending' | 'finance_review' | 'approved' | 'rejected' | 'paid';
+type CompOffStatus = 'available' | 'applied' | 'used' | 'expired';
 
-export interface Branch {
+interface Branch {
   id: string;
   name: string;
   state: IndianState;
@@ -62,13 +62,13 @@ export interface Branch {
   created_at: string;
 }
 
-export interface Department {
+interface Department {
   id: string;
   name: string;
   branch_id: string | null;
 }
 
-export interface Profile {
+interface Profile {
   id: string;
   full_name: string | null;
   role: AppRole;
@@ -78,7 +78,7 @@ export interface Profile {
   created_at: string;
 }
 
-export interface Policy {
+interface Policy {
   id: string;
   title: string;
   category: string | null;
@@ -92,14 +92,14 @@ export interface Policy {
   updated_at: string;
 }
 
-export interface PolicyAcknowledgement {
+interface PolicyAcknowledgement {
   id: string;
   policy_id: string;
   employee_id: string;
   acknowledged_at: string;
 }
 
-export interface Employee {
+interface Employee {
   id: string;
   code: string;
   full_name: string;
@@ -123,7 +123,7 @@ export interface Employee {
   updated_at: string;
 }
 
-export interface AttendanceDay {
+interface AttendanceDay {
   id: string;
   employee_id: string;
   work_date: string;
@@ -138,7 +138,7 @@ export interface AttendanceDay {
   updated_at: string;
 }
 
-export interface Holiday {
+interface Holiday {
   id: string;
   holiday_date: string;
   name: string;
@@ -146,7 +146,7 @@ export interface Holiday {
   created_at: string;
 }
 
-export interface RequestRow {
+interface RequestRow {
   id: string;
   employee_id: string;
   type: RequestType;
@@ -162,7 +162,7 @@ export interface RequestRow {
   created_at: string;
 }
 
-export interface PayrollRun {
+interface PayrollRun {
   id: string;
   period_month: string;
   status: PayrollStatus;
@@ -177,7 +177,7 @@ export interface PayrollRun {
   created_at: string;
 }
 
-export interface Payslip {
+interface Payslip {
   id: string;
   payroll_run_id: string;
   employee_id: string;
@@ -203,7 +203,7 @@ export interface Payslip {
   updated_at: string;
 }
 
-export interface ActivityLog {
+interface ActivityLog {
   id: string;
   actor_id: string | null;
   employee_id: string | null;
@@ -213,7 +213,7 @@ export interface ActivityLog {
   occurred_at: string;
 }
 
-export interface Notice {
+interface Notice {
   id: string;
   title: string;
   body: string | null;
@@ -225,7 +225,7 @@ export interface Notice {
   created_at: string;
 }
 
-export interface HelpdeskTicket {
+interface HelpdeskTicket {
   id: string;
   employee_id: string | null;
   subject: string;
@@ -236,7 +236,7 @@ export interface HelpdeskTicket {
   resolved_at: string | null;
 }
 
-export interface ReimbursementClaim {
+interface ReimbursementClaim {
   id: string;
   employee_id: string;
   claim_date: string;
@@ -253,7 +253,7 @@ export interface ReimbursementClaim {
   created_at: string;
 }
 
-export interface CompOff {
+interface CompOff {
   id: string;
   employee_id: string;
   earned_date: string;
@@ -264,7 +264,7 @@ export interface CompOff {
   created_at: string;
 }
 
-export interface AppSetting {
+interface AppSetting {
   key: string;
   value: unknown;
   label: string | null;
@@ -272,3 +272,38 @@ export interface AppSetting {
   branch_id: string | null;
   updated_at: string;
 }
+
+export type {
+  AttendanceStatus,
+  Gender,
+  EmployeeStatus,
+  IndianState,
+  RequestType,
+  RequestStatus,
+  LeaveType,
+  PayrollStatus,
+  PayslipStatus,
+  NoticeChannel,
+  TicketStatus,
+  AppRole,
+  ReimbursementPurpose,
+  ReimbursementStatus,
+  CompOffStatus,
+  Branch,
+  Department,
+  Profile,
+  Policy,
+  PolicyAcknowledgement,
+  Employee,
+  AttendanceDay,
+  Holiday,
+  RequestRow,
+  PayrollRun,
+  Payslip,
+  ActivityLog,
+  Notice,
+  HelpdeskTicket,
+  ReimbursementClaim,
+  CompOff,
+  AppSetting,
+};

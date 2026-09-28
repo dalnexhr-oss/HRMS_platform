@@ -11,7 +11,7 @@ import { isConfigurableRole, staticallyAllowed } from '@/lib/access';
 import type { TabAccess } from '@/lib/access';
 import type { AppRole } from '@/types/database';
 
-export interface ActionResult {
+interface ActionResult {
   ok: boolean;
   error?: string;
 }
@@ -39,7 +39,7 @@ async function targetRole(
 }
 
 /** Read one account's switches, for the panel. */
-export async function fetchUserTabAccess(
+async function fetchUserTabAccess(
   userId: string,
 ): Promise<{ ok: true; access: TabAccess } | { ok: false; error: string }> {
   const gate = await requireRoles(accessAdminRoles, 'Viewing tab access');
@@ -63,7 +63,7 @@ export async function fetchUserTabAccess(
  * Change one tab permission for an admin or HR account. Only known tabs already allowed by the
  * target's role can be configured.
  */
-export async function setUserTabAccess(
+async function setUserTabAccess(
   userId: string,
   slug: string,
   allowed: boolean,
@@ -118,7 +118,7 @@ export async function setUserTabAccess(
 }
 
 /** Restore one account to every tab its role is statically entitled to. */
-export async function resetUserTabAccess(userId: string): Promise<ActionResult> {
+async function resetUserTabAccess(userId: string): Promise<ActionResult> {
   const gate = await requireRoles(accessAdminRoles, 'Resetting tab access');
   if (!gate.ok) {
     return gate;
@@ -136,3 +136,5 @@ export async function resetUserTabAccess(userId: string): Promise<ActionResult> 
   revalidatePath('/', 'layout');
   return { ok: true };
 }
+
+export { fetchUserTabAccess, setUserTabAccess, resetUserTabAccess, type ActionResult };

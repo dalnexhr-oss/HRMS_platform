@@ -10,7 +10,7 @@ import type { TicketComment } from '@/lib/queries';
 type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 
 // Raise a new support ticket (status defaults to 'open'). Employee-facing.
-export async function createTicket(formData: FormData) {
+async function createTicket(formData: FormData) {
   const subject = String(formData.get('subject') ?? '').trim();
   if (!subject) {
     return { ok: false, error: 'Subject is required.' };
@@ -66,7 +66,7 @@ export async function createTicket(formData: FormData) {
  * Stamps resolved_at when it closes/resolves; the reply (when given) is stored on
  * the ticket and included in the employee's notification.
  */
-export async function setTicketStatus(id: string, status: TicketStatus, note?: string) {
+async function setTicketStatus(id: string, status: TicketStatus, note?: string) {
   const gate = await requireStaff('Updating a ticket');
   if (!gate.ok) {
     return gate;
@@ -116,7 +116,7 @@ export async function setTicketStatus(id: string, status: TicketStatus, note?: s
  * Allow follow-ups from staff or the ticket owner, checking the parent ticket before insertion. An
  * owner's reply reopens resolved tickets. Snapshot author details for display.
  */
-export async function addTicketComment(ticketId: string, body: string) {
+async function addTicketComment(ticketId: string, body: string) {
   const text = (body ?? '').trim();
   if (!text) {
     return { ok: false, error: 'Write a message first.' };
@@ -242,3 +242,5 @@ export async function addTicketComment(ticketId: string, body: string) {
   revalidatePath('/me');
   return { ok: true, comment };
 }
+
+export { createTicket, setTicketStatus, addTicketComment };

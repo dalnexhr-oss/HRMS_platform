@@ -56,7 +56,7 @@ function deriveWeekOffs(employees: RegisterEmployee[], days: number[]): number[]
   });
 }
 
-export default async function RegisterPage({
+async function RegisterPage({
   searchParams,
 }: {
   // Next 15: searchParams is a Promise.
@@ -272,3 +272,5 @@ export default async function RegisterPage({
     </div>
   );
 }
+
+export { RegisterPage as default };

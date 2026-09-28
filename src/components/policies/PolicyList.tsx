@@ -7,7 +7,7 @@ import { formatDate } from '@/lib/format';
 import type { PolicyView } from '@/lib/queries';
 
 // Record company policy read receipts. Signing documents is handled separately by SignPanel.
-export function PolicyList({ policies }: { policies: PolicyView[] }) {
+function PolicyList({ policies }: { policies: PolicyView[] }) {
   if (!policies.length) {
     return (
       <div className="empty">
@@ -72,3 +72,5 @@ function PolicyRow({ policy }: { policy: PolicyView }) {
     </div>
   );
 }
+
+export { PolicyList };

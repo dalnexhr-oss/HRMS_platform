@@ -1,7 +1,7 @@
 import type { RequestRouteDoc } from '@/lib/db/collections';
 import type { RequestRouting } from '@/types/requests';
 
-export function routingView(route: RequestRouteDoc | null | undefined): RequestRouting | null {
+function routingView(route: RequestRouteDoc | null | undefined): RequestRouting | null {
   if (!route) {
     return null;
   }
@@ -20,3 +20,5 @@ export function routingView(route: RequestRouteDoc | null | undefined): RequestR
     })),
   };
 }
+
+export { routingView };

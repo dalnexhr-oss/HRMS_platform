@@ -15,7 +15,7 @@ interface State {
   error?: string;
 }
 
-export function AssignItemDrawer({
+function AssignItemDrawer({
   item,
   employees,
   onClose,
@@ -275,3 +275,5 @@ export function AssignItemDrawer({
     </>
   );
 }
+
+export { AssignItemDrawer };

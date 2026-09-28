@@ -1,5 +1,5 @@
 /** Parse decimal rupees as integer paise, rounding half away from zero. */
-export function parseMoneyPaise(value: string): number {
+function parseMoneyPaise(value: string): number {
   const text = value.trim();
   if (text === '') {
     return 0;
@@ -17,9 +17,11 @@ export function parseMoneyPaise(value: string): number {
   return sign === '-' ? -amount : amount;
 }
 
-export function formatPaise(paise: number): string {
+function formatPaise(paise: number): string {
   return (paise / 100).toLocaleString('en-IN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
 }
+
+export { parseMoneyPaise, formatPaise };

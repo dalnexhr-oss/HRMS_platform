@@ -8,9 +8,9 @@ import type { Celebration, MarkWatch, PunchLogRow, TodayKpis } from '@/types/dom
 
 // Load sections independently and preserve each query's error. The ok discriminant lets TypeScript
 // narrow successful data.
-export type Loaded<T> = { ok: true; data: T } | { ok: false; error: string };
+type Loaded<T> = { ok: true; data: T } | { ok: false; error: string };
 
-export interface TodayBoardProps {
+interface TodayBoardProps {
   board: Loaded<TodayKpis>;
   punchLog: Loaded<PunchLogRow[]>;
   celebrations: Loaded<Celebration[]>;
@@ -100,7 +100,7 @@ function LoadError({ what, message }: { what: string; message: string }) {
   );
 }
 
-export function TodayBoard({
+function TodayBoard({
   board,
   punchLog,
   celebrations,
@@ -371,3 +371,5 @@ export function TodayBoard({
     </div>
   );
 }
+
+export { TodayBoard, type Loaded, type TodayBoardProps };

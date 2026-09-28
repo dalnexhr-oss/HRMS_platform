@@ -3,13 +3,6 @@
 
 import type { PunchStatus as PunchStatusResponse, PunchRecord, PunchResult, PunchCoords } from '@/types/punch';
 
-export type {
-  PunchStatus as PunchStatusResponse,
-  PunchRecord,
-  PunchResult,
-  PunchCoords,
-} from '@/types/punch';
-
 async function unwrap<T>(response: Response, fallback: string): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => null);
@@ -18,13 +11,13 @@ async function unwrap<T>(response: Response, fallback: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function getPunchStatus(): Promise<PunchStatusResponse> {
+function getPunchStatus(): Promise<PunchStatusResponse> {
   return fetch('/api/punch/status', { cache: 'no-store' }).then((response) =>
     unwrap<PunchStatusResponse>(response, 'Failed to fetch punch status.'),
   );
 }
 
-export function getPunchHistory(): Promise<{ punches: PunchRecord[] }> {
+function getPunchHistory(): Promise<{ punches: PunchRecord[] }> {
   return fetch('/api/punch/history', { cache: 'no-store' }).then((response) =>
     unwrap<{ punches: PunchRecord[] }>(response, 'Failed to fetch punch history.'),
   );
@@ -38,16 +31,16 @@ function punch(kind: 'in' | 'out', coords: PunchCoords | null): Promise<PunchRes
   }).then((response) => unwrap<PunchResult>(response, `Failed to punch ${kind}.`));
 }
 
-export function punchIn(coords: PunchCoords | null): Promise<PunchResult> {
+function punchIn(coords: PunchCoords | null): Promise<PunchResult> {
   return punch('in', coords);
 }
 
-export function punchOut(coords: PunchCoords | null): Promise<PunchResult> {
+function punchOut(coords: PunchCoords | null): Promise<PunchResult> {
   return punch('out', coords);
 }
 
 /** Why a location attempt produced nothing — each needs different wording. */
-export type LocationFailure =
+type LocationFailure =
   /** The user (or a policy) refused the permission. Only they can undo it. */
   | 'denied'
   /** Permission is fine, the device just could not get a fix. Retryable. */
@@ -57,14 +50,13 @@ export type LocationFailure =
   /** No geolocation API, or a non-HTTPS origin, so it was never offered. */
   | 'unsupported';
 
-export type LocationResult =
-  { ok: true; coords: PunchCoords } | { ok: false; reason: LocationFailure };
+type LocationResult = { ok: true; coords: PunchCoords } | { ok: false; reason: LocationFailure };
 
 /**
  * Read geolocation permission without prompting. If the browser does not support this query, return
  * prompt and let the location request determine the result.
  */
-export async function locationPermission(): Promise<PermissionState | 'unsupported'> {
+async function locationPermission(): Promise<PermissionState | 'unsupported'> {
   if (typeof navigator === 'undefined' || !navigator.geolocation) {
     return 'unsupported';
   }
@@ -80,7 +72,7 @@ export async function locationPermission(): Promise<PermissionState | 'unsupport
 }
 
 /** Request location from a user gesture and preserve the failure reason for the UI. */
-export function requestCoords(timeoutMs = 10_000): Promise<LocationResult> {
+function requestCoords(timeoutMs = 10_000): Promise<LocationResult> {
   if (typeof navigator === 'undefined' || !navigator.geolocation) {
     return Promise.resolve({ ok: false, reason: 'unsupported' });
   }
@@ -109,3 +101,18 @@ export function requestCoords(timeoutMs = 10_000): Promise<LocationResult> {
     );
   });
 }
+
+export {
+  getPunchStatus,
+  getPunchHistory,
+  punchIn,
+  punchOut,
+  locationPermission,
+  requestCoords,
+  type PunchStatusResponse,
+  type PunchRecord,
+  type PunchResult,
+  type PunchCoords,
+  type LocationFailure,
+  type LocationResult,
+};

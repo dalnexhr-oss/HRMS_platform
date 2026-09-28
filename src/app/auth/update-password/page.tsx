@@ -2,10 +2,10 @@ import { UpdatePasswordForm } from '@/components/auth/UpdatePasswordForm';
 import { Brand } from '@/components/ui/Brand';
 import type { Metadata } from 'next';
 
-export const metadata: Metadata = { title: 'Set a new password — Dalnex HRMS' };
+const metadata: Metadata = { title: 'Set a new password — Dalnex HRMS' };
 
 // Pass the reset token from the query string to the form as a hidden field.
-export default async function UpdatePasswordPage({
+async function UpdatePasswordPage({
   searchParams,
 }: {
   searchParams: Promise<{ token?: string | string[] }>;
@@ -26,3 +26,6 @@ export default async function UpdatePasswordPage({
     </div>
   );
 }
+
+export { metadata};
+export { UpdatePasswordPage as default };

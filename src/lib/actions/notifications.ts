@@ -6,13 +6,13 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server';
 import { requireDb } from '@/lib/actions/guards';
 
-export interface ActionResult {
+interface ActionResult {
   ok: boolean;
   error?: string;
 }
 
 // Mark one notification read. The write policy ensures it can only be your own.
-export async function markNotificationRead(id: string): Promise<ActionResult> {
+async function markNotificationRead(id: string): Promise<ActionResult> {
   const db = requireDb('Marking a notification read');
   if (!db.ok) {
     return db;
@@ -36,7 +36,7 @@ export async function markNotificationRead(id: string): Promise<ActionResult> {
 }
 
 // Mark every unread notification read.
-export async function markAllNotificationsRead(): Promise<ActionResult> {
+async function markAllNotificationsRead(): Promise<ActionResult> {
   const db = requireDb('Marking notifications read');
   if (!db.ok) {
     return db;
@@ -54,3 +54,5 @@ export async function markAllNotificationsRead(): Promise<ActionResult> {
   revalidatePath('/', 'layout');
   return { ok: true };
 }
+
+export { markNotificationRead, markAllNotificationsRead, type ActionResult };

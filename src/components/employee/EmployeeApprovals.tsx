@@ -25,7 +25,7 @@ const emptyMessages: Record<EmployeeApprovalView, string> = {
   all: 'Requests sent to you for approval or copied to you will appear here.',
 };
 
-export function EmployeeApprovals({
+function EmployeeApprovals({
   requests,
   actor,
   people,
@@ -177,3 +177,5 @@ export function EmployeeApprovals({
     </div>
   );
 }
+
+export { EmployeeApprovals };

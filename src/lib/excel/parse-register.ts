@@ -11,7 +11,7 @@
 // zero or blank means no punch.
 import ExcelJS from 'exceljs';
 
-export interface ParsedDay {
+interface ParsedDay {
   day: number;
   status: string;
   inMin: number | null;
@@ -19,7 +19,7 @@ export interface ParsedDay {
   workedMin: number;
 }
 
-export interface ParsedEmployee {
+interface ParsedEmployee {
   emplId: number;
   // Derived key: 'DN' + zero-padded id. Resolved to employees.id by the importer.
   code: string;
@@ -31,7 +31,7 @@ export interface ParsedEmployee {
   rowNumber: number;
 }
 
-export interface ParsedRegister {
+interface ParsedRegister {
   year: number;
   // 'YYYY-MM-01'
   periodMonth: string;
@@ -42,8 +42,8 @@ export interface ParsedRegister {
 
 // Status codes the attendance_days validator accepts. A code outside this set is surfaced as an
 // error rather than quietly dropped.
-export const knownStatuses = ['P', 'LM', 'HD', 'L', 'WO', 'OH', 'AB', 'S', 'T', 'CO'] as const;
-export type KnownStatus = (typeof knownStatuses)[number];
+const knownStatuses = ['P', 'LM', 'HD', 'L', 'WO', 'OH', 'AB', 'S', 'T', 'CO'] as const;
+type KnownStatus = (typeof knownStatuses)[number];
 
 const knownSet = new Set<string>(knownStatuses);
 
@@ -162,7 +162,7 @@ function asNumber(v: CellLike): number | null {
 
 // Convert Excel dates or day fractions to whole elapsed minutes. Durations can exceed 24 hours, so
 // do not reduce them to time of day.
-export function excelValueToMinutes(v: CellLike, date1904 = false): number | null {
+function excelValueToMinutes(v: CellLike, date1904 = false): number | null {
   const u = unwrap(v);
   if (u === null || u === undefined || u === '') {
     return null;
@@ -204,7 +204,7 @@ function toPunchMinutes(v: CellLike, date1904: boolean): number | null {
 }
 
 // Formats minutes since midnight as 'HH:MM' clock string.
-export function minutesToClock(mins: number | null): string | null {
+function minutesToClock(mins: number | null): string | null {
   if (mins === null) {
     return null;
   }
@@ -213,7 +213,7 @@ export function minutesToClock(mins: number | null): string | null {
 }
 
 /** Trim + uppercase + collapse whitespace, then fold known aliases. */
-export function normalizeStatus(raw: string): string {
+function normalizeStatus(raw: string): string {
   const s = raw.trim().toUpperCase().replace(/\s+/g, ' ');
   if (!s) {
     return '';
@@ -227,12 +227,12 @@ export function normalizeStatus(raw: string): string {
   return s; // unknown — reported as a warning, never thrown
 }
 
-export function isKnownStatus(s: string): s is KnownStatus {
+function isKnownStatus(s: string): s is KnownStatus {
   return knownSet.has(s);
 }
 
 /** employees.code convention: 1 -> 'DN001'. */
-export function codeForEmplId(id: number): string {
+function codeForEmplId(id: number): string {
   return `DN${String(id).padStart(3, '0')}`;
 }
 
@@ -356,7 +356,7 @@ function findLabelledRow(
 
 // parser
 
-export async function parseRegisterWorkbook(buf: ArrayBuffer | Buffer): Promise<ParsedRegister> {
+async function parseRegisterWorkbook(buf: ArrayBuffer | Buffer): Promise<ParsedRegister> {
   const workbook = new ExcelJS.Workbook();
   const nodeBuf: Buffer = Buffer.isBuffer(buf) ? buf : Buffer.from(new Uint8Array(buf));
 
@@ -557,3 +557,17 @@ export async function parseRegisterWorkbook(buf: ArrayBuffer | Buffer): Promise<
 
   return { year, periodMonth, daysInMonth: calendarDays, employees, warnings };
 }
+
+export {
+  knownStatuses,
+  excelValueToMinutes,
+  minutesToClock,
+  normalizeStatus,
+  isKnownStatus,
+  codeForEmplId,
+  parseRegisterWorkbook,
+  type ParsedDay,
+  type ParsedEmployee,
+  type ParsedRegister,
+  type KnownStatus,
+};

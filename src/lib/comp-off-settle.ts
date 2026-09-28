@@ -8,7 +8,7 @@ import { requireOpenPayrollMonth } from '@/lib/actions/guards';
 // here. If the second write fails, the credit stays applied and cannot be spent again; reversing
 // the writes could consume a credit without recording the day off. Return follow-up failures as
 // warnings after the decision has saved.
-export async function settleApprovedCompOff(
+async function settleApprovedCompOff(
   requestId: string,
   client?: Awaited<ReturnType<typeof createClient>>,
 ): Promise<string | null> {
@@ -90,7 +90,7 @@ export async function settleApprovedCompOff(
  * Scoped to status='applied' so an already-USED credit can never be resurrected
  * into a fresh day off by replaying a rejection against an old request id.
  */
-export async function releaseCompOff(
+async function releaseCompOff(
   requestId: string,
   client?: Awaited<ReturnType<typeof createClient>>,
 ): Promise<void> {
@@ -105,3 +105,5 @@ export async function releaseCompOff(
     // Best-effort: a stranded 'applied' credit is recoverable by staff.
   }
 }
+
+export { settleApprovedCompOff, releaseCompOff };

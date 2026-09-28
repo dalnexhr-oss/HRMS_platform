@@ -137,7 +137,7 @@ const roleLabel: Record<string, string> = {
   intern: 'Intern',
 };
 
-export function Sidebar({
+function Sidebar({
   name,
   role,
   access = {},
@@ -256,3 +256,5 @@ export function Sidebar({
     </>
   );
 }
+
+export { Sidebar };

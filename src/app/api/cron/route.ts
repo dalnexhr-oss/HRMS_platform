@@ -60,6 +60,7 @@ async function handle(req: Request) {
   return NextResponse.json({ results: await runDailyJobs() });
 }
 
-export const GET = handle;
-// POST too: some schedulers only issue POSTs.
-export const POST = handle;
+const GET = handle;
+const POST = handle;
+
+export { GET, POST };
