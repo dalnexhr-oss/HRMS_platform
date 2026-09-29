@@ -623,7 +623,7 @@ async function getOnboardingBoard(): Promise<OnboardingTaskRow[]> {
   return (data ?? []).map(mapOnboardingTask);
 }
 
-/** One employee's own checklist — the read-only card on /me. */
+/** One employee's own checklist — the read-only card on /employee. */
 async function getMyOnboardingTasks(employeeId: string): Promise<OnboardingTaskRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -805,7 +805,7 @@ async function getClearanceItems(exitCaseId: string): Promise<ClearanceItemRow[]
 }
 
 // leave salary
-// The /leave page model: one paid-leave pool of 15 days plus
+// The /leave-salary page model: one paid-leave pool of 15 days plus
 // an annual leave-salary working per employee. The old encashment/adjustment
 // list queries died with the PL/CL/SL screen; the tables themselves remain.
 
@@ -818,7 +818,7 @@ interface LeaveBalanceAdminRow {
   balance: number;
 }
 
-/** Every employee's PAID-LEAVE pool for a year — the pool card on /leave. */
+/** Every employee's PAID-LEAVE pool for a year — the pool card on /leave-salary. */
 async function getLeaveBalancesForYear(year: number): Promise<LeaveBalanceAdminRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc

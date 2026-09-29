@@ -76,8 +76,8 @@ async function settleApprovedCompOff(
       return `Approved, but the comp-off credit was not closed: ${useErr.message}`;
     }
 
-    revalidatePath('/register');
-    revalidatePath('/me');
+    revalidatePath('/monthly-register');
+    revalidatePath('/employee');
     return null;
   } catch (e) {
     return e instanceof Error ? e.message : 'The comp off could not be settled.';

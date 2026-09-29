@@ -3534,7 +3534,7 @@ th {
   margin-left: auto;
 }
 
-/* TV attendance board (/tv) */
+/* TV dashboard (/tv-dashboard) */
 /* Everything here is sized in clamp() against the viewport: the same markup has to be legible on a laptop preview and across a room on a 4K wall panel. */
 .tv-shell {
   display: flex;

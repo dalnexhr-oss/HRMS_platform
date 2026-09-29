@@ -5,6 +5,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { markNotificationRead, markAllNotificationsRead } from '@/lib/actions/notifications';
+import { safeRedirectPath } from '@/lib/auth/redirect';
 import type { Route } from 'next';
 import type { NotificationRow } from '@/lib/queries';
 
@@ -26,14 +27,15 @@ const kindIcon: Record<string, string> = {
 // Split a stored link into path + hash, rejecting anything that isn't a relative in-app path so a
 // stored value can never become an external redirect.
 function splitLink(link: string | null): { path: string; hash: string | null } | null {
-  if (!link || !link.startsWith('/') || link.startsWith('//')) {
+  const safePath = safeRedirectPath(link);
+  if (!safePath) {
     return null;
   }
-  const i = link.indexOf('#');
+  const i = safePath.indexOf('#');
   if (i === -1) {
-    return { path: link, hash: null };
+    return { path: safePath, hash: null };
   }
-  return { path: link.slice(0, i) || '/', hash: link.slice(i + 1) || null };
+  return { path: safePath.slice(0, i) || '/', hash: safePath.slice(i + 1) || null };
 }
 
 // Scroll to and highlight the target section when present. Conditional dashboard cards may be

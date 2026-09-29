@@ -11,7 +11,7 @@ async function DocumentsPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
   if (!role || !documentRoles.includes(role)) {
-    redirect('/today');
+    redirect('/dashboard');
   }
 
   const [register, employees] = await Promise.all([getDocumentRegister(), getEmployeeOptions()]);

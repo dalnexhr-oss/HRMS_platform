@@ -293,7 +293,7 @@ function usePunchClock(
       // Wake the other control before the route refresh, so the two buttons
       // never point opposite ways even for a frame.
       announcePunch(source);
-      // The month strip and today's totals elsewhere on /me are server-rendered.
+      // The month strip and today's totals elsewhere on /employee are server-rendered.
       router.refresh();
     } catch (reason) {
       if (!alive.current) {

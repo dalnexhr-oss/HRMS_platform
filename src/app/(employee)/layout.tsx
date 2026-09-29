@@ -21,7 +21,7 @@ async function EmployeeLayout({ children }: { children: React.ReactNode }) {
     redirect('/login?error=Your+account+is+not+provisioned+yet.+Ask+HR+to+set+up+your+access.');
   }
   if (isStaffRole(profile.role)) {
-    redirect('/today');
+    redirect('/dashboard');
   }
 
   const name = profile.full_name ?? 'Employee';
@@ -30,7 +30,7 @@ async function EmployeeLayout({ children }: { children: React.ReactNode }) {
     <div className="main">
       <div className="topbar">
         <div>
-          <Brand href="/me" priority />
+          <Brand href="/employee" priority />
           <div className="sub">Employee Dashboard</div>
         </div>
         <div className="grow" />
@@ -42,7 +42,7 @@ async function EmployeeLayout({ children }: { children: React.ReactNode }) {
             avatar={profile?.avatar ?? null}
             role={profile?.role ?? null}
             email={email}
-            accountHref="/me/account"
+            accountHref="/employee/account"
           />
         </span>
         <PunchToggle />

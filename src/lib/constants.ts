@@ -2,36 +2,36 @@ import type { AttendanceStatus } from '@/types/database';
 
 // Status metadata: short label, CSS class, and display label. Site and travel share the
 // outdoor-duty style.
-const attendanceStatusMeta: Record<string, [string, string, string]> = {
-  P: ['P', 'st-P', 'Present'],
-  LM: ['LM', 'st-LM', 'Late mark'],
-  HD: ['HD', 'st-HD', 'Half day'],
-  L: ['L', 'st-L', 'Leave'],
-  WO: ['WO', 'st-WO', 'Week off'],
-  OH: ['OH', 'st-OH', 'Holiday'],
-  AB: ['A', 'st-AB', 'Absent'],
-  S: ['S', 'st-OD', 'Site'],
-  T: ['T', 'st-OD', 'Travel'],
+const attendanceStatusMeta: Record<string, [ string, string, string ]> = {
+  P: [ 'P', 'st-P', 'Present' ],
+  LM: [ 'LM', 'st-LM', 'Late mark' ],
+  HD: [ 'HD', 'st-HD', 'Half day' ],
+  L: [ 'L', 'st-L', 'Leave' ],
+  WO: [ 'WO', 'st-WO', 'Week off' ],
+  OH: [ 'OH', 'st-OH', 'Holiday' ],
+  AB: [ 'A', 'st-AB', 'Absent' ],
+  S: [ 'S', 'st-OD', 'Site' ],
+  T: [ 'T', 'st-OD', 'Travel' ],
   // A taken comp off is paid time off, so it shares the holiday stamp style.
-  CO: ['CO', 'st-OH', 'Comp off'],
+  CO: [ 'CO', 'st-OH', 'Comp off' ],
 };
 
 function statusMeta(s: AttendanceStatus | string) {
-  return attendanceStatusMeta[s] ?? attendanceStatusMeta.P;
+  return attendanceStatusMeta[ s ] ?? attendanceStatusMeta.P;
 }
 
-const registerLegend: Array<[AttendanceStatus, string]> = [
-  ['P', 'Present'],
-  ['LM', 'Late mark'],
-  ['HD', 'Half day'],
-  ['L', 'Leave'],
-  ['WO', 'Week off'],
-  ['OH', 'Holiday'],
-  ['CO', 'Comp off'],
-  ['S', 'Site / travel'],
+const registerLegend: Array<[ AttendanceStatus, string ]> = [
+  [ 'P', 'Present' ],
+  [ 'LM', 'Late mark' ],
+  [ 'HD', 'Half day' ],
+  [ 'L', 'Leave' ],
+  [ 'WO', 'Week off' ],
+  [ 'OH', 'Holiday' ],
+  [ 'CO', 'Comp off' ],
+  [ 'S', 'Site / travel' ],
 ];
 
-const dow = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+const dow = [ 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su' ];
 
 // Assign branch colors by alphabetical index, shared by the dashboard and employee list. The
 // 20-slot order alternates hues for adjacent segments. Keep text labels and segment gaps as
@@ -63,7 +63,7 @@ const branchPalette = [
 
 // Colour for the i-th branch (alphabetical index). Wraps past 20 branches.
 function branchColorAt(i: number): string {
-  return branchPalette[i % branchPalette.length];
+  return branchPalette[ i % branchPalette.length ];
 }
 
 // Keep upload categories client-safe. A use-server module cannot export plain constants.
@@ -85,12 +85,12 @@ const documentCategories = [
   'other',
 ] as const;
 
-type DocumentCategory = (typeof documentCategories)[number];
+type DocumentCategory = (typeof documentCategories)[ number ];
 
 // System-issued documents are verified when generated and cannot be replaced through upload forms.
 // Reissue them from /exits. The experience category is shared with uploads, so use the
 // bucket/source to distinguish an issued letter from an uploaded certificate.
-const generatedDocumentCategories = ['relieving', 'experience', 'settlement'] as const;
+const generatedDocumentCategories = [ 'relieving', 'experience', 'settlement' ] as const;
 
 // Display names for every category, uploaded or issued.
 const documentCategoryLabels: Record<string, string> = {
@@ -121,7 +121,7 @@ function documentCategoryLabel(category: string | null, issued = false): string 
   if (issued && category === 'experience') {
     return 'Experience letter';
   }
-  return documentCategoryLabels[category] ?? category;
+  return documentCategoryLabels[ category ] ?? category;
 }
 
 // Required joining documents drive missing-document counts. Additional categories can be uploaded
@@ -165,8 +165,6 @@ const States = [
   'Uttar Pradesh',
   'Uttarakhand',
   'West Bengal',
-  // Union territories (8) — the '// States (28)' count above covers only the
-  // entries before this line.
   'Andaman and Nicobar Islands',
   'Chandigarh',
   'Dadra and Nagar Haveli and Daman and Diu',
@@ -189,7 +187,7 @@ const groups = {
   ADMIN: 'Admin',
 } as const;
 
-type NavGroup = (typeof groups)[keyof typeof groups];
+type NavGroup = (typeof groups)[ keyof typeof groups ];
 
 // Render groups in this order and skip groups with no visible tabs.
 const groupOrder: NavGroup[] = [
@@ -210,11 +208,11 @@ interface NavItem {
 // Sidebar rows in group order. Keep Users and Import here so titles and access rules use the same
 // slugs. Personal account settings belong in the profile menu.
 const navItems: NavItem[] = [
-  { slug: 'today', label: 'Main dashboard', group: groups.ATTENDANCE },
-  { slug: 'register', label: 'Monthly register', group: groups.ATTENDANCE },
-  { slug: 'audit', label: 'Attendance audit', group: groups.ATTENDANCE },
+  { slug: 'dashboard', label: 'Main dashboard', group: groups.ATTENDANCE },
+  { slug: 'monthly-register', label: 'Monthly register', group: groups.ATTENDANCE },
+  { slug: 'attendance-audit', label: 'Attendance audit', group: groups.ATTENDANCE },
   { slug: 'approvals', label: 'Approvals', group: groups.ATTENDANCE },
-  { slug: 'tv', label: 'TV board', group: groups.ATTENDANCE },
+  { slug: 'tv-dashboard', label: 'TV dashboard', group: groups.ATTENDANCE },
 
   { slug: 'employees', label: 'Employees', group: groups.WORKFORCE },
   { slug: 'onboarding', label: 'Onboarding', group: groups.WORKFORCE },
@@ -222,64 +220,65 @@ const navItems: NavItem[] = [
   { slug: 'exits', label: 'Exits', group: groups.WORKFORCE },
 
   { slug: 'leave-management', label: 'Leave Management', group: groups.HR },
-  { slug: 'leave', label: 'Leave salary', group: groups.HR },
+  { slug: 'leave-salary', label: 'Leave salary', group: groups.HR },
   { slug: 'payroll', label: 'Payroll', group: groups.HR },
   { slug: 'reimbursements', label: 'Reimbursements', group: groups.HR },
 
-  { slug: 'assets', label: 'Asset management', group: groups.RESOURCES },
-  { slug: 'items', label: 'Inventory management', group: groups.RESOURCES },
+  { slug: 'asset-management', label: 'Asset management', group: groups.RESOURCES },
+  { slug: 'inventory-management', label: 'Inventory management', group: groups.RESOURCES },
 
-  { slug: 'policies', label: 'Company policies', group: groups.COMPANY },
+  { slug: 'company-policies', label: 'Company policies', group: groups.COMPANY },
   { slug: 'holidays', label: 'Holidays', group: groups.COMPANY },
   { slug: 'notices', label: 'Notices', group: groups.COMPANY },
   { slug: 'helpdesk', label: 'Helpdesk', group: groups.COMPANY },
 
   { slug: 'users', label: 'Users', group: groups.ADMIN },
-  { slug: 'import', label: 'Import', group: groups.ADMIN },
+  { slug: 'data-import', label: 'Data import', group: groups.ADMIN },
   { slug: 'settings', label: 'Settings', group: groups.ADMIN },
 ];
 
 // Hide tabs unavailable to the role. Pages and actions enforce their own authorization checks.
 const tabRoleAccess: Record<string, readonly string[]> = {
-  audit: ['super_admin', 'admin', 'hr'],
-  onboarding: ['super_admin', 'admin', 'hr'],
-  documents: ['super_admin', 'admin', 'hr'],
-  exits: ['super_admin', 'admin', 'hr'],
-  'leave-management': ['super_admin', 'admin', 'hr'],
-  leave: ['super_admin', 'admin', 'hr'],
-  assets: ['super_admin', 'admin', 'hr'],
-  items: ['super_admin', 'admin', 'hr'],
-  users: ['super_admin', 'admin', 'hr'],
-  tv: ['super_admin', 'admin', 'hr'],
-  import: ['super_admin', 'admin', 'hr'],
-  settings: ['super_admin', 'admin', 'hr'],
+  'attendance-audit': [ 'super_admin', 'admin', 'hr' ],
+  onboarding: [ 'super_admin', 'admin', 'hr' ],
+  documents: [ 'super_admin', 'admin', 'hr' ],
+  exits: [ 'super_admin', 'admin', 'hr' ],
+  'leave-management': [ 'super_admin', 'admin', 'hr' ],
+  'leave-salary': [ 'super_admin', 'admin', 'hr' ],
+  'asset-management': [ 'super_admin', 'admin', 'hr' ],
+  'inventory-management': [ 'super_admin', 'admin', 'hr' ],
+  users: [ 'super_admin', 'admin', 'hr' ],
+  'tv-dashboard': [ 'super_admin', 'admin', 'hr' ],
+  'data-import': [ 'super_admin', 'admin', 'hr' ],
+  settings: [ 'super_admin', 'admin', 'hr' ],
 };
 
 // Static titles and fallback subtitles by slug. pageHeader supplies dates and counts from live
 // data.
-const tabTitles: Record<string, [string, string]> = {
-  today: ['Main dashboard', 'Live attendance  IST'],
-  register: ['Monthly register', 'Attendance by month'],
-  audit: ['Attendance audit', 'Who edited attendance & why'],
-  'leave-management': ['Leave Management', 'Manage employee leave requests'],
-  leave: ['Leave salary', 'Leave salary & payroll'],
-  exits: ['Exits', 'Clearance, settlement & documents'],
-  onboarding: ['Onboarding', 'Joiner checklist & documents'],
-  documents: ['Documents', 'Employee document register'],
-  payroll: ['Payroll', 'Salary runs & payslips'],
-  reimbursements: ['Reimbursements', 'Employee claims & approvals'],
-  employees: ['Employees', 'Staff directory'],
-  assets: ['Asset management', 'IT assets'],
-  items: ['Inventory management', 'Stock, tools & assignments'],
-  policies: ['Company policies', 'Published to employee dashboards'],
-  approvals: ['Approvals', 'Leave & duty requests'],
-  holidays: ['Holidays', 'Holiday calendar'],
-  notices: ['Notices', 'Policy bulletin'],
-  helpdesk: ['Helpdesk', 'Employee tickets'],
-  settings: ['Settings', 'Rules & thresholds'],
-  users: ['Users', 'Login accounts & roles'],
-  import: ['Import', 'Bulk upload employees & attendance'],
-  account: ['My account', 'Your profile & password'],
+const tabTitles: Record<string, [ string, string ]> = {
+  dashboard: [ 'Main dashboard', 'Live attendance ' ],
+  'monthly-register': [ 'Monthly register', 'Attendance by month' ],
+  'attendance-audit': [ 'Attendance audit', 'Who edited attendance & why' ],
+  'tv-dashboard': [ 'TV dashboard', 'Live employee attendance' ],
+  'leave-management': [ 'Leave Management', 'Manage employee leave requests' ],
+  'leave-salary': [ 'Leave salary', 'Leave salary & payroll' ],
+  exits: [ 'Exits', 'Clearance, settlement & documents' ],
+  onboarding: [ 'Onboarding', 'Joiner checklist & documents' ],
+  documents: [ 'Documents', 'Employee document register' ],
+  payroll: [ 'Payroll', 'Salary runs & payslips' ],
+  reimbursements: [ 'Reimbursements', 'Employee claims & approvals' ],
+  employees: [ 'Employees', 'Staff directory' ],
+  'asset-management': [ 'Asset management', 'IT assets' ],
+  'inventory-management': [ 'Inventory management', 'Stock, tools & assignments' ],
+  'company-policies': [ 'Company policies', 'Published to employee dashboards' ],
+  approvals: [ 'Approvals', 'Leave & duty requests' ],
+  holidays: [ 'Holidays', 'Holiday calendar' ],
+  notices: [ 'Notices', 'Policy bulletin' ],
+  helpdesk: [ 'Helpdesk', 'Employee tickets' ],
+  settings: [ 'Settings', 'Rules & thresholds' ],
+  users: [ 'Users', 'Login accounts & roles' ],
+  'data-import': [ 'Data import', 'Bulk upload employees & attendance' ],
+  account: [ 'My account', 'Your profile & password' ],
 };
 
 // Server-formatted dates keep topbar hydration consistent. Keep this client-safe contract outside
@@ -313,38 +312,38 @@ const runStatusLabel: Record<string, string> = {
 // Title + subtitle for a page. Falls back to the static tabTitles row whenever the figure behind a
 // subtitle is unavailable, so a failed count degrades to a plain description rather than to a wrong
 // number.
-function pageHeader(slug: string, stats?: TopbarStats | null): [string, string] {
-  const [title, fallback] = tabTitles[slug] ?? ['', ''];
+function pageHeader(slug: string, stats?: TopbarStats | null): [ string, string ] {
+  const [ title, fallback ] = tabTitles[ slug ] ?? [ '', '' ];
   if (!stats) {
-    return [title, fallback];
+    return [ title, fallback ];
   }
 
   switch (slug) {
-    case 'today':
-      return [title, `${stats.todayLabel} · IST`];
+    case 'dashboard':
+      return [ title, `${stats.todayLabel} · IST` ];
 
-    case 'register': {
+    case 'monthly-register': {
       // A register reads as "closed" once its payroll can no longer be recomputed.
       const closed = stats.runStatus === 'locked' || stats.runStatus === 'paid';
-      return [title, `${stats.periodLabel} · ${closed ? 'closed' : 'open'}`];
+      return [ title, `${stats.periodLabel} · ${closed ? 'closed' : 'open'}` ];
     }
 
     case 'payroll': {
-      const status = stats.runStatus ? (runStatusLabel[stats.runStatus] ?? stats.runStatus) : null;
-      return [title, `${stats.periodLabel} · ${status ?? 'no run yet'}`];
+      const status = stats.runStatus ? (runStatusLabel[ stats.runStatus ] ?? stats.runStatus) : null;
+      return [ title, `${stats.periodLabel} · ${status ?? 'no run yet'}` ];
     }
 
     case 'employees': {
       if (stats.activeEmployees == null) {
-        return [title, fallback];
+        return [ title, fallback ];
       }
       const where = stats.branches.length ? ` · ${stats.branches.join(' & ')}` : '';
-      return [title, `${stats.activeEmployees} active${where}`];
+      return [ title, `${stats.activeEmployees} active${where}` ];
     }
 
     case 'approvals': {
       if (stats.pendingApprovals == null) {
-        return [title, fallback];
+        return [ title, fallback ];
       }
       return [
         title,
@@ -353,10 +352,10 @@ function pageHeader(slug: string, stats?: TopbarStats | null): [string, string] 
     }
 
     case 'holidays':
-      return [title, `${stats.year} calendar`];
+      return [ title, `${stats.year} calendar` ];
 
     default:
-      return [title, fallback];
+      return [ title, fallback ];
   }
 }
 /**

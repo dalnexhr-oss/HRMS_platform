@@ -84,9 +84,9 @@ async function runNightSweep(dateISO?: string): Promise<SweepResult> {
       });
     }
 
-    revalidatePath('/today');
-    revalidatePath('/register');
-    revalidatePath('/me');
+    revalidatePath('/dashboard');
+    revalidatePath('/monthly-register');
+    revalidatePath('/employee');
     return { ok: true, closed, at: minutesToClock(autoOutMin), date };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'The night sweep failed.' };

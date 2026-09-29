@@ -25,7 +25,7 @@ function ProfileMenu({
   avatar?: string | null;
   role?: string | null;
   email?: string | null;
-  // Where "My account" navigates — /account for staff, /me for employees.
+  // Where "My account" navigates — /account for staff, /employee/account for employees.
   accountHref: Route;
 }) {
   const [open, setOpen] = useState(false);

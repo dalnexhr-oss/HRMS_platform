@@ -176,7 +176,7 @@ async function createReimbursement(formData: FormData): Promise<ActionResult> {
     profile?.id,
   );
 
-  revalidatePath('/me');
+  revalidatePath('/employee');
   revalidatePath('/reimbursements');
   return { ok: true };
 }
@@ -367,7 +367,7 @@ async function reviewReimbursement(
   });
 
   revalidatePath('/reimbursements');
-  revalidatePath('/me');
+  revalidatePath('/employee');
 
   await notifyEmployee(row.employee_id, {
     kind: 'reimbursement',
@@ -383,7 +383,7 @@ async function reviewReimbursement(
           ? `₹${finalAmount.toFixed(2)} — approved by HR, awaiting the Finance check.`
           : `₹${finalAmount.toFixed(2)} — it will be paid with your salary.`
         : `₹${finalAmount.toFixed(2)} — ${cleanRemark}`,
-    link: '/me#reimbursements',
+    link: '/employee#reimbursements',
   });
 
   // Payroll is credited only on FINAL approval. With the Finance stage on, that
@@ -476,7 +476,7 @@ async function financeReviewReimbursement(
   });
 
   revalidatePath('/reimbursements');
-  revalidatePath('/me');
+  revalidatePath('/employee');
 
   await notifyEmployee(row.employee_id, {
     kind: 'reimbursement',
@@ -485,7 +485,7 @@ async function financeReviewReimbursement(
       decision === 'approved'
         ? `₹${amount.toFixed(2)} — it will be paid with your salary.`
         : `₹${amount.toFixed(2)} — ${cleanRemark}`,
-    link: '/me#reimbursements',
+    link: '/employee#reimbursements',
   });
 
   if (decision === 'approved') {
@@ -617,7 +617,7 @@ async function updateReimbursement(id: string, formData: FormData): Promise<Acti
     );
   }
 
-  revalidatePath('/me');
+  revalidatePath('/employee');
   revalidatePath('/reimbursements');
   return { ok: true };
 }
@@ -647,7 +647,7 @@ async function deleteReimbursement(id: string): Promise<ActionResult> {
     };
   }
 
-  revalidatePath('/me');
+  revalidatePath('/employee');
   revalidatePath('/reimbursements');
   return { ok: true };
 }
@@ -702,11 +702,11 @@ async function markReimbursementPaid(id: string, paymentRef?: string): Promise<A
     kind: 'reimbursement',
     title: 'Your reimbursement was paid',
     body: `₹${Number(row.amount).toFixed(2)}${ref ? ` · ref ${ref}` : ''}`,
-    link: '/me#reimbursements',
+    link: '/employee#reimbursements',
   });
 
   revalidatePath('/reimbursements');
-  revalidatePath('/me');
+  revalidatePath('/employee');
   return { ok: true };
 }
 
@@ -792,7 +792,7 @@ async function uploadReimbursementReceipt(id: string, formData: FormData): Promi
     metadata: { filename: file.name },
   });
 
-  revalidatePath('/me');
+  revalidatePath('/employee');
   revalidatePath('/reimbursements');
   return { ok: true };
 }

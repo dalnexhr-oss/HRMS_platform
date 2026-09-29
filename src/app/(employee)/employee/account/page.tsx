@@ -10,7 +10,7 @@ async function EmployeeAccountPage() {
   return (
     <div className="wrap grid">
       <div>
-        <Link href="/me" className="btn quiet">
+        <Link href="/employee" className="btn quiet">
           ← Back to dashboard
         </Link>
       </div>

@@ -6,8 +6,8 @@ import { webPunchDisabled } from '@/lib/punch-access';
 import type { NextRequest } from 'next/server';
 import type { PunchCoords, PunchKind } from '@/lib/punch';
 
-// Pages a punch changes: the board and its punch log, the register, /me.
-const affectedPaths = ['/today', '/register', '/me'];
+// Pages a punch changes: the board and its punch log, the register, /employee.
+const affectedPaths = ['/dashboard', '/monthly-register', '/employee'];
 
 // Missing coordinates are allowed here. Store the punch as unclassified if the browser cannot
 // provide a usable location.

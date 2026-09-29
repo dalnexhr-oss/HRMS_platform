@@ -25,7 +25,7 @@ async function POST(request: NextRequest) {
   try {
     const result = await recordDevicePunch(event);
     if (result.status === 'recorded' && !result.duplicate) {
-      for (const path of ['/today', '/register', '/me']) {
+      for (const path of ['/dashboard', '/monthly-register', '/employee']) {
         revalidatePath(path);
       }
     }

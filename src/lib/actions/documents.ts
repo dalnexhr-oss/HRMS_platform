@@ -219,10 +219,10 @@ async function replaceEmployeeDocument(
     kind: 'system',
     title: 'A document was updated',
     body: `${title} — a new version is on file and awaiting verification.`,
-    link: '/me#documents',
+    link: '/employee#documents',
   });
 
-  revalidatePath('/me');
+  revalidatePath('/employee');
   revalidatePath('/documents');
   revalidatePath('/onboarding');
   return { ok: true };
@@ -271,10 +271,10 @@ async function verifyEmployeeDocument(
     body: verified
       ? `${row.title ?? 'Your document'} has been verified by HR.`
       : `${row.title ?? 'Your document'} — ${cleanRemark}`,
-    link: '/me#documents',
+    link: '/employee#documents',
   });
 
-  revalidatePath('/me');
+  revalidatePath('/employee');
   revalidatePath('/documents');
   revalidatePath('/onboarding');
   return { ok: true };
@@ -317,7 +317,7 @@ async function deleteEmployeeDocument(id: string): Promise<ActionResult> {
   // The storage object is deliberately left in place: the bucket is private and
   // orphaned objects are harmless, whereas deleting the file before the row is
   // confirmed gone risks a row pointing at nothing.
-  revalidatePath('/me');
+  revalidatePath('/employee');
   revalidatePath('/documents');
   revalidatePath('/onboarding');
   return { ok: true };

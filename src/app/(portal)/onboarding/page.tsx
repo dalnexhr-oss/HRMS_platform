@@ -12,7 +12,7 @@ async function OnboardingPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
   if (!role || !onboardingRoles.includes(role)) {
-    redirect('/today');
+    redirect('/dashboard');
   }
 
   const [tasks, templates, employees] = await Promise.all([

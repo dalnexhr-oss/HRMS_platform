@@ -161,7 +161,7 @@ function RequestCard({
         </Link>
         {/* Leave/WFH decisions are cross-checked against the register. Site visits and outdoor duty would want a location map, which does not exist yet — so no button is shown rather than a dead one. */}
         {(request.type === 'leave' || request.type === 'wfh') && (
-          <Link className="btn quiet" href="/register">
+          <Link className="btn quiet" href="/monthly-register">
             View register
           </Link>
         )}

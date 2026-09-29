@@ -33,8 +33,8 @@ async function acknowledgePolicy(policyId: string) {
   if (error) {
     // Duplicate acknowledgement is benign (already marked read).
     if (error.code === queryErrorCodes.duplicateKey) {
-      revalidatePath('/me');
-      revalidatePath('/policies');
+      revalidatePath('/employee');
+      revalidatePath('/company-policies');
       return { ok: true };
     }
     // Access refusal: user cannot record acknowledgement for another employee.
@@ -57,8 +57,8 @@ async function acknowledgePolicy(policyId: string) {
   await clearPolicyNag(dbc, policyId);
 
   revalidatePath('/', 'layout');
-  revalidatePath('/me');
-  revalidatePath('/policies'); // HR read counts
+  revalidatePath('/employee');
+  revalidatePath('/company-policies'); // HR read counts
   return { ok: true };
 }
 
@@ -129,14 +129,14 @@ async function createPolicy(formData: FormData) {
         kind: 'policy',
         title: `New policy to read: ${title}`,
         body: 'Please open it on your dashboard and mark it as read.',
-        link: '/me#policies',
+        link: '/employee#policies',
       },
       gate.profileId,
     );
   }
 
-  revalidatePath('/policies');
-  revalidatePath('/me');
+  revalidatePath('/company-policies');
+  revalidatePath('/employee');
   return { ok: true };
 }
 
@@ -176,14 +176,14 @@ async function setPolicyPublished(policyId: string, published: boolean) {
         kind: 'policy',
         title: `New policy to read: ${policy?.title ?? 'Company policy'}`,
         body: 'Please open it on your dashboard and mark it as read.',
-        link: '/me#policies',
+        link: '/employee#policies',
       },
       gate.profileId,
     );
   }
 
-  revalidatePath('/policies');
-  revalidatePath('/me');
+  revalidatePath('/company-policies');
+  revalidatePath('/employee');
   return { ok: true };
 }
 
@@ -225,8 +225,8 @@ async function updatePolicy(id: string, formData: FormData) {
     };
   }
 
-  revalidatePath('/policies');
-  revalidatePath('/me');
+  revalidatePath('/company-policies');
+  revalidatePath('/employee');
   return { ok: true };
 }
 
@@ -249,8 +249,8 @@ async function deletePolicy(id: string) {
     };
   }
 
-  revalidatePath('/policies');
-  revalidatePath('/me');
+  revalidatePath('/company-policies');
+  revalidatePath('/employee');
   return { ok: true };
 }
 

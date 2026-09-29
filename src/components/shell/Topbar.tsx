@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { pageHeader } from '@/lib/constants';
+import { slugFromPathname } from '@/lib/access';
 import { SignOutButton } from '@/components/auth/SignOutButton';
 import { NotificationBell } from '@/components/shell/NotificationBell';
 import { ProfileMenu } from '@/components/shell/ProfileMenu';
@@ -28,7 +29,7 @@ function Topbar({
   stats?: TopbarStats | null;
 }) {
   const pathname = usePathname();
-  const slug = pathname.split('/')[1] || 'today';
+  const slug = slugFromPathname(pathname) || 'dashboard';
   // Subtitles carry live data (today's date, the current period, head-counts),
   // so they are derived rather than read from a static table.
   const [title, sub] = pageHeader(slug, stats);

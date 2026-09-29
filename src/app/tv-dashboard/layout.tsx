@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 
 const metadata: Metadata = {
-  title: 'Attendance board — Dalnex HRMS',
+  title: 'TV dashboard — Dalnex HRMS',
   description: 'Live employee attendance for a wall display.',
 };
 
@@ -12,7 +12,7 @@ function TvLayout({ children }: { children: React.ReactNode }) {
     <div className="tv-shell">
       {children}
       <footer className="card tv-footer">
-        <Link className="btn" href="/today">
+        <Link className="btn" href="/dashboard">
           <span aria-hidden="true">←</span>
           Back to portal
         </Link>

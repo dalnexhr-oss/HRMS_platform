@@ -371,7 +371,7 @@ async function resolveDepartment(
 /**
  * Provision a new or rehired employee's current-year leave balance. The RPC only creates missing
  * rows and skips later-year joiners. Log failures without undoing the employee save; staff can
- * provision missing balances from /leave.
+ * provision missing balances from /leave-salary.
  */
 async function provisionCurrentLeaveYear(
   dbc: Awaited<ReturnType<typeof createClient>>,
@@ -525,7 +525,7 @@ async function createEmployee(formData: FormData) {
   }
 
   revalidatePath('/employees');
-  revalidatePath('/leave');
+  revalidatePath('/leave-salary');
   return { ok: true };
 }
 
@@ -727,7 +727,7 @@ async function reactivateEmployee(code: string) {
   await provisionCurrentLeaveYear(dbc).catch(() => undefined);
 
   revalidatePath('/employees');
-  revalidatePath('/leave');
+  revalidatePath('/leave-salary');
   return { ok: true };
 }
 

@@ -62,7 +62,7 @@ async function updateSession(request: NextRequest) {
     const target = new URL('/login', request.url);
     // Preserve where they were headed so sign-in can return them to it.
     if (path !== '/') {
-      target.searchParams.set('next', path);
+      target.searchParams.set('next', `${path}${request.nextUrl.search}`);
     }
     return NextResponse.redirect(target);
   }

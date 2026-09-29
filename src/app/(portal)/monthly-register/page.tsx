@@ -114,7 +114,7 @@ async function RegisterPage({
 
   // Preserve the current month when switching branch, and vice-versa.
   const withParams = (mm: string, bb: string | null): Route =>
-    `/register?m=${mm}${bb ? `&b=${encodeURIComponent(bb)}` : ''}` as Route;
+    `/monthly-register?m=${mm}${bb ? `&b=${encodeURIComponent(bb)}` : ''}` as Route;
 
   return (
     <div className="wrap">

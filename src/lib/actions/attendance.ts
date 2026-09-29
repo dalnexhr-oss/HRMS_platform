@@ -258,10 +258,10 @@ async function correctAttendance(formData: FormData): Promise<CorrectionState> {
   // The attendance row is already committed — these are two separate writes
   // with no transaction around them. Surface the audit failure as a WARNING on a
   // success — the correction itself is saved, and screens must show it as such.
-  revalidatePath('/register');
+  revalidatePath('/monthly-register');
   if (status === 'CO') {
     // the employee's balance moved
-    revalidatePath('/me');
+    revalidatePath('/employee');
   }
   const warnings = [
     compOffWarning,
@@ -364,7 +364,7 @@ async function correctAttendanceBulk(input: {
     message: `${actor} bulk-set ${saved.length} day(s) to ${status} — ${reason}`,
     metadata: { status, reason, count: saved.length, bulk: true },
   });
-  revalidatePath('/register');
+  revalidatePath('/monthly-register');
   if (logError) {
     return {
       ok: true,

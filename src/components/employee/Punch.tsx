@@ -1,6 +1,6 @@
 'use client';
 
-// Attendance details for /me. Share usePunchClock with the topbar toggle so both controls refresh
+// Attendance details for /employee. Share usePunchClock with the topbar toggle so both controls refresh
 // after a punch.
 import { useToast } from '@/components/ui/Toast';
 import { PunchHistory } from './PunchHistory';

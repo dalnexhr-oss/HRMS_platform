@@ -26,7 +26,7 @@ async function AuditPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
   if (!role || !auditRoles.includes(role)) {
-    redirect('/today');
+    redirect('/dashboard');
   }
 
   let entries: Awaited<ReturnType<typeof getAttendanceAudit>> = [];

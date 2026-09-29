@@ -24,7 +24,7 @@ async function RequestPage({ params }: { params: Promise<{ requestId: string }> 
     <main className="wrap grid request-detail">
       <Link
         className="btn quiet"
-        href={employeeReviewer ? '/me/approvals?view=all' : homeForRole(profile.role)}
+        href={employeeReviewer ? '/employee/approvals?view=all' : homeForRole(profile.role)}
       >
         ← Back to {employeeReviewer ? 'my approvals' : 'dashboard'}
       </Link>

@@ -833,7 +833,7 @@ async function generateExitDocument(
     kind: 'system',
     title: 'A document was issued to you',
     body: filename,
-    link: '/me#documents',
+    link: '/employee#documents',
   });
 
   revalidatePath('/exits');

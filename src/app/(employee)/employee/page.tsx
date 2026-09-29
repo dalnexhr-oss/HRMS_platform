@@ -281,7 +281,7 @@ async function MePage() {
         </div>
       </div>
 
-      {/* company notices — the ids on these sections are notification targets ('/me#notices' etc); NotificationBell scrolls to them on click. */}
+      {/* company notices — the ids on these sections are notification targets ('/employee#notices' etc); NotificationBell scrolls to them on click. */}
       <div className="card" id="notices">
         <div className="hd">
           <h3>Notices</h3>
@@ -390,7 +390,7 @@ async function MePage() {
           <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
             Manage your profile picture and password on your account page.
           </p>
-          <Link href="/me/account" className="btn">
+          <Link href="/employee/account" className="btn">
             Manage your account →
           </Link>
         </div>

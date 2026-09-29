@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { icons } from '@/components/Icons';
 import { Brand } from '@/components/ui/Brand';
 import { usePathname } from 'next/navigation';
-import { canAccessTab } from '@/lib/access';
+import { canAccessTab, slugFromPathname } from '@/lib/access';
 import { useEffect, useState } from 'react';
 import { navItems, groupOrder } from '@/lib/constants';
 import type { TabAccess } from '@/lib/access';
@@ -39,7 +39,7 @@ function Sidebar({
   access?: TabAccess;
 }) {
   const pathname = usePathname();
-  const active = pathname.split('/')[1] || 'today';
+  const active = slugFromPathname(pathname) || 'dashboard';
   // Off-canvas on phones. On desktop the sidebar is always in flow and this
   // flag does nothing — the CSS only honours .open below the rail breakpoint.
   const [open, setOpen] = useState(false);
@@ -104,7 +104,7 @@ function Sidebar({
       />
       <aside className={`sidebar${open ? ' open' : ''}`}>
         <div className="brand">
-          <Brand href="/today" priority onClick={() => setOpen(false)} />
+          <Brand href="/dashboard" priority onClick={() => setOpen(false)} />
         </div>
         <nav className="nav" aria-label="Primary">
           {/* Walk groupOrder, not the items: it fixes header order, and a group

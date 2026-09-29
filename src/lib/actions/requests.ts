@@ -97,8 +97,8 @@ async function getSandwichPolicy(): Promise<boolean> {
 /** Revalidate every surface a request appears on: the employee's own dashboard,
  *  the staff approvals queue, and the HR dashboard's leave history. */
 function revalidateRequestViews(): void {
-  revalidatePath('/me');
-  revalidatePath('/me/approvals');
+  revalidatePath('/employee');
+  revalidatePath('/employee/approvals');
   revalidatePath('/approvals');
   revalidatePath('/leave-management');
 }
@@ -539,7 +539,7 @@ async function reviewRequest(
       kind: 'approval',
       title: `Your ${owner.type.replace('_', ' ')} request was ${decision}`,
       body: cleanRemark ? `${span} — “${cleanRemark}”` : span,
-      link: '/me#leave',
+      link: '/employee#leave',
     });
   }
 
@@ -556,9 +556,9 @@ async function reviewRequest(
   revalidatePath(`/requests/${id}`);
   if (decision === 'approved') {
     // An approval also changes the register (stamping / comp-off settle) and
-    // the leave balances shown on /leave.
-    revalidatePath('/register');
-    revalidatePath('/leave');
+    // the leave balances shown on /leave-salary.
+    revalidatePath('/monthly-register');
+    revalidatePath('/leave-salary');
   }
   // The decision itself succeeded — a side-effect problem is a WARNING on a
   // success, never an ok:false (which screens render as "nothing happened").

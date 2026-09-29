@@ -48,8 +48,8 @@ async function provisionLeaveYear(year: number): Promise<ActionResult & { create
     metadata: { year, created },
   });
 
-  revalidatePath('/leave');
-  revalidatePath('/me');
+  revalidatePath('/leave-salary');
+  revalidatePath('/employee');
   return { ok: true, created };
 }
 
@@ -138,11 +138,11 @@ async function adjustLeaveBalance(input: {
     kind: 'request',
     title: `Your paid-leave balance was ${delta > 0 ? 'credited' : 'debited'}`,
     body: `${delta > 0 ? '+' : ''}${delta} day(s) for ${year} — ${reason}`,
-    link: '/me#leave',
+    link: '/employee#leave',
   });
 
-  revalidatePath('/leave');
-  revalidatePath('/me');
+  revalidatePath('/leave-salary');
+  revalidatePath('/employee');
   return { ok: true };
 }
 

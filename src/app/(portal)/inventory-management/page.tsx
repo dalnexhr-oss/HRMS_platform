@@ -11,7 +11,7 @@ async function ItemsPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
   if (!role || !itemAdminRoles.includes(role)) {
-    redirect('/today');
+    redirect('/dashboard');
   }
 
   const [items, employees] = await Promise.all([getItems(), getEmployeeOptions()]);

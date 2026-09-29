@@ -18,7 +18,7 @@ const svg = (children: ReactNode) => (
 );
 
 const icons: Record<string, ReactNode> = {
-  today: svg(
+  dashboard: svg(
     <>
       <rect x="3" y="3" width="7" height="9" rx="1.5" />
       <rect x="14" y="3" width="7" height="5" rx="1.5" />
@@ -26,7 +26,7 @@ const icons: Record<string, ReactNode> = {
       <rect x="14" y="12" width="7" height="9" rx="1.5" />
     </>,
   ),
-  register: svg(
+  'monthly-register': svg(
     <>
       <rect x="3" y="4" width="18" height="17" rx="2" />
       <path d="M3 9h18M8 4V2M16 4V2M8 13h1M15 13h1M8 17h1M15 17h1" />
@@ -52,7 +52,7 @@ const icons: Record<string, ReactNode> = {
       <path d="M16 5.5a3 3 0 010 5.5M17.5 14.7c1.6.6 2.7 1.9 3.2 4" />
     </>,
   ),
-  policies: svg(
+  'company-policies': svg(
     <>
       <path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6zM8 10h8M8 14h6" />
     </>,
@@ -76,14 +76,14 @@ const icons: Record<string, ReactNode> = {
       <rect x="18" y="11" width="4" height="7" rx="2" />
     </>,
   ),
-  audit: svg(
+  'attendance-audit': svg(
     <>
       <path d="M10 21H5V3h9l4 4v3M14 3v4h4M8 11h3M8 15h1" />
       <circle cx="16" cy="16" r="4" />
       <path d="m19 19 3 3" />
     </>,
   ),
-  tv: svg(
+  'tv-dashboard': svg(
     <>
       <rect x="2" y="4" width="20" height="13" rx="2" />
       <path d="M8 21h8M12 17v4M6 13v-2M10 13V8M14 13v-3M18 13V7" />
@@ -103,7 +103,7 @@ const icons: Record<string, ReactNode> = {
       <path d="M3 10h18M8 3v4M16 3v4m-8 9 3 3 5-5" />
     </>,
   ),
-  leave: svg(
+  'leave-salary': svg(
     <>
       <path d="M4 4h13v6M4 9h13M7 2v4M14 2v4M4 4v16h5" />
       <circle cx="16" cy="16" r="6" />
@@ -111,7 +111,7 @@ const icons: Record<string, ReactNode> = {
     </>,
   ),
   reimbursements: svg(<path d="m5 2 3 2 4-2 4 2 3-2v20l-3-2-4 2-4-2-3 2zM9 8h6M9 12h6M9 16h3" />),
-  assets: svg(
+  'asset-management': svg(
     <>
       <rect x="2" y="4" width="14" height="12" rx="2" />
       <path d="M6 20h6M9 16v4" />
@@ -119,7 +119,7 @@ const icons: Record<string, ReactNode> = {
       <path d="M20 16v1" />
     </>,
   ),
-  items: svg(<path d="m3 7 9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10M7.5 5l9 4" />),
+  'inventory-management': svg(<path d="m3 7 9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10M7.5 5l9 4" />),
   users: svg(
     <>
       <circle cx="8" cy="7" r="3" />
@@ -127,7 +127,7 @@ const icons: Record<string, ReactNode> = {
       <circle cx="17" cy="12" r="3" />
     </>,
   ),
-  import: svg(<path d="M12 3v12m-4-4 4 4 4-4M4 15v5h16v-5" />),
+  'data-import': svg(<path d="M12 3v12m-4-4 4 4 4-4M4 15v5h16v-5" />),
   settings: svg(
     <>
       <circle cx="12" cy="12" r="3" />

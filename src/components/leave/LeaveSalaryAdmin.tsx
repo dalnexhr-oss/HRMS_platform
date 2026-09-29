@@ -112,14 +112,14 @@ function LeaveSalaryAdmin({
           <button
             className="btn quiet"
             disabled={pending}
-            onClick={() => router.push(`/leave?y=${year - 1}`)}
+            onClick={() => router.push(`/leave-salary?y=${year - 1}`)}
           >
             ← {year - 1}
           </button>
           <button
             className="btn quiet"
             disabled={pending}
-            onClick={() => router.push(`/leave?y=${year + 1}`)}
+            onClick={() => router.push(`/leave-salary?y=${year + 1}`)}
           >
             {year + 1} →
           </button>

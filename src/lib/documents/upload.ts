@@ -130,7 +130,7 @@ async function recordUploadedDocument(input: {
     );
   }
 
-  revalidatePath('/me');
+  revalidatePath('/employee');
   revalidatePath('/documents');
   revalidatePath('/onboarding');
   return { ok: true };

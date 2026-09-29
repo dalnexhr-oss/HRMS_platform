@@ -16,7 +16,7 @@ async function LeavePage({ searchParams }: { searchParams: Promise<{ y?: string 
   const { profile } = await getSession();
   const role = profile?.role ?? null;
   if (!role || !leaveAdminRoles.includes(role)) {
-    redirect('/today');
+    redirect('/dashboard');
   }
 
   const { y } = await searchParams;

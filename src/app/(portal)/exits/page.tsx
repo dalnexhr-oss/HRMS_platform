@@ -11,7 +11,7 @@ async function ExitsPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
   if (!role || !exitAdminRoles.includes(role)) {
-    redirect('/today');
+    redirect('/dashboard');
   }
 
   const [cases, employees] = await Promise.all([getExitCases(), getEmployeeOptions()]);

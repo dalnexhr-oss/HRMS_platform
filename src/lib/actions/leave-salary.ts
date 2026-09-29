@@ -173,7 +173,7 @@ async function saveLeaveSalaryWorking(input: {
     return { ok: false, error: 'The working was not saved — your role may lack permission.' };
   }
 
-  revalidatePath('/leave');
+  revalidatePath('/leave-salary');
   return { ok: true };
 }
 
@@ -274,7 +274,7 @@ async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
     metadata: { year, total: result.total, working_id: id },
   });
 
-  revalidatePath('/leave');
+  revalidatePath('/leave-salary');
   return { ok: true };
 }
 
@@ -308,7 +308,7 @@ async function reopenLeaveSalary(id: string): Promise<ActionResult> {
     };
   }
 
-  revalidatePath('/leave');
+  revalidatePath('/leave-salary');
   return { ok: true };
 }
 
@@ -372,9 +372,9 @@ async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
     kind: 'payroll',
     title: 'Your leave salary was paid',
     body: `${inr(total)} for ${row.year}`,
-    // /me has no leave-salary section of its own yet; payslips is the nearest
+    // /employee has no leave-salary section of its own yet; payslips is the nearest
     // truthful destination for a payout notification.
-    link: '/me#payslips',
+    link: '/employee#payslips',
   });
   await dbc.from('activity_log').insert({
     actor_id: gate.profileId,
@@ -384,8 +384,8 @@ async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
     metadata: { year: row.year, total, working_id: id },
   });
 
-  revalidatePath('/leave');
-  revalidatePath('/me');
+  revalidatePath('/leave-salary');
+  revalidatePath('/employee');
   return { ok: true };
 }
 

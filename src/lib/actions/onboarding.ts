@@ -103,11 +103,11 @@ async function startOnboarding(
     kind: 'system',
     title: 'Your onboarding checklist is ready',
     body: `${made!.length} step(s) to complete with HR and IT.`,
-    link: '/me#onboarding',
+    link: '/employee#onboarding',
   });
 
   revalidatePath('/onboarding');
-  revalidatePath('/me');
+  revalidatePath('/employee');
   return { ok: true, created: made!.length };
 }
 
@@ -151,7 +151,7 @@ async function setOnboardingTaskStatus(
   }
 
   revalidatePath('/onboarding');
-  revalidatePath('/me');
+  revalidatePath('/employee');
   return { ok: true };
 }
 
@@ -198,7 +198,7 @@ async function addOnboardingTask(input: {
   }
 
   revalidatePath('/onboarding');
-  revalidatePath('/me');
+  revalidatePath('/employee');
   return { ok: true };
 }
 
@@ -222,7 +222,7 @@ async function deleteOnboardingTask(id: string): Promise<ActionResult> {
   }
 
   revalidatePath('/onboarding');
-  revalidatePath('/me');
+  revalidatePath('/employee');
   return { ok: true };
 }
 

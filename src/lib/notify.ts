@@ -21,7 +21,7 @@ interface NotifyInput {
   kind: NotificationKind;
   title: string;
   body?: string | null;
-  // Relative in-app path, optionally with a dashboard fragment such as /me#payslips.
+  // Relative in-app path, optionally with a dashboard fragment such as /employee#payslips.
   // NotificationBell also scrolls when the user is already on that page.
   link?: string | null;
 }

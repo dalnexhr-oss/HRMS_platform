@@ -182,7 +182,7 @@ async function warrantyReminders(): Promise<JobResult> {
         title: 'Asset warranty expiring',
 
         body: `${asset.desktop_name ?? 'An asset'} is under warranty until ${asset.warranty_upto}.`,
-        link: '/assets',
+        link: '/asset-management',
       });
     } catch (e) {
       await cronRelease('warranty_reminder', key);
@@ -255,7 +255,7 @@ async function autoPunchOut(targetDate?: string): Promise<JobResult> {
             kind: 'system',
             title: 'Missed punch-out closed by night sweep',
             body: notice.message,
-            link: '/me#punch',
+            link: '/employee#punch',
             read_at: null,
             created_at: new Date(),
           };

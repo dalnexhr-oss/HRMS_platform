@@ -11,7 +11,7 @@ async function AssetsPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
   if (!role || !assetAdminRoles.includes(role)) {
-    redirect('/today');
+    redirect('/dashboard');
   }
 
   const [assets, employees, summary] = await Promise.all([

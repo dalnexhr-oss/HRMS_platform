@@ -5,10 +5,10 @@ import { usePathname } from 'next/navigation';
 
 function ApprovalsShortcut() {
   const pathname = usePathname();
-  const active = pathname === '/me/approvals';
+  const active = pathname === '/employee/approvals';
   return (
     <Link
-      href="/me/approvals"
+      href="/employee/approvals"
       className={`btn ${active ? 'primary' : 'quiet'}`}
       aria-label="My approvals"
       title="My approvals"

@@ -15,7 +15,7 @@ async function GET() {
     }
     // Apply the page's tab-access gate to its data endpoint too.
     const access = await getMyTabAccess(profile?.id ?? null);
-    if (!canAccessTab(profile?.role, 'tv', access)) {
+    if (!canAccessTab(profile?.role, 'tv-dashboard', access)) {
       return NextResponse.json({ error: 'Not authorised.' }, { status: 403 });
     }
     return NextResponse.json(await readBoard());

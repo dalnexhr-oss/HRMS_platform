@@ -49,7 +49,7 @@ function EmployeeApprovals({
     <div className="wrap grid employee-approvals">
       {toastNode}
       <div>
-        <Link href="/me" className="btn quiet">
+        <Link href="/employee" className="btn quiet">
           ← Back to dashboard
         </Link>
       </div>
@@ -67,7 +67,7 @@ function EmployeeApprovals({
             {employeeApprovalViews.map(({ value, label }) => (
               <Link
                 key={value}
-                href={`/me/approvals?view=${value}`}
+                href={`/employee/approvals?view=${value}`}
                 className={`btn ${view === value ? 'primary' : 'quiet'}`}
                 aria-current={view === value ? 'page' : undefined}
               >

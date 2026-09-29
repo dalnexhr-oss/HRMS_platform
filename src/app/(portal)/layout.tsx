@@ -27,14 +27,14 @@ async function PortalLayout({ children }: { children: React.ReactNode }) {
     redirect('/login?error=Your+account+is+not+provisioned+yet.+Ask+HR+to+set+up+your+access.');
   }
   if (!isStaffRole(profile.role)) {
-    redirect('/me');
+    redirect('/employee');
   }
 
   // Enforce per-tab access for all portal pages. Middleware supplies x-pathname; page-level role
   // checks still apply when it is missing.
   const slug = slugFromPathname(hdrs.get('x-pathname') ?? '');
   if (slug && !canAccessTab(profile.role, slug, access)) {
-    // Redirect to an accessible tab to avoid a loop when Today is revoked. With no accessible
+    // Redirect to an accessible tab to avoid a loop when the dashboard is revoked. With no accessible
     // tabs, return to login with an explanation.
     const fallback = navItems.find((n) => canAccessTab(profile.role, n.slug, access));
     redirect(

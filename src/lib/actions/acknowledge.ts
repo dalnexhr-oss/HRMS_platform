@@ -99,7 +99,7 @@ async function acknowledgeDocument(input: {
     return { ok: false, error: 'The signature was not recorded — reload and try again.' };
   }
 
-  revalidatePath('/me');
+  revalidatePath('/employee');
   return { ok: true };
 }
 

@@ -20,7 +20,7 @@ function UpdatePasswordForm({ token }: { token?: string }) {
           This reset link is incomplete. Request a new one.
         </div>
         <div style={{ marginTop: 14, textAlign: 'center' }}>
-          <Link href="/auth/reset" style={{ fontSize: 13, color: 'var(--brand)' }}>
+          <Link href="/auth/reset-password" style={{ fontSize: 13, color: 'var(--brand)' }}>
             Send a new reset link
           </Link>
         </div>

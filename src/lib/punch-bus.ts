@@ -1,6 +1,6 @@
 'use client';
 
-// Keep the topbar punch toggle and /me attendance card in sync. Include the source control so it
+// Keep the topbar punch toggle and /employee attendance card in sync. Include the source control so it
 // can ignore its own refresh event.
 
 const eventName = 'hrms:punch-changed';

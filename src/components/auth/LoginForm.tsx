@@ -84,7 +84,7 @@ function LoginForm({ initialError, next }: { initialError?: string; next?: strin
       </button>
 
       <div style={{ marginTop: 12, textAlign: 'center' }}>
-        <Link href="/auth/reset" style={{ fontSize: 13, color: 'var(--brand)' }}>
+        <Link href="/auth/reset-password" style={{ fontSize: 13, color: 'var(--brand)' }}>
           Forgot your password?
         </Link>
       </div>

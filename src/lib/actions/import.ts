@@ -421,10 +421,10 @@ async function commitImport(formData: FormData): Promise<CommitResult> {
       errors.push(`Attendance imported, but the activity log entry failed: ${logError.message}`);
     }
 
-    revalidatePath('/register');
-    revalidatePath('/today');
+    revalidatePath('/monthly-register');
+    revalidatePath('/dashboard');
     revalidatePath('/payroll');
-    revalidatePath('/me');
+    revalidatePath('/employee');
 
     return { ok: true, inserted, updated, skipped, errors };
   } catch (e) {

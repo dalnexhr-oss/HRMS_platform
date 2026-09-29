@@ -57,7 +57,7 @@ async function createItem(formData: FormData) {
   if (wroteNothing(data)) {
     return { ok: false, error: 'The item was not added — your account may not have permission.' };
   }
-  revalidatePath('/items');
+  revalidatePath('/inventory-management');
   return { ok: true };
 }
 
@@ -88,7 +88,7 @@ async function updateItem(formData: FormData) {
       error: 'The item was not updated — it may no longer exist, or your role lacks permission.',
     };
   }
-  revalidatePath('/items');
+  revalidatePath('/inventory-management');
   return { ok: true };
 }
 
@@ -109,7 +109,7 @@ async function deleteItem(id: string) {
       error: 'The item was not deleted — it may no longer exist, or your role lacks permission.',
     };
   }
-  revalidatePath('/items');
+  revalidatePath('/inventory-management');
   return { ok: true };
 }
 
@@ -209,10 +209,10 @@ async function assignItem(formData: FormData) {
     kind: 'item',
     title: 'An item was issued to you',
     body: `${quantity} × ${item.item_name}`,
-    link: '/me#items',
+    link: '/employee#items',
   });
 
-  revalidatePath('/items');
+  revalidatePath('/inventory-management');
   return { ok: true };
 }
 
@@ -245,10 +245,10 @@ async function returnAssignment(id: string) {
     kind: 'item',
     title: 'An item was marked returned',
     body: `${row.quantity} × ${row.items?.item_name ?? 'item'}`,
-    link: '/me#items',
+    link: '/employee#items',
   });
 
-  revalidatePath('/items');
+  revalidatePath('/inventory-management');
   return { ok: true };
 }
 
@@ -283,11 +283,11 @@ async function deleteAssignment(id: string) {
       kind: 'item',
       title: 'An item was removed from you',
       body: `${row.quantity} × ${row.items?.item_name ?? 'item'}`,
-      link: '/me#items',
+      link: '/employee#items',
     });
   }
 
-  revalidatePath('/items');
+  revalidatePath('/inventory-management');
   return { ok: true };
 }
 

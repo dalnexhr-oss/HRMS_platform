@@ -27,7 +27,7 @@ function revalidateBranchSurfaces(): void {
   revalidatePath('/employees');
   revalidatePath('/holidays');
   revalidatePath('/notices');
-  revalidatePath('/today');
+  revalidatePath('/dashboard');
 }
 
 // Use the same fallback radius as db/document-defaults.ts. This required numeric field cannot be saved as
@@ -105,11 +105,11 @@ async function updateBranchLocation(id: string, formData: FormData): Promise<Act
       };
     }
 
-    // /today and the employee dashboard read a punch's on-site stamp, which is
+    // /dashboard and the employee dashboard read a punch's on-site stamp, which is
     // decided against this point from the next punch onward.
     revalidatePath('/settings');
-    revalidatePath('/today');
-    revalidatePath('/me');
+    revalidatePath('/dashboard');
+    revalidatePath('/employee');
     return { ok: true };
   } catch (e) {
     return {

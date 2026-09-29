@@ -122,7 +122,7 @@ async function createAsset(formData: FormData) {
   if (wroteNothing(data)) {
     return { ok: false, error: 'The asset was not added — your account may not have permission.' };
   }
-  revalidatePath('/assets');
+  revalidatePath('/asset-management');
   return { ok: true };
 }
 
@@ -165,7 +165,7 @@ async function updateAsset(formData: FormData) {
       error: 'The asset was not updated — it may no longer exist, or your role lacks permission.',
     };
   }
-  revalidatePath('/assets');
+  revalidatePath('/asset-management');
   return { ok: true };
 }
 
@@ -197,7 +197,7 @@ async function updateAssetQrLink(
   if (wroteNothing(data)) {
     return { ok: false, error: 'This asset is no longer available.' };
   }
-  revalidatePath('/assets');
+  revalidatePath('/asset-management');
   return link;
 }
 
@@ -277,10 +277,10 @@ async function assignAsset(formData: FormData) {
     kind: 'asset',
     title: 'An asset was assigned to you',
     body: [row.desktop_name, row.brand].filter(Boolean).join(' · '),
-    link: '/me#assets',
+    link: '/employee#assets',
   });
 
-  revalidatePath('/assets');
+  revalidatePath('/asset-management');
   return { ok: true };
 }
 
@@ -346,10 +346,10 @@ async function unassignAsset(id: string) {
     kind: 'asset',
     title: 'An asset was returned',
     body: [before.desktop_name, before.brand].filter(Boolean).join(' · '),
-    link: '/me#assets',
+    link: '/employee#assets',
   });
 
-  revalidatePath('/assets');
+  revalidatePath('/asset-management');
   return { ok: true };
 }
 
@@ -418,7 +418,7 @@ async function createAssetMaintenance(formData: FormData) {
       error: 'The maintenance record was not saved — your role may lack permission.',
     };
   }
-  revalidatePath('/assets');
+  revalidatePath('/asset-management');
   return { ok: true };
 }
 
@@ -439,7 +439,7 @@ async function deleteAsset(id: string) {
       error: 'The asset was not deleted — it may no longer exist, or your role lacks permission.',
     };
   }
-  revalidatePath('/assets');
+  revalidatePath('/asset-management');
   return { ok: true };
 }
 

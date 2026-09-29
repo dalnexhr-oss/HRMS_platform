@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Brand } from '@/components/ui/Brand';
 import { EmployeeCard } from './EmployeeCard';
 import { presenceLabel } from '@/types/tv';
+import { routes } from '@/lib/routes';
 import type { BoardData, Presence } from '@/types/tv';
 
 const pollMs = 30_000;
@@ -41,7 +42,7 @@ function EmployeeScreen({ initial }: { initial: BoardData }) {
 
   const poll = useCallback(async () => {
     try {
-      const response = await fetch('/api/tv/board', { cache: 'no-store' });
+      const response = await fetch(routes.tvDashboardApi, { cache: 'no-store' });
       if (!response.ok) {
         throw new Error('board fetch failed');
       }
@@ -84,8 +85,8 @@ function EmployeeScreen({ initial }: { initial: BoardData }) {
       <header className="card tv-head">
         <div className="tv-head-brand">
           {/* The real mark, not a retyped wordmark — same component as the sidebar and the login card, sized for the wall in globals.css. */}
-          <Brand href="/today" priority />
-          <p>Attendance board</p>
+          <Brand href="/dashboard" priority />
+          <p>TV dashboard</p>
         </div>
 
         <div className="tv-clock">

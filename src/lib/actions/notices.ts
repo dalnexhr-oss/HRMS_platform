@@ -71,7 +71,7 @@ async function markNoticeRead(noticeId: string) {
   if (error && error.code !== queryErrorCodes.duplicateKey) {
     return { ok: false, error: error.message };
   }
-  revalidatePath('/me');
+  revalidatePath('/employee');
   return { ok: true };
 }
 
@@ -144,7 +144,7 @@ async function createNotice(formData: FormData) {
         kind: 'notice',
         title: `New notice: ${title}`,
         body: body || null,
-        link: '/me#notices',
+        link: '/employee#notices',
       },
       gate.profileId,
     );
@@ -154,7 +154,7 @@ async function createNotice(formData: FormData) {
   await purgeExpiredNotices();
 
   revalidatePath('/notices');
-  revalidatePath('/me'); // employees see published notices on their dashboard
+  revalidatePath('/employee'); // employees see published notices on their dashboard
   return { ok: true };
 }
 
@@ -212,7 +212,7 @@ async function updateNotice(id: string, formData: FormData) {
   }
 
   revalidatePath('/notices');
-  revalidatePath('/me');
+  revalidatePath('/employee');
   return { ok: true };
 }
 
@@ -243,7 +243,7 @@ async function setNoticePublished(id: string, published: boolean) {
     if (!wroteNothing(data)) {
       const title = (data as Array<{ title: string }>)[0]?.title ?? 'A notice';
       await notifyEveryone(
-        { kind: 'notice', title: `New notice: ${title}`, body: null, link: '/me#notices' },
+        { kind: 'notice', title: `New notice: ${title}`, body: null, link: '/employee#notices' },
         gate.profileId,
       );
     }
@@ -265,7 +265,7 @@ async function setNoticePublished(id: string, published: boolean) {
   }
 
   revalidatePath('/notices');
-  revalidatePath('/me');
+  revalidatePath('/employee');
   return { ok: true };
 }
 
@@ -316,7 +316,7 @@ async function deleteNotice(id: string) {
   }
 
   revalidatePath('/notices');
-  revalidatePath('/me');
+  revalidatePath('/employee');
   return { ok: true };
 }
 

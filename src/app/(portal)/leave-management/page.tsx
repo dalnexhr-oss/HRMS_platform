@@ -30,7 +30,7 @@ async function HrDashboardPage() {
   const { profile } = await getSession();
   const role = profile?.role ?? null;
   if (!role || !hrRoles.includes(role)) {
-    redirect('/today');
+    redirect('/dashboard');
   }
 
   const [requests, onLeaveToday, headcount] = await Promise.all([

@@ -95,11 +95,11 @@ async function grantCompOff(employeeId: string, earnedDate: string): Promise<Act
     kind: 'comp_off',
     title: 'You earned a comp off',
     body: `For working on ${earnedDate}. Apply for a day off from your dashboard.`,
-    link: '/me#comp-offs',
+    link: '/employee#comp-offs',
   });
 
-  revalidatePath('/register');
-  revalidatePath('/me');
+  revalidatePath('/monthly-register');
+  revalidatePath('/employee');
   return { ok: true };
 }
 
@@ -231,9 +231,9 @@ async function applyCompOff(formData: FormData): Promise<ActionResult> {
     profile?.id,
   );
 
-  revalidatePath('/me');
+  revalidatePath('/employee');
   revalidatePath('/approvals');
-  revalidatePath('/me/approvals');
+  revalidatePath('/employee/approvals');
   return { ok: true };
 }
 
@@ -284,11 +284,11 @@ async function setCompOffApplicability(id: string, applicable: boolean): Promise
     body: applicable
       ? `Your comp off earned on ${row.earned_date} can be applied for again.`
       : `Your comp off earned on ${row.earned_date} was marked not applicable by HR.`,
-    link: '/me#comp-offs',
+    link: '/employee#comp-offs',
   });
 
-  revalidatePath('/today');
-  revalidatePath('/me');
+  revalidatePath('/dashboard');
+  revalidatePath('/employee');
   return { ok: true };
 }
 

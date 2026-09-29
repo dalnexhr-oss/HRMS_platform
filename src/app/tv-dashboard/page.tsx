@@ -12,12 +12,12 @@ export const dynamic = 'force-dynamic';
 async function TvPage() {
   const { profile } = await getSession();
   if (!isStaffRole(profile?.role)) {
-    redirect('/login?error=The+attendance+board+is+available+to+staff+accounts+only.');
+    redirect('/login?error=The+TV+dashboard+is+available+to+staff+accounts+only.');
   }
 
   const access = await getMyTabAccess(profile?.id ?? null);
-  if (!canAccessTab(profile?.role, 'tv', access)) {
-    redirect('/today');
+  if (!canAccessTab(profile?.role, 'tv-dashboard', access)) {
+    redirect('/dashboard');
   }
 
   const board = await readBoard();

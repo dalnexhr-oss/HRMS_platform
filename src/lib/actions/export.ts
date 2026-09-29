@@ -105,7 +105,7 @@ async function exportAttendanceTemplateXlsx(periodMonth: string): Promise<Export
 /** Roles that may import the register — mirrors importRoles in actions/import. */
 const importRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 
-/** 'YYYY-MM' — the same shape /register and /payroll accept in their ?m= param. */
+/** 'YYYY-MM' — the same shape /monthly-register and /payroll accept in their ?m= param. */
 const monthRe = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 /**
@@ -184,7 +184,7 @@ async function exportReimbursementsXlsx(): Promise<ExportResult> {
 
 /**
  * The annual leave-salary working as a sheet. Gated admin/hr — the same gate
- * as the /leave page itself, and deliberately narrower than requireStaff:
+ * as the /leave-salary page itself, and deliberately narrower than requireStaff:
  * this file carries every employee's salary.
  */
 async function exportLeaveSalaryXlsx(year: number): Promise<ExportResult> {
