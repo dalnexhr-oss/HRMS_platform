@@ -46,35 +46,30 @@ function EmployeesScreen({
 
   const activeCount = useMemo(() => rows.filter((e) => e.active).length, [rows]);
   const inactiveCount = rows.length - activeCount;
-  // Editing is addressed by the original employee code; this picker does not submit a form.
+  const filtered = useMemo(() => {
+    const terms = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return rows.filter((e) => {
+      if (!showInactive && !e.active) {
+        return false;
+      }
+      const text = `${e.name} ${e.code} ${e.uan ?? ''}`.toLowerCase();
+      return terms.every((term) => text.includes(term));
+    });
+  }, [q, rows, showInactive]);
+
+  // Use the same filtered roster for the table and editable suggestions.
   const editOptions = useMemo(
     () =>
-      rows
+      filtered
         .filter((employee) => employee.active)
         .map((employee) => ({
           id: employee.code,
           code: employee.code,
           name: employee.name,
+          searchText: employee.uan ?? '',
         })),
-    [rows],
+    [filtered],
   );
-
-  const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    return rows.filter((e) => {
-      if (!showInactive && !e.active) {
-        return false;
-      }
-      if (!term) {
-        return true;
-      }
-      return (
-        e.name.toLowerCase().includes(term) ||
-        e.code.toLowerCase().includes(term) ||
-        (e.uan ?? '').toLowerCase().includes(term)
-      );
-    });
-  }, [q, rows, showInactive]);
 
   function openAdd() {
     setEditing(null);
@@ -177,36 +172,19 @@ function EmployeesScreen({
     <div className="wrap">
       <div className="emp-top employees-toolbar">
         <EmployeePicker
-          label="Find employee to edit"
+          label="Find employee"
           employees={editOptions}
           value=""
+          searchValue={q}
+          onSearchChange={setQ}
+          placeholder="Search name, employee code, or PF UAN…"
           onChange={(code) => {
             if (code) {
               openEdit(code);
             }
           }}
           disabled={pending}
-          style={{ flex: '1 1 260px', marginBottom: 0 }}
         />
-        <div className="search">
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <circle cx="11" cy="11" r="7" />
-            <path d="M21 21l-4.3-4.3" />
-          </svg>
-          <input
-            placeholder="Filter name, code, PF UAN…"
-            aria-label="Filter employees by name, code, or PF UAN"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-        </div>
         <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
           {activeCount} active{inactiveCount ? ` · ${inactiveCount} inactive` : ''}
         </span>

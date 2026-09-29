@@ -5,12 +5,14 @@ import type { CSSProperties } from 'react';
 import type { EmployeeOption } from '@/lib/queries';
 
 interface EmployeePickerProps {
-  employees: EmployeeOption[];
+  employees: Array<EmployeeOption & { searchText?: string }>;
   label?: string;
   name?: string;
   value?: string;
   defaultValue?: string;
   onChange?: (id: string) => void;
+  searchValue?: string;
+  onSearchChange?: (query: string) => void;
   placeholder?: string;
   hint?: string;
   required?: boolean;
@@ -18,7 +20,7 @@ interface EmployeePickerProps {
   style?: CSSProperties;
 }
 
-/** Search by name/code; form submissions contain only an employee ID chosen from the roster. */
+/** Search roster fields; form submissions contain only an employee ID chosen from the roster. */
 function EmployeePicker({
   employees,
   label = 'Employee',
@@ -26,6 +28,8 @@ function EmployeePicker({
   value,
   defaultValue = '',
   onChange,
+  searchValue,
+  onSearchChange,
   placeholder = 'Type a name or employee code…',
   hint,
   required = false,
@@ -41,14 +45,15 @@ function EmployeePicker({
   const [active, setActive] = useState(0);
   const selected = employees.find((employee) => employee.id === (value ?? localValue));
   const selectedId = selected?.id ?? '';
-  const terms = (query ?? '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const searchQuery = searchValue ?? query;
+  const terms = (searchQuery ?? '').trim().toLowerCase().split(/\s+/).filter(Boolean);
   const matches = employees.filter((employee) => {
-    const text = `${employee.name} ${employee.code}`.toLowerCase();
+    const text = `${employee.name} ${employee.code} ${employee.searchText ?? ''}`.toLowerCase();
     return terms.every((term) => text.includes(term));
   });
   const expanded = open && !disabled;
   const activeIndex = Math.min(active, matches.length - 1);
-  const displayValue = query ?? (selected ? `${selected.name} · ${selected.code}` : '');
+  const displayValue = searchQuery ?? (selected ? `${selected.name} · ${selected.code}` : '');
 
   function changeSelection(employeeId: string) {
     if (value === undefined) {
@@ -65,12 +70,14 @@ function EmployeePicker({
     setActive(0);
   }
 
-  // A typed search is not a selection, even in an optional employee field.
+  // Form pickers require a real selection; a standalone controlled search can remain unselected.
   useEffect(() => {
     inputRef.current?.setCustomValidity(
-      !selectedId && (required || !!query?.trim()) ? 'Choose an employee from the list.' : '',
+      !selectedId && (required || (searchValue === undefined && !!query?.trim()))
+        ? 'Choose an employee from the list.'
+        : '',
     );
-  }, [selectedId, query, required]);
+  }, [selectedId, query, required, searchValue]);
 
   // React form actions reset native controls after submission; reset local selection with them.
   useEffect(() => {
@@ -83,18 +90,19 @@ function EmployeePicker({
         setLocalValue(defaultValue);
       }
       setQuery(null);
+      onSearchChange?.('');
       setOpen(false);
       setActive(0);
     }
     form?.addEventListener('reset', reset);
     return () => form?.removeEventListener('reset', reset);
-  }, [value, defaultValue]);
+  }, [value, defaultValue, onSearchChange]);
 
   useEffect(() => {
     if (expanded) {
       listRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' });
     }
-  }, [expanded, activeIndex, query]);
+  }, [expanded, activeIndex, searchQuery]);
 
   return (
     <div
@@ -137,6 +145,7 @@ function EmployeePicker({
           }}
           onChange={(event) => {
             setQuery(event.target.value);
+            onSearchChange?.(event.target.value);
             setActive(0);
             setOpen(true);
             if (selectedId) {
@@ -183,6 +192,7 @@ function EmployeePicker({
               onClick={() => {
                 changeSelection('');
                 setQuery(null);
+                onSearchChange?.('');
                 setActive(0);
                 inputRef.current?.focus();
                 setOpen(true);

@@ -2137,8 +2137,8 @@ tbody tr:hover {
 .employees-toolbar {
   flex-wrap: wrap;
 }
-.employees-toolbar .search {
-  flex: 1 1 240px;
+.employees-toolbar .employee-picker {
+  flex: 1 1 20px;
   min-width: 0;
 }
 .emp-top {
