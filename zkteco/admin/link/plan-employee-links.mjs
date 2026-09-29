@@ -1,5 +1,5 @@
 // Resolve each enrolled device user to one existing, eligible employee.
-import { cleanName } from '../roster/names.mjs';
+import { cleanName } from '../roster/normalize-employee-names.mjs';
 
 const normal = (value) =>
   cleanName(value ?? '')

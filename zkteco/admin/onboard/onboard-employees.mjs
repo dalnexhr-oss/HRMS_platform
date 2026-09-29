@@ -3,12 +3,12 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import nextEnv from '@next/env';
 import { MongoClient, BSON } from 'mongodb';
-import { readRoster } from '../roster/workbook.mjs';
-import { readSalaryRules } from './salary.mjs';
-import { readOnboardingContext } from './context.mjs';
-import { buildOnboardingPlan } from './plan.mjs';
-import { applyOnboarding } from './persist.mjs';
-import { verifyOnboarding } from './verify.mjs';
+import { readRoster } from '../roster/read-employee-workbook.mjs';
+import { readSalaryRules } from './salary-rules.mjs';
+import { readOnboardingContext } from './load-onboarding-context.mjs';
+import { buildOnboardingPlan } from './plan-onboarding.mjs';
+import { applyOnboarding } from './save-onboarding.mjs';
+import { verifyOnboarding } from './verify-onboarding.mjs';
 
 const json = async (file) => JSON.parse(await readFile(file, 'utf8'));
 

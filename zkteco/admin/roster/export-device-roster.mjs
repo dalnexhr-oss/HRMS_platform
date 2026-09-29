@@ -1,8 +1,8 @@
 // Export device identity fields, optionally reconcile existing HRMS records.
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { readRoster } from './workbook.mjs';
-import { reconcileRoster } from './reconcile.mjs';
+import { readRoster } from './read-employee-workbook.mjs';
+import { reconcileRoster } from './reconcile-hrms-roster.mjs';
 
 export async function exportRoster(values) {
   const employees = values.file

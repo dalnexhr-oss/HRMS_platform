@@ -1,5 +1,5 @@
 // Match existing employees only; preserve canonical MongoDB IDs.
-import { normalName } from './names.mjs';
+import { normalName } from './normalize-employee-names.mjs';
 
 function planHrms(employees, records) {
   const used = new Set();

@@ -16,10 +16,10 @@
 | Reading attendance from the device                        | `bridge/poller.py`                                    |
 | HTTP delivery, acknowledgements, and retries              | `bridge/delivery.py`                                  |
 | Continuous polling loop                                   | `bridge/service.py`                                   |
-| Workbook names, dates, and columns                        | `admin/roster/names.mjs`, `dates.mjs`, `workbook.mjs` |
-| Match device users to existing employees                  | `admin/link/plan.mjs`                                 |
-| Existing employee/login updates and terminal registration | `admin/link/persist.mjs`                              |
-| Employee import rules and fields                          | `admin/onboard/salary.mjs`, `plan.mjs`                |
+| Workbook names, dates, and columns                        | `admin/roster/normalize-employee-names.mjs`, `dates.mjs`, `workbook.mjs` |
+| Match device users to existing employees                  | `admin/link/plan-employee-links.mjs`                                 |
+| Existing employee/login updates and terminal registration | `admin/link/save-employee-links.mjs`                              |
+| Employee import rules and fields                          | `admin/onboard/salary-rules.mjs`, `plan.mjs`                |
 | New employee defaults, leave, and onboarding tasks        | `admin/onboard/create-employee.mjs`                   |
 | Device authentication and HTTP responses                  | `server/punch-endpoint.ts`, `server/punch-protocol.ts`            |
 | Registered terminal and employee eligibility              | `server/employee-mapping.ts`                                  |

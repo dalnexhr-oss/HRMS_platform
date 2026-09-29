@@ -1,6 +1,6 @@
 // Command-line options only; the workflow is independently maintained under admin/.
 import { parseArgs } from 'node:util';
-import { exportRoster } from '../admin/roster/workflow.mjs';
+import { exportRoster } from '../admin/roster/export-device-roster.mjs';
 import { runCommand } from './support.mjs';
 
 runCommand(async () => {

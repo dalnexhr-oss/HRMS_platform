@@ -1,7 +1,7 @@
 // Read Employee.xlsx without modifying it.
 import ExcelJS from 'exceljs';
-import { cleanName } from './names.mjs';
-import { calendarDate } from './dates.mjs';
+import { cleanName } from './normalize-employee-names.mjs';
+import { calendarDate } from './parse-roster-dates.mjs';
 
 async function readRoster(file, { details = false } = {}) {
   const workbook = new ExcelJS.Workbook();

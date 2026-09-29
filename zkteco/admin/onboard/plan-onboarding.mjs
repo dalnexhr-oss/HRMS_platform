@@ -1,6 +1,6 @@
 // Produce source-field updates without deleting records or replacing permanent IDs.
 import { randomUUID } from 'node:crypto';
-import { decimal } from './salary.mjs';
+import { decimal } from './salary-rules.mjs';
 
 const normal = (value) =>
   String(value ?? '')
