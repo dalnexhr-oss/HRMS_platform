@@ -1461,6 +1461,9 @@ tbody tr:hover {
 }
 
 /* register */
+.register-page {
+  max-width: none;
+}
 .reg-head {
   display: flex;
   align-items: center;
@@ -1511,12 +1514,147 @@ tbody tr:hover {
   overflow: hidden;
   background: rgba(255, 255, 255, 0.8);
 }
+.monthly-register {
+  --register-employee-width: 250px;
+  --register-day-width: 40px;
+}
+.register-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-2);
+}
+.register-controls .register-search {
+  flex: 1 1 240px;
+  min-width: 0;
+  max-width: 380px;
+  padding: 8px 12px;
+}
+.register-expanded-title {
+  flex-basis: 100%;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.register-expanded-title .mono {
+  font-size: 12px;
+}
+.register-search input {
+  min-width: 0;
+  width: 100%;
+  font-size: 13px;
+}
+.register-search svg {
+  flex-shrink: 0;
+}
+.register-count {
+  font-size: 11px;
+}
+.register-controls .btn {
+  padding: 7px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.register-expand {
+  margin-left: auto;
+}
+.register-bulk-bar {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--radius-xs);
+  background: var(--p-bg);
+}
+.register-selection-note {
+  margin: 0;
+  padding: 6px 12px;
+  font-size: 11px;
+}
+.register-grid {
+  min-width: calc(
+    var(--register-employee-width) + var(--register-day-count) * var(--register-day-width)
+  );
+}
+.monthly-register .rrow {
+  grid-template-columns: var(--register-employee-width) minmax(0, 1fr);
+}
+.monthly-register .daystrip {
+  grid-auto-columns: minmax(var(--register-day-width), 1fr);
+}
+.monthly-register .emp-cell {
+  padding: 8px 12px;
+  gap: 4px;
+}
+.register-identity,
+.register-row-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 8px;
+}
+.register-identity .nm {
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.register-row-footer .rowtoggle {
+  margin: 0;
+  min-height: 24px;
+}
+.register-row-details:not([hidden]) {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+}
+.monthly-register .sums {
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.monthly-register .dcell {
+  min-height: 56px;
+  padding: 4px 2px;
+}
+.monthly-register .rrow.open .dcell {
+  min-height: 88px;
+}
+.register-empty {
+  padding: 24px 16px;
+  text-align: center;
+}
+/* Expansion keeps the same grid and selection while using the available window. */
+.monthly-register.is-expanded {
+  position: fixed;
+  inset: var(--gutter);
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  background: var(--card-solid);
+}
+.monthly-register.is-expanded .register-controls,
+.monthly-register.is-expanded .register-selection-note {
+  flex-shrink: 0;
+}
+.monthly-register.is-expanded .register-scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+.screen:has(.monthly-register.is-expanded) {
+  animation: none;
+}
 .reg-scroll {
   overflow-x: auto;
 }
 /* One scroll container keeps dates aligned with the employee list in both directions. */
 .register-scroll {
-  max-height: clamp(240px, calc(100dvh - 230px), 840px);
+  max-height: max(280px, calc(100dvh - 230px));
   overflow: auto;
   isolation: isolate;
   scroll-padding-top: 54px;
@@ -3904,6 +4042,13 @@ html {
   .rrow {
     grid-template-columns: 150px 1fr;
   }
+  .monthly-register {
+    --register-employee-width: 180px;
+  }
+  .register-controls .register-search {
+    max-width: none;
+    flex-basis: 100%;
+  }
 
   /* Panels go full-bleed: a 470px drawer on a 390px screen is just a page. */
   .drawer,
@@ -4152,6 +4297,20 @@ html {
   .register-scroll .rrow.hd-row,
   .register-scroll .emp-cell {
     position: static;
+  }
+  .monthly-register.is-expanded {
+    position: static;
+    display: block;
+    inset: auto;
+  }
+  .register-controls,
+  .register-selection-note,
+  .monthly-register .rowtoggle {
+    display: none !important;
+  }
+  .monthly-register .register-row-details {
+    display: grid;
+    gap: 6px;
   }
   html,
   body {

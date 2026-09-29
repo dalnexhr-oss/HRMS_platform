@@ -117,7 +117,7 @@ async function RegisterPage({
     `/monthly-register?m=${mm}${bb ? `&b=${encodeURIComponent(bb)}` : ''}` as Route;
 
   return (
-    <div className="wrap">
+    <div className="wrap register-page">
       <div className="reg-head">
         <div className="month-nav">
           <Link href={withParams(prev, branch)} aria-label="Previous month" role="button">
@@ -260,6 +260,7 @@ async function RegisterPage({
           )}
 
           <RegisterGrid
+            key={`${periodMonth}:${branch ?? ''}`}
             employees={employees}
             days={days}
             weekOffs={weekOffs}

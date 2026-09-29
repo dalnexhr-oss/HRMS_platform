@@ -8,6 +8,7 @@ import { correctAttendance, correctAttendanceBulk } from '@/lib/actions/attendan
 import { grantCompOff } from '@/lib/actions/comp-off';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/Toast';
+import type { CSSProperties } from 'react';
 import type { CorrectionState } from '@/lib/actions/attendance';
 import type { DayCell, RegisterEmployee } from '@/types/domain';
 
@@ -32,7 +33,7 @@ function compOffKey(employeeId: string, workDate: string): string {
 }
 
 // The month register: a fixed employee/summary column + a scrollable day strip.
-// Clicking "Show punches" expands a row to reveal in/out/hours per day.
+// Expanding a row reveals the monthly summary and in/out/hours per day.
 // For staff, clicking a day cell opens the correction drawer.
 
 /** Statuses offered in the correction drawer — mirrors allowedStatuses in the action. */
@@ -83,6 +84,9 @@ function RegisterGrid({
   compOffKeys?: string[];
 }) {
   const router = useRouter();
+  const [query, setQuery] = useState('');
+  const [expanded, setExpanded] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [target, setTarget] = useState<Target | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -100,6 +104,52 @@ function RegisterGrid({
   const { confirm, confirmDialog } = useConfirm();
   const { toast, toastNode } = useToast();
   const onWarning = useCallback((w: string) => toast(w, 'info'), [toast]);
+
+  const searchTerms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const visibleEmployees = employees.filter((employee) => {
+    const identity = `${employee.name} ${employee.code}`.toLowerCase();
+    return searchTerms.every((term) => identity.includes(term));
+  });
+
+  useEffect(() => {
+    if (!expanded) {
+      return;
+    }
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [expanded]);
+
+  useEffect(() => {
+    if (!expanded || drawerOpen) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      const register = scrollRef.current?.closest('.monthly-register');
+      if (
+        event.key !== 'Escape' ||
+        event.defaultPrevented ||
+        register?.querySelector('[role="dialog"]') ||
+        (event.target instanceof HTMLElement && event.target.closest('input, textarea, select'))
+      ) {
+        return;
+      }
+      setExpanded(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [expanded, drawerOpen]);
+
+  function changeSearch(value: string) {
+    setQuery(value);
+    // A correction must never include cells hidden by a new employee filter.
+    setSelected(new Set());
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }
 
   function toggleSelect(employeeId: string, day: number) {
     const key = `${employeeId}|${dateFor(periodMonth, day)}`;
@@ -145,73 +195,132 @@ function RegisterGrid({
   }
 
   return (
-    <div className="card register">
+    <div className={`card register monthly-register${expanded ? ' is-expanded' : ''}`}>
       {confirmDialog}
       {toastNode}
-      {canCorrect && (
-        <BulkBar
-          bulkMode={bulkMode}
-          count={selected.size}
-          pending={applying}
-          onEnter={() => setBulkMode(true)}
-          onExit={exitBulk}
-          onClear={() => setSelected(new Set())}
-          onApply={async (status, reason) => {
-            const targets = [...selected].map((k) => {
-              const i = k.indexOf('|');
-              return { employeeId: k.slice(0, i), workDate: k.slice(i + 1) };
-            });
-            // Show confirmation before starting the transition. Awaiting a dialog state update
-            // inside the same async transition can leave both waiting indefinitely.
-            const ok = await confirm({
-              title: 'Apply bulk correction',
-              message: `Set ${targets.length} day(s) to “${status}”? Each is stamped as a correction against your name and written to the audit log.`,
-              confirmLabel: 'Apply',
-              danger: true,
-            });
-            if (!ok) {
-              return;
-            }
-            startApply(async () => {
-              const res = await correctAttendanceBulk({ targets, status, reason });
-              if (!res.ok) {
-                toast(res.error ?? 'The bulk correction failed.', 'error');
-              } else {
-                if (res.warning) {
-                  toast(res.warning, 'info');
-                } else {
-                  toast(`Corrected ${targets.length} day(s).`, 'success');
-                }
-                exitBulk();
-                router.refresh();
+      <div className="register-controls">
+        {expanded && (
+          <div className="register-expanded-title">
+            <b>Monthly register</b>
+            <span className="mono muted">
+              {new Intl.DateTimeFormat('en-GB', {
+                month: 'long',
+                year: 'numeric',
+                timeZone: 'Asia/Kolkata',
+              }).format(new Date(`${periodMonth}T00:00:00+05:30`))}
+            </span>
+          </div>
+        )}
+        <label className="search register-search">
+          <span className="sr-only">Search employees by name or employee ID</span>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden="true"
+          >
+            <circle cx="10.5" cy="10.5" r="6.5" />
+            <path d="m16 16 4.5 4.5" />
+          </svg>
+          <input
+            type="search"
+            placeholder="Search name or employee ID…"
+            value={query}
+            onChange={(event) => changeSearch(event.target.value)}
+            disabled={applying}
+            aria-controls="reggrid"
+          />
+        </label>
+        <span
+          className="register-count mono muted"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {visibleEmployees.length} of {employees.length} employees
+        </span>
+        {query && (
+          <button
+            type="button"
+            className="btn quiet"
+            onClick={() => changeSearch('')}
+            disabled={applying}
+          >
+            Clear search
+          </button>
+        )}
+        <button
+          type="button"
+          className="btn quiet register-expand"
+          aria-pressed={expanded}
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? 'Exit expanded view' : 'Expand view'}
+        </button>
+        {canCorrect && (
+          <BulkBar
+            bulkMode={bulkMode}
+            count={selected.size}
+            pending={applying}
+            onEnter={() => setBulkMode(true)}
+            onExit={exitBulk}
+            onClear={() => setSelected(new Set())}
+            onApply={async (status, reason) => {
+              const targets = [...selected].map((k) => {
+                const i = k.indexOf('|');
+                return { employeeId: k.slice(0, i), workDate: k.slice(i + 1) };
+              });
+              // Show confirmation before starting the transition. Awaiting a dialog state update
+              // inside the same async transition can leave both waiting indefinitely.
+              const ok = await confirm({
+                title: 'Apply bulk correction',
+                message: `Set ${targets.length} day(s) to “${status}”? Each is stamped as a correction against your name and written to the audit log.`,
+                confirmLabel: 'Apply',
+                danger: true,
+              });
+              if (!ok) {
+                return;
               }
-            });
-          }}
-        />
+              startApply(async () => {
+                const res = await correctAttendanceBulk({ targets, status, reason });
+                if (!res.ok) {
+                  toast(res.error ?? 'The bulk correction failed.', 'error');
+                } else {
+                  if (res.warning) {
+                    toast(res.warning, 'info');
+                  } else {
+                    toast(`Corrected ${targets.length} day(s).`, 'success');
+                  }
+                  exitBulk();
+                  router.refresh();
+                }
+              });
+            }}
+          />
+        )}
+      </div>
+      {bulkMode && (
+        <p className="register-selection-note muted">Changing the search clears selected cells.</p>
       )}
       <div
+        ref={scrollRef}
         className="reg-scroll register-scroll"
         role="region"
         aria-label="Monthly attendance register"
         tabIndex={0}
       >
-        <div id="reggrid" style={{ minWidth: 1660 }}>
+        <div
+          id="reggrid"
+          className="register-grid"
+          style={{ '--register-day-count': days.length } as CSSProperties}
+        >
           {/* header row */}
           <div className="rrow hd-row">
             <div className="emp-cell">
-              <span
-                className="folio"
-                style={{
-                  font: '800 14px var(--mono)',
-                  letterSpacing: '.04em',
-                  color: 'var(--ink-3)',
-                  fontWeight: '20000',
-                  textTransform: 'uppercase',
-                  textAlign: 'left',
-                }}
-              >
-                Employee's
-              </span>
+              <span className="folio">Employee · summary</span>
             </div>
             <div className="daystrip">
               {days.map((d) => (
@@ -224,7 +333,7 @@ function RegisterGrid({
           </div>
 
           {/* employee rows */}
-          {employees.map((e) => {
+          {visibleEmployees.map((e) => {
             const short = e.workedMinutes < e.targetMinutes;
             // Without a target there is no meaningful completion bar.
             const pct =
@@ -237,51 +346,67 @@ function RegisterGrid({
             return (
               <div key={e.id} className={`rrow${isOpen ? ' open' : ''}`}>
                 <div className="emp-cell">
-                  <div>
-                    <span className="nm">{e.name}</span> <span className="meta">· {e.code}</span>
+                  <div className="register-identity">
+                    <span className="nm">{e.name}</span>
+                    <span className="meta">{e.code}</span>
                   </div>
-                  <div className="meta">
-                    {e.branch} · {e.gender}
+                  <div className="register-row-footer">
+                    <span className="meta" title="Worked hours / target hours">
+                      {formatHrs(e.workedMinutes)} / {formatHrs(e.targetMinutes)} hrs
+                    </span>
+                    <button
+                      type="button"
+                      className="rowtoggle"
+                      aria-expanded={!!isOpen}
+                      aria-controls={`register-summary-${e.id}`}
+                      aria-label={`${isOpen ? 'Hide' : 'Show'} summary and punches for ${e.name}`}
+                      onClick={() => setOpen((o) => ({ ...o, [e.id]: !o[e.id] }))}
+                    >
+                      {isOpen ? 'Hide details' : 'Details'}
+                    </button>
                   </div>
-                  <div className="sums">
-                    <span>
-                      P <b>{e.summary.P}</b>
-                    </span>
-                    <span>
-                      LM <b>{e.summary.LM}</b>
-                    </span>
-                    <span>
-                      HD <b>{e.summary.HD}</b>
-                    </span>
-                    <span>
-                      L <b>{e.summary.L}</b>
-                    </span>
-                    <span>
-                      WO <b>{e.summary.WO}</b>
-                    </span>
-                  </div>
-                  <div className="sums">
-                    <span>
-                      Working <b>{e.summary.working}</b>
-                    </span>
-                    {/* if late mark is more than 3 times, than it is counted as a half day */}
-                    <span>
-                      payable <b>{e.summary.working + e.summary.WO + e.summary.HD - e.summary.L}</b>
-                    </span>
-                  </div>
-                  <div className={`hrsbar${short ? ' short' : ''}`}>
-                    <i style={{ width: `${pct}%` }} />
-                  </div>
-                  <div className="meta mono">
-                    {formatHrs(e.workedMinutes)} / {formatHrs(e.targetMinutes)} hrs{' '}
-                    {short ? '· short' : '· met'}
-                  </div>
-                  <button
-                    className="rowtoggle"
-                    onClick={() => setOpen((o) => ({ ...o, [e.id]: !o[e.id] }))}
+                  <div
+                    id={`register-summary-${e.id}`}
+                    className="register-row-details"
+                    hidden={!isOpen}
                   >
-                    {isOpen ? 'Hide punches' : 'Show punches'}
-                  </button>
+                    <div className="meta">
+                      {e.branch} · {e.gender}
+                    </div>
+                    <div className="sums">
+                      <span>
+                        P <b>{e.summary.P}</b>
+                      </span>
+                      <span>
+                        LM <b>{e.summary.LM}</b>
+                      </span>
+                      <span>
+                        HD <b>{e.summary.HD}</b>
+                      </span>
+                      <span>
+                        L <b>{e.summary.L}</b>
+                      </span>
+                      <span>
+                        WO <b>{e.summary.WO}</b>
+                      </span>
+                    </div>
+                    <div className="sums">
+                      <span>
+                        Working <b>{e.summary.working}</b>
+                      </span>
+                      {/* if late mark is more than 3 times, than it is counted as a half day */}
+                      <span>
+                        payable <b>{e.summary.working + e.summary.WO + e.summary.HD - e.summary.L}</b>
+                      </span>
+                    </div>
+                    <div className={`hrsbar${short ? ' short' : ''}`}>
+                      <i style={{ width: `${pct}%` }} />
+                    </div>
+                    <div className="meta mono">
+                      {formatHrs(e.workedMinutes)} / {formatHrs(e.targetMinutes)} hrs{' '}
+                      {short ? '· short' : '· met'}
+                    </div>
+                  </div>
                 </div>
                 <div className="daystrip">
                   {days.map((d) => {
@@ -386,6 +511,13 @@ function RegisterGrid({
           })}
         </div>
       </div>
+      {visibleEmployees.length === 0 && (
+        <div className="register-empty muted" role="status">
+          {employees.length === 0
+            ? 'No employees in this register.'
+            : 'No employees match your search. Try a different name or employee ID.'}
+        </div>
+      )}
 
       {canCorrect && (
         <>
@@ -648,9 +780,14 @@ function BulkBar({
 
   if (!bulkMode) {
     return (
-      <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--line-2)' }}>
-        <button type="button" className="btn quiet" onClick={onEnter}>
-          ☑ Select cells (bulk correct)
+      <div className="register-bulk-toggle">
+        <button
+          type="button"
+          className="btn quiet"
+          onClick={onEnter}
+          title="Select attendance cells for bulk correction"
+        >
+          ☑ Select cells
         </button>
       </div>
     );
@@ -659,17 +796,7 @@ function BulkBar({
   const canApply = count > 0 && reason.trim().length > 0 && !pending;
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        gap: 8,
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        padding: '10px 12px',
-        borderBottom: '1px solid var(--line-2)',
-        background: 'var(--p-bg)',
-      }}
-    >
+    <div className="register-bulk-bar">
       <span className="pill" style={{ borderColor: 'var(--brand)', color: 'var(--brand)' }}>
         {count} selected
       </span>
