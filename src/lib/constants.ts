@@ -233,7 +233,7 @@ const navItems: NavItem[] = [
   { slug: 'helpdesk', label: 'Helpdesk', group: groups.COMPANY },
 
   { slug: 'users', label: 'Users', group: groups.ADMIN },
-  { slug: 'data-import', label: 'Data import', group: groups.ADMIN },
+  { slug: 'data-import', label: 'Attendance import', group: groups.ADMIN },
   { slug: 'settings', label: 'Settings', group: groups.ADMIN },
 ];
 
@@ -277,7 +277,7 @@ const tabTitles: Record<string, [ string, string ]> = {
   helpdesk: [ 'Helpdesk', 'Employee tickets' ],
   settings: [ 'Settings', 'Rules & thresholds' ],
   users: [ 'Users', 'Login accounts & roles' ],
-  'data-import': [ 'Data import', 'Bulk upload employees & attendance' ],
+  'data-import': [ 'Attendance import', 'Import monthly attendance from Excel' ],
   account: [ 'My account', 'Your profile & password' ],
 };
 

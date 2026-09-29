@@ -87,10 +87,9 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
 
       <div className="card">
         <div className="hd">
-          <h3>Exits</h3>
-          <span className="folio">
-            {cases.length} case{cases.length === 1 ? '' : 's'}
-          </span>
+          <h3>
+            Active exit case{cases.length === 1 ? '' : 's'} <span style={{ color:'var(--brand)' }}>({cases.length})</span>
+          </h3>
         </div>
         {cases.length === 0 ? (
           <div className="bd">

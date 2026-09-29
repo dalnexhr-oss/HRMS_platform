@@ -1,10 +1,15 @@
 import { getSession } from '@/lib/auth';
 import { ImportScreen } from '@/components/import/ImportScreen';
 import { currentPeriodMonth } from '@/lib/queries';
+import type { Metadata } from 'next';
 import type { AppRole } from '@/types/database';
 
 // Match commitImport's staff role gate. The action and collection policy also enforce access.
 const importRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
+
+export const metadata: Metadata = {
+  title: 'Attendance import — Dalnex HRMS',
+};
 
 async function ImportPage() {
   const { profile } = await getSession();
