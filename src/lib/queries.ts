@@ -6,6 +6,8 @@ import { collections } from '@/lib/db/collection-registry';
 import { createClient } from '@/lib/db/server-client';
 import { presentCredit } from '@/lib/leave-salary';
 import { presentDaySurplus } from '@/lib/worked-time';
+import { localParts, summarizePunches } from '@/lib/punch-day';
+import { clockToMinutes } from '@/lib/attendance-rules';
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { deleteExpiredNotices } from '@/lib/db/scheduled-jobs';
 import { minutesToHHMM, trimTime } from '@/lib/format';
@@ -21,6 +23,7 @@ import type { Policy, LeaveType, RequestType } from '@/types/database';
 import type { BranchDoc, DepartmentDoc, EmployeeDoc, EmployeeStatus, UserDoc } from '@/lib/db/collection-registry';
 import type { TabAccess } from '@/lib/access';
 import type { QueryError } from '@/types/query';
+import type { DayEvent } from '@/lib/punch-day';
 
 // Expose database availability alongside the query helpers.
 
@@ -1226,42 +1229,60 @@ async function getTodayBoard(): Promise<TodayKpis> {
 /** Today's punch log, earliest punch first. */
 async function getPunchLogToday(): Promise<PunchLogRow[]> {
   const dbc = await createClient();
-  const { data, error } = await dbc
-    .from('attendance_days')
-    .select(
-      'status, punch_in, punch_out, worked_minutes, employees(code, full_name, branches(name))',
-    )
-    .eq('work_date', todayISO());
-  if (error) {
-    fail("getPunchLogToday: could not load today's attendance", error);
+  const now = new Date();
+  const { date, time } = localParts(now);
+  const [days, punches] = await Promise.all([
+    dbc
+      .from('attendance_days')
+      .select(
+        'employee_id, status, punch_in, punch_out, worked_minutes, is_corrected, auto_close_source, employees(code, full_name, branches(name))',
+      )
+      .eq('work_date', date),
+    dbc
+      .from('punch_events')
+      .select<Array<DayEvent & { employee_id: string }>>('employee_id, kind, punched_at')
+      .gte('punched_at', new Date(`${date}T00:00:00+05:30`))
+      .lte('punched_at', now)
+      .order('punched_at', { ascending: true }),
+  ]);
+  if (days.error) {
+    fail("getPunchLogToday: could not load today's attendance", days.error);
+  }
+  if (punches.error) {
+    fail("getPunchLogToday: could not load today's punch sessions", punches.error);
   }
 
-  const nowMinutes = (() => {
-    const parts = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Asia/Kolkata',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(new Date());
-    const [h, m] = parts.split(':');
-    return Number(h) * 60 + Number(m);
-  })();
+  const eventsByEmployee = new Map<string, DayEvent[]>();
+  for (const event of punches.data ?? []) {
+    const events = eventsByEmployee.get(event.employee_id) ?? [];
+    events.push(event);
+    eventsByEmployee.set(event.employee_id, events);
+  }
+  const nowMinutes = clockToMinutes(time) ?? 0;
 
-  return (data ?? [])
+  return (days.data ?? [])
     .map((d: any): PunchLogRow => {
       const punchIn = trimTime(d.punch_in);
       const punchOut = trimTime(d.punch_out);
-      let active: string | null = null;
-      if (d.worked_minutes) {
-        active = hoursMinutes(d.worked_minutes);
-      } else if (punchIn && !punchOut) {
-        // Still on the clock — show elapsed time since the punch-in.
-        const [h, m] = punchIn.split(':');
-        const elapsed = nowMinutes - (Number(h) * 60 + Number(m));
-        if (elapsed > 0) {
-          active = hoursMinutes(elapsed);
+      let minutes = Math.max(0, numberOrNull(d.worked_minutes) ?? 0);
+      const finalized = !!(d.is_corrected || d.auto_close_source);
+      const events = eventsByEmployee.get(d.employee_id) ?? [];
+
+      if (!finalized && events.length > 0) {
+        // Completed sessions plus the current session; first-in would also count lunch breaks.
+        // Use the same session pairing and minute rounding as web/device attendance writes.
+        const summary = summarizePunches(events);
+        const openMinute = clockToMinutes(summary.openIn);
+        minutes = summary.workedMinutes;
+        if (openMinute !== null) {
+          minutes += Math.max(0, nowMinutes - openMinute);
         }
+      } else if (!finalized && minutes === 0 && punchIn && !punchOut) {
+        // Imported attendance may have no raw events. Retain its single-session fallback.
+        const openMinute = clockToMinutes(punchIn);
+        minutes = openMinute === null ? 0 : Math.max(0, nowMinutes - openMinute);
       }
+      const active = punchIn || minutes > 0 ? hoursMinutes(minutes) : null;
       return {
         code: d.employees?.code ?? '',
         name: d.employees?.full_name ?? '',
