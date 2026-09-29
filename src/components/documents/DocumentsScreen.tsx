@@ -15,6 +15,7 @@ import { UploadDocumentDrawer } from './UploadDocumentDrawer';
 import { EmployeeDocumentsPanel } from './EmployeeDocumentsPanel';
 import { openDocument } from './open-document';
 import { StatusPill } from './StatusPill';
+import { DocumentActions } from './DocumentActions';
 import type { DrawerTarget } from './UploadDocumentDrawer';
 import type { SortDir, ColKind, DateRange } from '@/components/ui/ThMenu';
 import type { DocumentStats, EmployeeDocumentRow, EmployeeOption } from '@/lib/queries';
@@ -176,12 +177,12 @@ function DocumentsScreen({
   }
 
   return (
-    <div className="wrap">
+    <div className="wrap documents-screen">
       {confirmDialog}
       {promptDialog}
       {toastNode}
 
-      <div className="emp-top">
+      <div className="emp-top documents-toolbar">
         <div className="search">
           <svg
             width="15"
@@ -195,6 +196,8 @@ function DocumentsScreen({
             <path d="M21 21l-4.3-4.3" />
           </svg>
           <input
+            type="search"
+            aria-label="Search employee documents"
             placeholder="Search employee, code, document…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -203,13 +206,12 @@ function DocumentsScreen({
         <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
           {rows.length} of {register.length}
         </span>
-        <span style={{ flex: 1 }} />
         <button className="btn primary" onClick={() => setDrawer({ mode: 'upload' })}>
           + Upload document
         </button>
       </div>
 
-      <div className="kpis five" style={{ marginBottom: 14 }}>
+      <div className="kpis five documents-kpis">
         <div className="card kpi">
           <div className="lab">On file</div>
           <div className="val">{stats.total}</div>
@@ -247,32 +249,41 @@ function DocumentsScreen({
       </div>
 
       {queue.length > 0 && (
-        <div className="card" style={{ marginBottom: 14 }}>
+        <div className="card documents-card documents-queue">
           <div className="hd">
-            <h3>Needs attention</h3>
-            <span className="folio">{queue.length}</span>
+            <h3>
+              Needs attention (<span style={{ color: 'red' }}>{queue.length}</span>)
+            </h3>
           </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table>
+          <div className="documents-table-wrap">
+            <table
+              className="documents-table documents-queue-table"
+              aria-label="Documents needing attention"
+            >
+              <colgroup>
+                <col className="documents-col-employee" />
+                <col />
+                <col className="documents-col-status" />
+                <col className="documents-col-filed" />
+                <col className="documents-col-actions" />
+              </colgroup>
               <thead>
                 <tr>
                   <th>Employee</th>
                   <th>Document</th>
                   <th>Status</th>
                   <th>Filed</th>
-                  <th>Action</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {queue.map((d) => (
                   <tr key={d.id}>
-                    <td style={{ whiteSpace: 'nowrap' }}>
-                      <EmployeeLink row={d} onOpen={setPanelFor} />{' '}
-                      <span className="mono muted" style={{ fontSize: 11 }}>
-                        {d.code}
-                      </span>
+                    <td data-label="Employee">
+                      <EmployeeLink row={d} onOpen={setPanelFor} />
+                      <span className="document-employee-code mono muted">{d.code}</span>
                     </td>
-                    <td>
+                    <td data-label="Document" className="document-title-cell">
                       {documentCategoryLabel(d.category)} — {d.title ?? '—'}
                       {d.version > 1 && <span className="muted"> · v{d.version}</span>}
                       {d.verifyRemark && (
@@ -281,45 +292,23 @@ function DocumentsScreen({
                         </div>
                       )}
                     </td>
-                    <td>
+                    <td data-label="Status">
                       <StatusPill row={d} />
                     </td>
-                    <td className="mono">{formatDate(d.uploadedAt.slice(0, 10))}</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        <button
-                          className="btn quiet"
-                          onClick={() => openDocument(d.id, (m) => toast(m, 'error'))}
-                        >
-                          📎 Open
-                        </button>
-                        <button
-                          className="btn primary"
-                          disabled={pending && busy === d.id}
-                          onClick={() =>
-                            run(
-                              d.id,
-                              () => verifyEmployeeDocument(d.id, true),
-                              'Document verified.',
-                            )
-                          }
-                        >
-                          ✓ Verify
-                        </button>
-                        <button
-                          className="btn"
-                          onClick={() => setDrawer({ mode: 'replace', document: d })}
-                        >
-                          ⟳ Replace
-                        </button>
-                        <button
-                          className="btn"
-                          disabled={pending && busy === d.id}
-                          onClick={() => onReturn(d)}
-                        >
-                          Return
-                        </button>
-                      </div>
+                    <td data-label="Filed" className="document-filed mono">
+                      {formatDate(d.uploadedAt.slice(0, 10))}
+                    </td>
+                    <td data-label="Actions" className="document-actions-cell">
+                      <DocumentActions
+                        title={d.title ?? documentCategoryLabel(d.category)}
+                        busy={pending && busy === d.id}
+                        onOpen={() => openDocument(d.id, (m) => toast(m, 'error'))}
+                        onVerify={() =>
+                          run(d.id, () => verifyEmployeeDocument(d.id, true), 'Document verified.')
+                        }
+                        onReplace={() => setDrawer({ mode: 'replace', document: d })}
+                        onReturn={() => onReturn(d)}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -329,13 +318,23 @@ function DocumentsScreen({
         </div>
       )}
 
-      <div className="card">
+      <div className="card documents-card">
         <div className="hd">
-          <h3>Document register</h3>
-          <span className="folio">{rows.length}</span>
+          <h3>
+            Document register (<span style={{ color: 'var(--brand)' }}>{rows.length}</span>)
+          </h3>
         </div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ minWidth: 980 }}>
+        <div className="documents-table-wrap">
+          <table className="documents-table" aria-label="Document register">
+            <colgroup>
+              <col className="documents-col-employee" />
+              <col className="documents-col-category" />
+              <col />
+              <col className="documents-col-source" />
+              <col className="documents-col-status" />
+              <col className="documents-col-filed" />
+              <col className="documents-col-actions" />
+            </colgroup>
             <thead>
               <tr>
                 {cols.map((c) => (
@@ -354,13 +353,13 @@ function DocumentsScreen({
                     />
                   </th>
                 ))}
-                <th>Actions</th>
+                <th className="document-actions-heading">Actions</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={cols.length + 1} className="muted" style={{ padding: 16 }}>
+                  <td colSpan={cols.length + 1} className="muted documents-empty">
                     {register.length === 0
                       ? 'No documents on file yet. Upload one to start the register.'
                       : 'No documents match the current search or filters.'}
@@ -369,62 +368,47 @@ function DocumentsScreen({
               ) : (
                 rows.map((d) => (
                   <tr key={d.id}>
-                    <td style={{ whiteSpace: 'nowrap' }}>
+                    <td data-label="Employee">
                       <EmployeeLink row={d} onOpen={setPanelFor} />
-                      <div className="mono muted" style={{ fontSize: 11 }}>
-                        {d.code}
-                      </div>
+                      <div className="document-employee-code mono muted">{d.code}</div>
                     </td>
-                    <td>{documentCategoryLabel(d.category, d.source === 'issued')}</td>
-                    <td>
+                    <td data-label="Category">
+                      {documentCategoryLabel(d.category, d.source === 'issued')}
+                    </td>
+                    <td data-label="Document" className="document-title-cell">
                       {d.title ?? '—'}
                       {d.version > 1 && <span className="muted"> · v{d.version}</span>}
                     </td>
-                    <td>{d.source === 'issued' ? 'HR issued' : 'Uploaded'}</td>
-                    <td>
+                    <td data-label="Source">{d.source === 'issued' ? 'HR issued' : 'Uploaded'}</td>
+                    <td data-label="Status">
                       <StatusPill row={d} />
                     </td>
-                    <td className="mono">{formatDate(d.uploadedAt.slice(0, 10))}</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        <button
-                          className="btn quiet"
-                          onClick={() => openDocument(d.id, (m) => toast(m, 'error'))}
-                        >
-                          📎
-                        </button>
-                        {d.status !== 'verified' && (
-                          <button
-                            className="btn primary"
-                            disabled={pending && busy === d.id}
-                            onClick={() =>
-                              run(
-                                d.id,
-                                () => verifyEmployeeDocument(d.id, true),
-                                'Document verified.',
-                              )
-                            }
-                          >
-                            ✓
-                          </button>
-                        )}
-                        {/* An HR-issued letter is reproduced from the exit case, never replaced by an upload — see replaceEmployeeDocument. */}
-                        {d.source === 'uploaded' && (
-                          <button
-                            className="btn"
-                            onClick={() => setDrawer({ mode: 'replace', document: d })}
-                          >
-                            ⟳ Replace
-                          </button>
-                        )}
-                        <button
-                          className="btn danger"
-                          disabled={pending && busy === d.id}
-                          onClick={() => onDelete(d)}
-                        >
-                          Delete
-                        </button>
-                      </div>
+                    <td data-label="Filed" className="document-filed mono">
+                      {formatDate(d.uploadedAt.slice(0, 10))}
+                    </td>
+                    <td data-label="Actions" className="document-actions-cell">
+                      <DocumentActions
+                        title={d.title ?? documentCategoryLabel(d.category, d.source === 'issued')}
+                        busy={pending && busy === d.id}
+                        onOpen={() => openDocument(d.id, (m) => toast(m, 'error'))}
+                        onVerify={
+                          d.status !== 'verified'
+                            ? () =>
+                                run(
+                                  d.id,
+                                  () => verifyEmployeeDocument(d.id, true),
+                                  'Document verified.',
+                                )
+                            : undefined
+                        }
+                        // HR-issued letters are regenerated from the exit case, never replaced by upload.
+                        onReplace={
+                          d.source === 'uploaded'
+                            ? () => setDrawer({ mode: 'replace', document: d })
+                            : undefined
+                        }
+                        onDelete={() => onDelete(d)}
+                      />
                     </td>
                   </tr>
                 ))

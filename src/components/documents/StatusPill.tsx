@@ -13,7 +13,7 @@ const pillMeta: Record<string, { label: string; color: string }> = {
 function StatusPill({ row }: { row: EmployeeDocumentRow }) {
   const meta = pillMeta[row.status] ?? pillMeta.awaiting;
   return (
-    <span className="pill" style={{ borderColor: meta.color, color: meta.color }}>
+    <span className="pill document-status" style={{ borderColor: meta.color, color: meta.color }}>
       {meta.label}
       {row.source === 'issued' && row.status === 'verified' ? ' · issued' : ''}
     </span>

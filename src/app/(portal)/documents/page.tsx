@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth';
 import { DocumentsScreen } from '@/components/documents/DocumentsScreen';
 import { getDocumentRegister, getEmployeeOptions, documentStats } from '@/lib/queries';
+import './documents.css';
 import type { AppRole } from '@/types/database';
 
 // Document management is accessible to super_admin/admin/HR.
