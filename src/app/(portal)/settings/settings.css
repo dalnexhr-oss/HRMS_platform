@@ -1,0 +1,50 @@
+.settings-branches {
+  display: grid;
+  gap: 12px;
+  container: branch-settings / inline-size;
+}
+.settings-branch-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-s);
+  background: var(--card-solid);
+}
+.settings-branch-row .f {
+  min-width: 0;
+  margin: 0;
+}
+.settings-branch-row .f input,
+.settings-branch-row .f select {
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+}
+.settings-branch-actions {
+  display: flex;
+  gap: 8px;
+}
+.settings-branch-actions .btn {
+  min-height: 42px;
+  justify-content: center;
+}
+@container branch-settings (max-width: 720px) {
+  .settings-branch-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .settings-branch-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+}
+@container branch-settings (max-width: 440px) {
+  .settings-branch-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .settings-branch-actions .btn {
+    flex: 1;
+  }
+}

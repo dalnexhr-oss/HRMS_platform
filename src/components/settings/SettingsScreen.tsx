@@ -35,7 +35,7 @@ function SettingsScreen({
             be deleted.
           </p>
           {branches.length === 0 && <p className="empty">No branches yet.</p>}
-          <div style={{ display: 'grid', gap: 12 }}>
+          <div className="settings-branches">
             {branches.map((b) => (
               <BranchManageRow key={b.id} branch={b} toast={toast} confirm={confirm} />
             ))}
@@ -109,6 +109,9 @@ function BranchManageRow({
   const dirty = name.trim() !== branch.name || state !== branch.state;
 
   const save = () => {
+    if (pending || !dirty || !name.trim()) {
+      return;
+    }
     startTransition(async () => {
       const fd = new FormData();
       fd.set('name', name);
@@ -147,45 +150,58 @@ function BranchManageRow({
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        gap: 8,
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        padding: '12px 14px',
-        border: '1px solid var(--line-2)',
-        borderRadius: 10,
-        background: 'var(--card-2, #fff)',
+    <form
+      className="settings-branch-row"
+      aria-label={`Edit ${branch.name} branch`}
+      onSubmit={(event) => {
+        event.preventDefault();
+        save();
       }}
     >
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        style={{ flex: '1 1 160px', minWidth: 0 }}
-        aria-label="Branch name"
-      />
-      <select
-        value={state}
-        onChange={(e) => setState(e.target.value)}
-        style={{ flex: '1 1 200px', minWidth: 0 }}
-        aria-label="Branch state"
-      >
-        {/* A stored state missing from the list (pre-0040 data oddity) stays selectable. */}
-        {!(States as readonly string[]).includes(state) && <option value={state}>{state}</option>}
-        {States.map((s) => (
-          <option key={s} value={s}>
-            {s}
-          </option>
-        ))}
-      </select>
-      <button className="btn primary" onClick={save} disabled={pending || !dirty || !name.trim()}>
-        {pending ? '…' : 'Save'}
-      </button>
-      <button className="btn quiet" onClick={remove} disabled={pending}>
-        Delete
-      </button>
-    </div>
+      <div className="f">
+        <label htmlFor={`branch-name-${branch.id}`}>Branch name</label>
+        <input
+          id={`branch-name-${branch.id}`}
+          name="name"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          required
+          disabled={pending}
+        />
+      </div>
+      <div className="f">
+        <label htmlFor={`branch-state-${branch.id}`}>State</label>
+        <select
+          id={`branch-state-${branch.id}`}
+          name="state"
+          value={state}
+          onChange={(event) => setState(event.target.value)}
+          disabled={pending}
+        >
+          {/* Keep a stored state selectable even when it is missing from the standard list. */}
+          {!(States as readonly string[]).includes(state) && <option value={state}>{state}</option>}
+          {States.map((stateName) => (
+            <option key={stateName} value={stateName}>
+              {stateName}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="settings-branch-actions">
+        <button type="submit" className="btn primary" disabled={pending || !dirty || !name.trim()}>
+          {pending ? 'Working…' : 'Save'}
+        </button>
+        <button
+          type="button"
+          className="btn quiet"
+          onClick={remove}
+          disabled={pending}
+          aria-label={`Delete ${branch.name} branch`}
+        >
+          Delete
+        </button>
+      </div>
+    </form>
   );
 }
 

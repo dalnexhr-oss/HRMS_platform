@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getSettings, getBranches } from '@/lib/queries';
 import { getSession } from '@/lib/auth';
 import { SettingsScreen } from '@/components/settings/SettingsScreen';
+import './settings.css';
 
 // Match the settings actions and navigation role gate.
 async function SettingsPage() {
