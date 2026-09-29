@@ -8,7 +8,7 @@ import type { MarkWatch, RegisterEmployee } from '@/types/domain';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Main dashboard — Dalnex HRMS',
+  title: 'Dashboard — Dalnex HRMS',
 };
 
 // Read the current date on each request, rather than freezing it at build time.

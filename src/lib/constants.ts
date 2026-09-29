@@ -208,7 +208,7 @@ interface NavItem {
 // Sidebar rows in group order. Keep Users and Import here so titles and access rules use the same
 // slugs. Personal account settings belong in the profile menu.
 const navItems: NavItem[] = [
-  { slug: 'dashboard', label: 'Main dashboard', group: groups.ATTENDANCE },
+  { slug: 'dashboard', label: 'Dashboard', group: groups.ATTENDANCE },
   { slug: 'monthly-register', label: 'Monthly register', group: groups.ATTENDANCE },
   { slug: 'attendance-audit', label: 'Attendance audit', group: groups.ATTENDANCE },
   { slug: 'approvals', label: 'Approvals', group: groups.ATTENDANCE },
@@ -256,7 +256,7 @@ const tabRoleAccess: Record<string, readonly string[]> = {
 // Static titles and fallback subtitles by slug. pageHeader supplies dates and counts from live
 // data.
 const tabTitles: Record<string, [string, string]> = {
-  dashboard: ['Main dashboard', 'Live attendance '],
+  dashboard: ['Dashboard', 'Live attendance '],
   'monthly-register': ['Monthly register', 'Attendance by month'],
   'attendance-audit': ['Attendance audit', 'Who edited attendance & why'],
   'tv-dashboard': ['TV dashboard', 'Live employee attendance'],
