@@ -21,7 +21,7 @@ def attendance_event(row, config):
 
 
 def event_key(event):
-    """Must match server/protocol.ts exactly; mutable userId is deliberately excluded."""
+    """Must match server/punch-protocol.ts exactly; mutable userId is deliberately excluded."""
     values = [event[key] for key in ("deviceId", "uid", "timestamp", "punch", "status")]
     payload = json.dumps(values, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(payload.encode()).hexdigest()

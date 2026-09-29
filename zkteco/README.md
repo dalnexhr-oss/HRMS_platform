@@ -73,7 +73,7 @@ flowchart LR
 Shared web attendance and night-sweep code remains in `src/lib/`. Next.js requires
 the route adapter at `src/app/api/devices/zkteco/punch/route.ts`; that file only
 exports the handler from this folder. General database setup imports the device
-collection definitions from `server/schema.mjs`.
+collection definitions from `server/device-collection-schema.mjs`.
 
 Private runtime data intentionally remains in the Git-ignored `.local/zkteco/`
 directory: configuration, employee exports, mapping files, backups, aliases, and

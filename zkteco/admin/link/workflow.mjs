@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import nextEnv from '@next/env';
 import { BSON, MongoClient } from 'mongodb';
 import { readRoster } from '../roster/workbook.mjs';
-import { provisionDeviceCollections } from '../../server/provision.mjs';
+import { provisionDeviceCollections } from '../../server/provision-device-collections.mjs';
 import { buildLinkPlan } from './plan.mjs';
 import { applyLinks } from './persist.mjs';
 import { verifyLinks } from './verify.mjs';

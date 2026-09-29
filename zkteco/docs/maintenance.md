@@ -11,7 +11,7 @@
 | Device roster matching and length limits                  | `bridge/user_plan.py`                                 |
 | Apply user updates and preserve biometrics                | `bridge/user_sync.py`, `bridge/inventory.py`          |
 | Private snapshots and old code aliases                    | `bridge/files.py`                                     |
-| Scan timestamps and duplicate identity                    | `bridge/events.py`, `server/protocol.ts`              |
+| Scan timestamps and duplicate identity                    | `bridge/events.py`, `server/punch-protocol.ts`              |
 | Queue schema and local status                             | `bridge/queue.py`                                     |
 | Reading attendance from the device                        | `bridge/poller.py`                                    |
 | HTTP delivery, acknowledgements, and retries              | `bridge/delivery.py`                                  |
@@ -21,10 +21,10 @@
 | Existing employee/login updates and terminal registration | `admin/link/persist.mjs`                              |
 | Employee import rules and fields                          | `admin/onboard/salary.mjs`, `plan.mjs`                |
 | New employee defaults, leave, and onboarding tasks        | `admin/onboard/create-employee.mjs`                   |
-| Device authentication and HTTP responses                  | `server/endpoint.ts`, `server/protocol.ts`            |
-| Registered terminal and employee eligibility              | `server/identity.ts`                                  |
-| Punch transaction and attendance policy integration       | `server/ingest.ts`                                    |
-| Internal validators and indexes                           | `server/schema.mjs`, `server/provision.mjs`           |
+| Device authentication and HTTP responses                  | `server/punch-endpoint.ts`, `server/punch-protocol.ts`            |
+| Registered terminal and employee eligibility              | `server/employee-mapping.ts`                                  |
+| Punch transaction and attendance policy integration       | `server/record-device-punch.ts`                                    |
+| Internal validators and indexes                           | `server/device-collection-schema.mjs`, `server/provision-device-collections.mjs`           |
 
 All paths in the table are relative to `zkteco/`. Administration `workflow.mjs`
 files read inputs, gather snapshots, save previews, and call persistence only for
@@ -43,7 +43,7 @@ Three IDs have different meanings:
 3. The raw attendance UID identifies a log packet. On this device it can differ
    from the enrolled UID, such as attendance UID `2054` versus enrolled UID `14`.
 
-`server/identity.ts` selects exactly one enabled link using device ID, registered
+`server/employee-mapping.ts` selects exactly one enabled link using device ID, registered
 serial number, and the visible user-ID alias. It then uses the employee's permanent
 MongoDB `_id`. Ambiguous aliases, excluded employees, inactive employees, and
 disabled linked accounts are refused. Employee UUIDs and login associations are
@@ -71,7 +71,7 @@ web-only scans as `ignored`, without adding a punch or daily summary. Those rece
 prevent a later permission change from replaying a refused scan.
 
 The endpoint uses one required MongoDB transaction for the employee lock, accepted
-punch, daily totals, and permanent receipt. `server/ingest.ts` reuses:
+punch, daily totals, and permanent receipt. `server/record-device-punch.ts` reuses:
 
 - `src/lib/punch.ts`: location policy, geofence classification, and daily resolution.
 - `src/lib/punch-day.ts`: IST work-day and session calculations.

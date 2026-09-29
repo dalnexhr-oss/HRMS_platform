@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { deviceTokenMatches, parseDevicePunch } from './protocol';
-import { recordDevicePunch } from './ingest';
-import { UnknownDeviceEmployee } from './identity';
+import { deviceTokenMatches, parseDevicePunch } from './punch-protocol';
+import { recordDevicePunch } from './record-device-punch';
+import { UnknownDeviceEmployee } from './employee-mapping';
 import type { NextRequest } from 'next/server';
 
 async function POST(request: NextRequest) {

@@ -1,7 +1,7 @@
 import 'server-only';
 import { lockEmployeePunches } from '@/lib/punch-storage';
 import type { ClientSession, Db, Document } from 'mongodb';
-import type { DevicePunch } from './protocol';
+import type { DevicePunch } from './punch-protocol';
 
 class UnknownDeviceEmployee extends Error {}
 

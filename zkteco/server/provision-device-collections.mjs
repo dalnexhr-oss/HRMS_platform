@@ -1,5 +1,5 @@
 // Only the integration collections are changed by employee linking.
-import { DEVICE_COLLECTIONS } from './schema.mjs';
+import { DEVICE_COLLECTIONS } from './device-collection-schema.mjs';
 
 export async function provisionDeviceCollections(database) {
   // Provision only the integration's three internal collections, never unrelated application schemas.

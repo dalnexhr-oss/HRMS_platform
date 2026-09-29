@@ -4,7 +4,7 @@
 // Keep cross-field $expr constraints, format checks, denormalised fields, and additional query
 // indexes here.
 import { BASE_SCHEMA } from './schema-base.mjs';
-import { DEVICE_COLLECTIONS } from '../zkteco/server/schema.mjs';
+import { DEVICE_COLLECTIONS } from '../zkteco/server/device-collection-schema.mjs';
 
 const TEXT = { bsonType: ['string', 'null'] };
 const REQUEST_PERSON = {

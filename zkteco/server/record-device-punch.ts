@@ -6,10 +6,10 @@ import { localParts } from '@/lib/punch-day';
 import { punchWriteReason, readDayEvents } from '@/lib/punch-storage';
 import { toCoordinate } from '@/lib/db/decimal-conversions';
 import { allowsZktecoPunch } from '@/lib/punch-access';
-import { deviceEventId, devicePunchKind } from './protocol';
-import { resolveDeviceEmployee, UnknownDeviceEmployee } from './identity';
+import { deviceEventId, devicePunchKind } from './punch-protocol';
+import { resolveDeviceEmployee, UnknownDeviceEmployee } from './employee-mapping';
 import type { Document } from 'mongodb';
-import type { DevicePunch } from './protocol';
+import type { DevicePunch } from './punch-protocol';
 
 async function recordDevicePunch(event: DevicePunch) {
   const database = await db();
