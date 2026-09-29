@@ -4,18 +4,18 @@
 
 | Change                                                    | Files                                                 |
 | --------------------------------------------------------- | ----------------------------------------------------- |
-| Startup, subprocesses, Python executable                  | `cli/run.mjs`                                         |
-| Local config and server environment                       | `cli/configure.mjs`                                   |
-| Python command arguments                                  | `bridge/cli.py`, launched through `cli/device.py`     |
-| Device connection and serial verification                 | `bridge/connection.py`                                |
-| Device roster matching and length limits                  | `bridge/user_plan.py`                                 |
-| Apply user updates and preserve biometrics                | `bridge/user_sync.py`, `bridge/inventory.py`          |
-| Private snapshots and old code aliases                    | `bridge/files.py`                                     |
-| Scan timestamps and duplicate identity                    | `bridge/events.py`, `server/punch-protocol.ts`              |
-| Queue schema and local status                             | `bridge/queue.py`                                     |
-| Reading attendance from the device                        | `bridge/poller.py`                                    |
-| HTTP delivery, acknowledgements, and retries              | `bridge/delivery.py`                                  |
-| Continuous polling loop                                   | `bridge/service.py`                                   |
+| Startup, subprocesses, Python executable                  | `cli/run-device.mjs`                                         |
+| Local config and server environment                       | `cli/configure-device.mjs`                                   |
+| Python command arguments                                  | `bridge/device_commands.py`, launched through `cli/device_cli.py`     |
+| Device connection and serial verification                 | `bridge/device_connection.py`                                |
+| Device roster matching and length limits                  | `bridge/user_sync_plan.py`                                 |
+| Apply user updates and preserve biometrics                | `bridge/sync_device_users.py`, `bridge/device_inventory.py`          |
+| Private snapshots and old code aliases                    | `bridge/state_files.py`                                     |
+| Scan timestamps and duplicate identity                    | `bridge/attendance_events.py`, `server/punch-protocol.ts`              |
+| Queue schema and local status                             | `bridge/attendance_queue.py`                                     |
+| Reading attendance from the device                        | `bridge/attendance_poller.py`                                    |
+| HTTP delivery, acknowledgements, and retries              | `bridge/hrms_delivery.py`                                  |
+| Continuous polling loop                                   | `bridge/attendance_bridge.py`                                   |
 | Workbook names, dates, and columns                        | `admin/roster/normalize-employee-names.mjs`, `dates.mjs`, `workbook.mjs` |
 | Match device users to existing employees                  | `admin/link/plan-employee-links.mjs`                                 |
 | Existing employee/login updates and terminal registration | `admin/link/save-employee-links.mjs`                              |
@@ -92,7 +92,7 @@ normal bridge startup does not alter schemas or employees.
 
 The old `scripts/zkteco-*` entry points were replaced by `zkteco/cli/`. Public npm
 command names are retained. If an external Task Scheduler job used the old direct
-path, update it to `node zkteco/cli/run.mjs bridge` with the repository as its
+path, update it to `node zkteco/cli/run-device.mjs bridge` with the repository as its
 working directory. No scheduled task was installed or edited during this work.
 
 The private `.local/zkteco/` data, MongoDB identities, device users, fingerprints,

@@ -4,10 +4,10 @@ import os
 import sys
 import time
 
-from .delivery import api_endpoint, deliver
-from .files import read_aliases
-from .poller import poll_device
-from .queue import open_queue
+from .hrms_delivery import api_endpoint, deliver
+from .state_files import read_aliases
+from .attendance_poller import poll_device
+from .attendance_queue import open_queue
 
 
 def bridge(config, args, directory):

@@ -2,8 +2,8 @@
 import datetime as dt
 import json
 
-from .connection import connect, verify_serial
-from .events import IST, attendance_event, event_key
+from .device_connection import connect, verify_serial
+from .attendance_events import IST, attendance_event, event_key
 
 
 def poll_device(queue, config):

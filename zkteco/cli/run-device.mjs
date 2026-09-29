@@ -70,7 +70,7 @@ async function main() {
   const command = combined ? 'bridge' : mode;
   const worker = start(process.env.ZKTECO_PYTHON ?? 'python', [
     '-u',
-    path.join(root, 'zkteco/cli/device.py'),
+    path.join(root, 'zkteco/cli/device_cli.py'),
     command,
     '--config',
     configFile,

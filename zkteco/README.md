@@ -38,7 +38,7 @@ queue, and retries delivery to HRMS. It must run on a computer that can reach th
 device. A hosted HRMS app can receive its HTTPS requests without being on that LAN.
 
 The `.mjs` commands use the application's Node dependencies for environment loading,
-Excel parsing, and MongoDB administration. `cli/run.mjs` also launches Python so the
+Excel parsing, and MongoDB administration. `cli/run-device.mjs` also launches Python so the
 daily command stays `npm run device:bridge`. Employee import commands run only when
 explicitly invoked; they are not another background service.
 

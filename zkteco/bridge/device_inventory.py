@@ -3,8 +3,8 @@ import hashlib
 import json
 import time
 
-from .connection import connect
-from .files import save_json
+from .device_connection import connect
+from .state_files import save_json
 
 
 def user_record(user):

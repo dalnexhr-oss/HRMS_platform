@@ -3,11 +3,11 @@ import argparse
 import json
 from pathlib import Path
 
-from .inventory import inspect_device
-from .locking import DeviceLock
-from .queue import queue_status
-from .service import bridge
-from .user_sync import sync_users
+from .device_inventory import inspect_device
+from .device_lock import DeviceLock
+from .attendance_queue import queue_status
+from .attendance_bridge import bridge
+from .sync_device_users import sync_users
 
 
 def main():

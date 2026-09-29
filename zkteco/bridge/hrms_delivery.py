@@ -6,7 +6,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from .events import remap_user
+from .attendance_events import remap_user
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):

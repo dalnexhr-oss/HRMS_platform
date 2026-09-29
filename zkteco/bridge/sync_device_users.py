@@ -3,10 +3,10 @@ import json
 import time
 from pathlib import Path
 
-from .connection import connect, verify_serial
-from .files import save_aliases, save_json
-from .inventory import fingerprint_signatures, user_record
-from .user_plan import build_plan
+from .device_connection import connect, verify_serial
+from .state_files import save_aliases, save_json
+from .device_inventory import fingerprint_signatures, user_record
+from .user_sync_plan import build_plan
 
 
 def sync_users(config, args, directory):

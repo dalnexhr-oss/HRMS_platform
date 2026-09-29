@@ -4,7 +4,7 @@ from pathlib import Path
 
 # Expose the sibling bridge package when this file is launched directly.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from bridge.cli import main
+from bridge.device_commands import main
 
 
 if __name__ == "__main__":

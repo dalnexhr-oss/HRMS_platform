@@ -75,7 +75,7 @@ For a local server, `npm run device:configure` preserves the saved bridge ID and
 
 ## Run attendance delivery
 
-`npm run device:bridge` reads scans every five seconds by default and delivers them to the authenticated `/api/devices/zkteco/punch` endpoint. For unattended operation, configure Windows Task Scheduler to run `node zkteco/cli/run.mjs bridge` at startup with this project's directory as the working directory and an account that can read its local config. The server must also be running and reachable. Neither normal attendance polling nor startup changes terminal users, fingerprints, privileges, or device settings.
+`npm run device:bridge` reads scans every five seconds by default and delivers them to the authenticated `/api/devices/zkteco/punch` endpoint. For unattended operation, configure Windows Task Scheduler to run `node zkteco/cli/run-device.mjs bridge` at startup with this project's directory as the working directory and an account that can read its local config. The server must also be running and reachable. Neither normal attendance polling nor startup changes terminal users, fingerprints, privileges, or device settings.
 
 The default server setting `ZKTECO_PUNCH_MODE=toggle` alternates in/out based on the employee's current state, including web punches. Use `ZKTECO_PUNCH_MODE=device` if users choose a direction on the terminal: codes 0/3/4 are in, 1/2/5 are out. Confirm those codes on the actual terminal before switching. `ZKTECO_DEBOUNCE_SECONDS=60` ignores repeated scans within one minute of the last accepted punch; set 0–300 seconds as appropriate.
 
