@@ -42,7 +42,7 @@ async function GET(
         // private: a shared cache must never hold a permission-checked body.
         'cache-control': 'private, no-store',
         // The stored content-type is derived from a server-side extension
-        // whitelist (lib/storage.ts), never from the browser's claim — but
+        // whitelist (lib/file-storage.ts), never from the browser's claim — but
         // nosniff makes certain the browser does not second-guess it either.
         'x-content-type-options': 'nosniff',
       },

@@ -8,7 +8,7 @@ import { EmployeePicker } from './EmployeePicker';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { fetchEmployeeForEdit, deactivateEmployee, reactivateEmployee } from '@/lib/actions/employees';
-import { branchColorAt } from '@/lib/constants';
+import { branchColorAt } from '@/lib/branch-colors';
 import { deleteEmployee } from '@/lib/actions/employee-deletion';
 import type { EmployeeListRow, EmployeeEditRow, BranchRow } from '@/lib/server-queries';
 

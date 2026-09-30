@@ -1,4 +1,4 @@
-// Pure role predicates shared by client and server code. Keep session imports in auth.ts so clients
+// Pure role predicates shared by client and server code. Keep session imports in server-auth.ts so clients
 // do not pull in server-only dependencies.
 import { routes } from '@/lib/application-routes';
 import type { AppRole } from '@/types/app';

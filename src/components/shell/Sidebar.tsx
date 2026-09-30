@@ -6,13 +6,13 @@ import { Brand } from '@/components/ui/Brand';
 import { usePathname } from 'next/navigation';
 import { canAccessTab, slugFromPathname } from '@/lib/portal-access';
 import { useEffect, useState } from 'react';
-import { navItems, groupOrder } from '@/lib/constants';
+import { navItems, groupOrder } from '@/lib/portal-navigation';
 import type { TabAccess } from '@/lib/portal-access';
-import type { NavItem } from '@/lib/constants';
+import type { NavItem } from '@/lib/portal-navigation';
 import type { Route } from 'next';
 import type { AppRole } from '@/types/database';
 
-// Drop the links this role would only be bounced from — the static gate in constants.ts AND
+// Drop the links this role would only be bounced from — the static gate in portal-navigation.ts AND
 // whatever the super admin has switched off on /access. Hiding the link is cosmetic; the (portal)
 // layout is what actually blocks the page.
 function visibleNav(role: AppRole | null | undefined, access: TabAccess): NavItem[] {

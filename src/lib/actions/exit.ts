@@ -180,7 +180,7 @@ async function seedClearance(
   return null;
 }
 
-/** Client-callable clearance-checklist fetch (queries.ts is server-only). */
+/** Client-callable clearance-checklist fetch (server-queries.ts is server-only). */
 async function fetchClearanceItems(exitCaseId: string) {
   return readClearanceItems(exitCaseId);
 }

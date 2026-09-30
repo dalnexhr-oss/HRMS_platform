@@ -12,7 +12,7 @@ import { autoPunchOutMinutesFrom } from '@/lib/attendance-rules';
 import { closePunchDay } from '@/lib/punch-storage';
 import { monthSealReason, periodMonthFor } from '@/lib/payroll-month';
 import { todayIST } from '@/lib/display-formatting';
-import { noticeRetentionDays } from '@/lib/constants';
+import { noticeRetentionDays } from '@/lib/notice-retention';
 import { lastNightSweepNotice } from '@/lib/automatic-punch-out-notice';
 import { isMongoDuplicateKey } from '@/lib/db/query-errors';
 import type { BaseDoc } from '@/lib/db/collection-registry';

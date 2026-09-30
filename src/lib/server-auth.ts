@@ -8,7 +8,7 @@ export { staffRoles, isStaffRole, isEmployeeAreaRole, homeForRole, getSession, g
 
 export type { AppRole } from '@/types/database';
 export type { SessionClaims } from '@/lib/auth/session';
-export type { DocumentCategory } from '@/lib/constants';
+export type { DocumentCategory } from '@/lib/document-categories';
 export type { Scope } from '@/lib/db/access-scope';
 export type { TabAccess } from '@/lib/portal-access';
 export type { SessionContext };

@@ -5,7 +5,7 @@
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createEmployee, updateEmployee } from '@/lib/actions/employees';
-import { States } from '@/lib/constants';
+import { States } from '@/lib/indian-states';
 import { SalaryFields } from './SalaryFields';
 import type { EmployeeEditRow, BranchRow } from '@/lib/server-queries';
 

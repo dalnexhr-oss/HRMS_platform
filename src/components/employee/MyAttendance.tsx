@@ -3,7 +3,7 @@
 import '@/components/register/register.css';
 import { useState } from 'react';
 import { AttendanceStatusBadge } from '@/components/ui/AttendanceStatusBadge';
-import { dow } from '@/lib/constants';
+import { dow } from '@/lib/attendance-status';
 import type { DayCell } from '@/types/domain';
 
 // Statuses that read as "you were at work" for the summary strip.
@@ -105,7 +105,10 @@ function MyAttendance({
               </div>
               <div className="attendance-days">
                 {days.map((d) => (
-                  <div key={d.day} className={`attendance-day-header${d.isWeekOff ? ' is-weekly-off' : ''}`}>
+                  <div
+                    key={d.day}
+                    className={`attendance-day-header${d.isWeekOff ? ' is-weekly-off' : ''}`}
+                  >
                     <div className="weekday-label">{dowFor(periodMonth, d.day)}</div>
                     <div className="day-number">{d.day}</div>
                   </div>

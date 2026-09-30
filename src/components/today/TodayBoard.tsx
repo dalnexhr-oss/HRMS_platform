@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { AttendanceStatusBadge } from '@/components/ui/AttendanceStatusBadge';
 import { ExportButton } from '@/components/today/ExportButton';
 import { NightSweepButton } from '@/components/today/NightSweepButton';
-import { branchColorAt } from '@/lib/constants';
+import { branchColorAt } from '@/lib/branch-colors';
 import type { ActivityRow, PayrollRunView } from '@/lib/server-queries';
 import type { Celebration, MarkWatch, PunchLogRow, TodayKpis } from '@/types/domain';
 

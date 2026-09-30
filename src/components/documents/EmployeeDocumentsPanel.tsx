@@ -6,7 +6,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/display-formatting';
 import { fetchEmployeeDocumentHistory, verifyEmployeeDocument, deleteEmployeeDocument } from '@/lib/actions/documents';
-import { documentCategoryLabel, requiredDocumentCategories } from '@/lib/constants';
+import { documentCategoryLabel, requiredDocumentCategories } from '@/lib/document-categories';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { usePrompt } from '@/components/ui/PromptDialog';
 import { useNotifications } from '@/components/ui/Notifications';

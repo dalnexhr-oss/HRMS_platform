@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { AttendanceStatusBadge } from '@/components/ui/AttendanceStatusBadge';
 import { getSession } from '@/lib/server-auth';
 import { RegisterGrid } from '@/components/register/RegisterGrid';
-import { registerLegend } from '@/lib/constants';
+import { registerLegend } from '@/lib/attendance-status';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { exportRegisterXlsx } from '@/lib/actions/export';
 import { weekOffDaysInMonth } from '@/lib/weekly-off-policy';

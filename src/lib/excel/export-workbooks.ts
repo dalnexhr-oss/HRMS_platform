@@ -5,7 +5,7 @@
 // header. Employee blocks start at row 6 with four rows: status, punch-in, punch-out, and worked
 // hours.
 import ExcelJS from 'exceljs';
-import { getAttendanceStatusDetails } from '@/lib/constants';
+import { getAttendanceStatusDetails } from '@/lib/attendance-status';
 import { minutesToHHMM } from '@/lib/display-formatting';
 import { effectiveFigures } from '@/lib/leave-salary';
 import { writeBrandHeader, writeBrandOverlay } from '@/lib/excel/workbook-branding';

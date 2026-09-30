@@ -1,6 +1,6 @@
 // Use the shared attendance labels and status-pill colours on every employee card.
 import { presenceLabel } from '@/types/tv-dashboard';
-import { getAttendanceStatusDetails } from '@/lib/constants';
+import { getAttendanceStatusDetails } from '@/lib/attendance-status';
 import type { EmployeeData } from '@/types/tv-dashboard';
 
 const timeFmt: Intl.DateTimeFormatOptions = {
@@ -52,7 +52,9 @@ function EmployeeCard({ employee }: { employee: EmployeeData }) {
         {at ? (
           <>
             {employee.lastKind === 'in' ? 'Check-in' : 'Check-out'} {at}
-            {employee.withinGeofence === false ? <span className="tv-dashboard-attendance-note">off-site</span> : null}
+            {employee.withinGeofence === false ? (
+              <span className="tv-dashboard-attendance-note">off-site</span>
+            ) : null}
           </>
         ) : employee.presence === 'off' || employee.presence === 'leave' ? (
           // The human name for the day's status ('Leave', 'Week off'…), not the

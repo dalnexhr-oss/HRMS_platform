@@ -330,7 +330,7 @@ interface WelcomeEmailInput {
   portalUrl: string;
 }
 
-/** Shape accepted by sendEmail() in src/lib/email.ts (minus `to`). */
+/** Shape accepted by sendEmail() in src/lib/email-delivery.ts (minus `to`). */
 interface WelcomeEmail {
   subject: string;
   text: string;

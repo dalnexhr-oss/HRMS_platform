@@ -5,7 +5,7 @@ import { queryErrorCodes } from '@/lib/db/query-errors';
 import { revalidatePath } from 'next/cache';
 import { usersCollection } from '@/lib/db/collection-registry';
 import { calculateSalary } from '@/lib/salary-calculation';
-import { States } from '@/lib/constants';
+import { States } from '@/lib/indian-states';
 import { getEmployeeForEdit } from '@/lib/server-queries';
 import { createClient, createServiceClient, isServiceRoleConfigured } from '@/lib/db/server-client';
 import { fromPaise as formatMoney } from '@/lib/db/decimal-conversions';

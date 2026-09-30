@@ -323,7 +323,7 @@ async function deleteEmployeeDocument(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-/** Client-callable history for one employee (queries.ts is server-only). */
+/** Client-callable history for one employee (server-queries.ts is server-only). */
 async function fetchEmployeeDocumentHistory(employeeId: string) {
   const gate = await requireRoles(verifyRoles, 'Viewing an employee’s documents');
   if (!gate.ok) {
@@ -361,7 +361,7 @@ async function getDocumentUrl(id: string): Promise<{ ok: boolean; url?: string; 
   return signed.ok ? { ok: true, url: signed.url } : { ok: false, error: signed.error };
 }
 
-/** Client-callable document list for one employee (queries.ts is server-only). */
+/** Client-callable document list for one employee (server-queries.ts is server-only). */
 async function fetchEmployeeDocuments(employeeId: string) {
   return readEmployeeDocuments(employeeId);
 }

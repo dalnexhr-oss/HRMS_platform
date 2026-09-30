@@ -10,7 +10,7 @@ import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { usePrompt } from '@/components/ui/PromptDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { verifyEmployeeDocument, deleteEmployeeDocument } from '@/lib/actions/documents';
-import { documentCategoryLabel } from '@/lib/constants';
+import { documentCategoryLabel } from '@/lib/document-categories';
 import { UploadDocumentDrawer } from './UploadDocumentDrawer';
 import { EmployeeDocumentsPanel } from './EmployeeDocumentsPanel';
 import { openDocument } from './open-document';

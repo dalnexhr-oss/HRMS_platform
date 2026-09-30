@@ -823,7 +823,7 @@ async function getReceiptUrl(
   return signed.ok ? { ok: true, url: signed.url } : { ok: false, error: signed.error };
 }
 
-// Client-callable timeline fetch for a claim (queries.ts is server-only).
+// Client-callable timeline fetch for a claim (server-queries.ts is server-only).
 async function fetchClaimEvents(claimId: string) {
   return getReimbursementEvents(claimId);
 }

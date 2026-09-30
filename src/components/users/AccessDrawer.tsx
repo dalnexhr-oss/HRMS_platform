@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchUserTabAccess, setUserTabAccess, resetUserTabAccess } from '@/lib/actions/access';
-import { navItems, groupOrder } from '@/lib/constants';
+import { navItems, groupOrder } from '@/lib/portal-navigation';
 import { canAccessTab, staticallyAllowed } from '@/lib/portal-access';
 import type { TabAccess } from '@/lib/portal-access';
 import type { AppRole } from '@/types/database';
@@ -136,7 +136,13 @@ function AccessDrawer({
               </div>
 
               {loadError && (
-                <div className="hint" style={{ borderColor: 'var(--attendance-absent)', color: 'var(--attendance-absent)' }}>
+                <div
+                  className="hint"
+                  style={{
+                    borderColor: 'var(--attendance-absent)',
+                    color: 'var(--attendance-absent)',
+                  }}
+                >
                   {loadError}
                 </div>
               )}

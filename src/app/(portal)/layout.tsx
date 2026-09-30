@@ -4,7 +4,7 @@ import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { getSession, isStaffRole } from '@/lib/server-auth';
 import { canAccessTab, slugFromPathname } from '@/lib/portal-access';
-import { navItems } from '@/lib/constants';
+import { navItems } from '@/lib/portal-navigation';
 import { getMyNotifications, getUnreadNotificationCount, getTopbarStats, getMyTabAccess } from '@/lib/server-queries';
 import type { Route } from 'next';
 

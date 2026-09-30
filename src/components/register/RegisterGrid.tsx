@@ -4,7 +4,7 @@ import './register.css';
 import { useActionState, useEffect, useRef, useState, useTransition, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { AttendanceStatusBadge } from '@/components/ui/AttendanceStatusBadge';
-import { dow } from '@/lib/constants';
+import { dow } from '@/lib/attendance-status';
 import { correctAttendance, correctAttendanceBulk } from '@/lib/actions/attendance';
 import { grantCompOff } from '@/lib/actions/comp-off';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -304,7 +304,9 @@ function RegisterGrid({
         )}
       </div>
       {bulkMode && (
-        <p className="register-selection-note text-muted">Changing the search clears selected cells.</p>
+        <p className="register-selection-note text-muted">
+          Changing the search clears selected cells.
+        </p>
       )}
       <div
         ref={scrollRef}
@@ -325,7 +327,10 @@ function RegisterGrid({
             </div>
             <div className="attendance-days">
               {days.map((d) => (
-                <div key={d} className={`attendance-day-header${wo.has(d) ? ' is-weekly-off' : ''}`}>
+                <div
+                  key={d}
+                  className={`attendance-day-header${wo.has(d) ? ' is-weekly-off' : ''}`}
+                >
                   <div className="weekday-label">{weekdayLabel(periodMonth, d)}</div>
                   <div className="day-number">{d}</div>
                 </div>
@@ -397,7 +402,8 @@ function RegisterGrid({
                       </span>
                       {/* if late mark is more than 3 times, than it is counted as a half day */}
                       <span>
-                        payable <b>{e.summary.working + e.summary.WO + e.summary.HD - e.summary.L}</b>
+                        payable{' '}
+                        <b>{e.summary.working + e.summary.WO + e.summary.HD - e.summary.L}</b>
                       </span>
                     </div>
                     <div className={`worked-hours-bar${short ? ' has-hours-shortfall' : ''}`}>
@@ -486,7 +492,9 @@ function RegisterGrid({
                                 width: 7,
                                 height: 7,
                                 borderRadius: '50%',
-                                background: coGranted ? 'var(--attendance-present)' : 'var(--attendance-late)',
+                                background: coGranted
+                                  ? 'var(--attendance-present)'
+                                  : 'var(--attendance-late)',
                               }}
                             />
                           )}
@@ -526,7 +534,10 @@ function RegisterGrid({
             className={`dialog-backdrop${drawerOpen ? ' is-active' : ''}`}
             onClick={() => setDrawerOpen(false)}
           />
-          <aside className={`drawer${drawerOpen ? ' is-active' : ''}`} aria-label="Correct attendance">
+          <aside
+            className={`drawer${drawerOpen ? ' is-active' : ''}`}
+            aria-label="Correct attendance"
+          >
             {target && (
               // Keying on the cell *and the open counter* remounts the form every
               // time the drawer opens, resetting the field defaults, any stale
@@ -731,7 +742,11 @@ function CompOffPanel({ target }: { target: Target }) {
       {granted ? (
         <span
           className="status-badge"
-          style={{ borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' }}
+          style={{
+            borderColor: 'var(--attendance-present-border)',
+            color: 'var(--attendance-present)',
+            background: 'var(--attendance-present-background)',
+          }}
         >
           ✓ Comp off granted
         </span>

@@ -150,7 +150,7 @@ async function refreshSession(userId: string): Promise<void> {
   }
 }
 
-// True when the role belongs to the staff portal. Mirrors lib/auth.ts.
+// True when the role belongs to the staff portal. Mirrors lib/server-auth.ts.
 function isStaffRole(role: AppRole | null | undefined): boolean {
   return role === 'super_admin' || role === 'admin' || role === 'hr';
 }

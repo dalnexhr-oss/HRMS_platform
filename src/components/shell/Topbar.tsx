@@ -1,12 +1,12 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { pageHeader } from '@/lib/constants';
+import { pageHeader } from '@/lib/portal-navigation';
 import { slugFromPathname } from '@/lib/portal-access';
 import { SignOutButton } from '@/components/auth/SignOutButton';
 import { NotificationBell } from '@/components/shell/NotificationBell';
 import { ProfileMenu } from '@/components/shell/ProfileMenu';
-import type { TopbarStats } from '@/lib/constants';
+import type { TopbarStats } from '@/lib/portal-navigation';
 import type { NotificationRow } from '@/lib/server-queries';
 
 function Topbar({

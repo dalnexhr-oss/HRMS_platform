@@ -11,7 +11,7 @@ import { getAssetAssignments, getAssetMaintenance } from '@/lib/server-queries';
 import { requireRoles, wroteNothing } from './guards';
 import type { AppRole } from '@/types/database';
 
-// Client-callable wrappers for the per-asset drawer (queries.ts is server-only).
+// Client-callable wrappers for the per-asset drawer (server-queries.ts is server-only).
 async function fetchAssetAssignments(assetId: string) {
   return getAssetAssignments(assetId);
 }

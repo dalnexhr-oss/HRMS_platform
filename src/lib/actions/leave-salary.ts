@@ -24,7 +24,7 @@ function validYear(y: number): boolean {
 }
 
 // One employee-year of attendance, credit-weighted per month. ≤366 rows, so no paging is needed
-// here (the page-wide sweep in queries.ts is the paged one).
+// here (the page-wide sweep in server-queries.ts is the paged one).
 async function loadPresence(
   dbc: Awaited<ReturnType<typeof createClient>>,
   employeeId: string,

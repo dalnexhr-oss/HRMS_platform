@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { updateSetting } from '@/lib/actions/settings';
-import { States } from '@/lib/constants';
+import { States } from '@/lib/indian-states';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { useState, useTransition } from 'react';

@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { usersCollection } from '@/lib/db/collection-registry';
 import { createClient } from '@/lib/db/server-client';
 import { requireRoles } from '@/lib/actions/guards';
-import { navItems } from '@/lib/constants';
+import { navItems } from '@/lib/portal-navigation';
 import { isConfigurableRole, staticallyAllowed } from '@/lib/portal-access';
 import type { TabAccess } from '@/lib/portal-access';
 import type { AppRole } from '@/types/database';

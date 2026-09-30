@@ -1,6 +1,6 @@
 // Per-user tab access can restrict the static role gate, but cannot grant additional role
 // permissions. These pure helpers are shared by the server layout and sidebar.
-import { tabRoleAccess } from '@/lib/constants';
+import { tabRoleAccess } from '@/lib/portal-navigation';
 import type { AppRole } from '@/types/database';
 
 const configurableRoles: readonly AppRole[] = ['admin', 'hr'];
@@ -20,7 +20,7 @@ const storedTabKeys: Readonly<Record<string, readonly string[]>> = {
   'inventory-management': ['items'],
   'company-policies': ['policies'],
   'data-import': ['import'],
-  'helpdesk': ['support'],
+  helpdesk: ['support'],
   'leave-management': ['leaveManagment'],
 };
 

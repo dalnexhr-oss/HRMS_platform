@@ -9,7 +9,7 @@ import { requireRoles } from '@/lib/actions/guards';
 import { collections } from '@/lib/db/collection-registry';
 import { isMongoDuplicateKey } from '@/lib/db/query-errors';
 import { scoped } from '@/lib/db/scoped-repository';
-import { States } from '@/lib/constants';
+import { States } from '@/lib/indian-states';
 import { toCoordinate } from '@/lib/db/decimal-conversions';
 import { withTransaction } from '@/lib/db/mongodb-connection';
 import type { BranchDoc, EmployeeDoc } from '@/lib/db/collection-registry';

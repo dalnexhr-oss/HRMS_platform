@@ -5,7 +5,7 @@
 import { useActionState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { uploadEmployeeDocument, replaceEmployeeDocument } from '@/lib/actions/documents';
-import { documentCategories, documentCategoryLabel } from '@/lib/constants';
+import { documentCategories, documentCategoryLabel } from '@/lib/document-categories';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
 import type { EmployeeDocumentRow, EmployeeOption } from '@/lib/server-queries';
 

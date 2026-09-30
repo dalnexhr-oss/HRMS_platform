@@ -6,7 +6,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/display-formatting';
 import { getDocumentUrl } from '@/lib/actions/documents';
-import { documentCategories } from '@/lib/constants';
+import { documentCategories } from '@/lib/document-categories';
 import { useNotifications } from '@/components/ui/Notifications';
 import type { EmployeeDocumentRow } from '@/lib/server-queries';
 
