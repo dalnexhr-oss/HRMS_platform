@@ -6,7 +6,8 @@ import type { PunchAccess } from '@/types/punch';
 const punchAccessHelp: Record<PunchAccess, string> = {
   both: 'Employee can punch in and out using the web buttons or the ZKTeco machine.',
   web: 'Employee can use the web punch buttons. ZKTeco scans will not  be used for  marking attendance.',
-  zkteco: 'Employee must use the ZKTeco machine. Web punch buttons are disabled, and browser location is not required.',
+  zkteco:
+    'Employee must use the ZKTeco machine. Web punch buttons are disabled, and browser location is not required.',
 };
 
 function PunchAccessSelect(props: ComponentProps<'select'>) {

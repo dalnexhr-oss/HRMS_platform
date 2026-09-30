@@ -5,8 +5,8 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { acknowledgeDocument } from '@/lib/actions/acknowledge';
-import { useToast } from '@/components/ui/Toast';
-import type { ToastKind } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
+import type { NotificationKind } from '@/components/ui/Notifications';
 
 function SignPanel({
   kind,
@@ -15,52 +15,55 @@ function SignPanel({
   // Existing signature, when the document has already been signed.
   signedName,
   signedAt,
-  // Supply a toast from the parent to avoid stacking one per row.
-  toast: parentToast,
+  // Supply a notification from the parent to avoid stacking one per row.
+  showNotification: parentShowNotification,
 }: {
   kind: string;
   documentId?: string | null;
   label?: string;
   signedName?: string | null;
   signedAt?: string | null;
-  toast?: (message: string, kind?: ToastKind) => void;
+  showNotification?: (message: string, kind?: NotificationKind) => void;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
+  const [isSignatureFormOpen, setIsSignatureFormOpen] = useState(false);
+  const [signatureName, setSignatureName] = useState('');
   const [pending, startTransition] = useTransition();
-  const own = useToast();
-  const toast = parentToast ?? own.toast;
+  const localNotifications = useNotifications();
+  const showNotification = parentShowNotification ?? localNotifications.showNotification;
 
   if (signedAt) {
     const when = signedAt.slice(0, 10);
     return (
-      <span className="signature-confirmation" title={`Signed by ${signedName ?? 'you'} on ${when}`}>
+      <span
+        className="signature-confirmation"
+        title={`Signed by ${signedName ?? 'you'} on ${when}`}
+      >
         ✍ Signed {when}
       </span>
     );
   }
 
-  if (!open) {
+  if (!isSignatureFormOpen) {
     return (
       <>
-        {!parentToast && own.toastNode}
-        <button className="button quiet" onClick={() => setOpen(true)}>
+        {!parentShowNotification && localNotifications.notificationContainer}
+        <button className="button quiet" onClick={() => setIsSignatureFormOpen(true)}>
           {label}
         </button>
       </>
     );
   }
 
-  const ready = name.trim().length >= 3;
+  const isSignatureValid = signatureName.trim().length >= 3;
 
   return (
     <>
-      {!parentToast && own.toastNode}
+      {!parentShowNotification && localNotifications.notificationContainer}
       <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
         <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          value={signatureName}
+          onChange={(e) => setSignatureName(e.target.value)}
           placeholder="Type your full name"
           aria-label="Type your full name to sign"
           style={{ width: 170, padding: '5px 8px' }}
@@ -68,16 +71,20 @@ function SignPanel({
         />
         <button
           className="button primary"
-          disabled={pending || !ready}
-          title={!ready ? 'Type your full name' : undefined}
+          disabled={pending || !isSignatureValid}
+          title={!isSignatureValid ? 'Type your full name' : undefined}
           onClick={() =>
             startTransition(async () => {
-              const res = await acknowledgeDocument({ kind, documentId, signedName: name.trim() });
+              const res = await acknowledgeDocument({
+                kind,
+                documentId,
+                signedName: signatureName.trim(),
+              });
               if (!res.ok) {
-                toast(res.error ?? 'The signature was not recorded.', 'error');
+                showNotification(res.error ?? 'The signature was not recorded.', 'error');
               } else {
-                toast('Signed — thank you.', 'success');
-                setOpen(false);
+                showNotification('Signed — thank you.', 'success');
+                setIsSignatureFormOpen(false);
                 router.refresh();
               }
             })
@@ -85,7 +92,11 @@ function SignPanel({
         >
           {pending ? 'Signing…' : 'Sign'}
         </button>
-        <button className="button quiet" disabled={pending} onClick={() => setOpen(false)}>
+        <button
+          className="button quiet"
+          disabled={pending}
+          onClick={() => setIsSignatureFormOpen(false)}
+        >
           Cancel
         </button>
       </span>

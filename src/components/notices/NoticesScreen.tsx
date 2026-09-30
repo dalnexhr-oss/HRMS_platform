@@ -4,9 +4,9 @@ import { useActionState, useState, useTransition } from 'react';
 import { openNoticePdf } from '@/components/notices/open-pdf';
 import { formatDate } from '@/lib/format';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
-import { useToast } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
 import { createNotice, updateNotice, deleteNotice, setNoticePublished } from '@/lib/actions/notices';
-import type { ToastKind } from '@/components/ui/Toast';
+import type { NotificationKind } from '@/components/ui/Notifications';
 import type { NoticeView } from '@/lib/queries';
 
 const channelLabel: Record<NoticeView['channel'], string> = {
@@ -24,14 +24,14 @@ function NoticesScreen({
   branchNames?: string[];
 }) {
   const [editing, setEditing] = useState<NoticeView | null>(null);
-  // Confirm + toast are hoisted so every row shares one modal / toast stack.
+  // Confirm + notification are hoisted so every row shares one modal / notification stack.
   const { confirm, confirmDialog } = useConfirm();
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
 
   return (
     <div className="two-column-layout">
       {confirmDialog}
-      {toastNode}
+      {notificationContainer}
       <div className="card">
         <div className="card-header">
           <h3>Published notices</h3>
@@ -47,7 +47,7 @@ function NoticesScreen({
               notice={n}
               onEdit={() => setEditing(n)}
               confirm={confirm}
-              toast={toast}
+              showNotification={showNotification}
             />
           ))}
         </div>
@@ -62,7 +62,7 @@ function NoticesScreen({
             key={editing?.id ?? 'new'}
             editing={editing}
             onDone={() => setEditing(null)}
-            toast={toast}
+            showNotification={showNotification}
             branchNames={branchNames}
           />
         </div>
@@ -75,7 +75,7 @@ function NoticeItem({
   notice,
   onEdit,
   confirm,
-  toast,
+  showNotification,
 }: {
   notice: NoticeView;
   onEdit: () => void;
@@ -85,7 +85,7 @@ function NoticeItem({
     confirmLabel?: string;
     danger?: boolean;
   }) => Promise<boolean>;
-  toast: (message: string, kind?: ToastKind) => void;
+  showNotification: (message: string, kind?: NotificationKind) => void;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -93,9 +93,9 @@ function NoticeItem({
     startTransition(async () => {
       const res = await setNoticePublished(notice.id, !notice.published);
       if (!res.ok) {
-        toast(res.error ?? 'Could not update the notice.', 'error');
+        showNotification(res.error ?? 'Could not update the notice.', 'error');
       } else {
-        toast(notice.published ? 'Notice unpublished.' : 'Notice published.', 'success');
+        showNotification(notice.published ? 'Notice unpublished.' : 'Notice published.', 'success');
       }
     });
   };
@@ -113,9 +113,9 @@ function NoticeItem({
     startTransition(async () => {
       const res = await deleteNotice(notice.id);
       if (!res.ok) {
-        toast(res.error ?? 'Could not delete the notice.', 'error');
+        showNotification(res.error ?? 'Could not delete the notice.', 'error');
       } else {
-        toast('Notice deleted.', 'success');
+        showNotification('Notice deleted.', 'success');
       }
     });
   };
@@ -137,7 +137,7 @@ function NoticeItem({
         {notice.pdfPath && (
           <button
             className="button quiet"
-            onClick={() => openNoticePdf(notice.id, (m) => toast(m, 'error'))}
+            onClick={() => openNoticePdf(notice.id, (m) => showNotification(m, 'error'))}
             title="Open the attached PDF"
           >
             📎 PDF
@@ -161,19 +161,19 @@ function NoticeItem({
 function NoticeForm({
   editing,
   onDone,
-  toast,
+  showNotification,
   branchNames = [],
 }: {
   editing: NoticeView | null;
   onDone: () => void;
-  toast: (message: string, kind?: ToastKind) => void;
+  showNotification: (message: string, kind?: NotificationKind) => void;
   branchNames?: string[];
 }) {
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
     async (_prev, formData) => {
       const res = editing ? await updateNotice(editing.id, formData) : await createNotice(formData);
       if (res.ok) {
-        toast(editing ? 'Notice updated.' : 'Notice published.', 'success');
+        showNotification(editing ? 'Notice updated.' : 'Notice published.', 'success');
         if (editing) {
           onDone();
         }

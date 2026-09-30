@@ -9,7 +9,7 @@ import { announcePunch, onPunchChange } from '@/lib/punch-bus';
 import { allowsWebPunch, webPunchDisabled } from '@/lib/punch-access';
 import type { PunchSource } from '@/lib/punch-bus';
 import type { LocationFailure, PunchStatusResponse } from '@/lib/actions/punch';
-import type { ToastKind } from '@/components/ui/Toast';
+import type { NotificationKind } from '@/components/ui/Notifications';
 
 const timeFmt: Intl.DateTimeFormatOptions = {
   hour: '2-digit',
@@ -71,7 +71,7 @@ interface PunchClock {
 
 function usePunchClock(
   source: PunchSource,
-  toast: (message: string, kind?: ToastKind) => void,
+  showNotification: (message: string, kind?: NotificationKind) => void,
 ): PunchClock {
   const router = useRouter();
   const [state, setState] = useState<PunchStatusResponse | null>(null);
@@ -225,11 +225,14 @@ function usePunchClock(
       return;
     }
     if (!webPunchAllowed) {
-      toast(webPunchDisabled, 'info');
+      showNotification(webPunchDisabled, 'info');
       return;
     }
     if (state.attendanceClosed) {
-      toast('Today’s attendance was corrected or closed by a sweep. Ask HR to review it.', 'info');
+      showNotification(
+        'Today’s attendance was corrected or closed by a sweep. Ask HR to review it.',
+        'info',
+      );
       return;
     }
     setPending(true);
@@ -242,18 +245,18 @@ function usePunchClock(
       }
       setState(current);
       if (!allowsWebPunch(current.punchAccess)) {
-        toast(webPunchDisabled, 'info');
+        showNotification(webPunchDisabled, 'info');
         return;
       }
       if (current.attendanceClosed) {
-        toast(
+        showNotification(
           'Today’s attendance was corrected or closed by a sweep. Ask HR to review it.',
           'info',
         );
         return;
       }
       if (current.lastNightSweep && warnedSweep.current !== current.lastNightSweep.closedAt) {
-        toast(current.lastNightSweep.message, 'info');
+        showNotification(current.lastNightSweep.message, 'info');
         warnedSweep.current = current.lastNightSweep.closedAt;
       }
 
@@ -265,10 +268,10 @@ function usePunchClock(
         setBlocked(fix.reason);
         if (current.requireLocation) {
           // Required location is unavailable; keep the punch unsaved and explain how to retry.
-          toast(failureText[fix.reason], 'error');
+          showNotification(failureText[fix.reason], 'error');
           return;
         }
-        toast('Punching without a location — it will not be marked at-office.', 'info');
+        showNotification('Punching without a location — it will not be marked at-office.', 'info');
       } else {
         setBlocked(null);
       }
@@ -281,11 +284,11 @@ function usePunchClock(
 
       const at = clock(result.punchedAt);
       if (result.withinGeofence === false) {
-        toast(`Punched ${result.kind} at ${at} — recorded as off-site.`, 'info');
+        showNotification(`Punched ${result.kind} at ${at} — recorded as off-site.`, 'info');
       } else if (!coords) {
-        toast(`Punched ${result.kind} at ${at} — no location recorded.`, 'info');
+        showNotification(`Punched ${result.kind} at ${at} — no location recorded.`, 'info');
       } else {
-        toast(`Punched ${result.kind} at ${at}.`, 'success');
+        showNotification(`Punched ${result.kind} at ${at}.`, 'success');
       }
 
       setVersion((n) => n + 1);
@@ -300,7 +303,7 @@ function usePunchClock(
         return;
       }
       const message = reason instanceof Error ? reason.message : 'Could not record the punch.';
-      toast(message, 'error');
+      showNotification(message, 'error');
       // A 409 means our view of in/out was stale — resync rather than leave the
       // button pointing the wrong way.
       void load();
@@ -309,7 +312,7 @@ function usePunchClock(
         setPending(false);
       }
     }
-  }, [state, pending, webPunchAllowed, toast, load, router, source]);
+  }, [state, pending, webPunchAllowed, showNotification, load, router, source]);
 
   return {
     state,

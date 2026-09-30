@@ -10,7 +10,7 @@ import { computeLeaveSalary, effectiveFigures } from '@/lib/leave-salary';
 import { saveLeaveSalaryWorking, finalizeLeaveSalary, reopenLeaveSalary, markLeaveSalaryPaid } from '@/lib/actions/leave-salary';
 import { provisionLeaveYear, adjustLeaveBalance } from '@/lib/actions/leave';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
-import { useToast } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
 import type { LeaveSalaryResult } from '@/lib/leave-salary';
 import type { ReactNode } from 'react';
 import type { LeaveSalaryViewRow } from '@/lib/leave-salary-view';
@@ -53,15 +53,15 @@ function LeaveSalaryAdmin({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const { confirm, confirmDialog } = useConfirm();
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) {
     startTransition(async () => {
       const res = await fn();
       if (!res.ok) {
-        toast(res.error ?? 'The action failed.', 'error');
+        showNotification(res.error ?? 'The action failed.', 'error');
       } else {
-        toast(okMsg, 'success');
+        showNotification(okMsg, 'success');
         router.refresh();
       }
     });
@@ -81,9 +81,9 @@ function LeaveSalaryAdmin({
     startTransition(async () => {
       const res = await provisionLeaveYear(year);
       if (!res.ok) {
-        toast(res.error ?? 'Provisioning failed.', 'error');
+        showNotification(res.error ?? 'Provisioning failed.', 'error');
       } else {
-        toast(
+        showNotification(
           res.created === 0
             ? `Nothing to do — ${year} is already provisioned for everyone.`
             : `Provisioned ${res.created} paid-leave row(s) for ${year}.`,
@@ -99,7 +99,7 @@ function LeaveSalaryAdmin({
   return (
     <div className="content-container grid">
       {confirmDialog}
-      {toastNode}
+      {notificationContainer}
 
       <div className="card">
         <div className="card-header">
@@ -244,9 +244,9 @@ function LeaveSalaryAdmin({
                         disabled={pending}
                         onDone={(res) => {
                           if (!res.ok) {
-                            toast(res.error ?? 'The adjustment failed.', 'error');
+                            showNotification(res.error ?? 'The adjustment failed.', 'error');
                           } else {
-                            toast('Balance adjusted.', 'success');
+                            showNotification('Balance adjusted.', 'success');
                             router.refresh();
                           }
                         }}
@@ -284,21 +284,21 @@ function WorkingRow({
   const locked = status === 'finalized' || status === 'paid';
 
   // Inputs live as strings so a half-typed number doesn't snap to 0.
-  const [before, setBefore] = useState(String(row.salaryBefore || ''));
-  const [after, setAfter] = useState(String(row.salaryAfter || ''));
-  const [incMonth, setIncMonth] = useState(row.incrementMonth);
+  const [salaryBeforeInput, setSalaryBeforeInput] = useState(String(row.salaryBefore || ''));
+  const [salaryAfterInput, setSalaryAfterInput] = useState(String(row.salaryAfter || ''));
+  const [incrementMonth, setIncrementMonth] = useState(row.incrementMonth);
   const [remarks, setRemarks] = useState(row.remarks);
   // Blank denominator overrides use the actual calendar-day count.
-  const [daysP1, setDaysP1] = useState(
+  const [daysBeforeIncrementInput, setDaysBeforeIncrementInput] = useState(
     row.calendarDaysP1Override != null ? String(row.calendarDaysP1Override) : '',
   );
-  const [daysP2, setDaysP2] = useState(
+  const [daysAfterIncrementInput, setDaysAfterIncrementInput] = useState(
     row.calendarDaysP2Override != null ? String(row.calendarDaysP2Override) : '',
   );
   const [open, setOpen] = useState(false);
 
-  const salaryBefore = Number(before);
-  const salaryAfter = Number(after);
+  const salaryBefore = Number(salaryBeforeInput);
+  const salaryAfter = Number(salaryAfterInput);
   const valid =
     Number.isFinite(salaryBefore) &&
     salaryBefore >= 0 &&
@@ -313,8 +313,8 @@ function WorkingRow({
     const n = Math.round(Number(s));
     return Number.isFinite(n) && n >= 1 && n <= 366 ? n : null;
   };
-  const p1Override = overrideOf(daysP1);
-  const p2Override = overrideOf(daysP2);
+  const p1Override = overrideOf(daysBeforeIncrementInput);
+  const p2Override = overrideOf(daysAfterIncrementInput);
 
   // Live figures follow the inputs as HR types; locked rows show the snapshot.
   const live: LeaveSalaryResult = useMemo(
@@ -323,12 +323,12 @@ function WorkingRow({
         year,
         salaryBefore: valid ? salaryBefore : 0,
         salaryAfter: valid ? salaryAfter : 0,
-        incrementMonth: incMonth,
+        incrementMonth,
         monthlyPresence: row.monthlyPresence,
         calendarDaysP1Override: p1Override,
         calendarDaysP2Override: p2Override,
       }),
-    [year, salaryBefore, salaryAfter, incMonth, row.monthlyPresence, valid, p1Override, p2Override],
+    [year, salaryBefore, salaryAfter, incrementMonth, row.monthlyPresence, valid, p1Override, p2Override],
   );
   const fig = locked ? effectiveFigures(row.working, row.live) : effectiveFigures(null, live);
 
@@ -336,7 +336,7 @@ function WorkingRow({
     !locked &&
     (salaryBefore !== row.salaryBefore ||
       salaryAfter !== row.salaryAfter ||
-      incMonth !== row.incrementMonth ||
+      incrementMonth !== row.incrementMonth ||
       remarks.trim() !== row.remarks.trim() ||
       p1Override !== row.calendarDaysP1Override ||
       p2Override !== row.calendarDaysP2Override ||
@@ -369,8 +369,8 @@ function WorkingRow({
           ) : (
             <input
               className="text-monospace"
-              value={before}
-              onChange={(e) => setBefore(e.target.value)}
+              value={salaryBeforeInput}
+              onChange={(e) => setSalaryBeforeInput(e.target.value)}
               style={inputStyle}
               aria-label={`${row.name}: monthly salary before the increment`}
             />
@@ -382,8 +382,8 @@ function WorkingRow({
           ) : (
             <input
               className="text-monospace"
-              value={after}
-              onChange={(e) => setAfter(e.target.value)}
+              value={salaryAfterInput}
+              onChange={(e) => setSalaryAfterInput(e.target.value)}
               style={inputStyle}
               aria-label={`${row.name}: monthly salary after the increment`}
             />
@@ -391,11 +391,11 @@ function WorkingRow({
         </td>
         <td onClick={(e) => e.stopPropagation()}>
           {locked ? (
-            monthNames[incMonth - 1]
+            monthNames[incrementMonth - 1]
           ) : (
             <select
-              value={incMonth}
-              onChange={(e) => setIncMonth(Number(e.target.value))}
+              value={incrementMonth}
+              onChange={(e) => setIncrementMonth(Number(e.target.value))}
               aria-label={`${row.name}: month the increment takes effect`}
             >
               {monthNames.map((m, ix) => (
@@ -418,8 +418,8 @@ function WorkingRow({
               <span className="text-muted">/</span>
               <input
                 className="text-monospace"
-                value={daysP1}
-                onChange={(e) => setDaysP1(e.target.value)}
+                value={daysBeforeIncrementInput}
+                onChange={(e) => setDaysBeforeIncrementInput(e.target.value)}
                 placeholder={String(live.p1.calendarDays)}
                 title="Days in the pre-increment period (the ÷ days of the formula) — blank uses the real calendar days"
                 style={{ width: 48, padding: '4px 6px', textAlign: 'right' }}
@@ -440,8 +440,8 @@ function WorkingRow({
               <span className="text-muted">/</span>
               <input
                 className="text-monospace"
-                value={daysP2}
-                onChange={(e) => setDaysP2(e.target.value)}
+                value={daysAfterIncrementInput}
+                onChange={(e) => setDaysAfterIncrementInput(e.target.value)}
                 placeholder={String(live.p2.calendarDays)}
                 title="Days in the post-increment period (the ÷ days of the formula) — blank uses the real calendar days"
                 style={{ width: 48, padding: '4px 6px', textAlign: 'right' }}
@@ -486,7 +486,7 @@ function WorkingRow({
                         year,
                         salaryBefore,
                         salaryAfter,
-                        incrementMonth: incMonth,
+                        incrementMonth,
                         remarks,
                         calendarDaysP1Override: p1Override,
                         calendarDaysP2Override: p2Override,
@@ -552,7 +552,7 @@ function WorkingRow({
               year={year}
               salaryBefore={locked ? row.salaryBefore : salaryBefore}
               salaryAfter={locked ? row.salaryAfter : salaryAfter}
-              incMonth={incMonth}
+              incMonth={incrementMonth}
               fig={fig}
               remarks={remarks}
               locked={locked}
@@ -570,7 +570,7 @@ function Breakdown({
   year,
   salaryBefore,
   salaryAfter,
-  incMonth,
+  incMonth: incrementMonth,
   fig,
   remarks,
   locked,
@@ -585,7 +585,7 @@ function Breakdown({
   locked: boolean;
   onRemarks: (v: string) => void;
 }) {
-  const monthsP1 = incMonth - 1;
+  const monthsP1 = incrementMonth - 1;
   const monthsP2 = 12 - monthsP1;
   const entitled = (salary: number, months: number) =>
     Math.round((salary / 2) * (months / 12) * 100) / 100;
@@ -598,7 +598,7 @@ function Breakdown({
   );
 
   const p1Range = monthsP1 > 0 ? `Jan – ${monthNames[monthsP1 - 1].slice(0, 3)}` : '—';
-  const p2Range = `${monthNames[incMonth - 1].slice(0, 3)} – Dec`;
+  const p2Range = `${monthNames[incrementMonth - 1].slice(0, 3)} – Dec`;
 
   return (
     <div

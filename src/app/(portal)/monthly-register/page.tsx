@@ -1,6 +1,6 @@
 import './register.css';
 import Link from 'next/link';
-import { Stamp } from '@/components/ui/Stamp';
+import { AttendanceStatusBadge } from '@/components/ui/AttendanceStatusBadge';
 import { getSession } from '@/lib/auth';
 import { RegisterGrid } from '@/components/register/RegisterGrid';
 import { registerLegend } from '@/lib/constants';
@@ -180,7 +180,7 @@ async function RegisterPage({
 
         <div className="legend">
           {registerLegend.map(([k]) => (
-            <Stamp key={k} status={k} />
+            <AttendanceStatusBadge key={k} status={k} />
           ))}
         </div>
 

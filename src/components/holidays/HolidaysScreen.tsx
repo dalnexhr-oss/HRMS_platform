@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { addHoliday, deleteHoliday, importHolidaysFromGoogle } from '@/lib/actions/holidays';
 import { formatDate } from '@/lib/format';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
-import { useToast } from '@/components/ui/Toast';
-import type { ToastKind } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
+import type { NotificationKind } from '@/components/ui/Notifications';
 import type { HolidayView } from '@/lib/queries';
 
 function HolidaysScreen({
@@ -22,13 +22,13 @@ function HolidaysScreen({
   // Real branch names from the DB — was a hardcoded Pune/Vadodara pair.
   branchNames?: string[];
 }) {
-  // One shared confirm modal + toast stack for the whole screen.
+  // One shared confirm modal + notification stack for the whole screen.
   const { confirm, confirmDialog } = useConfirm();
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
   return (
     <div className="content-container grid">
       {confirmDialog}
-      {toastNode}
+      {notificationContainer}
       <div className="card">
         <div className="card-header">
           <h3>Weekly off schedule</h3>
@@ -57,7 +57,7 @@ function HolidaysScreen({
               <p className="empty-state">No holidays yet — import them or add one on the right.</p>
             )}
             {holidays.map((h) => (
-              <HolidayRow key={h.id} holiday={h} confirm={confirm} toast={toast} />
+              <HolidayRow key={h.id} holiday={h} confirm={confirm} showNotification={showNotification} />
             ))}
           </div>
         </div>
@@ -68,7 +68,7 @@ function HolidaysScreen({
               <h3>Import from Google Calendar</h3>
             </div>
             <div className="card-body">
-              <ImportHolidays year={year} toast={toast} />
+              <ImportHolidays year={year} showNotification={showNotification} />
             </div>
           </div>
 
@@ -77,7 +77,7 @@ function HolidaysScreen({
               <h3>Add holiday</h3>
             </div>
             <div className="card-body">
-              <AddHolidayForm toast={toast} branchNames={branchNames} />
+              <AddHolidayForm showNotification={showNotification} branchNames={branchNames} />
             </div>
           </div>
         </div>
@@ -88,10 +88,10 @@ function HolidaysScreen({
 
 function ImportHolidays({
   year,
-  toast,
+  showNotification,
 }: {
   year: number;
-  toast: (message: string, kind?: ToastKind) => void;
+  showNotification: (message: string, kind?: NotificationKind) => void;
 }) {
   const router = useRouter();
   const [target, setTarget] = useState(year);
@@ -110,7 +110,7 @@ function ImportHolidays({
       const res = await importHolidaysFromGoogle(target);
       if (!res.ok) {
         setError(res.error);
-        toast(res.error, 'error');
+        showNotification(res.error, 'error');
         return;
       }
       const msg =
@@ -120,7 +120,7 @@ function ImportHolidays({
               res.skipped ? `, skipped ${res.skipped} already present.` : '.'
             }`;
       setResult(msg);
-      toast(msg, 'success');
+      showNotification(msg, 'success');
       setTentative(res.tentative);
       router.refresh();
     });
@@ -173,7 +173,7 @@ function ImportHolidays({
 function HolidayRow({
   holiday,
   confirm,
-  toast,
+  showNotification,
 }: {
   holiday: HolidayView;
   confirm: (opts: {
@@ -182,7 +182,7 @@ function HolidayRow({
     confirmLabel?: string;
     danger?: boolean;
   }) => Promise<boolean>;
-  toast: (message: string, kind?: ToastKind) => void;
+  showNotification: (message: string, kind?: NotificationKind) => void;
 }) {
   const [pending, startTransition] = useTransition();
   const remove = async () => {
@@ -198,9 +198,9 @@ function HolidayRow({
     startTransition(async () => {
       const res = await deleteHoliday(holiday.id);
       if (!res.ok) {
-        toast(res.error ?? 'Could not delete the holiday.', 'error');
+        showNotification(res.error ?? 'Could not delete the holiday.', 'error');
       } else {
-        toast('Holiday deleted.', 'success');
+        showNotification('Holiday deleted.', 'success');
       }
     });
   };
@@ -236,17 +236,17 @@ function HolidayRow({
 }
 
 function AddHolidayForm({
-  toast,
+  showNotification,
   branchNames = [],
 }: {
-  toast: (message: string, kind?: ToastKind) => void;
+  showNotification: (message: string, kind?: NotificationKind) => void;
   branchNames?: string[];
 }) {
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
     async (_prev, formData) => {
       const res = await addHoliday(formData);
       if (res.ok) {
-        toast('Holiday added.', 'success');
+        showNotification('Holiday added.', 'success');
       }
       return res;
     },

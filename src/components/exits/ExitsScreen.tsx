@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { inr, formatDate } from '@/lib/format';
 import { initiateExit, refreshExitClearance, setClearanceItemCleared, setExitStage, prepareFullAndFinal, setFullAndFinalStatus, generateExitDocument, fetchClearanceItems, ensureExitInterview, saveExitInterview, fetchExitInterview, setKtStatus, deleteKtItem, fetchKtItems } from '@/lib/actions/exit';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
-import { useToast } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
 import type { ExitCaseRow, ClearanceItemRow, EmployeeOption, ExitInterviewRow, KtItemRow } from '@/lib/queries';
 
@@ -30,15 +30,15 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
   const [pending, startTransition] = useTransition();
   const [openCase, setOpenCase] = useState<ExitCaseRow | null>(null);
   const { confirm, confirmDialog } = useConfirm();
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) {
     startTransition(async () => {
       const res = await fn();
       if (!res.ok) {
-        toast(res.error ?? 'The action failed.', 'error');
+        showNotification(res.error ?? 'The action failed.', 'error');
       } else {
-        toast(okMsg, 'success');
+        showNotification(okMsg, 'success');
         router.refresh();
       }
     });
@@ -63,7 +63,7 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
   return (
     <div className="content-container grid">
       {confirmDialog}
-      {toastNode}
+      {notificationContainer}
 
       <div className="card">
         <div className="card-header">
@@ -75,9 +75,9 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
             disabled={pending}
             onDone={(res) => {
               if (!res.ok) {
-                toast(res.error ?? 'Could not start the exit.', 'error');
+                showNotification(res.error ?? 'Could not start the exit.', 'error');
               } else {
-                toast('Exit started — the employee is now on notice.', 'success');
+                showNotification('Exit started — the employee is now on notice.', 'success');
                 router.refresh();
               }
             }}
@@ -258,7 +258,7 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
                               Complete
                             </button>
                           )}
-                          <DocMenu caseId={c.id} disabled={pending} toast={toast} />
+                          <DocMenu caseId={c.id} disabled={pending} showNotification={showNotification} />
                         </div>
                       </td>
                     </tr>
@@ -275,7 +275,7 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
           exitCase={openCase}
           employees={employees}
           onClose={() => setOpenCase(null)}
-          toast={toast}
+          showNotification={showNotification}
           onChanged={() => router.refresh()}
         />
       )}
@@ -287,11 +287,11 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
 function DocMenu({
   caseId,
   disabled,
-  toast,
+  showNotification,
 }: {
   caseId: string;
   disabled: boolean;
-  toast: (m: string, k?: 'info' | 'error' | 'success') => void;
+  showNotification: (m: string, k?: 'info' | 'error' | 'success') => void;
 }) {
   const [busy, setBusy] = useState(false);
   const gen = async (kind: 'relieving' | 'experience' | 'fnf') => {
@@ -299,9 +299,9 @@ function DocMenu({
     const res = await generateExitDocument(caseId, kind);
     setBusy(false);
     if (!res.ok) {
-      toast(res.error ?? 'The document could not be generated.', 'error');
+      showNotification(res.error ?? 'The document could not be generated.', 'error');
     } else {
-      toast('Document generated and filed.', 'success');
+      showNotification('Document generated and filed.', 'success');
     }
   };
   return (
@@ -324,13 +324,13 @@ function ClearanceDrawer({
   exitCase,
   employees,
   onClose,
-  toast,
+  showNotification,
   onChanged,
 }: {
   exitCase: ExitCaseRow;
   employees: EmployeeOption[];
   onClose: () => void;
-  toast: (m: string, k?: 'info' | 'error' | 'success') => void;
+  showNotification: (m: string, k?: 'info' | 'error' | 'success') => void;
   onChanged: () => void;
 }) {
   const [items, setItems] = useState<ClearanceItemRow[] | null>(null);
@@ -392,7 +392,7 @@ function ClearanceDrawer({
                     const res = await setClearanceItemCleared(it.id, next);
                     setBusy(null);
                     if (!res.ok) {
-                      toast(res.error ?? 'Could not update the item.', 'error');
+                      showNotification(res.error ?? 'Could not update the item.', 'error');
                     } else {
                       setItems((prev) =>
                         (prev ?? []).map((p) => (p.id === it.id ? { ...p, cleared: next } : p)),
@@ -413,8 +413,8 @@ function ClearanceDrawer({
             ))
           )}
 
-          <InterviewSection exitCaseId={exitCase.id} toast={toast} />
-          <KtSection exitCaseId={exitCase.id} employees={employees} toast={toast} />
+          <InterviewSection exitCaseId={exitCase.id} showNotification={showNotification} />
+          <KtSection exitCaseId={exitCase.id} employees={employees} showNotification={showNotification} />
         </div>
         <div className="drawer-footer">
           <button type="button" className="button" onClick={onClose}>
@@ -433,10 +433,10 @@ function ClearanceDrawer({
  */
 function InterviewSection({
   exitCaseId,
-  toast,
+  showNotification,
 }: {
   exitCaseId: string;
-  toast: (m: string, k?: 'info' | 'error' | 'success') => void;
+  showNotification: (m: string, k?: 'info' | 'error' | 'success') => void;
 }) {
   const [rows, setRows] = useState<ExitInterviewRow[] | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -480,7 +480,7 @@ function InterviewSection({
               if (res.ok) {
                 setRows(await fetchExitInterview(exitCaseId));
               } else {
-                toast(res.error ?? 'Could not open the interview.', 'error');
+                showNotification(res.error ?? 'Could not open the interview.', 'error');
               }
               setBusy(false);
             }}
@@ -519,9 +519,9 @@ function InterviewSection({
               );
               setBusy(false);
               if (!res.ok) {
-                toast(res.error ?? 'Could not save the interview.', 'error');
+                showNotification(res.error ?? 'Could not save the interview.', 'error');
               } else {
-                toast('Interview saved.', 'success');
+                showNotification('Interview saved.', 'success');
                 setRows(await fetchExitInterview(exitCaseId));
               }
             }}
@@ -538,11 +538,11 @@ function InterviewSection({
 function KtSection({
   exitCaseId,
   employees,
-  toast,
+  showNotification,
 }: {
   exitCaseId: string;
   employees: EmployeeOption[];
-  toast: (m: string, k?: 'info' | 'error' | 'success') => void;
+  showNotification: (m: string, k?: 'info' | 'error' | 'success') => void;
 }) {
   const [rows, setRows] = useState<KtItemRow[] | null>(null);
 
@@ -631,7 +631,7 @@ function KtSection({
                         const res = await setKtStatus(r.id, nextStatus[r.status]);
                         setBusy(false);
                         if (!res.ok) {
-                          toast(res.error ?? 'Could not update the item.', 'error');
+                          showNotification(res.error ?? 'Could not update the item.', 'error');
                         } else {
                           await reload();
                         }
@@ -650,7 +650,7 @@ function KtSection({
                         const res = await deleteKtItem(r.id);
                         setBusy(false);
                         if (!res.ok) {
-                          toast(res.error ?? 'Could not remove the item.', 'error');
+                          showNotification(res.error ?? 'Could not remove the item.', 'error');
                         } else {
                           await reload();
                         }

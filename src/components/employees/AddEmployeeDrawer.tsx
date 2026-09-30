@@ -306,15 +306,15 @@ function BranchPicker({
 }) {
   // No branches at all (first run) → jump straight to the add-new fields, since
   // there is nothing to choose between.
-  const [sel, setSel] = useState(branchDefault || (options.length === 0 ? newBranch : ''));
-  const adding = sel === newBranch;
+  const [selectedBranch, setSelectedBranch] = useState(branchDefault || (options.length === 0 ? newBranch : ''));
+  const adding = selectedBranch === newBranch;
 
   return (
     <>
       <div className="form-row">
         <div className="form-field">
           <label>Branch</label>
-          <select name="branch" value={sel} onChange={(e) => setSel(e.target.value)} required>
+          <select name="branch" value={selectedBranch} onChange={(e) => setSelectedBranch(e.target.value)} required>
             <option value="" disabled>
               Select a branch…
             </option>

@@ -4,10 +4,10 @@ import { useRouter } from 'next/navigation';
 import { updateSetting } from '@/lib/actions/settings';
 import { States } from '@/lib/constants';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
-import { useToast } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
 import { useState, useTransition } from 'react';
 import { updateBranch, deleteBranch, updateBranchLocation } from '@/lib/actions/branches';
-import type { ToastKind } from '@/components/ui/Toast';
+import type { NotificationKind } from '@/components/ui/Notifications';
 import type { SettingView, BranchRow } from '@/lib/queries';
 
 function SettingsScreen({
@@ -17,11 +17,11 @@ function SettingsScreen({
   settings: SettingView[];
   branches?: BranchRow[];
 }) {
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
   const { confirm, confirmDialog } = useConfirm();
   return (
     <div className="content-container grid">
-      {toastNode}
+      {notificationContainer}
       {confirmDialog}
       <div className="card">
         <div className="card-header">
@@ -37,7 +37,7 @@ function SettingsScreen({
           {branches.length === 0 && <p className="empty-state">No branches yet.</p>}
           <div className="settings-branches">
             {branches.map((b) => (
-              <BranchManageRow key={b.id} branch={b} toast={toast} confirm={confirm} />
+              <BranchManageRow key={b.id} branch={b} showNotification={showNotification} confirm={confirm} />
             ))}
           </div>
         </div>
@@ -60,7 +60,7 @@ function SettingsScreen({
           {branches.length === 0 && <p className="empty-state">No branches yet.</p>}
           <div style={{ display: 'grid', gap: 12 }}>
             {branches.map((b) => (
-              <BranchLocationRow key={b.id} branch={b} toast={toast} />
+              <BranchLocationRow key={b.id} branch={b} showNotification={showNotification} />
             ))}
           </div>
         </div>
@@ -78,7 +78,7 @@ function SettingsScreen({
           {settings.length === 0 && <p className="empty-state">No rules configured.</p>}
           <div style={{ display: 'grid', gap: 12 }}>
             {settings.map((s) => (
-              <SettingRow key={s.key} setting={s} toast={toast} />
+              <SettingRow key={s.key} setting={s} showNotification={showNotification} />
             ))}
           </div>
         </div>
@@ -89,11 +89,11 @@ function SettingsScreen({
 
 function BranchManageRow({
   branch,
-  toast,
+  showNotification,
   confirm,
 }: {
   branch: BranchRow;
-  toast: (message: string, kind?: ToastKind) => void;
+  showNotification: (message: string, kind?: NotificationKind) => void;
   confirm: (opts: {
     title?: string;
     message: string;
@@ -118,10 +118,10 @@ function BranchManageRow({
       fd.set('state', state);
       const res = await updateBranch(branch.id, fd);
       if (!res.ok) {
-        toast(res.error ?? 'Could not update the branch.', 'error');
+        showNotification(res.error ?? 'Could not update the branch.', 'error');
         return;
       }
-      toast(`Branch “${name.trim()}” saved.`, 'success');
+      showNotification(`Branch “${name.trim()}” saved.`, 'success');
       router.refresh();
     });
   };
@@ -141,10 +141,10 @@ function BranchManageRow({
     startTransition(async () => {
       const res = await deleteBranch(branch.id);
       if (!res.ok) {
-        toast(res.error ?? 'Could not delete the branch.', 'error');
+        showNotification(res.error ?? 'Could not delete the branch.', 'error');
         return;
       }
-      toast(`Branch “${branch.name}” deleted.`, 'success');
+      showNotification(`Branch “${branch.name}” deleted.`, 'success');
       router.refresh();
     });
   };
@@ -211,41 +211,41 @@ function BranchManageRow({
  */
 function BranchLocationRow({
   branch,
-  toast,
+  showNotification,
 }: {
   branch: BranchRow;
-  toast: (message: string, kind?: ToastKind) => void;
+  showNotification: (message: string, kind?: NotificationKind) => void;
 }) {
   const router = useRouter();
   // Blank, not '0'. A zero coordinate is a real place in the Gulf of Guinea,
   // so "not set" has to be an empty field rather than a number.
   const [address, setAddress] = useState(branch.address ?? '');
-  const [lat, setLat] = useState(branch.geofenceLat?.toString() ?? '');
-  const [lng, setLng] = useState(branch.geofenceLng?.toString() ?? '');
+  const [latitude, setLatitude] = useState(branch.geofenceLat?.toString() ?? '');
+  const [longitude, setLongitude] = useState(branch.geofenceLng?.toString() ?? '');
   const [radius, setRadius] = useState(branch.geofenceRadiusM?.toString() ?? '');
   const [pending, startTransition] = useTransition();
 
   const dirty =
     address !== (branch.address ?? '') ||
-    lat !== (branch.geofenceLat?.toString() ?? '') ||
-    lng !== (branch.geofenceLng?.toString() ?? '') ||
+    latitude !== (branch.geofenceLat?.toString() ?? '') ||
+    longitude !== (branch.geofenceLng?.toString() ?? '') ||
     radius !== (branch.geofenceRadiusM?.toString() ?? '');
 
-  const located = lat.trim() !== '' && lng.trim() !== '';
+  const located = latitude.trim() !== '' && longitude.trim() !== '';
 
   const save = () => {
     startTransition(async () => {
       const fd = new FormData();
       fd.set('address', address);
-      fd.set('geofence_lat', lat);
-      fd.set('geofence_lng', lng);
+      fd.set('geofence_lat', latitude);
+      fd.set('geofence_lng', longitude);
       fd.set('geofence_radius_m', radius);
       const res = await updateBranchLocation(branch.id, fd);
       if (!res.ok) {
-        toast(res.error ?? 'Could not save the office location.', 'error');
+        showNotification(res.error ?? 'Could not save the office location.', 'error');
         return;
       }
-      toast(`Office location saved for “${branch.name}”.`, 'success');
+      showNotification(`Office location saved for “${branch.name}”.`, 'success');
       router.refresh();
     });
   };
@@ -301,8 +301,8 @@ function BranchLocationRow({
           <input
             className="text-monospace"
             inputMode="decimal"
-            value={lat}
-            onChange={(e) => setLat(e.target.value)}
+            value={latitude}
+            onChange={(e) => setLatitude(e.target.value)}
             placeholder="18.559200"
           />
         </div>
@@ -311,8 +311,8 @@ function BranchLocationRow({
           <input
             className="text-monospace"
             inputMode="decimal"
-            value={lng}
-            onChange={(e) => setLng(e.target.value)}
+            value={longitude}
+            onChange={(e) => setLongitude(e.target.value)}
             placeholder="73.779600"
           />
         </div>
@@ -439,10 +439,10 @@ function parseBack(
 
 function SettingRow({
   setting,
-  toast,
+  showNotification,
 }: {
   setting: SettingView;
-  toast: (message: string, kind?: ToastKind) => void;
+  showNotification: (message: string, kind?: NotificationKind) => void;
 }) {
   const kind = knownKinds[setting.key] ?? kindOf(setting.value);
   const [value, setValue] = useState(displayValue(setting.value, kind));
@@ -456,17 +456,17 @@ function SettingRow({
     const parsed = parseBack(value, kind);
     if (!parsed.ok) {
       setError(parsed.error);
-      toast(parsed.error, 'error');
+      showNotification(parsed.error, 'error');
       return;
     }
     startTransition(async () => {
       const res = await updateSetting(setting.key, parsed.value);
       if (res.ok) {
         setSaved(true);
-        toast(`Saved “${setting.label ?? setting.key}”.`, 'success');
+        showNotification(`Saved “${setting.label ?? setting.key}”.`, 'success');
       } else {
         setError(res.error ?? 'Could not save this setting.');
-        toast(res.error ?? 'Could not save this setting.', 'error');
+        showNotification(res.error ?? 'Could not save this setting.', 'error');
       }
     });
   };

@@ -1,6 +1,6 @@
 // Use the shared attendance labels and status-pill colours on every employee card.
 import { presenceLabel } from '@/types/tv';
-import { statusMeta } from '@/lib/constants';
+import { getAttendanceStatusDetails } from '@/lib/constants';
 import type { EmployeeData } from '@/types/tv';
 
 const timeFmt: Intl.DateTimeFormatOptions = {
@@ -58,7 +58,7 @@ function EmployeeCard({ employee }: { employee: EmployeeData }) {
           // The human name for the day's status ('Leave', 'Week off'…), not the
           // raw 'L' / 'WO' code the register uses.
           employee.dayStatus ? (
-            statusMeta(employee.dayStatus)[2]
+            getAttendanceStatusDetails(employee.dayStatus)[2]
           ) : (
             presenceLabel[employee.presence]
           )

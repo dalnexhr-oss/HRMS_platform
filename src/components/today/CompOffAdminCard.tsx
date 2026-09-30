@@ -6,14 +6,14 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/format';
 import { setCompOffApplicability } from '@/lib/actions/comp-off';
-import { useToast } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
 import type { CompOffAdminRow } from '@/lib/queries';
 
 function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; error?: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
 
   // Group live credits per employee, keeping the query's name ordering.
   const byEmployee = new Map<string, { code: string; name: string; credits: CompOffAdminRow[] }>();
@@ -31,9 +31,9 @@ function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; error?: st
       const res = await setCompOffApplicability(credit.id, !credit.isApplicable);
       setBusyId(null);
       if (!res.ok) {
-        toast(res.error ?? 'The comp off could not be updated.', 'error');
+        showNotification(res.error ?? 'The comp off could not be updated.', 'error');
       } else {
-        toast(
+        showNotification(
           !credit.isApplicable
             ? 'Comp off is applicable again — the employee can use it.'
             : 'Comp off marked not applicable — the employee cannot use it.',
@@ -46,7 +46,7 @@ function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; error?: st
 
   return (
     <div className="card">
-      {toastNode}
+      {notificationContainer}
       <div className="card-header">
         <h3>Comp offs</h3>
         <span className="card-caption">

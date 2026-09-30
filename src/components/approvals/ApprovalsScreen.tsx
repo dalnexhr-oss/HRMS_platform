@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Stamp } from '@/components/ui/Stamp';
-import { useToast } from '@/components/ui/Toast';
+import { AttendanceStatusBadge } from '@/components/ui/AttendanceStatusBadge';
+import { useNotifications } from '@/components/ui/Notifications';
 import { canReviewRequest } from '@/lib/requests/access';
 import { RequestDecisionControls } from '@/components/requests/RequestDecisionControls';
 import { RequestRoutingSummary } from '@/components/requests/RequestRoutingSummary';
@@ -62,7 +62,7 @@ function ApprovalsScreen({
   actor: RequestActor;
   people: RequestRecipient[];
 }) {
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
   // Start with just the pending requests; reviewed cards drop out optimistically.
   const initialPending = useMemo(
     () => requests.filter((r) => canReviewRequest(r, actor)),
@@ -77,7 +77,7 @@ function ApprovalsScreen({
 
   return (
     <div className="content-container grid">
-      {toastNode}
+      {notificationContainer}
       {pending.length > 0 && (
         <div className="approval-grid">
           {pending.map((req) => (
@@ -87,7 +87,7 @@ function ApprovalsScreen({
               actor={actor}
               people={people}
               onReviewed={(id) => setPending((rows) => rows.filter((r) => r.id !== id))}
-              toast={toast}
+              showNotification={showNotification}
             />
           ))}
         </div>
@@ -112,18 +112,18 @@ function RequestCard({
   actor,
   people,
   onReviewed,
-  toast,
+  showNotification,
 }: {
   request: RequestView;
   actor: RequestActor;
   people: RequestRecipient[];
   onReviewed: (id: string) => void;
-  toast: (message: string, kind?: 'success' | 'error' | 'info') => void;
+  showNotification: (message: string, kind?: 'success' | 'error' | 'info') => void;
 }) {
   return (
     <div className="card approval-request">
       <div className="request-header">
-        <Stamp status={typeStamp[request.type]} />
+        <AttendanceStatusBadge status={typeStamp[request.type]} />
         <span className="request-employee-name">{request.employeeName}</span>
         <span className="text-muted text-monospace" style={{ fontSize: 11 }}>
           {request.employeeCode} · {request.branch}
@@ -145,7 +145,7 @@ function RequestCard({
           people={people}
           onReviewed={(id, result) => {
             onReviewed(id);
-            toast(
+            showNotification(
               result.warning ??
                 (result.forwarded
                   ? 'Stage approved and forwarded for further approval.'

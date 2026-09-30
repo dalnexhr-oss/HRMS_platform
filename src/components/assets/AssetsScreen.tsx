@@ -6,15 +6,15 @@ import { useRouter } from 'next/navigation';
 import { AddAssetDrawer } from './AddAssetDrawer';
 import { AssignAssetDrawer } from './AssignAssetDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
-import { useToast } from '@/components/ui/Toast';
-import { ThMenu, distinctValues, sortRows, inDateRange, rangeActive } from '@/components/ui/ThMenu';
+import { useNotifications } from '@/components/ui/Notifications';
+import { TableColumnMenu, getDistinctColumnValues, sortTableRows, isWithinDateRange, isDateRangeActive } from '@/components/ui/TableColumnMenu';
 import { deleteAsset } from '@/lib/actions/assets';
 import { inr } from '@/lib/format';
-import type { SortDir, ColKind, DateRange } from '@/components/ui/ThMenu';
+import type { SortDirection, ColumnDataType, DateRange } from '@/components/ui/TableColumnMenu';
 import type { AssetRow, EmployeeOption, AssetSummaryRow } from '@/lib/queries';
 
 /** Combine column filters with AND; selected values within a column use OR. */
-type ColKey =
+type ColumnKey =
   | 'purchased'
   | 'cost'
   | 'name'
@@ -28,7 +28,7 @@ type ColKey =
   | 'ram'
   | 'storage';
 
-const cols: Array<{ key: ColKey; label: string; kind?: ColKind; get: (a: AssetRow) => string }> = [
+const columns: Array<{ key: ColumnKey; label: string; kind?: ColumnDataType; get: (a: AssetRow) => string }> = [
   { key: 'purchased', label: 'Purchased on', kind: 'date', get: (a) => a.purchase_date ?? '—' },
   {
     key: 'cost',
@@ -58,37 +58,37 @@ function AssetsScreen({
   summary?: AssetSummaryRow[];
 }) {
   const router = useRouter();
-  const [q, setQ] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [drawer, setDrawer] = useState(false);
   const [editing, setEditing] = useState<AssetRow | null>(null);
   const [assigning, setAssigning] = useState<AssetRow | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const { confirm, confirmDialog } = useConfirm();
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
 
   // Header-menu state: one active sort, plus per-column value selections and,
   // for date columns, a from/to range instead of those selections.
-  const [sort, setSort] = useState<{ key: ColKey; dir: SortDir } | null>(null);
-  const [filters, setFilters] = useState<Partial<Record<ColKey, string[]>>>({});
-  const [ranges, setRanges] = useState<Partial<Record<ColKey, DateRange>>>({});
+  const [sort, setSort] = useState<{ key: ColumnKey; dir: SortDirection } | null>(null);
+  const [filters, setFilters] = useState<Partial<Record<ColumnKey, string[]>>>({});
+  const [ranges, setRanges] = useState<Partial<Record<ColumnKey, DateRange>>>({});
 
   // Options come from the full list (not the filtered one), so a selection in
   // one column never hides another column's choices.
   const options = useMemo(() => {
-    const out = {} as Record<ColKey, string[]>;
-    for (const c of cols) {
-      out[c.key] = distinctValues(assets.map(c.get), c.kind);
+    const out = {} as Record<ColumnKey, string[]>;
+    for (const c of columns) {
+      out[c.key] = getDistinctColumnValues(assets.map(c.get), c.kind);
     }
     return out;
   }, [assets]);
 
   const hasFilters =
     Object.values(filters).some((sel) => (sel?.length ?? 0) > 0) ||
-    Object.values(ranges).some(rangeActive);
+    Object.values(ranges).some(isDateRangeActive);
 
   const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
+    const term = searchQuery.trim().toLowerCase();
     let rows = assets;
     if (term) {
       rows = rows.filter((a) =>
@@ -97,11 +97,11 @@ function AssetsScreen({
         ),
       );
     }
-    for (const c of cols) {
+    for (const c of columns) {
       if (c.kind === 'date') {
         const r = ranges[c.key];
-        if (rangeActive(r)) {
-          rows = rows.filter((a) => inDateRange(c.get(a), r));
+        if (isDateRangeActive(r)) {
+          rows = rows.filter((a) => isWithinDateRange(c.get(a), r));
         }
         continue;
       }
@@ -111,15 +111,15 @@ function AssetsScreen({
       }
     }
     if (sort) {
-      const col = cols.find((c) => c.key === sort.key);
-      if (col) {
-        rows = sortRows(rows, col.get, col.kind ?? 'text', sort.dir);
+      const selectedColumn = columns.find((c) => c.key === sort.key);
+      if (selectedColumn) {
+        rows = sortTableRows(rows, selectedColumn.get, selectedColumn.kind ?? 'text', sort.dir);
       }
     }
     return rows;
-  }, [q, assets, filters, ranges, sort]);
+  }, [searchQuery, assets, filters, ranges, sort]);
 
-  function toggleFilter(key: ColKey, value: string) {
+  function toggleFilter(key: ColumnKey, value: string) {
     setFilters((f) => {
       const cur = f[key] ?? [];
       return {
@@ -154,10 +154,10 @@ function AssetsScreen({
       const res = await deleteAsset(a.id);
       setBusyId(null);
       if (!res.ok) {
-        toast(res.error ?? 'Could not delete the asset.', 'error');
+        showNotification(res.error ?? 'Could not delete the asset.', 'error');
         return;
       }
-      toast('Asset deleted.', 'success');
+      showNotification('Asset deleted.', 'success');
       router.refresh();
     });
   }
@@ -179,8 +179,8 @@ function AssetsScreen({
           </svg>
           <input
             placeholder="Search name, serial, model…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
         <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
@@ -192,7 +192,7 @@ function AssetsScreen({
         </button>
       </div>
 
-      {toastNode}
+      {notificationContainer}
 
       {/* 14px below, matching .emp-top's own margin, so the search row, summary
           band and table card sit on one consistent vertical rhythm. */}
@@ -223,12 +223,12 @@ function AssetsScreen({
           <table style={{ minWidth: 1180 }}>
             <thead>
               <tr>
-                {cols.map((c) => (
+                {columns.map((c) => (
                   <th key={c.key}>
-                    <ThMenu
+                    <TableColumnMenu
                       label={c.label}
                       kind={c.kind}
-                      sortDir={sort?.key === c.key ? sort.dir : null}
+                      sortDirection={sort?.key === c.key ? sort.dir : null}
                       onSort={(dir) => setSort(dir ? { key: c.key, dir } : null)}
                       options={options[c.key]}
                       selected={filters[c.key] ?? []}
@@ -331,7 +331,7 @@ function AssetsScreen({
               {filtered.length === 0 && (
                 <tr>
                   <td className="text-muted" colSpan={11} style={{ textAlign: 'center' }}>
-                    {q || hasFilters
+                    {searchQuery || hasFilters
                       ? 'No assets match the current search / filters.'
                       : 'No assets yet.'}
                   </td>

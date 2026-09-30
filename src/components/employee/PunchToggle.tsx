@@ -1,13 +1,13 @@
 'use client';
 
 // Topbar attendance toggle. Share usePunchClock with the detailed card on /employee.
-import { useToast } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
 import { usePunchClock, duration } from './usePunchClock';
 
 function PunchToggle() {
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
   const { state, loading, pending, webPunchAllowed, isIn, worked, loadError, punch } =
-    usePunchClock('topbar', toast);
+    usePunchClock('topbar', showNotification);
 
   // No clock to offer — an unlinked login, or the status route is down. The
   // card on /employee says why; the bar just steps out of the way rather than
@@ -18,7 +18,7 @@ function PunchToggle() {
 
   return (
     <div className="header-punch-clock">
-      {toastNode}
+      {notificationContainer}
       {state?.lastNightSweep && (
         <a href="/employee#punch" className="text-muted" title={state.lastNightSweep.message}>
           Missed punch-out

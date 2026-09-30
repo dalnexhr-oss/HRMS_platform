@@ -4,11 +4,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { formatDate, todayIST } from '@/lib/format';
 
-type SortDir = 'asc' | 'desc';
+type SortDirection = 'asc' | 'desc';
 
-type ColKind = 'text' | 'number' | 'date';
+type ColumnDataType = 'text' | 'number' | 'date';
 
-const sortLabels: Record<ColKind, [asc: string, desc: string]> = {
+const sortLabels: Record<ColumnDataType, [asc: string, desc: string]> = {
   text: ['Sort A → Z', 'Sort Z → A'],
   number: ['Sort low → high', 'Sort high → low'],
   date: ['Sort oldest → newest', 'Sort newest → oldest'],
@@ -19,18 +19,18 @@ interface DateRange {
   blank?: boolean;
 }
 
-const noRange: DateRange = { from: '', to: '' };
+const emptyDateRange: DateRange = { from: '', to: '' };
 
 const blankTokens = new Set(['', '—']);
 
-const popW = 220;
-const popWDate = 274;
+const columnMenuWidth = 220;
+const dateColumnMenuWidth = 274;
 
-const isoDay = /^\d{4}-\d{2}-\d{2}/;
+const isoDatePattern = /^\d{4}-\d{2}-\d{2}/;
 
 // An ISO day (or the day part of a timestamp) -> epoch ms. NaN-safe.
-function dateValue(v: string): number {
-  const iso = isoDay.exec(v);
+function getDateTimestamp(v: string): number {
+  const iso = isoDatePattern.exec(v);
   const t = Date.parse(iso ? `${iso[0]}T00:00:00` : v);
   return Number.isNaN(t) ? 0 : t;
 }
@@ -51,7 +51,7 @@ function monthEnd(iso: string): string {
   return shiftDays(m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`, -1);
 }
 
-interface Preset {
+interface DateRangePreset {
   label: string;
   range: DateRange;
 }
@@ -60,9 +60,9 @@ interface Preset {
  * Offer date presets that intersect the column's date range. The caller supplies today when the
  * menu opens so a tab left open overnight uses the current date.
  */
-function presetsFor(min: string, max: string, today: string): Preset[] {
+function getDateRangePresets(min: string, max: string, today: string): DateRangePreset[] {
   const year = today.slice(0, 4);
-  const candidates: Preset[] = [
+  const candidates: DateRangePreset[] = [
     { label: 'Today', range: { from: today, to: today } },
     { label: 'Last 7 days', range: { from: shiftDays(today, -6), to: today } },
     { label: 'Last 30 days', range: { from: shiftDays(today, -29), to: today } },
@@ -79,12 +79,12 @@ function presetsFor(min: string, max: string, today: string): Preset[] {
   );
 }
 
-function sameRange(a: DateRange, b: DateRange): boolean {
+function isSameDateRange(a: DateRange, b: DateRange): boolean {
   return a.from === b.from && a.to === b.to && !!a.blank === !!b.blank;
 }
 
 /** Human sentence for the active filter, announced to screen readers. */
-function rangeLabel(r: DateRange): string {
+function getDateRangeLabel(r: DateRange): string {
   if (r.blank) {
     return 'Showing rows with no date';
   }
@@ -103,13 +103,13 @@ function rangeLabel(r: DateRange): string {
 }
 
 /** True once a date filter would actually narrow the table. */
-function rangeActive(r?: DateRange): boolean {
+function isDateRangeActive(r?: DateRange): boolean {
   return !!r && (r.blank === true || r.from !== '' || r.to !== '');
 }
 
 /** Does a cell's date fall inside the filter? Inclusive at both ends. */
-function inDateRange(value: string, r?: DateRange): boolean {
-  if (!r || !rangeActive(r)) {
+function isWithinDateRange(value: string, r?: DateRange): boolean {
+  if (!r || !isDateRangeActive(r)) {
     return true;
   }
   const blank = blankTokens.has(value);
@@ -119,11 +119,11 @@ function inDateRange(value: string, r?: DateRange): boolean {
   if (blank) {
     return false;
   }
-  const v = dateValue(value);
-  if (r.from && v < dateValue(r.from)) {
+  const v = getDateTimestamp(value);
+  if (r.from && v < getDateTimestamp(r.from)) {
     return false;
   }
-  if (r.to && v > dateValue(r.to)) {
+  if (r.to && v > getDateTimestamp(r.to)) {
     return false;
   }
   return true;
@@ -131,24 +131,24 @@ function inDateRange(value: string, r?: DateRange): boolean {
 
 // menu
 
-function ThMenu({
+function TableColumnMenu({
   label,
   kind = 'text',
-  sortDir,
+  sortDirection,
   onSort,
   options,
   selected,
   onToggle,
   onClear,
-  range = noRange,
+  range = emptyDateRange,
   onRange,
 }: {
   label: string;
   /** Drives the compare order, the sort wording, and which filter body shows. */
-  kind?: ColKind;
-  sortDir: SortDir | null;
+  kind?: ColumnDataType;
+  sortDirection: SortDirection | null;
   /** null clears the sort (clicking the active direction toggles it off). */
-  onSort: (dir: SortDir | null) => void;
+  onSort: (dir: SortDirection | null) => void;
   /** Distinct values present in the data — '—' stands in for blank. */
   options: string[];
   selected: string[];
@@ -158,23 +158,23 @@ function ThMenu({
   range?: DateRange;
   onRange?: (range: DateRange) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ left: 0, top: 0 });
-  const [find, setFind] = useState('');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ left: 0, top: 0 });
+  const [searchQuery, setSearchQuery] = useState('');
   // Refreshed on every open, so 'Today' means today even in a tab that has sat
   // on this screen since yesterday afternoon.
   const [today, setToday] = useState(todayIST);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const popRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const menuPanelRef = useRef<HTMLDivElement>(null);
 
   // A date column falls back to the checkbox list if the screen never wired a
   // range setter — half a date filter is worse than the old one.
-  const isDate = kind === 'date' && !!onRange;
-  const width = isDate ? popWDate : popW;
+  const isDateFilter = kind === 'date' && !!onRange;
+  const menuWidth = isDateFilter ? dateColumnMenuWidth : columnMenuWidth;
 
   // The column's own span, blanks excluded: it bounds the calendars and picks
   // which presets are worth showing.
-  const span = useMemo(() => {
+  const availableDateRange = useMemo(() => {
     const days = options.filter((o) => !blankTokens.has(o)).map((o) => o.slice(0, 10));
     if (days.length === 0) {
       return null;
@@ -187,21 +187,24 @@ function ThMenu({
 
   const hasBlanks = useMemo(() => options.some((o) => blankTokens.has(o)), [options]);
   const presets = useMemo(
-    () => (isDate && span ? presetsFor(span.min, span.max, today) : []),
-    [isDate, span, today],
+    () =>
+      isDateFilter && availableDateRange
+        ? getDateRangePresets(availableDateRange.min, availableDateRange.max, today)
+        : [],
+    [isDateFilter, availableDateRange, today],
   );
 
   function toggleOpen() {
-    if (!open && btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect();
-      setPos({
-        left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)),
+    if (!isMenuOpen && menuButtonRef.current) {
+      const r = menuButtonRef.current.getBoundingClientRect();
+      setMenuPosition({
+        left: Math.max(8, Math.min(r.left, window.innerWidth - menuWidth - 8)),
         top: r.bottom + 6,
       });
-      setFind('');
+      setSearchQuery('');
       setToday(todayIST());
     }
-    setOpen((o) => !o);
+    setIsMenuOpen((o) => !o);
   }
 
   // Clear the opposite bound when the range reverses so the filter can still match rows.
@@ -214,67 +217,69 @@ function ThMenu({
   }
 
   useEffect(() => {
-    if (!open) {
+    if (!isMenuOpen) {
       return;
     }
-    function onDown(e: MouseEvent) {
+    function handleOutsideClick(e: MouseEvent) {
       const t = e.target as Node;
-      if (popRef.current?.contains(t) || btnRef.current?.contains(t)) {
+      if (menuPanelRef.current?.contains(t) || menuButtonRef.current?.contains(t)) {
         return;
       }
-      setOpen(false);
+      setIsMenuOpen(false);
     }
-    function onKey(e: KeyboardEvent) {
+    function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
-        setOpen(false);
+        setIsMenuOpen(false);
       }
     }
     // The pop is position:fixed, so scrolling the page or the table's
     // horizontal wrapper would leave it floating detached — just close it.
     // Scrolls inside the pop's own option list are fine.
-    function onScroll(e: Event) {
-      if (popRef.current?.contains(e.target as Node)) {
+    function closeMenuOnScroll(e: Event) {
+      if (menuPanelRef.current?.contains(e.target as Node)) {
         return;
       }
-      setOpen(false);
+      setIsMenuOpen(false);
     }
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    document.addEventListener('scroll', onScroll, true);
-    window.addEventListener('resize', onScroll);
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('scroll', closeMenuOnScroll, true);
+    window.addEventListener('resize', closeMenuOnScroll);
     return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-      document.removeEventListener('scroll', onScroll, true);
-      window.removeEventListener('resize', onScroll);
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('scroll', closeMenuOnScroll, true);
+      window.removeEventListener('resize', closeMenuOnScroll);
     };
-  }, [open]);
+  }, [isMenuOpen]);
 
-  const filtering = isDate ? rangeActive(range) : selected.length > 0;
-  const active = sortDir !== null || filtering;
-  const term = find.trim().toLowerCase();
-  const shown = term ? options.filter((o) => o.toLowerCase().includes(term)) : options;
+  const isFiltering = isDateFilter ? isDateRangeActive(range) : selected.length > 0;
+  const isMenuActive = sortDirection !== null || isFiltering;
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const visibleOptions = normalizedSearchQuery
+    ? options.filter((o) => o.toLowerCase().includes(normalizedSearchQuery))
+    : options;
 
   return (
     <>
       <button
-        ref={btnRef}
+        ref={menuButtonRef}
         type="button"
-        className={`table-column-menu-button${active ? ' is-active' : ''}`}
+        className={`table-column-menu-button${isMenuActive ? ' is-active' : ''}`}
         onClick={toggleOpen}
         aria-haspopup="true"
-        aria-expanded={open}
+        aria-expanded={isMenuOpen}
         title={`Sort or filter ${label}`}
       >
         {label}
-        {filtering && (
+        {isFiltering && (
           <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" aria-label="filtered">
             <path d="M3 4h18l-7 9v7l-4-2v-5L3 4z" />
           </svg>
         )}
-        {sortDir ? (
-          <span aria-label={sortDir === 'asc' ? 'sorted ascending' : 'sorted descending'}>
-            {sortDir === 'asc' ? '↑' : '↓'}
+        {sortDirection ? (
+          <span aria-label={sortDirection === 'asc' ? 'sorted ascending' : 'sorted descending'}>
+            {sortDirection === 'asc' ? '↑' : '↓'}
           </span>
         ) : (
           <svg
@@ -290,34 +295,34 @@ function ThMenu({
         )}
       </button>
 
-      {open &&
+      {isMenuOpen &&
         createPortal(
           <div
-            ref={popRef}
+            ref={menuPanelRef}
             className="table-column-menu"
-            style={{ left: pos.left, top: pos.top, width }}
+            style={{ left: menuPosition.left, top: menuPosition.top, width: menuWidth }}
             // A date column's body is form controls, not menu items; announcing
             // it as a menu tells a screen-reader user to expect arrow-key
             // navigation between commands that are actually text fields.
-            role={isDate ? 'dialog' : 'menu'}
+            role={isDateFilter ? 'dialog' : 'menu'}
             aria-label={`${label} column menu`}
           >
             <button
               type="button"
-              className={`table-column-menu-item${sortDir === 'asc' ? ' is-active' : ''}`}
+              className={`table-column-menu-item${sortDirection === 'asc' ? ' is-active' : ''}`}
               onClick={() => {
-                onSort(sortDir === 'asc' ? null : 'asc');
-                setOpen(false);
+                onSort(sortDirection === 'asc' ? null : 'asc');
+                setIsMenuOpen(false);
               }}
             >
               ↑ {sortLabels[kind][0]}
             </button>
             <button
               type="button"
-              className={`table-column-menu-item${sortDir === 'desc' ? ' is-active' : ''}`}
+              className={`table-column-menu-item${sortDirection === 'desc' ? ' is-active' : ''}`}
               onClick={() => {
-                onSort(sortDir === 'desc' ? null : 'desc');
-                setOpen(false);
+                onSort(sortDirection === 'desc' ? null : 'desc');
+                setIsMenuOpen(false);
               }}
             >
               ↓ {sortLabels[kind][1]}
@@ -325,15 +330,15 @@ function ThMenu({
 
             <div className="table-column-menu-divider" />
 
-            {isDate ? (
+            {isDateFilter ? (
               <>
                 <div className="table-column-menu-header">
                   Filter by date
-                  {rangeActive(range) && (
+                  {isDateRangeActive(range) && (
                     <button
                       type="button"
                       className="table-column-menu-clear"
-                      onClick={() => onRange?.(noRange)}
+                      onClick={() => onRange?.(emptyDateRange)}
                     >
                       Clear
                     </button>
@@ -348,9 +353,11 @@ function ThMenu({
                     <button
                       key={p.label}
                       type="button"
-                      className={`table-column-date-preset${sameRange(p.range, range) ? ' is-active' : ''}`}
-                      aria-pressed={sameRange(p.range, range)}
-                      onClick={() => onRange?.(sameRange(p.range, range) ? noRange : p.range)}
+                      className={`table-column-date-preset${isSameDateRange(p.range, range) ? ' is-active' : ''}`}
+                      aria-pressed={isSameDateRange(p.range, range)}
+                      onClick={() =>
+                        onRange?.(isSameDateRange(p.range, range) ? emptyDateRange : p.range)
+                      }
                     >
                       {p.label}
                     </button>
@@ -361,7 +368,7 @@ function ThMenu({
                       className={`table-column-date-preset${range.blank ? ' is-active' : ''}`}
                       aria-pressed={!!range.blank}
                       onClick={() =>
-                        onRange?.(range.blank ? noRange : { from: '', to: '', blank: true })
+                        onRange?.(range.blank ? emptyDateRange : { from: '', to: '', blank: true })
                       }
                     >
                       No date
@@ -378,8 +385,8 @@ function ThMenu({
                     <input
                       type="date"
                       value={range.from}
-                      min={span?.min}
-                      max={span?.max}
+                      min={availableDateRange?.min}
+                      max={availableDateRange?.max}
                       disabled={!!range.blank}
                       aria-label={`${label}: from date`}
                       onChange={(e) => setFrom(e.target.value)}
@@ -390,8 +397,8 @@ function ThMenu({
                     <input
                       type="date"
                       value={range.to}
-                      min={range.from || span?.min}
-                      max={span?.max}
+                      min={range.from || availableDateRange?.min}
+                      max={availableDateRange?.max}
                       disabled={!!range.blank}
                       aria-label={`${label}: to date`}
                       onChange={(e) => setTo(e.target.value)}
@@ -400,10 +407,10 @@ function ThMenu({
                 </div>
 
                 <p className="table-column-menu-note" aria-live="polite">
-                  {rangeActive(range)
-                    ? rangeLabel(range)
-                    : span
-                      ? `All dates · ${formatDate(span.min)} → ${formatDate(span.max)}`
+                  {isDateRangeActive(range)
+                    ? getDateRangeLabel(range)
+                    : availableDateRange
+                      ? `All dates · ${formatDate(availableDateRange.min)} → ${formatDate(availableDateRange.max)}`
                       : 'No dates in this column'}
                 </p>
               </>
@@ -422,13 +429,13 @@ function ThMenu({
                   <input
                     className="table-column-menu-search"
                     placeholder="Find value…"
-                    value={find}
-                    onChange={(e) => setFind(e.target.value)}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 )}
 
                 <div className="table-column-menu-options">
-                  {shown.map((o) => (
+                  {visibleOptions.map((o) => (
                     <label key={o} className="table-column-menu-option">
                       <input
                         type="checkbox"
@@ -438,7 +445,7 @@ function ThMenu({
                       <span title={o}>{o}</span>
                     </label>
                   ))}
-                  {shown.length === 0 && (
+                  {visibleOptions.length === 0 && (
                     <div className="text-muted" style={{ padding: '5px 8px', fontSize: 12 }}>
                       No matching values
                     </div>
@@ -459,7 +466,12 @@ function ThMenu({
  * Sort by the column's value type. Compare dates as instants and keep blanks last in both
  * directions.
  */
-function sortRows<T>(rows: T[], value: (row: T) => string, kind: ColKind, dir: SortDir): T[] {
+function sortTableRows<T>(
+  rows: T[],
+  value: (row: T) => string,
+  kind: ColumnDataType,
+  dir: SortDirection,
+): T[] {
   const sign = dir === 'asc' ? 1 : -1;
   return [...rows].sort((x, y) => {
     const a = value(x);
@@ -470,25 +482,25 @@ function sortRows<T>(rows: T[], value: (row: T) => string, kind: ColKind, dir: S
       return blankA && blankB ? 0 : blankA ? 1 : -1;
     }
     if (kind === 'date') {
-      return sign * (dateValue(a) - dateValue(b));
+      return sign * (getDateTimestamp(a) - getDateTimestamp(b));
     }
     return sign * a.localeCompare(b, undefined, { numeric: true });
   });
 }
 
 /** Distinct values, in that column's own order, for its filter list. */
-function distinctValues(values: string[], kind: ColKind = 'text'): string[] {
-  return sortRows([...new Set(values)], (v) => v, kind, 'asc');
+function getDistinctColumnValues(values: string[], kind: ColumnDataType = 'text'): string[] {
+  return sortTableRows([...new Set(values)], (v) => v, kind, 'asc');
 }
 
 export {
-  noRange,
-  rangeActive,
-  inDateRange,
-  ThMenu,
-  sortRows,
-  distinctValues,
-  type SortDir,
-  type ColKind,
+  emptyDateRange,
+  isDateRangeActive,
+  isWithinDateRange,
+  TableColumnMenu,
+  sortTableRows,
+  getDistinctColumnValues,
+  type SortDirection,
+  type ColumnDataType,
   type DateRange,
 };

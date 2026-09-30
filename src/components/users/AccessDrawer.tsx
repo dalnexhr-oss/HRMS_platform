@@ -20,11 +20,11 @@ interface AccessTarget {
 function AccessDrawer({
   user,
   onClose,
-  onToast,
+  onNotification,
 }: {
   user: AccessTarget | null;
   onClose: () => void;
-  onToast: (msg: string, kind: 'success' | 'error') => void;
+  onNotification: (msg: string, kind: 'success' | 'error') => void;
 }) {
   const router = useRouter();
   const open = user !== null;
@@ -70,7 +70,7 @@ function AccessDrawer({
       setBusySlug(null);
       if (!res.ok) {
         setAccess((a) => ({ ...a, [slug]: !next }));
-        onToast(res.error ?? 'Could not change that.', 'error');
+        onNotification(res.error ?? 'Could not change that.', 'error');
         return;
       }
       router.refresh();
@@ -86,11 +86,11 @@ function AccessDrawer({
       const res = await resetUserTabAccess(user.id);
       setBusySlug(null);
       if (!res.ok) {
-        onToast(res.error ?? 'Could not reset.', 'error');
+        onNotification(res.error ?? 'Could not reset.', 'error');
         return;
       }
       setAccess({});
-      onToast('All tabs restored.', 'success');
+      onNotification('All tabs restored.', 'success');
       router.refresh();
     });
   }

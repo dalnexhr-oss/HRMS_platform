@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/format';
 import { getDocumentUrl } from '@/lib/actions/documents';
 import { documentCategories } from '@/lib/constants';
-import { useToast } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
 import type { EmployeeDocumentRow } from '@/lib/queries';
 
 // Match the server upload limit and reject oversized files before sending them.
@@ -73,7 +73,7 @@ function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?:
   // null when idle; 0-100 while a file is in flight.
   const [progress, setProgress] = useState<number | null>(null);
   const [, startTransition] = useTransition();
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
 
   async function open(id: string) {
     // Open the tab before awaiting the signed URL to retain user activation. Clear opener manually
@@ -85,7 +85,7 @@ function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?:
     const res = await getDocumentUrl(id);
     if (!res.ok || !res.url) {
       win?.close();
-      toast(res.error ?? 'Could not open the document.', 'error');
+      showNotification(res.error ?? 'Could not open the document.', 'error');
       return;
     }
     if (win) {
@@ -100,7 +100,7 @@ function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?:
 
   return (
     <div className="card" id={id}>
-      {toastNode}
+      {notificationContainer}
       <div className="card-header">
         <h3>My documents</h3>
         <span className="card-caption">
@@ -143,7 +143,7 @@ function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?:
                 // after a full upload is the worst place to learn it.
                 if (file.size > maxBytes) {
                   e.target.value = '';
-                  toast(
+                  showNotification(
                     `That file is ${(file.size / 1024 / 1024).toFixed(1)} MB. Documents must be 10 MB or smaller.`,
                     'error',
                   );
@@ -156,9 +156,9 @@ function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?:
                 setProgress(null);
                 e.target.value = '';
                 if (!res.ok) {
-                  toast(res.error ?? 'The upload failed.', 'error');
+                  showNotification(res.error ?? 'The upload failed.', 'error');
                 } else {
-                  toast('Document filed — HR will verify it.', 'success');
+                  showNotification('Document filed — HR will verify it.', 'success');
                   // Uploads use a route handler, so explicitly refresh the server-rendered
                   // document list.
                   startTransition(() => router.refresh());

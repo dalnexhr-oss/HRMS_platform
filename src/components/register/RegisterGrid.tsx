@@ -3,12 +3,12 @@
 import './register.css';
 import { useActionState, useEffect, useRef, useState, useTransition, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Stamp } from '@/components/ui/Stamp';
+import { AttendanceStatusBadge } from '@/components/ui/AttendanceStatusBadge';
 import { dow } from '@/lib/constants';
 import { correctAttendance, correctAttendanceBulk } from '@/lib/actions/attendance';
 import { grantCompOff } from '@/lib/actions/comp-off';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
-import { useToast } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
 import type { CSSProperties } from 'react';
 import type { CorrectionState } from '@/lib/actions/attendance';
 import type { DayCell, RegisterEmployee } from '@/types/domain';
@@ -103,8 +103,8 @@ function RegisterGrid({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [applying, startApply] = useTransition();
   const { confirm, confirmDialog } = useConfirm();
-  const { toast, toastNode } = useToast();
-  const onWarning = useCallback((w: string) => toast(w, 'info'), [toast]);
+  const { showNotification, notificationContainer } = useNotifications();
+  const onWarning = useCallback((w: string) => showNotification(w, 'info'), [showNotification]);
 
   const searchTerms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const visibleEmployees = employees.filter((employee) => {
@@ -198,7 +198,7 @@ function RegisterGrid({
   return (
     <div className={`card attendance-register monthly-register${expanded ? ' is-expanded' : ''}`}>
       {confirmDialog}
-      {toastNode}
+      {notificationContainer}
       <div className="register-controls">
         {expanded && (
           <div className="register-expanded-title">
@@ -288,12 +288,12 @@ function RegisterGrid({
               startApply(async () => {
                 const res = await correctAttendanceBulk({ targets, status, reason });
                 if (!res.ok) {
-                  toast(res.error ?? 'The bulk correction failed.', 'error');
+                  showNotification(res.error ?? 'The bulk correction failed.', 'error');
                 } else {
                   if (res.warning) {
-                    toast(res.warning, 'info');
+                    showNotification(res.warning, 'info');
                   } else {
-                    toast(`Corrected ${targets.length} day(s).`, 'success');
+                    showNotification(`Corrected ${targets.length} day(s).`, 'success');
                   }
                   exitBulk();
                   router.refresh();
@@ -490,7 +490,7 @@ function RegisterGrid({
                               }}
                             />
                           )}
-                          {c ? <Stamp status={c.status} /> : null}
+                          {c ? <AttendanceStatusBadge status={c.status} /> : null}
                           {c?.in ? (
                             <div className="punch-times">
                               {c.in}

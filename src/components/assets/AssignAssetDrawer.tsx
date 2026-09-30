@@ -29,23 +29,23 @@ function AssignAssetDrawer({
   const [rowError, setRowError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [history, setHistory] = useState<AssetAssignmentRow[]>([]);
-  const [maint, setMaint] = useState<AssetMaintenanceRow[]>([]);
-  const [maintKey, setMaintKey] = useState(0);
+  const [maintenanceRecords, setMaintenanceRecords] = useState<AssetMaintenanceRow[]>([]);
+  const [maintenanceFormKey, setMaintenanceFormKey] = useState(0);
   const latestId = useRef<string | null>(null);
 
   // Today in IST, not on the device clock — the same ceiling the action applies.
   const today = todayIST();
   // Reset controlled dates alongside the keyed maintenance form. Next due cannot precede the
   // maintenance date.
-  const [maintDate, setMaintDate] = useState('');
-  const [nextDue, setNextDue] = useState('');
+  const [maintenanceDate, setMaintenanceDate] = useState('');
+  const [nextMaintenanceDate, setNextMaintenanceDate] = useState('');
 
   // Moving the logged date past an already-chosen next-due drags it along,
   // rather than leaving an interval that runs backwards on screen.
   const onMaintDateChange = (value: string) => {
-    setMaintDate(value);
-    if (nextDue && value && nextDue < value) {
-      setNextDue(value);
+    setMaintenanceDate(value);
+    if (nextMaintenanceDate && value && nextMaintenanceDate < value) {
+      setNextMaintenanceDate(value);
     }
   };
 
@@ -62,7 +62,7 @@ function AssignAssetDrawer({
       return;
     }
     setHistory(h);
-    setMaint(m);
+    setMaintenanceRecords(m);
   }
 
   // The drawer stays mounted between assets, so clear its local history and dates when the
@@ -74,10 +74,10 @@ function AssignAssetDrawer({
     } else {
       latestId.current = null;
       setHistory([]);
-      setMaint([]);
+      setMaintenanceRecords([]);
     }
-    setMaintDate('');
-    setNextDue('');
+    setMaintenanceDate('');
+    setNextMaintenanceDate('');
   }, [asset?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Refresh page + local lists once an assign succeeds (keep the drawer open so
@@ -89,20 +89,20 @@ function AssignAssetDrawer({
     }
   }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [maintState, maintAction, maintPending] = useActionState<State, FormData>(
+  const [maintenanceResult, submitMaintenance, isMaintenancePending] = useActionState<State, FormData>(
     async (_prev, formData) => createAssetMaintenance(formData),
     {},
   );
 
   useEffect(() => {
-    if (maintState.ok && asset) {
+    if (maintenanceResult.ok && asset) {
       router.refresh();
       reload(asset.id);
-      setMaintKey((k) => k + 1);
-      setMaintDate('');
-      setNextDue('');
+      setMaintenanceFormKey((k) => k + 1);
+      setMaintenanceDate('');
+      setNextMaintenanceDate('');
     }
-  }, [maintState]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [maintenanceResult]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function onUnassign() {
     if (!asset) {
@@ -218,7 +218,7 @@ function AssignAssetDrawer({
 
               {/* maintenance */}
               <div className="section-heading">Maintenance</div>
-              <form key={maintKey} action={maintAction} style={{ display: 'contents' }}>
+              <form key={maintenanceFormKey} action={submitMaintenance} style={{ display: 'contents' }}>
                 <input type="hidden" name="asset_id" value={asset.id} />
                 <div className="form-row">
                   <div className="form-field">
@@ -230,7 +230,7 @@ function AssignAssetDrawer({
                       name="maint_date"
                       type="date"
                       max={today}
-                      value={maintDate}
+                      value={maintenanceDate}
                       onChange={(e) => onMaintDateChange(e.target.value)}
                     />
                   </div>
@@ -251,9 +251,9 @@ function AssignAssetDrawer({
                     <input
                       name="next_due"
                       type="date"
-                      min={maintDate || today}
-                      value={nextDue}
-                      onChange={(e) => setNextDue(e.target.value)}
+                      min={maintenanceDate || today}
+                      value={nextMaintenanceDate}
+                      onChange={(e) => setNextMaintenanceDate(e.target.value)}
                     />
                   </div>
                 </div>
@@ -264,14 +264,14 @@ function AssignAssetDrawer({
                 <div className="form-field">
                   <input name="notes" placeholder="Notes" />
                 </div>
-                {maintState.error && <div className="error-message">{maintState.error}</div>}
+                {maintenanceResult.error && <div className="error-message">{maintenanceResult.error}</div>}
                 <div style={{ margin: '4px 0 8px' }}>
-                  <button type="submit" className="button quiet" disabled={maintPending}>
-                    {maintPending ? 'Saving…' : 'Add maintenance record'}
+                  <button type="submit" className="button quiet" disabled={isMaintenancePending}>
+                    {isMaintenancePending ? 'Saving…' : 'Add maintenance record'}
                   </button>
                 </div>
               </form>
-              {maint.length > 0 && (
+              {maintenanceRecords.length > 0 && (
                 <div style={{ overflowX: 'auto' }}>
                   <table>
                     <thead>
@@ -283,7 +283,7 @@ function AssignAssetDrawer({
                       </tr>
                     </thead>
                     <tbody>
-                      {maint.map((m) => (
+                      {maintenanceRecords.map((m) => (
                         <tr key={m.id}>
                           <td className="text-monospace">{m.maint_date}</td>
                           <td>{m.maint_type ?? '—'}</td>

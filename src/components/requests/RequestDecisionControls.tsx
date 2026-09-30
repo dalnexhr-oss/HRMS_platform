@@ -25,8 +25,8 @@ function RequestDecisionControls({
   const router = useRouter();
   const [busy, startTransition] = useTransition();
   const [remark, setRemark] = useState('');
-  const [forward, setForward] = useState(false);
-  const [next, setNext] = useState<string[]>([]);
+  const [shouldForward, setShouldForward] = useState(false);
+  const [nextApproverIds, setNextApproverIds] = useState<string[]>([]);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   if (!canReviewRequest(request, actor)) {
@@ -45,7 +45,7 @@ function RequestDecisionControls({
           request.id,
           decision,
           remark,
-          decision === 'approved' && forward ? next[0] : undefined,
+          decision === 'approved' && shouldForward ? nextApproverIds[0] : undefined,
           request.routing?.revision,
         );
         if (!result.ok) {
@@ -81,21 +81,21 @@ function RequestDecisionControls({
       <label className="request-forward-choice">
         <input
           type="checkbox"
-          checked={forward}
+          checked={shouldForward}
           disabled={busy}
-          onChange={(event) => setForward(event.target.checked)}
+          onChange={(event) => setShouldForward(event.target.checked)}
         />
         Send to another person for further approval
       </label>
-      {forward && (
+      {shouldForward && (
         <>
           <RecipientPicker
             label="Next approver"
             people={people.filter(
               (person) => person.employeeId !== request.employeeId && person.id !== actor.id,
             )}
-            value={next}
-            onChange={setNext}
+            value={nextApproverIds}
+            onChange={setNextApproverIds}
             required
             disabled={busy}
           />
@@ -118,10 +118,10 @@ function RequestDecisionControls({
         <button
           type="button"
           className="button primary"
-          disabled={busy || (forward && !next.length)}
+          disabled={busy || (shouldForward && !nextApproverIds.length)}
           onClick={() => decide('approved')}
         >
-          {busy ? 'Saving…' : forward ? 'Approve & forward' : 'Approve'}
+          {busy ? 'Saving…' : shouldForward ? 'Approve & forward' : 'Approve'}
         </button>
         <button
           type="button"

@@ -9,7 +9,7 @@ import { fetchEmployeeDocumentHistory, verifyEmployeeDocument, deleteEmployeeDoc
 import { documentCategoryLabel, requiredDocumentCategories } from '@/lib/constants';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { usePrompt } from '@/components/ui/PromptDialog';
-import { useToast } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
 import { openDocument } from './open-document';
 import { StatusPill } from './StatusPill';
 import type { EmployeeDocumentRow } from '@/lib/queries';
@@ -59,7 +59,7 @@ function EmployeeDocumentsPanel({
   const [pending, startTransition] = useTransition();
   const { confirm, confirmDialog } = useConfirm();
   const { prompt, promptDialog } = usePrompt();
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
 
   useEffect(() => {
     let live = true;
@@ -100,9 +100,9 @@ function EmployeeDocumentsPanel({
       const res = await fn();
       setBusy(null);
       if (!res.ok) {
-        toast(res.error ?? 'The action failed.', 'error');
+        showNotification(res.error ?? 'The action failed.', 'error');
       } else {
-        toast(okMsg, 'success');
+        showNotification(okMsg, 'success');
         reload();
       }
     });
@@ -153,7 +153,7 @@ function EmployeeDocumentsPanel({
       >
         {confirmDialog}
         {promptDialog}
-        {toastNode}
+        {notificationContainer}
 
         <div className="drawer-header">
           <h3>
@@ -241,7 +241,7 @@ function EmployeeDocumentsPanel({
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <button
                         className="button quiet"
-                        onClick={() => openDocument(current.id, (m) => toast(m, 'error'))}
+                        onClick={() => openDocument(current.id, (m) => showNotification(m, 'error'))}
                       >
                         📎 Open
                       </button>
@@ -326,7 +326,7 @@ function EmployeeDocumentsPanel({
                             <span style={{ flex: 1 }} />
                             <button
                               className="button quiet"
-                              onClick={() => openDocument(h.id, (m) => toast(m, 'error'))}
+                              onClick={() => openDocument(h.id, (m) => showNotification(m, 'error'))}
                             >
                               Open
                             </button>

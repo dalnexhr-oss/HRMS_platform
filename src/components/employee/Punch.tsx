@@ -2,13 +2,13 @@
 
 // Attendance details for /employee. Share usePunchClock with the topbar toggle so both controls refresh
 // after a punch.
-import { useToast } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
 import { PunchHistory } from './PunchHistory';
 import { GeoChip } from './GeoChip';
 import { usePunchClock, clock, duration, failureText } from './usePunchClock';
 
 function Punch({ id }: { id?: string }) {
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
   const {
     state,
     loading,
@@ -21,11 +21,11 @@ function Punch({ id }: { id?: string }) {
     loadError,
     version,
     punch,
-  } = usePunchClock('card', toast);
+  } = usePunchClock('card', showNotification);
 
   return (
     <div className="card punch" id={id}>
-      {toastNode}
+      {notificationContainer}
       <div className="card-header">
         <h3>Attendance clock</h3>
         <span className="card-caption">Today</span>

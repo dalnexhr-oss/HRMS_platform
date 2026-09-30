@@ -7,8 +7,8 @@ import { useRouter } from 'next/navigation';
 import { inr, formatDate } from '@/lib/format';
 import { createReimbursement, updateReimbursement, deleteReimbursement, uploadReimbursementReceipt, getReceiptUrl } from '@/lib/actions/reimbursements';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
-import { useToast } from '@/components/ui/Toast';
-import type { ToastKind } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
+import type { NotificationKind } from '@/components/ui/Notifications';
 import type { ReimbursementView } from '@/lib/queries';
 import type { ReimbursementPurpose } from '@/types/database';
 
@@ -59,13 +59,13 @@ function MyReimbursements({
   const [busy, setBusy] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const { confirm, confirmDialog } = useConfirm();
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
 
   // Receipts live in a private bucket — open via a short-lived signed URL.
   async function openReceipt(id: string) {
     const res = await getReceiptUrl(id);
     if (!res.ok || !res.url) {
-      toast(res.error ?? 'Could not open the receipt.', 'error');
+      showNotification(res.error ?? 'Could not open the receipt.', 'error');
       return;
     }
     window.open(res.url, '_blank', 'noopener,noreferrer');
@@ -86,9 +86,9 @@ function MyReimbursements({
       const res = await deleteReimbursement(c.id);
       setBusy(null);
       if (!res.ok) {
-        toast(res.error ?? 'Could not withdraw the claim.', 'error');
+        showNotification(res.error ?? 'Could not withdraw the claim.', 'error');
       } else {
-        toast('Claim withdrawn.', 'success');
+        showNotification('Claim withdrawn.', 'success');
         if (editing?.id === c.id) {
           setEditing(null);
         }
@@ -100,7 +100,7 @@ function MyReimbursements({
   return (
     <div className="two-column-layout" id={id}>
       {confirmDialog}
-      {toastNode}
+      {notificationContainer}
       <div className="card">
         <div className="card-header">
           <h3>My reimbursement claims</h3>
@@ -217,7 +217,7 @@ function MyReimbursements({
               ratePerKm={ratePerKm}
               claim={editing}
               onDone={() => setEditing(null)}
-              toast={toast}
+              showNotification={showNotification}
             />
           ) : (
             <p className="text-muted" style={{ fontSize: 13 }}>
@@ -234,13 +234,13 @@ function ClaimForm({
   ratePerKm,
   claim,
   onDone,
-  toast,
+  showNotification,
 }: {
   ratePerKm: number;
   // When set, the form edits this pending claim instead of creating a new one.
   claim: ReimbursementView | null;
   onDone: () => void;
-  toast: (message: string, kind?: ToastKind) => void;
+  showNotification: (message: string, kind?: NotificationKind) => void;
 }) {
   const router = useRouter();
   const editing = claim !== null;
@@ -256,7 +256,7 @@ function ClaimForm({
         ? await updateReimbursement(claim!.id, formData)
         : await createReimbursement(formData);
       if (res.ok) {
-        toast(editing ? 'Claim updated.' : 'Claim submitted for approval.', 'success');
+        showNotification(editing ? 'Claim updated.' : 'Claim submitted for approval.', 'success');
         if (!editing) {
           setKms('');
           setAmount('');
@@ -396,7 +396,7 @@ function ClaimForm({
           <ReceiptUpload
             claimId={claim!.id}
             hasReceipt={claim!.receiptPath != null}
-            toast={toast}
+            showNotification={showNotification}
           />
         </div>
       )}
@@ -424,11 +424,11 @@ function ClaimForm({
 function ReceiptUpload({
   claimId,
   hasReceipt,
-  toast,
+  showNotification,
 }: {
   claimId: string;
   hasReceipt: boolean;
-  toast: (message: string, kind?: ToastKind) => void;
+  showNotification: (message: string, kind?: NotificationKind) => void;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -451,9 +451,9 @@ function ReceiptUpload({
           setBusy(false);
           e.target.value = '';
           if (!res.ok) {
-            toast(res.error ?? 'The receipt could not be attached.', 'error');
+            showNotification(res.error ?? 'The receipt could not be attached.', 'error');
           } else {
-            toast('Receipt attached.', 'success');
+            showNotification('Receipt attached.', 'success');
             router.refresh();
           }
         }}

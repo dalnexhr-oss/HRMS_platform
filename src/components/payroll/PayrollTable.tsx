@@ -2,7 +2,7 @@
 
 import './payslip.css';
 import { inr } from '@/lib/format';
-import { useToast } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
 import { printPayslip } from '@/lib/payslip-print';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { Fragment, useState, useTransition, useActionState } from 'react';
@@ -416,11 +416,11 @@ function AdjForm({
   const set = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
 
   return (
     <form action={action}>
-      {toastNode}
+      {notificationContainer}
       <h4>
         Manual adjustments
         {frozen ? ` — frozen (run ${runStatus ?? 'unavailable'})` : ''}
@@ -498,7 +498,7 @@ function AdjForm({
           type="button"
           onClick={() => {
             if (!printPayslip(p)) {
-              toast(
+              showNotification(
                 'Your browser blocked the payslip window. Allow pop-ups for this site and try again.',
                 'error',
               );

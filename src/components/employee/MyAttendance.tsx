@@ -2,7 +2,7 @@
 
 import '@/components/register/register.css';
 import { useState } from 'react';
-import { Stamp } from '@/components/ui/Stamp';
+import { AttendanceStatusBadge } from '@/components/ui/AttendanceStatusBadge';
 import { dow } from '@/lib/constants';
 import type { DayCell } from '@/types/domain';
 
@@ -149,7 +149,7 @@ function MyAttendance({
                     title={c.in ? `${c.in} – ${c.out} · ${c.hours}` : undefined}
                   >
                     <div style={{ display: 'grid', placeItems: 'center' }}>
-                      <Stamp status={c.status} />
+                      <AttendanceStatusBadge status={c.status} />
                       {c.in ? (
                         <div className="punch-times">
                           {c.in}

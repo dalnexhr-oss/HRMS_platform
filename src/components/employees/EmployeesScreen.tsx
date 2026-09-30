@@ -6,7 +6,7 @@ import { inr } from '@/lib/format';
 import { AddEmployeeDrawer } from './AddEmployeeDrawer';
 import { EmployeePicker } from './EmployeePicker';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
-import { useToast } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
 import { fetchEmployeeForEdit, deactivateEmployee, reactivateEmployee } from '@/lib/actions/employees';
 import { branchColorAt } from '@/lib/constants';
 import { deleteEmployee } from '@/lib/actions/employee-deletion';
@@ -23,17 +23,17 @@ function EmployeesScreen({
   branches?: BranchRow[];
 }) {
   const router = useRouter();
-  const [q, setQ] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [showInactive, setShowInactive] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const [editing, setEditing] = useState<EmployeeEditRow | null>(null);
   // Increment on open so reopening the same employee discards abandoned edits. Keep the key stable
   // while closing.
-  const [openSeq, setOpenSeq] = useState(0);
+  const [drawerOpenSequence, setDrawerOpenSequence] = useState(0);
   const [busyCode, setBusyCode] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const { confirm, confirmDialog } = useConfirm();
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
 
   // Same 20-slot palette as TodayBoard's split bar (branchPalette), keyed by
   // the branch's position in the (alphabetical) branches list — so a branch
@@ -47,7 +47,7 @@ function EmployeesScreen({
   const activeCount = useMemo(() => rows.filter((e) => e.active).length, [rows]);
   const inactiveCount = rows.length - activeCount;
   const filtered = useMemo(() => {
-    const terms = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const terms = searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
     return rows.filter((e) => {
       if (!showInactive && !e.active) {
         return false;
@@ -55,7 +55,7 @@ function EmployeesScreen({
       const text = `${e.name} ${e.code} ${e.uan ?? ''}`.toLowerCase();
       return terms.every((term) => text.includes(term));
     });
-  }, [q, rows, showInactive]);
+  }, [searchQuery, rows, showInactive]);
 
   // Use the same filtered roster for the table and editable suggestions.
   const editOptions = useMemo(
@@ -73,7 +73,7 @@ function EmployeesScreen({
 
   function openAdd() {
     setEditing(null);
-    setOpenSeq((s) => s + 1);
+    setDrawerOpenSequence((s) => s + 1);
     setDrawer(true);
   }
 
@@ -83,11 +83,11 @@ function EmployeesScreen({
       const data = await fetchEmployeeForEdit(code);
       setBusyCode(null);
       if (!data) {
-        toast(`Could not load ${code} for editing.`, 'error');
+        showNotification(`Could not load ${code} for editing.`, 'error');
         return;
       }
       setEditing(data);
-      setOpenSeq((s) => s + 1);
+      setDrawerOpenSequence((s) => s + 1);
       setDrawer(true);
     });
   }
@@ -107,9 +107,9 @@ function EmployeesScreen({
       const res = await deactivateEmployee(code);
       setBusyCode(null);
       if (!res.ok) {
-        toast(res.error ?? 'Could not deactivate the employee.', 'error');
+        showNotification(res.error ?? 'Could not deactivate the employee.', 'error');
       } else {
-        toast(`${name} deactivated.`, 'success');
+        showNotification(`${name} deactivated.`, 'success');
         router.refresh();
       }
     });
@@ -129,9 +129,9 @@ function EmployeesScreen({
       const res = await reactivateEmployee(code);
       setBusyCode(null);
       if (!res.ok) {
-        toast(res.error ?? 'Could not reactivate the employee.', 'error');
+        showNotification(res.error ?? 'Could not reactivate the employee.', 'error');
       } else {
-        toast(`${name} reactivated.`, 'success');
+        showNotification(`${name} reactivated.`, 'success');
         router.refresh();
       }
     });
@@ -152,16 +152,16 @@ function EmployeesScreen({
       try {
         const result = await deleteEmployee(code);
         if (!result.ok) {
-          toast(result.error, 'error');
+          showNotification(result.error, 'error');
           return;
         }
-        toast(
+        showNotification(
           result.warning ?? `${name} and their linked user accounts deleted.`,
           result.warning ? 'info' : 'success',
         );
         router.refresh();
       } catch {
-        toast('Could not delete the employee. Try again.', 'error');
+        showNotification('Could not delete the employee. Try again.', 'error');
       } finally {
         setBusyCode(null);
       }
@@ -175,8 +175,8 @@ function EmployeesScreen({
           label="Find employee"
           employees={editOptions}
           value=""
-          searchValue={q}
-          onSearchChange={setQ}
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
           placeholder="Search name, employee code, or PF UAN…"
           onChange={(code) => {
             if (code) {
@@ -211,7 +211,7 @@ function EmployeesScreen({
         </button>
       </div>
 
-      {toastNode}
+      {notificationContainer}
 
       <div className="card">
         <div style={{ overflowX: 'auto' }}>
@@ -324,7 +324,7 @@ function EmployeesScreen({
               {filtered.length === 0 && (
                 <tr>
                   <td className="text-muted" colSpan={10} style={{ textAlign: 'center' }}>
-                    {q ? `No employees match “${q}”.` : 'No employees yet.'}
+                    {searchQuery ? `No employees match “${searchQuery}”.` : 'No employees yet.'}
                   </td>
                 </tr>
               )}
@@ -341,7 +341,7 @@ function EmployeesScreen({
         employee={editing}
         departments={departments}
         branches={branches}
-        formSeq={openSeq}
+        formSeq={drawerOpenSequence}
         onClose={() => setDrawer(false)}
       />
       {confirmDialog}

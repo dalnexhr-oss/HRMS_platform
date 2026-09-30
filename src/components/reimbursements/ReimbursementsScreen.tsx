@@ -6,7 +6,7 @@ import { useMemo, useState, useTransition } from 'react';
 import { inr, formatDate } from '@/lib/format';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { usePrompt } from '@/components/ui/PromptDialog';
-import { useToast } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
 import { exportReimbursementsXlsx } from '@/lib/actions/export';
 import { reviewReimbursement, markReimbursementPaid, financeReviewReimbursement, getReceiptUrl } from '@/lib/actions/reimbursements';
 import type { ReimbursementView } from '@/lib/queries';
@@ -54,7 +54,7 @@ function ReimbursementsScreen({
   const [busy, setBusy] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const { prompt, promptDialog } = usePrompt();
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
 
   const rows = useMemo(
     () => (filter === 'pending' ? claims.filter((c) => c.status === 'pending') : claims),
@@ -78,14 +78,14 @@ function ReimbursementsScreen({
       const res = await fn();
       setBusy(null);
       if (!res.ok) {
-        toast(res.error ?? 'The action failed.', 'error');
+        showNotification(res.error ?? 'The action failed.', 'error');
       } else {
         // A warning means the decision stood but payroll needs a human — the
         // row must still refresh (it DID change status).
         if (res.warning) {
-          toast(res.warning, 'info');
+          showNotification(res.warning, 'info');
         } else {
-          toast(okMsg, 'success');
+          showNotification(okMsg, 'success');
         }
         router.refresh();
       }
@@ -146,7 +146,7 @@ function ReimbursementsScreen({
   async function openReceipt(id: string) {
     const res = await getReceiptUrl(id);
     if (!res.ok || !res.url) {
-      toast(res.error ?? 'Could not open the receipt.', 'error');
+      showNotification(res.error ?? 'Could not open the receipt.', 'error');
       return;
     }
     window.open(res.url, '_blank', 'noopener,noreferrer');
@@ -155,7 +155,7 @@ function ReimbursementsScreen({
   return (
     <div className="content-container grid">
       {promptDialog}
-      {toastNode}
+      {notificationContainer}
       <div className="summary-cards">
         <div className="card summary-card">
           <div className="metric-label">Pending claims</div>

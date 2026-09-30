@@ -1,11 +1,11 @@
 'use client';
 
-import { useToast } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
 import { formatDate } from '@/lib/format';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useActionState, useState, useTransition } from 'react';
 import { createPolicy, updatePolicy, deletePolicy, setPolicyPublished } from '@/lib/actions/policies';
-import type { ToastKind } from '@/components/ui/Toast';
+import type { NotificationKind } from '@/components/ui/Notifications';
 import type { Policy } from '@/types/database';
 
 function PolicyAdmin({
@@ -20,14 +20,14 @@ function PolicyAdmin({
   headcount?: number;
 }) {
   const [editing, setEditing] = useState<Policy | null>(null);
-  // Shared confirm modal + toast stack for every row and the form.
+  // Shared confirm modal + notification stack for every row and the form.
   const { confirm, confirmDialog } = useConfirm();
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
 
   return (
     <div className="two-column-layout">
       {confirmDialog}
-      {toastNode}
+      {notificationContainer}
       <div className="card">
         <div className="card-header">
           <h3>Published &amp; draft policies</h3>
@@ -45,7 +45,7 @@ function PolicyAdmin({
               headcount={headcount}
               onEdit={() => setEditing(p)}
               confirm={confirm}
-              toast={toast}
+              showNotification={showNotification}
             />
           ))}
         </div>
@@ -60,7 +60,7 @@ function PolicyAdmin({
             key={editing?.id ?? 'new'}
             editing={editing}
             onDone={() => setEditing(null)}
-            toast={toast}
+            showNotification={showNotification}
           />
         </div>
       </div>
@@ -74,7 +74,7 @@ function PolicyItem({
   headcount,
   onEdit,
   confirm,
-  toast,
+  showNotification,
 }: {
   policy: Policy;
   ackCount: number;
@@ -86,7 +86,7 @@ function PolicyItem({
     confirmLabel?: string;
     danger?: boolean;
   }) => Promise<boolean>;
-  toast: (message: string, kind?: ToastKind) => void;
+  showNotification: (message: string, kind?: NotificationKind) => void;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -94,9 +94,9 @@ function PolicyItem({
     startTransition(async () => {
       const res = await setPolicyPublished(policy.id, !policy.published);
       if (!res.ok) {
-        toast(res.error ?? 'Could not update the policy.', 'error');
+        showNotification(res.error ?? 'Could not update the policy.', 'error');
       } else {
-        toast(policy.published ? 'Policy unpublished.' : 'Policy published.', 'success');
+        showNotification(policy.published ? 'Policy unpublished.' : 'Policy published.', 'success');
       }
     });
   };
@@ -114,9 +114,9 @@ function PolicyItem({
     startTransition(async () => {
       const res = await deletePolicy(policy.id);
       if (!res.ok) {
-        toast(res.error ?? 'Could not delete the policy.', 'error');
+        showNotification(res.error ?? 'Could not delete the policy.', 'error');
       } else {
-        toast('Policy deleted.', 'success');
+        showNotification('Policy deleted.', 'success');
       }
     });
   };
@@ -173,17 +173,17 @@ function PolicyItem({
 function PolicyForm({
   editing,
   onDone,
-  toast,
+  showNotification,
 }: {
   editing: Policy | null;
   onDone: () => void;
-  toast: (message: string, kind?: ToastKind) => void;
+  showNotification: (message: string, kind?: NotificationKind) => void;
 }) {
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
     async (_prev, formData) => {
       const res = editing ? await updatePolicy(editing.id, formData) : await createPolicy(formData);
       if (res.ok) {
-        toast(editing ? 'Policy updated.' : 'Policy saved.', 'success');
+        showNotification(editing ? 'Policy updated.' : 'Policy saved.', 'success');
         if (editing) {
           onDone();
         }

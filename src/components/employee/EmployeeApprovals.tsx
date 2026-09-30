@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { employeeApprovals, employeeApprovalViews } from '@/lib/requests/employee-approvals';
 import { RequestDecisionControls } from '@/components/requests/RequestDecisionControls';
 import { formatDate } from '@/lib/format';
-import { useToast } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
 import type { RequestActor } from '@/lib/requests/access';
 import type { EmployeeApprovalView, RequestRecipient } from '@/types/requests';
 import type { RequestView } from '@/lib/queries';
@@ -37,7 +37,7 @@ function EmployeeApprovals({
   view?: EmployeeApprovalView;
 }) {
   const [query, setQuery] = useState('');
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
   const groups = employeeApprovals(requests, actor);
   const search = query.trim().toLowerCase();
   const visible = groups[view].filter((request) =>
@@ -47,7 +47,7 @@ function EmployeeApprovals({
   );
   return (
     <div className="content-container grid employee-approvals">
-      {toastNode}
+      {notificationContainer}
       <div>
         <Link href="/employee" className="button quiet">
           ← Back to dashboard
@@ -166,7 +166,7 @@ function EmployeeApprovals({
                 actor={actor}
                 people={people}
                 onReviewed={(_id, result) =>
-                  toast(
+                  showNotification(
                     result.warning ??
                       (result.forwarded
                         ? 'Stage approved and forwarded. Saved in Reviewed by me.'

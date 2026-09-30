@@ -5,7 +5,7 @@
 // header. Employee blocks start at row 6 with four rows: status, punch-in, punch-out, and worked
 // hours.
 import ExcelJS from 'exceljs';
-import { statusMeta } from '@/lib/constants';
+import { getAttendanceStatusDetails } from '@/lib/constants';
 import { minutesToHHMM } from '@/lib/format';
 import { effectiveFigures } from '@/lib/leave-salary';
 import { writeBrandHeader, writeBrandOverlay } from '@/lib/excel/workbook-branding';
@@ -853,7 +853,7 @@ async function leaveSalaryWorkbook(rows: LeaveSalaryViewRow[], year: number): Pr
 
 /**
  * The Today board's punch log — same columns the on-screen table (and the old
- * CSV export) shows, statusMeta giving the same label the <Stamp> renders.
+ * CSV export) shows, getAttendanceStatusDetails giving the same label the <AttendanceStatusBadge> renders.
  */
 async function punchLogWorkbook(
   rows: PunchLogRow[],
@@ -881,7 +881,7 @@ async function punchLogWorkbook(
   ws.views = [{ state: 'frozen', ySplit: headerRow }];
 
   for (const r of rows) {
-    const [label] = statusMeta(r.status);
+    const [label] = getAttendanceStatusDetails(r.status);
     ws.addRow({
       code: safeText(r.code),
       name: safeText(r.name),

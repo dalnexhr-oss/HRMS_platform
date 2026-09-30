@@ -5,7 +5,7 @@ import { useActionState, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createUser, updateUserRole, updateUserPunchAccess, sendPasswordReset, setUserPassword, deleteUser } from '@/lib/actions/users';
 import { usePrompt } from '@/components/ui/PromptDialog';
-import { useToast } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
 import { AccessDrawer } from '@/components/users/AccessDrawer';
 import { PunchAccessSelect, punchAccessHelp } from '@/components/users/PunchAccessSelect';
 import { UserActions } from '@/components/users/UserActions';
@@ -38,7 +38,7 @@ const roleTier: Record<AppRole, number> = {
   intern: 0,
 };
 
-function stamp(iso: string | null): string {
+function formatLastSignIn(iso: string | null): string {
   if (!iso) {
     return 'never';
   }
@@ -68,7 +68,7 @@ function UsersScreen({
   const [accessFor, setAccessFor] = useState<AccessTarget | null>(null);
   const [pending, startTransition] = useTransition();
   const { prompt, promptDialog } = usePrompt();
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
 
   // Only offer roles at or below the caller's own tier — the same rule the
   // server enforces, so the dropdown can't suggest a refusal.
@@ -80,9 +80,9 @@ function UsersScreen({
       const res = await fn();
       setBusy(null);
       if (!res.ok) {
-        toast(res.error ?? 'The action failed.', 'error');
+        showNotification(res.error ?? 'The action failed.', 'error');
       } else {
-        toast(okMsg, 'success');
+        showNotification(okMsg, 'success');
         router.refresh();
       }
     });
@@ -171,7 +171,7 @@ function UsersScreen({
   return (
     <div className="content-container grid users-screen">
       {promptDialog}
-      {toastNode}
+      {notificationContainer}
       <div className="records-toolbar users-toolbar">
         <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
           {users.length} account{users.length === 1 ? '' : 's'}
@@ -260,7 +260,7 @@ function UsersScreen({
                   />
                 </td>
                 <td className="text-monospace text-muted" data-label="Last sign-in" role="cell">
-                  {stamp(u.lastSignInAt)}
+                  {formatLastSignIn(u.lastSignInAt)}
                 </td>
                 <td className="users-actions-cell" data-label="Actions" role="cell">
                   <UserActions
@@ -311,7 +311,7 @@ function UsersScreen({
       <AccessDrawer
         user={accessFor}
         onClose={() => setAccessFor(null)}
-        onToast={(msg, kind) => toast(msg, kind)}
+        onNotification={(msg, kind) => showNotification(msg, kind)}
       />
 
       <AddUserDrawer
@@ -321,7 +321,7 @@ function UsersScreen({
         assignable={assignable}
         onCreated={() => {
           setDrawer(false);
-          toast('User created.', 'success');
+          showNotification('User created.', 'success');
           router.refresh();
         }}
       />

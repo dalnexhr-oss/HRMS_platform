@@ -6,15 +6,15 @@ import { useRouter } from 'next/navigation';
 import { AddItemDrawer } from './AddItemDrawer';
 import { AssignItemDrawer } from './AssignItemDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
-import { useToast } from '@/components/ui/Toast';
-import { ThMenu, distinctValues, sortRows } from '@/components/ui/ThMenu';
+import { useNotifications } from '@/components/ui/Notifications';
+import { TableColumnMenu, getDistinctColumnValues, sortTableRows } from '@/components/ui/TableColumnMenu';
 import { deleteItem } from '@/lib/actions/items';
-import type { SortDir, ColKind } from '@/components/ui/ThMenu';
+import type { SortDirection, ColumnDataType } from '@/components/ui/TableColumnMenu';
 import type { ItemRow, EmployeeOption } from '@/lib/queries';
 
 // Header-menu columns in display order. Use an em dash for missing values so they can be filtered;
 // quantity columns compare numerically.
-type ColKey =
+type ColumnKey =
   | 'code'
   | 'name'
   | 'category'
@@ -27,7 +27,7 @@ type ColKey =
   | 'status'
   | 'returnable';
 
-const cols: Array<{ key: ColKey; label: string; get: (i: ItemRow) => string; kind?: ColKind }> = [
+const columns: Array<{ key: ColumnKey; label: string; get: (i: ItemRow) => string; kind?: ColumnDataType }> = [
   { key: 'code', label: 'Material / Tool ID', get: (i) => i.item_code ?? '—' },
   { key: 'name', label: 'Name', get: (i) => i.item_name || '—' },
   { key: 'category', label: 'Category', get: (i) => i.category ?? '—' },
@@ -48,25 +48,25 @@ const cols: Array<{ key: ColKey; label: string; get: (i: ItemRow) => string; kin
 
 function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: EmployeeOption[] }) {
   const router = useRouter();
-  const [q, setQ] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [editDrawer, setEditDrawer] = useState(false);
   const [editing, setEditing] = useState<ItemRow | null>(null);
   const [assignFor, setAssignFor] = useState<ItemRow | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const { confirm, confirmDialog } = useConfirm();
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
 
   // Header-menu state: one active sort, plus per-column value selections.
-  const [sort, setSort] = useState<{ key: ColKey; dir: SortDir } | null>(null);
-  const [filters, setFilters] = useState<Partial<Record<ColKey, string[]>>>({});
+  const [sort, setSort] = useState<{ key: ColumnKey; dir: SortDirection } | null>(null);
+  const [filters, setFilters] = useState<Partial<Record<ColumnKey, string[]>>>({});
 
   // Options come from the full list (not the filtered one), so a selection in
   // one column never hides another column's choices.
   const options = useMemo(() => {
-    const out = {} as Record<ColKey, string[]>;
-    for (const c of cols) {
-      out[c.key] = distinctValues(items.map(c.get), c.kind);
+    const out = {} as Record<ColumnKey, string[]>;
+    for (const c of columns) {
+      out[c.key] = getDistinctColumnValues(items.map(c.get), c.kind);
     }
     return out;
   }, [items]);
@@ -74,7 +74,7 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
   const hasFilters = Object.values(filters).some((sel) => (sel?.length ?? 0) > 0);
 
   const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
+    const term = searchQuery.trim().toLowerCase();
     let rows = items;
     if (term) {
       rows = rows.filter((i) =>
@@ -83,22 +83,22 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
         ),
       );
     }
-    for (const c of cols) {
+    for (const c of columns) {
       const sel = filters[c.key];
       if (sel?.length) {
         rows = rows.filter((i) => sel.includes(c.get(i)));
       }
     }
     if (sort) {
-      const col = cols.find((c) => c.key === sort.key);
-      if (col) {
-        rows = sortRows(rows, col.get, col.kind ?? 'text', sort.dir);
+      const selectedColumn = columns.find((c) => c.key === sort.key);
+      if (selectedColumn) {
+        rows = sortTableRows(rows, selectedColumn.get, selectedColumn.kind ?? 'text', sort.dir);
       }
     }
     return rows;
-  }, [q, items, filters, sort]);
+  }, [searchQuery, items, filters, sort]);
 
-  function toggleFilter(key: ColKey, value: string) {
+  function toggleFilter(key: ColumnKey, value: string) {
     setFilters((f) => {
       const cur = f[key] ?? [];
       return {
@@ -132,10 +132,10 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
       const res = await deleteItem(i.id);
       setBusyId(null);
       if (!res.ok) {
-        toast(res.error ?? 'Could not delete the material / tool.', 'error');
+        showNotification(res.error ?? 'Could not delete the material / tool.', 'error');
         return;
       }
-      toast('Material / tool deleted.', 'success');
+      showNotification('Material / tool deleted.', 'success');
       router.refresh();
     });
   }
@@ -157,8 +157,8 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
           </svg>
           <input
             placeholder="Search name, code, category…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
         <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
@@ -170,7 +170,7 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
         </button>
       </div>
 
-      {toastNode}
+      {notificationContainer}
 
       <div className="card">
         <div style={{ overflowX: 'auto' }}>
@@ -179,12 +179,12 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
           <table style={{ minWidth: 1000 }}>
             <thead>
               <tr>
-                {cols.map((c) => (
+                {columns.map((c) => (
                   <th key={c.key} className={c.kind === 'number' ? 'text-right' : undefined}>
-                    <ThMenu
+                    <TableColumnMenu
                       label={c.label}
                       kind={c.kind}
-                      sortDir={sort?.key === c.key ? sort.dir : null}
+                      sortDirection={sort?.key === c.key ? sort.dir : null}
                       onSort={(dir) => setSort(dir ? { key: c.key, dir } : null)}
                       options={options[c.key]}
                       selected={filters[c.key] ?? []}
@@ -252,7 +252,7 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
               {filtered.length === 0 && (
                 <tr>
                   <td className="text-muted" colSpan={12} style={{ textAlign: 'center' }}>
-                    {q || hasFilters
+                    {searchQuery || hasFilters
                       ? 'No materials or tools match the current search / filters.'
                       : 'No materials or tools yet.'}
                   </td>

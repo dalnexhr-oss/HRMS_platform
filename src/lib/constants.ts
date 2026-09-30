@@ -16,7 +16,7 @@ const attendanceStatusMeta: Record<string, [string, string, string]> = {
   CO: ['CO', 'attendance-status-holiday', 'Comp off'],
 };
 
-function statusMeta(s: AttendanceStatus | string) {
+function getAttendanceStatusDetails(s: AttendanceStatus | string) {
   return attendanceStatusMeta[s] ?? attendanceStatusMeta.P;
 }
 
@@ -367,7 +367,7 @@ const noticeRetentionDays = 30;
 
 export {
   attendanceStatusMeta,
-  statusMeta,
+  getAttendanceStatusDetails,
   registerLegend,
   dow,
   branchPalette,

@@ -5,10 +5,10 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/format';
-import { ThMenu, distinctValues, sortRows, inDateRange, rangeActive } from '@/components/ui/ThMenu';
+import { TableColumnMenu, getDistinctColumnValues, sortTableRows, isWithinDateRange, isDateRangeActive } from '@/components/ui/TableColumnMenu';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { usePrompt } from '@/components/ui/PromptDialog';
-import { useToast } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
 import { verifyEmployeeDocument, deleteEmployeeDocument } from '@/lib/actions/documents';
 import { documentCategoryLabel } from '@/lib/constants';
 import { UploadDocumentDrawer } from './UploadDocumentDrawer';
@@ -17,10 +17,10 @@ import { openDocument } from './open-document';
 import { StatusPill } from './StatusPill';
 import { DocumentActions } from './DocumentActions';
 import type { DrawerTarget } from './UploadDocumentDrawer';
-import type { SortDir, ColKind, DateRange } from '@/components/ui/ThMenu';
+import type { SortDirection, ColumnDataType, DateRange } from '@/components/ui/TableColumnMenu';
 import type { DocumentStats, EmployeeDocumentRow, EmployeeOption } from '@/lib/queries';
 
-type ColKey = 'employee' | 'category' | 'title' | 'source' | 'status' | 'filed';
+type ColumnKey = 'employee' | 'category' | 'title' | 'source' | 'status' | 'filed';
 
 const statusText: Record<string, string> = {
   verified: 'Verified',
@@ -30,10 +30,10 @@ const statusText: Record<string, string> = {
 };
 
 /** Combine column filters with AND; selected values within a column use OR. */
-const cols: Array<{
-  key: ColKey;
+const columns: Array<{
+  key: ColumnKey;
   label: string;
-  kind?: ColKind;
+  kind?: ColumnDataType;
   get: (d: EmployeeDocumentRow) => string;
 }> = [
   { key: 'employee', label: 'Employee', get: (d) => d.name || '—' },
@@ -62,42 +62,42 @@ function DocumentsScreen({
   employees: EmployeeOption[];
 }) {
   const router = useRouter();
-  const [q, setQ] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [drawer, setDrawer] = useState<DrawerTarget | null>(null);
   const [panelFor, setPanelFor] = useState<{ id: string; code: string; name: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const { confirm, confirmDialog } = useConfirm();
   const { prompt, promptDialog } = usePrompt();
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
 
-  const [sort, setSort] = useState<{ key: ColKey; dir: SortDir } | null>(null);
-  const [filters, setFilters] = useState<Partial<Record<ColKey, string[]>>>({});
-  const [ranges, setRanges] = useState<Partial<Record<ColKey, DateRange>>>({});
+  const [sort, setSort] = useState<{ key: ColumnKey; dir: SortDirection } | null>(null);
+  const [filters, setFilters] = useState<Partial<Record<ColumnKey, string[]>>>({});
+  const [ranges, setRanges] = useState<Partial<Record<ColumnKey, DateRange>>>({});
 
   // The distinct values for each column, used to populate the filter menus. Recomputed whenever
   // the register changes, which is only when the page is refreshed.
   const options = useMemo(() => {
-    const out = {} as Record<ColKey, string[]>;
-    for (const c of cols) {
-      out[c.key] = distinctValues(register.map(c.get), c.kind);
+    const out = {} as Record<ColumnKey, string[]>;
+    for (const c of columns) {
+      out[c.key] = getDistinctColumnValues(register.map(c.get), c.kind);
     }
     return out;
   }, [register]);
 
   const rows = useMemo(() => {
-    const term = q.trim().toLowerCase();
+    const term = searchQuery.trim().toLowerCase();
     let out = register;
     if (term) {
       out = out.filter((d) =>
         [d.name, d.code, d.title, d.category].some((v) => (v ?? '').toLowerCase().includes(term)),
       );
     }
-    for (const c of cols) {
+    for (const c of columns) {
       if (c.kind === 'date') {
         const r = ranges[c.key];
-        if (rangeActive(r)) {
-          out = out.filter((d) => inDateRange(c.get(d), r));
+        if (isDateRangeActive(r)) {
+          out = out.filter((d) => isWithinDateRange(c.get(d), r));
         }
         continue;
       }
@@ -107,20 +107,20 @@ function DocumentsScreen({
       }
     }
     if (sort) {
-      const col = cols.find((c) => c.key === sort.key);
-      if (col) {
-        out = sortRows(out, col.get, col.kind ?? 'text', sort.dir);
+      const selectedColumn = columns.find((c) => c.key === sort.key);
+      if (selectedColumn) {
+        out = sortTableRows(out, selectedColumn.get, selectedColumn.kind ?? 'text', sort.dir);
       }
     }
     return out;
-  }, [q, register, filters, ranges, sort]);
+  }, [searchQuery, register, filters, ranges, sort]);
 
   const queue = useMemo(
     () => register.filter((d) => d.status === 'awaiting' || d.status === 'returned'),
     [register],
   );
 
-  function toggleFilter(key: ColKey, value: string) {
+  function toggleFilter(key: ColumnKey, value: string) {
     setFilters((f) => {
       const cur = f[key] ?? [];
       return {
@@ -136,9 +136,9 @@ function DocumentsScreen({
       const res = await fn();
       setBusy(null);
       if (!res.ok) {
-        toast(res.error ?? 'The action failed.', 'error');
+        showNotification(res.error ?? 'The action failed.', 'error');
       } else {
-        toast(okMsg, 'success');
+        showNotification(okMsg, 'success');
         router.refresh();
       }
     });
@@ -180,7 +180,7 @@ function DocumentsScreen({
     <div className="content-container documents-screen">
       {confirmDialog}
       {promptDialog}
-      {toastNode}
+      {notificationContainer}
 
       <div className="records-toolbar documents-toolbar">
         <div className="search-field">
@@ -199,8 +199,8 @@ function DocumentsScreen({
             type="search"
             aria-label="Search employee documents"
             placeholder="Search employee, code, document…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
         <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
@@ -302,7 +302,7 @@ function DocumentsScreen({
                       <DocumentActions
                         title={d.title ?? documentCategoryLabel(d.category)}
                         busy={pending && busy === d.id}
-                        onOpen={() => openDocument(d.id, (m) => toast(m, 'error'))}
+                        onOpen={() => openDocument(d.id, (m) => showNotification(m, 'error'))}
                         onVerify={() =>
                           run(d.id, () => verifyEmployeeDocument(d.id, true), 'Document verified.')
                         }
@@ -337,12 +337,12 @@ function DocumentsScreen({
             </colgroup>
             <thead>
               <tr>
-                {cols.map((c) => (
+                {columns.map((c) => (
                   <th key={c.key}>
-                    <ThMenu
+                    <TableColumnMenu
                       label={c.label}
                       kind={c.kind}
-                      sortDir={sort?.key === c.key ? sort.dir : null}
+                      sortDirection={sort?.key === c.key ? sort.dir : null}
                       onSort={(dir) => setSort(dir ? { key: c.key, dir } : null)}
                       options={options[c.key]}
                       selected={filters[c.key] ?? []}
@@ -359,7 +359,7 @@ function DocumentsScreen({
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={cols.length + 1} className="text-muted documents-empty">
+                  <td colSpan={columns.length + 1} className="text-muted documents-empty">
                     {register.length === 0
                       ? 'No documents on file yet. Upload one to start the register.'
                       : 'No documents match the current search or filters.'}
@@ -390,7 +390,7 @@ function DocumentsScreen({
                       <DocumentActions
                         title={d.title ?? documentCategoryLabel(d.category, d.source === 'issued')}
                         busy={pending && busy === d.id}
-                        onOpen={() => openDocument(d.id, (m) => toast(m, 'error'))}
+                        onOpen={() => openDocument(d.id, (m) => showNotification(m, 'error'))}
                         onVerify={
                           d.status !== 'verified'
                             ? () =>

@@ -4,7 +4,7 @@ import '@/components/payroll/payslip.css';
 import { Fragment, useState } from 'react';
 import { inr } from '@/lib/format';
 import { printPayslip } from '@/lib/payslip-print';
-import { useToast } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
 import type { PayslipRow } from '@/types/domain';
 
 // Everything withheld from the earned gross to reach net payable.
@@ -112,7 +112,7 @@ function MyPayslips({ payslips, id }: { payslips: PayslipRow[]; id?: string }) {
 }
 
 function PayslipBreakdown({ p }: { p: PayslipRow }) {
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
   return (
     <tr className="payslip-breakdown">
       <td colSpan={5}>
@@ -182,11 +182,11 @@ function PayslipBreakdown({ p }: { p: PayslipRow }) {
               <button
                 className="button primary"
                 type="button"
-                onClick={() => downloadPayslip(p, () => toast(popupBlocked, 'error'))}
+                onClick={() => downloadPayslip(p, () => showNotification(popupBlocked, 'error'))}
               >
                 Download payslip (PDF)
               </button>
-              {toastNode}
+              {notificationContainer}
             </div>
           </div>
         </div>

@@ -11,18 +11,18 @@ function RequestRecipients({
   people: RequestRecipient[];
   disabled?: boolean;
 }) {
-  const [to, setTo] = useState<string[]>([]);
-  const [cc, setCc] = useState<string[]>([]);
+  const [approverIds, setApproverIds] = useState<string[]>([]);
+  const [copiedRecipientIds, setCopiedRecipientIds] = useState<string[]>([]);
   return (
     <>
       <RecipientPicker
         label="To · Approver"
         name="approver_id"
         people={people}
-        value={to}
+        value={approverIds}
         onChange={(ids) => {
-          setTo(ids);
-          setCc((previous) => previous.filter((id) => !ids.includes(id)));
+          setApproverIds(ids);
+          setCopiedRecipientIds((previous) => previous.filter((id) => !ids.includes(id)));
         }}
         required
         disabled={disabled}
@@ -30,9 +30,9 @@ function RequestRecipients({
       <RecipientPicker
         label="CC"
         name="cc_ids"
-        people={people.filter((person) => !to.includes(person.id))}
-        value={cc}
-        onChange={setCc}
+        people={people.filter((person) => !approverIds.includes(person.id))}
+        value={copiedRecipientIds}
+        onChange={setCopiedRecipientIds}
         multiple
         disabled={disabled}
       />

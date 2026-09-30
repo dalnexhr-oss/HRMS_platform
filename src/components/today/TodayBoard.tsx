@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Stamp } from '@/components/ui/Stamp';
+import { AttendanceStatusBadge } from '@/components/ui/AttendanceStatusBadge';
 import { ExportButton } from '@/components/today/ExportButton';
 import { NightSweepButton } from '@/components/today/NightSweepButton';
 import { branchColorAt } from '@/lib/constants';
@@ -257,7 +257,7 @@ function TodayBoard({
                         <td className="text-monospace">{r.out ?? '—'}</td>
                         <td className="text-monospace">{r.active ?? '—'}</td>
                         <td>
-                          <Stamp status={r.status} />
+                          <AttendanceStatusBadge status={r.status} />
                         </td>
                       </tr>
                     ))

@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/format';
 import { startOnboarding, setOnboardingTaskStatus, addOnboardingTask, deleteOnboardingTask } from '@/lib/actions/onboarding';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
-import { useToast } from '@/components/ui/Toast';
+import { useNotifications } from '@/components/ui/Notifications';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
 import type { OnboardingTaskRow, OnboardingTemplateRow, EmployeeOption } from '@/lib/queries';
 
@@ -38,7 +38,7 @@ function OnboardingScreen({
   const [pending, startTransition] = useTransition();
   const [showDone, setShowDone] = useState(false);
   const { confirm, confirmDialog } = useConfirm();
-  const { toast, toastNode } = useToast();
+  const { showNotification, notificationContainer } = useNotifications();
 
   const visible = useMemo(
     () => (showDone ? tasks : tasks.filter((t) => t.status !== 'done')),
@@ -67,9 +67,9 @@ function OnboardingScreen({
     startTransition(async () => {
       const res = await fn();
       if (!res.ok) {
-        toast(res.error ?? 'The action failed.', 'error');
+        showNotification(res.error ?? 'The action failed.', 'error');
       } else {
-        toast(okMsg, 'success');
+        showNotification(okMsg, 'success');
         router.refresh();
       }
     });
@@ -91,7 +91,7 @@ function OnboardingScreen({
   return (
     <div className="content-container grid">
       {confirmDialog}
-      {toastNode}
+      {notificationContainer}
 
       <div className="card">
         <div className="card-header">
@@ -104,9 +104,9 @@ function OnboardingScreen({
             disabled={pending}
             onDone={(res, created) => {
               if (!res.ok) {
-                toast(res.error ?? 'Could not start onboarding.', 'error');
+                showNotification(res.error ?? 'Could not start onboarding.', 'error');
               } else {
-                toast(`Checklist created — ${created} step(s).`, 'success');
+                showNotification(`Checklist created — ${created} step(s).`, 'success');
                 router.refresh();
               }
             }}
@@ -249,9 +249,9 @@ function OnboardingScreen({
             disabled={pending}
             onDone={(res) => {
               if (!res.ok) {
-                toast(res.error ?? 'Could not add the task.', 'error');
+                showNotification(res.error ?? 'Could not add the task.', 'error');
               } else {
-                toast('Task added.', 'success');
+                showNotification('Task added.', 'success');
                 router.refresh();
               }
             }}
