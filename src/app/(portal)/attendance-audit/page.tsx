@@ -3,8 +3,8 @@ import { formatDate } from '@/lib/format';
 import { redirect } from 'next/navigation';
 import { getAttendanceAudit } from '@/lib/queries';
 import { icons } from '@/components/Icons';
-import type { AppRole } from '@/types/database';
 import './audit.css';
+import type { AppRole } from '@/types/database';
 
 // Attendance audit trail is staff-only (super_admin/admin/HR)
 const auditRoles: AppRole[] = ['super_admin', 'admin', 'hr'];

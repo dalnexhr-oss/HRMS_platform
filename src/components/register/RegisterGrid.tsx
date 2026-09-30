@@ -1,5 +1,6 @@
 'use client';
 
+import './register.css';
 import { useActionState, useEffect, useRef, useState, useTransition, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Stamp } from '@/components/ui/Stamp';

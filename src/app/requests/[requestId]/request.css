@@ -1,0 +1,11 @@
+.request-detail {
+  max-width: 860px;
+  margin: 30px auto;
+}
+.request-detail > .btn {
+  justify-self: start;
+}
+.request-detail .hd h3,
+.request-detail .pill {
+  text-transform: capitalize;
+}

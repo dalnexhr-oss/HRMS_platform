@@ -1,5 +1,6 @@
 'use client';
 
+import './employee-picker.css';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { EmployeeOption } from '@/lib/queries';

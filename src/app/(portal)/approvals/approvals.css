@@ -1,0 +1,35 @@
+/* approvals / placeholders */
+.appr {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.appr .req {
+  padding: 18px 20px;
+}
+.req .top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.req .who-nm {
+  font-weight: 600;
+  color: var(--ink);
+}
+.req .body {
+  font-size: 13px;
+  color: var(--ink-2);
+  margin: 6px 0 12px;
+}
+.req .acts {
+  display: flex;
+  gap: 8px;
+}
+
+/* responsive */
+@media (max-width: 1120px) {
+  .appr {
+    grid-template-columns: 1fr;
+  }
+}

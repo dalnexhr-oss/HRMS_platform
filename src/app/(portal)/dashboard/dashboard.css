@@ -1,0 +1,113 @@
+/* 2px gaps between segments: reads as a segmented meter, and keeps adjacent branch colours apart for colour-vision-deficient readers (the palette's one warn-band pair relies on this + the named legend rows). The track is recessed so the fill looks like it sits inside the card. */
+.split {
+  display: flex;
+  gap: 2px;
+  height: 11px;
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 12px;
+  border: 1px solid var(--edge);
+  background: var(--card-2);
+  box-shadow: var(--nu-press);
+}
+.split i {
+  display: block;
+  min-width: 2px;
+}
+/* Branch legend under the headcount split bar: one row per branch (name left, count right), same dashed-row idiom as .watch below. The CARD never grows with the roster: the list is hard-capped at ~2 rows (plus a sliver of the 3rd, which signals there is more) and everything beyond scrolls INSIDE the list. The band is .no-stretch, so the sibling KPI cards are independent of this card's height either way. */
+.branch-list {
+  margin-top: 8px;
+  font: 500 11.5px var(--mono);
+  color: var(--ink-2);
+  max-height: 58px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.branch-list .row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.branch-list .row:last-child {
+  border-bottom: 0;
+}
+.branch-list .dot {
+  margin-right: 6px;
+  display: inline-block;
+  vertical-align: 1px;
+}
+.feedrow {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 11px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.feedrow:last-child {
+  border-bottom: 0;
+}
+.feedrow .when {
+  font: 500 11px var(--mono);
+  color: var(--ink-3);
+  min-width: 64px;
+  padding-top: 2px;
+}
+.cel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.cel:last-child {
+  border-bottom: 0;
+}
+.cel .badge {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-xs);
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  background: linear-gradient(155deg, #fbf3e2, var(--brass-soft));
+  border: 1px solid rgba(232, 217, 184, 0.9);
+  box-shadow: var(--nu-raise-sm);
+}
+.watch .row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.watch .row:last-child {
+  border-bottom: 0;
+}
+.meter {
+  display: flex;
+  gap: 3px;
+}
+.meter i {
+  width: 14px;
+  height: 8px;
+  border-radius: 3px;
+  background: var(--card-2);
+  box-shadow: inset 0 1px 2px rgba(143, 164, 197, 0.5);
+}
+.meter i.f {
+  background: linear-gradient(180deg, #c08a18, var(--lm));
+  box-shadow: 0 1px 3px rgba(150, 101, 10, 0.35);
+}
+.meter.hot i.f {
+  background: linear-gradient(180deg, #d24239, var(--bad));
+  box-shadow: 0 1px 3px rgba(179, 38, 30, 0.35);
+}
+
+/* tidy scrollbars on every inner scroller */
+.branch-list {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(143, 164, 197, 0.7) transparent;
+}

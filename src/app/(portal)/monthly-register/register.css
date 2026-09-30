@@ -1,0 +1,207 @@
+/* register */
+.register-page {
+  max-width: none;
+}
+.monthly-register {
+  --register-employee-width: 250px;
+  --register-day-width: 40px;
+}
+.register-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-2);
+}
+.register-controls .register-search {
+  flex: 1 1 240px;
+  min-width: 0;
+  max-width: 380px;
+  padding: 8px 12px;
+}
+.register-expanded-title {
+  flex-basis: 100%;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.register-expanded-title .mono {
+  font-size: 12px;
+}
+.register-search input {
+  min-width: 0;
+  width: 100%;
+  font-size: inherit;
+}
+.register-search svg {
+  flex-shrink: 0;
+}
+.register-count {
+  font-size: 11px;
+}
+.register-controls .btn {
+  padding: 7px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.register-expand {
+  margin-left: auto;
+}
+.register-bulk-bar {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--radius-xs);
+  background: var(--p-bg);
+}
+.register-selection-note {
+  margin: 0;
+  padding: 6px 12px;
+  font-size: 11px;
+}
+.register-grid {
+  min-width: calc(
+    var(--register-employee-width) + var(--register-day-count) * var(--register-day-width)
+  );
+}
+.monthly-register .rrow {
+  grid-template-columns: var(--register-employee-width) minmax(0, 1fr);
+}
+.monthly-register .daystrip {
+  grid-auto-columns: minmax(var(--register-day-width), 1fr);
+}
+.monthly-register .emp-cell {
+  padding: 8px 12px;
+  gap: 4px;
+}
+.register-identity,
+.register-row-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 8px;
+}
+.register-identity .nm {
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.register-row-footer .rowtoggle {
+  margin: 0;
+  min-height: 24px;
+}
+.register-row-details:not([hidden]) {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+}
+.monthly-register .sums {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.monthly-register .dcell {
+  min-height: 56px;
+  padding: 4px 2px;
+}
+.monthly-register .rrow.open .dcell {
+  min-height: 88px;
+}
+.register-empty {
+  padding: 24px 16px;
+  text-align: center;
+}
+/* Expansion keeps the same grid and selection while using the available window. */
+.monthly-register.is-expanded {
+  position: fixed;
+  inset: var(--gutter);
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  background: var(--card-solid);
+}
+.monthly-register.is-expanded .register-controls,
+.monthly-register.is-expanded .register-selection-note {
+  flex-shrink: 0;
+}
+.monthly-register.is-expanded .register-scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+.screen:has(.monthly-register.is-expanded) {
+  animation: none;
+}
+/* One scroll container keeps dates aligned with the employee list in both directions. */
+.register-scroll {
+  max-height: max(280px, calc(100dvh - 230px));
+  overflow: auto;
+  isolation: isolate;
+  scroll-padding-top: 54px;
+}
+.register-scroll:focus-visible {
+  outline-offset: -3px;
+}
+.register-scroll .rrow.hd-row {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  box-shadow: 0 1px 0 var(--line-2);
+}
+.register-scroll .emp-cell {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--card-solid);
+  box-shadow: 1px 0 0 var(--line-2);
+}
+.register-scroll .hd-row .emp-cell {
+  background: var(--card-2);
+}
+@media (max-width: 860px) {
+  .monthly-register {
+    --register-employee-width: 180px;
+  }
+  .register-controls .register-search {
+    max-width: none;
+    flex-basis: 100%;
+  }
+}
+
+/* Keep the shared search field's mobile font size when this stylesheet loads after globals. */
+@media (max-width: 640px) {
+  .register-search input {
+    font-size: 16px;
+  }
+}
+
+/* Print */
+@media print {
+  .register-scroll {
+    max-height: none;
+    overflow: visible;
+  }
+  .register-scroll .rrow.hd-row,
+  .register-scroll .emp-cell {
+    position: static;
+  }
+  .monthly-register.is-expanded {
+    position: static;
+    display: block;
+    inset: auto;
+  }
+  .register-controls,
+  .register-selection-note,
+  .monthly-register .rowtoggle {
+    display: none !important;
+  }
+  .monthly-register .register-row-details {
+    display: grid;
+    gap: 6px;
+  }
+}

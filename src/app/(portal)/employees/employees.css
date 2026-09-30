@@ -1,0 +1,8 @@
+/* employees */
+.employees-toolbar {
+  flex-wrap: wrap;
+}
+.employees-toolbar .employee-picker {
+  flex: 1 1 20px;
+  min-width: 0;
+}

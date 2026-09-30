@@ -1,5 +1,6 @@
 'use client';
 
+import '@/components/payroll/payslip.css';
 import { Fragment, useState } from 'react';
 import { inr } from '@/lib/format';
 import { printPayslip } from '@/lib/payslip-print';

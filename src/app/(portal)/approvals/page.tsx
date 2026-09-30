@@ -1,3 +1,4 @@
+import './approvals.css';
 import { getRequests } from '@/lib/queries';
 import { ApprovalsScreen } from '@/components/approvals/ApprovalsScreen';
 import { getSession } from '@/lib/auth';

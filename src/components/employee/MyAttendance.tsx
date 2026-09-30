@@ -1,5 +1,6 @@
 'use client';
 
+import '@/components/register/register.css';
 import { useState } from 'react';
 import { Stamp } from '@/components/ui/Stamp';
 import { dow } from '@/lib/constants';

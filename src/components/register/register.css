@@ -1,0 +1,166 @@
+/* The register is a dense grid: it keeps a solid-ish ground so the hairlines and stamps stay crisp instead of swimming in blur. */
+.register {
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.8);
+}
+.reg-scroll {
+  overflow-x: auto;
+}
+.reg-table {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  min-width: 0;
+}
+.reg-left {
+  border-right: 1px solid var(--line-2);
+}
+.reg-days {
+  overflow-x: auto;
+}
+.rrow {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  border-bottom: 1px solid var(--line);
+}
+.rrow:last-child {
+  border-bottom: 0;
+}
+.rrow.hd-row {
+  background: var(--card-2);
+}
+.emp-cell {
+  padding: 12px 14px;
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+  color: var(--ink);
+}
+.emp-cell .nm {
+  font-weight: 600;
+  color: var(--ink);
+}
+.emp-cell .meta {
+  font: 500 11px var(--mono);
+  color: var(--ink-3);
+}
+.emp-cell .sums {
+  display: flex;
+  gap: 10px;
+  font: 600 11px var(--mono);
+  color: var(--ink-2);
+}
+.emp-cell .sums b {
+  color: var(--ink);
+}
+.hrsbar {
+  height: 7px;
+  border-radius: 99px;
+  background: var(--card-2);
+  overflow: hidden;
+  box-shadow: var(--nu-press);
+}
+.hrsbar i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #1e9159, var(--p));
+}
+.hrsbar.short i {
+  background: linear-gradient(90deg, #d4761c, var(--hd));
+}
+.daystrip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 44px;
+  align-items: stretch;
+}
+.dhead {
+  padding: 8px 0 6px;
+  text-align: center;
+  border-left: 1px solid var(--line);
+  color: var(--ink);
+}
+.dhead .dw {
+  font: 600 9px var(--mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.dhead .dn {
+  font: 600 12px var(--mono);
+  color: var(--ink);
+}
+.dhead.wo-col {
+  background: var(--wo-bg);
+}
+.dcell {
+  border-left: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  padding: 8px 3px;
+  min-height: 52px;
+  color: var(--ink);
+}
+.dcell.wo-col {
+  background: linear-gradient(180deg, rgba(226, 231, 238, 0.7), rgba(214, 222, 232, 0.7));
+}
+.dcell .tms {
+  display: none;
+  font: 500 9px/1.5 var(--mono);
+  color: var(--ink-2);
+  text-align: center;
+  margin-top: 4px;
+}
+.rrow.open .dcell {
+  min-height: 88px;
+  align-content: center;
+}
+.rrow.open .dcell .tms {
+  display: block;
+}
+
+/* tidy scrollbars on every inner scroller */
+.reg-scroll,
+.reg-days {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(143, 164, 197, 0.7) transparent;
+}
+.reg-scroll::-webkit-scrollbar,
+.reg-days::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+.reg-scroll::-webkit-scrollbar-thumb,
+.reg-days::-webkit-scrollbar-thumb {
+  background: rgba(143, 164, 197, 0.6);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+@media (max-width: 860px) {
+  /* The register's frozen name column is 250px of a 390px screen. */
+  .reg-table,
+  .rrow {
+    grid-template-columns: 150px 1fr;
+  }
+}
+
+/* Print */
+@media print {
+  .register {
+    max-height: none;
+    overflow: visible;
+  }
+  .register {
+    background: #fff !important;
+    box-shadow: none !important;
+    border-color: #bfbfbf !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .rrow.hd-row {
+    background: #f4f4f4 !important;
+    box-shadow: none !important;
+  }
+}

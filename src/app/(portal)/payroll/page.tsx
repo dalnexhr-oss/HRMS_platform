@@ -1,3 +1,4 @@
+import './payroll.css';
 import Link from 'next/link';
 import { createClient } from '@/lib/db/server-client';
 import { StatutoryExports } from '@/components/payroll/StatutoryExports';

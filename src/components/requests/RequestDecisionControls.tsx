@@ -1,5 +1,6 @@
 'use client';
 
+import './requests.css';
 import { useRouter } from 'next/navigation';
 import { reviewRequest } from '@/lib/actions/requests';
 import { canReviewRequest } from '@/lib/requests/access';

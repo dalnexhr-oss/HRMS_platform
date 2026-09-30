@@ -1,0 +1,169 @@
+/* ticket chat window (helpdesk conversation) */
+.chat-drawer {
+  width: 576px;
+}
+.chat {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  background: linear-gradient(0deg, rgba(212, 238, 244, 0.55) 0%, rgba(255, 255, 255, 0.25) 45%);
+}
+.chat-empty {
+  margin: auto;
+  color: var(--ink-3);
+  font-size: 13px;
+  text-align: center;
+}
+.chat-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  max-width: 82%;
+  animation: dx-rise 0.18s var(--ease);
+}
+.chat-row.me {
+  margin-left: auto;
+  flex-direction: row-reverse;
+}
+.chat-av {
+  width: 30px;
+  height: 30px;
+  font: 600 11px var(--mono);
+}
+.chat-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.chat-meta {
+  font: 700 11px var(--sans);
+  color: var(--ink-2);
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.chat-row.me .chat-meta {
+  justify-content: flex-end;
+}
+.chat-role {
+  font: 600 10px var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brand-deep);
+}
+.chat-time {
+  font: 400 10px var(--mono);
+  color: var(--ink-3);
+}
+.chat-bubble {
+  padding: 10px 13px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.85);
+  -webkit-backdrop-filter: var(--blur-sm);
+  backdrop-filter: var(--blur-sm);
+  border: 1px solid var(--edge);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  box-shadow:
+    0 2px 8px rgba(23, 60, 102, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+.chat-row:not(.me) .chat-bubble {
+  border-bottom-left-radius: 5px;
+}
+.chat-row.me .chat-bubble {
+  background: linear-gradient(155deg, var(--brand-lift), var(--brand));
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #fff;
+  border-bottom-right-radius: 5px;
+  box-shadow:
+    0 4px 14px rgba(14, 122, 143, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+.chat-composer {
+  border-top: 1px solid var(--line);
+  padding: 11px 13px;
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  background: rgba(255, 255, 255, 0.55);
+}
+.chat-composer textarea {
+  flex: 1;
+  padding: 10px 13px;
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+  font: inherit;
+  font-size: 13px;
+  background: linear-gradient(180deg, #e7ecf4, #f6f8fc);
+  resize: none;
+  line-height: 1.45;
+  color: var(--ink);
+  box-shadow: var(--nu-press);
+  transition:
+    border-color var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease);
+}
+.chat-composer textarea:focus {
+  outline: none;
+  border-color: rgba(14, 122, 143, 0.45);
+  box-shadow: var(--nu-press), var(--ring);
+}
+.chat-status {
+  padding: 6px 10px;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 12px;
+  background: linear-gradient(180deg, #e7ecf4, #f6f8fc);
+  color: var(--ink);
+  box-shadow: var(--nu-press);
+}
+.chat-status:focus {
+  outline: none;
+  border-color: rgba(14, 122, 143, 0.45);
+  box-shadow: var(--nu-press), var(--ring);
+}
+
+/* tidy scrollbars on every inner scroller */
+.chat {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(143, 164, 197, 0.7) transparent;
+}
+.chat::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+.chat::-webkit-scrollbar-thumb {
+  background: rgba(143, 164, 197, 0.6);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+@media (max-width: 860px) {
+  /* Panels go full-bleed: a 470px drawer on a 390px screen is just a page. */
+  .chat-drawer {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* Phones proper. */
+@media (max-width: 640px) {
+  /* 16px is the threshold below which iOS Safari zooms the page on focus and never zooms back — the single most disorienting mobile form bug there is. Every text control gets it, not just .f input. */
+  .chat-composer textarea,
+  .chat-status {
+    font-size: 16px;
+  }
+  .chat-row {
+    max-width: 92%;
+  }
+}

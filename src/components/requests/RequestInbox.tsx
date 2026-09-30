@@ -1,3 +1,4 @@
+import './requests.css';
 import Link from 'next/link';
 import type { RequestView } from '@/lib/queries';
 

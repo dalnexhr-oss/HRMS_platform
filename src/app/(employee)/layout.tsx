@@ -1,3 +1,4 @@
+import './employee.css';
 import { redirect } from 'next/navigation';
 import { getSession, isStaffRole } from '@/lib/auth';
 import { SignOutButton } from '@/components/auth/SignOutButton';

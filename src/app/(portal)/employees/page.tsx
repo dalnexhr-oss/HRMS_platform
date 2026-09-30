@@ -1,3 +1,4 @@
+import './employees.css';
 import { EmployeesScreen } from '@/components/employees/EmployeesScreen';
 import { getEmployees, getDepartments, getBranches } from '@/lib/queries';
 

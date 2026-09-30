@@ -1,3 +1,4 @@
+import '@/components/auth/auth.css';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { Brand } from '@/components/ui/Brand';
 import { safeRedirectPath } from '@/lib/auth/redirect';

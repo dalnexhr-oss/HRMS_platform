@@ -1,3 +1,4 @@
+import '@/components/auth/auth.css';
 import { ResetRequestForm } from '@/components/auth/ResetRequestForm';
 import { Brand } from '@/components/ui/Brand';
 import type { Metadata } from 'next';

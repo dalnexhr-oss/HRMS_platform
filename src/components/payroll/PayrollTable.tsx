@@ -1,5 +1,6 @@
 'use client';
 
+import './payslip.css';
 import { inr } from '@/lib/format';
 import { useToast } from '@/components/ui/Toast';
 import { printPayslip } from '@/lib/payslip-print';

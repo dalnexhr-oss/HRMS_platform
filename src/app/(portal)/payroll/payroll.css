@@ -1,0 +1,123 @@
+/* payroll */
+.run-banner {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 15px 20px;
+  border: 1px solid var(--lm-line);
+  background: linear-gradient(155deg, rgba(251, 240, 211, 0.92), rgba(251, 240, 211, 0.62));
+  -webkit-backdrop-filter: var(--blur-sm);
+  backdrop-filter: var(--blur-sm);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  box-shadow:
+    var(--shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+.run-banner .state {
+  font: 700 12px var(--mono);
+  letter-spacing: 0.1em;
+  color: var(--lm);
+}
+.run-banner .tl {
+  display: flex;
+  gap: 0;
+  align-items: center;
+  font: 500 11.5px var(--mono);
+  color: var(--ink-2);
+  flex-wrap: wrap;
+}
+.run-banner .tl b {
+  color: var(--ink);
+}
+.run-banner .tl .seg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-left: 1px dashed var(--lm-line);
+}
+.run-banner .tl .seg:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+.totals {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.totals .card {
+  padding: 13px 15px;
+}
+.totals .lab {
+  font: 600 10px var(--mono);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.totals .val {
+  font: 600 19px var(--mono);
+  margin-top: 5px;
+  color: var(--ink);
+}
+.adj input {
+  width: 112px;
+  padding: 7px 10px;
+  border: 1px solid var(--edge);
+  border-radius: 9px;
+  font: 500 12px var(--mono);
+  text-align: right;
+  background: linear-gradient(180deg, #e7ecf4, #f6f8fc);
+  color: var(--ink);
+  box-shadow: var(--nu-press);
+  transition:
+    border-color var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease);
+}
+.adj input:focus {
+  border-color: rgba(14, 122, 143, 0.45);
+  outline: none;
+  box-shadow: var(--nu-press), var(--ring);
+}
+.wapill {
+  border-color: var(--od-line);
+  background: var(--od-bg);
+  color: var(--od);
+}
+
+/* payroll & KPI figures align like a ledger */
+.totals .val {
+  font-variant-numeric: tabular-nums;
+}
+
+/* responsive */
+@media (max-width: 1120px) {
+  .totals {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Phones proper. */
+@media (max-width: 640px) {
+  .totals {
+    grid-template-columns: 1fr;
+  }
+
+  /* 16px is the threshold below which iOS Safari zooms the page on focus and never zooms back — the single most disorienting mobile form bug there is. Every text control gets it, not just .f input. */
+  .adj input {
+    font-size: 16px;
+  }
+}
+
+/* Print */
+@media print {
+  .run-banner {
+    background: #fff !important;
+    box-shadow: none !important;
+    border-color: #bfbfbf !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}

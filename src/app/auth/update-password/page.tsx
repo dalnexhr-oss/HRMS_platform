@@ -1,3 +1,4 @@
+import '@/components/auth/auth.css';
 import { UpdatePasswordForm } from '@/components/auth/UpdatePasswordForm';
 import { Brand } from '@/components/ui/Brand';
 import type { Metadata } from 'next';

@@ -1,3 +1,4 @@
+import './users.css';
 import { redirect } from 'next/navigation';
 import { UsersScreen } from '@/components/users/UsersScreen';
 import { listUsers } from '@/lib/actions/users';

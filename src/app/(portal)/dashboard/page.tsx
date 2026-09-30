@@ -1,3 +1,4 @@
+import './dashboard.css';
 import { TodayBoard } from '@/components/today/TodayBoard';
 import { CompOffAdminCard } from '@/components/today/CompOffAdminCard';
 import { LiveRefresh } from '@/components/today/LiveRefresh';
@@ -23,27 +24,25 @@ const defaultMarkThreshold = 3;
 // How many names the marks-watch card lists.
 const marksWatchLimit = 5;
 
-// 'YYYY-MM-DD' for the business timezone — matches the date the queries filter on.
+
 function todayISO(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
 }
 
-// '16 July' — the celebrations folio.
 function todayLabel(): string {
   return new Intl.DateTimeFormat('en-GB', { timeZone: tz, day: 'numeric', month: 'long' }).format(
     new Date(),
   );
 }
 
-// 'YYYY-06-01' -> 'June'.
+
 function monthLabelOf(periodMonth: string): string {
   return new Intl.DateTimeFormat('en-GB', { month: 'long' }).format(
     new Date(`${periodMonth}T00:00:00`),
   );
 }
 
-// Let each card handle its own query failure and display the underlying error without replacing
-// failed data with sample values.
+
 async function load<T>(promise: Promise<T>): Promise<Loaded<T>> {
   try {
     return { ok: true, data: await promise };

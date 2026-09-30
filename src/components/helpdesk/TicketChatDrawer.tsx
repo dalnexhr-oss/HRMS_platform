@@ -2,6 +2,7 @@
 
 // Ticket chat shared by staff and employees. Seed messages on the server, then subscribe to the SSE
 // route, which checks access to the requested ticket.
+import './chat.css';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AvatarInner } from '@/components/ui/Avatar';

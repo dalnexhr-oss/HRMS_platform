@@ -1,3 +1,4 @@
+import './register.css';
 import Link from 'next/link';
 import { Stamp } from '@/components/ui/Stamp';
 import { getSession } from '@/lib/auth';

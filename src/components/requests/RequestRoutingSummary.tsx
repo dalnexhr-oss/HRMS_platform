@@ -1,3 +1,4 @@
+import './requests.css';
 import type { RequestRouting } from '@/types/requests';
 
 function RequestRoutingSummary({

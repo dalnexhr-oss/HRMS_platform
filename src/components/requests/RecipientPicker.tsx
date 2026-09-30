@@ -1,5 +1,6 @@
 'use client';
 
+import './requests.css';
 import { useId, useState } from 'react';
 import type { RequestRecipient } from '@/types/requests';
 
