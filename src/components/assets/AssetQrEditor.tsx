@@ -46,7 +46,7 @@ function AssetQrEditor({
           });
         }}
       >
-        <div className="f">
+        <div className="form-field">
           <label htmlFor="asset-qr-link">QR destination link</label>
           <input
             id="asset-qr-link"
@@ -61,16 +61,16 @@ function AssetQrEditor({
             spellCheck={false}
           />
         </div>
-        <p className="muted" style={{ fontSize: 12 }}>
+        <p className="text-muted" style={{ fontSize: 12 }}>
           Leave blank and save to remove the QR code.
         </p>
         {error && (
-          <div className="login-error" role="alert">
+          <div className="error-message" role="alert">
             {error}
           </div>
         )}
         {message && <p role="status">{message}</p>}
-        <button type="submit" className="btn quiet" disabled={pending}>
+        <button type="submit" className="button quiet" disabled={pending}>
           {pending ? 'Saving…' : 'Save QR link'}
         </button>
       </form>

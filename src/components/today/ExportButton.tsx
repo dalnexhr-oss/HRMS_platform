@@ -22,7 +22,7 @@ function ExportButton({ rows, date, disabledReason = null }: ExportButtonProps) 
     return (
       <button
         type="button"
-        className="btn"
+        className="button"
         disabled
         title={reason ?? undefined}
         style={{ opacity: 0.5, cursor: 'default' }}

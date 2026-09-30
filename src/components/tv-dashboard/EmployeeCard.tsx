@@ -34,25 +34,25 @@ function EmployeeCard({ employee }: { employee: EmployeeData }) {
   const subtitle = employee.designation || employee.department || employee.branch || employee.code;
 
   return (
-    <article className={`card tv-card is-${employee.presence}`}>
-      <div className="tv-card-top">
-        <span className="tv-mono" aria-hidden="true">
+    <article className={`card tv-dashboard-employee-card is-${employee.presence}`}>
+      <div className="tv-dashboard-employee-header">
+        <span className="tv-dashboard-employee-avatar" aria-hidden="true">
           {initials(employee.name)}
         </span>
-        <span className="pill tv-state">
-          <i className="dot" />
+        <span className="status-badge tv-dashboard-attendance-status">
+          <i className="status-dot" />
           {presenceLabel[employee.presence]}
         </span>
       </div>
 
-      <h3 className="tv-name">{employee.name}</h3>
-      {subtitle ? <p className="tv-sub">{subtitle}</p> : null}
+      <h3 className="tv-dashboard-employee-name">{employee.name}</h3>
+      {subtitle ? <p className="tv-dashboard-employee-details">{subtitle}</p> : null}
 
-      <p className="tv-foot mono">
+      <p className="tv-dashboard-employee-footer text-monospace">
         {at ? (
           <>
             {employee.lastKind === 'in' ? 'Check-in' : 'Check-out'} {at}
-            {employee.withinGeofence === false ? <span className="tv-flag">off-site</span> : null}
+            {employee.withinGeofence === false ? <span className="tv-dashboard-attendance-note">off-site</span> : null}
           </>
         ) : employee.presence === 'off' || employee.presence === 'leave' ? (
           // The human name for the day's status ('Leave', 'Week off'…), not the

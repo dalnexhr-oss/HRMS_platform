@@ -96,19 +96,21 @@ function DocumentActions({
 
   return (
     <div className="document-actions" role="group" aria-label={`Actions for ${title}`}>
-      {actions.map((action) => action.onClick ? (
-        <button
-          key={action.label}
-          type="button"
-          className={`btn document-action ${action.kind}`}
-          title={action.label}
-          aria-label={`${action.label}: ${title}`}
-          disabled={busy}
-          onClick={action.onClick}
-        >
-          {action.icon}
-        </button>
-      ) : null)}
+      {actions.map((action) =>
+        action.onClick ? (
+          <button
+            key={action.label}
+            type="button"
+            className={`button document-action ${action.kind}`}
+            title={action.label}
+            aria-label={`${action.label}: ${title}`}
+            disabled={busy}
+            onClick={action.onClick}
+          >
+            {action.icon}
+          </button>
+        ) : null,
+      )}
     </div>
   );
 }

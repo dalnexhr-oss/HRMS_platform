@@ -91,9 +91,9 @@ function celebrationMeta(c: Celebration): string {
 /** An in-card failure state carrying the query's real error text. */
 function LoadError({ what, message }: { what: string; message: string }) {
   return (
-    <div className="empty">
+    <div className="empty-state">
       <h3>Couldn’t load {what}</h3>
-      <p className="mono" style={{ fontSize: 12, color: 'var(--ab)', wordBreak: 'break-word' }}>
+      <p className="text-monospace" style={{ fontSize: 12, color: 'var(--attendance-absent)', wordBreak: 'break-word' }}>
         {message}
       </p>
     </div>
@@ -117,14 +117,14 @@ function TodayBoard({
   const branchTotal = branches.reduce((a, b) => a + b.count, 0);
 
   return (
-    <div className="wrap grid">
+    <div className="content-container grid">
       {/* KPIs. The band relies on the grid's default stretch for uniform card
           heights — safe because the branch card is hard-capped (.branch-list
           max-height), so no roster size can inflate the row. */}
-      <div className="kpis">
-        <div className="card kpi">
-          <div className="lab">Present today</div>
-          <div className="val" style={{ color: 'var(--p)' }}>
+      <div className="summary-cards">
+        <div className="card summary-card">
+          <div className="metric-label">Present today</div>
+          <div className="metric-value" style={{ color: 'var(--attendance-present)' }}>
             {kpis ? (
               <>
                 {kpis.present}
@@ -134,27 +134,27 @@ function TodayBoard({
               '—'
             )}
           </div>
-          <div className="note" style={board.ok ? undefined : { color: 'var(--ab)' }}>
+          <div className="metric-note" style={board.ok ? undefined : { color: 'var(--attendance-absent)' }}>
             {board.ok
               ? `${board.data.inOffice} in office · ${board.data.field} on outdoor duty`
               : board.error}
           </div>
         </div>
 
-        <div className="card kpi">
-          <div className="lab">Absent</div>
-          <div className="val" style={{ color: 'var(--ab)' }}>
+        <div className="card summary-card">
+          <div className="metric-label">Absent</div>
+          <div className="metric-value" style={{ color: 'var(--attendance-absent)' }}>
             {kpis ? kpis.absent : '—'}
           </div>
-          <div className="note">{kpis ? 'No punch, no approved leave' : 'Unavailable'}</div>
+          <div className="metric-note">{kpis ? 'No punch, no approved leave' : 'Unavailable'}</div>
         </div>
 
-        <div className="card kpi">
-          <div className="lab">Headcount by branch</div>
-          <div className="val">{kpis ? kpis.headcount : '—'}</div>
+        <div className="card summary-card">
+          <div className="metric-label">Headcount by branch</div>
+          <div className="metric-value">{kpis ? kpis.headcount : '—'}</div>
           {branchTotal > 0 ? (
             <>
-              <div className="split">
+              <div className="branch-distribution">
                 {branches.map((b, i) => (
                   <i
                     key={b.branch}
@@ -172,9 +172,9 @@ function TodayBoard({
                */}
               <div className="branch-list">
                 {branches.map((b, i) => (
-                  <div className="row" key={b.branch}>
+                  <div className="summary-list-row" key={b.branch}>
                     <span>
-                      <span className="dot" style={{ background: branchColorAt(i) }} />
+                      <span className="status-dot" style={{ background: branchColorAt(i) }} />
                       {b.branch}
                     </span>
                     <span>{b.count}</span>
@@ -183,16 +183,16 @@ function TodayBoard({
               </div>
             </>
           ) : (
-            <div className="note">{board.ok ? 'No branches on record' : 'Unavailable'}</div>
+            <div className="metric-note">{board.ok ? 'No branches on record' : 'Unavailable'}</div>
           )}
         </div>
 
-        <div className="card kpi">
-          <div className="lab">{periodMonthLabel} payroll</div>
-          <div className="val" style={{ fontSize: 22, paddingTop: 6 }}>
+        <div className="card summary-card">
+          <div className="metric-label">{periodMonthLabel} payroll</div>
+          <div className="metric-value" style={{ fontSize: 22, paddingTop: 6 }}>
             {!run.ok ? '—' : run.data ? runStatusLabel[run.data.status] : 'Not started'}
           </div>
-          <div className="note" style={run.ok ? undefined : { color: 'var(--ab)' }}>
+          <div className="metric-note" style={run.ok ? undefined : { color: 'var(--attendance-absent)' }}>
             {run.ok ? (
               <>
                 {runNote(run.data)} ·{' '}
@@ -207,10 +207,10 @@ function TodayBoard({
         </div>
       </div>
 
-      <div className="two-col">
+      <div className="two-column-layout">
         {/* Punch log */}
         <div className="card">
-          <div className="hd">
+          <div className="card-header">
             <h3>Punch log — Today</h3>
             <span style={{ flex: 1 }} />
             <NightSweepButton date={today} />
@@ -241,21 +241,21 @@ function TodayBoard({
                 <tbody>
                   {punchLog.data.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="muted" style={{ textAlign: 'center' }}>
+                      <td colSpan={7} className="text-muted" style={{ textAlign: 'center' }}>
                         No punches recorded today.
                       </td>
                     </tr>
                   ) : (
                     punchLog.data.map((r) => (
                       <tr key={r.code}>
-                        <td className="mono muted">{r.code}</td>
+                        <td className="text-monospace text-muted">{r.code}</td>
                         <td>
                           <b>{r.name}</b>
                         </td>
                         <td>{r.branch}</td>
-                        <td className="mono">{r.in ?? '—'}</td>
-                        <td className="mono">{r.out ?? '—'}</td>
-                        <td className="mono">{r.active ?? '—'}</td>
+                        <td className="text-monospace">{r.in ?? '—'}</td>
+                        <td className="text-monospace">{r.out ?? '—'}</td>
+                        <td className="text-monospace">{r.active ?? '—'}</td>
                         <td>
                           <Stamp status={r.status} />
                         </td>
@@ -271,26 +271,26 @@ function TodayBoard({
         <div className="grid">
           {/* Celebrations */}
           <div className="card">
-            <div className="hd">
+            <div className="card-header">
               <h3>Celebrations</h3>
-              <span className="folio">{todayLabel}</span>
+              <span className="card-caption">{todayLabel}</span>
             </div>
             {!celebrations.ok ? (
               <LoadError what="celebrations" message={celebrations.error} />
             ) : (
-              <div className="bd" style={{ paddingTop: 8 }}>
+              <div className="card-body" style={{ paddingTop: 8 }}>
                 {celebrations.data.length === 0 ? (
-                  <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+                  <p className="text-muted" style={{ margin: 0, fontSize: 13 }}>
                     Nothing to celebrate today.
                   </p>
                 ) : (
                   celebrations.data.map((c) => (
-                    <div className="cel" key={c.id}>
-                      <span className="badge">{celebrationIcon(c.kind)}</span>
+                    <div className="celebration-row" key={c.id}>
+                      <span className="celebration-icon">{celebrationIcon(c.kind)}</span>
                       <div>
                         <b>{c.name}</b> — {celebrationNote(c)}
                         <br />
-                        <span className="muted" style={{ fontSize: 12 }}>
+                        <span className="text-muted" style={{ fontSize: 12 }}>
                           {celebrationMeta(c)}
                         </span>
                       </div>
@@ -302,17 +302,17 @@ function TodayBoard({
           </div>
 
           {/* Use actual LM totals and the configured mark_threshold for the meter. */}
-          <div className="card watch">
-            <div className="hd">
+          <div className="card attendance-watch">
+            <div className="card-header">
               <h3>Marks watch — {periodMonthLabel}</h3>
-              <span className="folio">{ordinal(markThreshold)} mark = auto half-day</span>
+              <span className="card-caption">{ordinal(markThreshold)} mark = auto half-day</span>
             </div>
             {!marks.ok ? (
               <LoadError what="late marks" message={marks.error} />
             ) : (
-              <div className="bd" style={{ paddingTop: 6 }}>
+              <div className="card-body" style={{ paddingTop: 6 }}>
                 {marks.data.length === 0 ? (
-                  <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+                  <p className="text-muted" style={{ margin: 0, fontSize: 13 }}>
                     No late marks in {periodMonthLabel}.
                   </p>
                 ) : (
@@ -320,16 +320,16 @@ function TodayBoard({
                     // "Hot" = one mark away from the auto half-day.
                     const hot = m.marks >= m.threshold - 1;
                     return (
-                      <div className="row" key={m.employeeId}>
+                      <div className="summary-list-row" key={m.employeeId}>
                         <div>
                           <b>{m.name}</b>{' '}
-                          <span className="muted" style={{ fontSize: 12 }}>
+                          <span className="text-muted" style={{ fontSize: 12 }}>
                             · {m.marks} mark{m.marks === 1 ? '' : 's'}
                           </span>
                         </div>
-                        <div className={`meter${hot ? ' hot' : ''}`}>
+                        <div className={`late-mark-meter${hot ? ' is-over-threshold' : ''}`}>
                           {Array.from({ length: m.threshold }, (_, n) => (
-                            <i key={n} className={n < m.marks ? 'f' : ''} />
+                            <i key={n} className={n < m.marks ? 'is-filled' : ''} />
                           ))}
                         </div>
                       </div>
@@ -344,21 +344,21 @@ function TodayBoard({
               never as HTML: dangerouslySetInnerHTML here would be stored XSS the moment
               a message contains user-supplied content. */}
           <div className="card">
-            <div className="hd">
+            <div className="card-header">
               <h3>Activity</h3>
             </div>
             {!activity.ok ? (
               <LoadError what="the activity feed" message={activity.error} />
             ) : (
-              <div className="bd" style={{ paddingTop: 4 }}>
+              <div className="card-body" style={{ paddingTop: 4 }}>
                 {activity.data.length === 0 ? (
-                  <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+                  <p className="text-muted" style={{ margin: 0, fontSize: 13 }}>
                     No activity recorded yet.
                   </p>
                 ) : (
                   activity.data.map((a) => (
-                    <div className="feedrow" key={a.id}>
-                      <span className="when">{a.when}</span>
+                    <div className="activity-row" key={a.id}>
+                      <span className="activity-time">{a.when}</span>
                       <div>{a.message}</div>
                     </div>
                   ))

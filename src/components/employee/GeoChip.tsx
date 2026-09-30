@@ -25,12 +25,12 @@ function GeoChip({
   const hasPoint = typeof lat === 'number' && typeof lng === 'number';
 
   if (!hasPoint) {
-    return <span className={`punch-geo ${tone}`}>{label}</span>;
+    return <span className={`punch-location ${tone}`}>{label}</span>;
   }
 
   return (
     <a
-      className={`punch-geo ${tone} is-link`}
+      className={`punch-location ${tone} is-link`}
       href={mapsUrl(lat as number, lng as number)}
       target="_blank"
       rel="noopener noreferrer"
@@ -47,7 +47,7 @@ function GeoChip({
         />
         <circle cx="12" cy="10" r="2.4" fill="currentColor" />
       </svg>
-      <span className="sr-only"> — open on Google Maps</span>
+      <span className="visually-hidden"> — open on Google Maps</span>
     </a>
   );
 }

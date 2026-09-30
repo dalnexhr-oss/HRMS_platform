@@ -10,7 +10,7 @@ import type { PolicyView } from '@/lib/queries';
 function PolicyList({ policies }: { policies: PolicyView[] }) {
   if (!policies.length) {
     return (
-      <div className="empty">
+      <div className="empty-state">
         <p>No policies published yet.</p>
       </div>
     );
@@ -47,25 +47,25 @@ function PolicyRow({ policy }: { policy: PolicyView }) {
 
   return (
     <div className="policy">
-      <div className="phd">
+      <div className="entry-header">
         <h4>{policy.title}</h4>
-        {policy.category && <span className="cat">{policy.category}</span>}
-        <span className="ver">
+        {policy.category && <span className="entry-category">{policy.category}</span>}
+        <span className="entry-version">
           v{policy.version}
           {policy.effective_date ? ` · from ${formatDate(policy.effective_date)}` : ''}
         </span>
         <span style={{ flex: 1 }} />
         {acked ? (
-          <span className="ack">✓ Read</span>
+          <span className="signature-confirmation">✓ Read</span>
         ) : (
-          <button className="btn" onClick={onAck} disabled={pending}>
+          <button className="button" onClick={onAck} disabled={pending}>
             {pending ? 'Saving…' : 'Mark as read'}
           </button>
         )}
       </div>
-      <p className="body">{policy.body}</p>
+      <p className="entry-body">{policy.body}</p>
       {error && (
-        <div className="login-error" role="alert">
+        <div className="error-message" role="alert">
           {error}
         </div>
       )}

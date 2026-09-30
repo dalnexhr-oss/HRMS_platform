@@ -1,11 +1,11 @@
 /* login */
 /* White here too, to match the app shell — the card carries itself on its shadow alone. */
-.login-shell {
+.login-layout {
   min-height: 100vh;
   display: grid;
   place-items: center;
   padding: 24px;
-  background: var(--paper);
+  background: var(--page-background);
 }
 .login-card {
   width: 100%;
@@ -14,23 +14,23 @@
   border-radius: 22px;
   box-shadow:
     0 24px 56px rgba(23, 60, 102, 0.16),
-    var(--nu-raise);
+    var(--shadow-raised);
 }
 
 /* login / reset / update-password cards — glass, centred */
-.login-brand .brandmark {
+.login-brand .brand-logo {
   justify-content: center;
   gap: 11px;
   margin-bottom: 6px;
 }
-.login-brand .brandmark-img {
+.login-brand .brand-logo-image {
   height: 38px;
 }
-.login-brand .brandmark-txt {
+.login-brand .brand-logo-text {
   font-size: 28px;
-  color: var(--ink);
+  color: var(--text-primary);
 }
-.login-brand .brandmark-txt span {
+.login-brand .brand-logo-text span {
   color: var(--brand);
 }
 
@@ -38,16 +38,16 @@
   text-align: center;
   margin-bottom: 22px;
 }
-.login-brand .eyebrow {
-  font: 600 10px/1 var(--mono);
+.login-brand .brand-caption {
+  font: 600 10px/1 var(--font-monospace);
   letter-spacing: 0.18em;
   color: var(--brand);
   text-transform: uppercase;
 }
 .login-brand h1 {
   margin: 8px 0 5px;
-  font: 700 30px/1 var(--display);
-  color: var(--ink);
+  font: 700 30px/1 var(--font-heading);
+  color: var(--text-primary);
   letter-spacing: -0.035em;
 }
 .login-brand h1 span {
@@ -56,31 +56,31 @@
 .login-brand p {
   margin: 0;
   font-size: 12.5px;
-  color: var(--ink-2);
+  color: var(--text-secondary);
 }
-.login-form .f {
+.login-form .form-field {
   margin-bottom: 15px;
 }
 .login-form label {
   display: block;
-  font: 600 11px var(--mono);
+  font: 600 11px var(--font-monospace);
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--text-muted);
   margin-bottom: 7px;
 }
 .login-form input {
   width: 100%;
   padding: 12px 14px;
-  border: 1px solid var(--edge);
+  border: 1px solid var(--border-surface);
   border-radius: 12px;
   font: inherit;
   background: linear-gradient(180deg, #e7ecf4, #f8fafd);
-  color: var(--ink);
-  box-shadow: var(--nu-press);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-inset);
   transition:
-    border-color var(--t-fast) var(--ease),
-    box-shadow var(--t-fast) var(--ease);
+    border-color var(--transition-fast) var(--easing-standard),
+    box-shadow var(--transition-fast) var(--easing-standard);
 }
 .login-form input:hover {
   border-color: rgba(14, 122, 143, 0.22);
@@ -88,7 +88,7 @@
 .login-form input:focus {
   border-color: rgba(14, 122, 143, 0.45);
   outline: none;
-  box-shadow: var(--nu-press), var(--ring);
+  box-shadow: var(--shadow-inset), var(--focus-ring);
 }
 .login-password {
   position: relative;
@@ -111,7 +111,7 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: var(--ink-3);
+  color: var(--text-muted);
   cursor: pointer;
 }
 .login-password-toggle:hover,
@@ -122,7 +122,7 @@
 
 /* Phones proper. */
 @media (max-width: 640px) {
-  /* 16px is the threshold below which iOS Safari zooms the page on focus and never zooms back — the single most disorienting mobile form bug there is. Every text control gets it, not just .f input. */
+  /* 16px is the threshold below which iOS Safari zooms the page on focus and never zooms back — the single most disorienting mobile form bug there is. Every text control gets it, not just .form-field input. */
   .login-form input {
     font-size: 16px;
   }

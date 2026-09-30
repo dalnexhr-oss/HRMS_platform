@@ -22,7 +22,7 @@ function Brand({
 }) {
   return (
     <Link
-      className="brandmark"
+      className="brand-logo"
       href={href}
       aria-label={`${label} — go to dashboard`}
       prefetch={false}
@@ -33,10 +33,10 @@ function Brand({
         alt={label}
         width={intrinsicW}
         height={intrinsicH}
-        className="brandmark-img"
+        className="brand-logo-image"
         priority={priority}
       />
-      <span className="brandmark-txt" aria-hidden="true">
+      <span className="brand-logo-text" aria-hidden="true">
         HRMS<span>.</span>
       </span>
     </Link>

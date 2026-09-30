@@ -38,9 +38,9 @@ async function AuditPage() {
   }
 
   return (
-    <div className="wrap">
+    <div className="content-container">
       <div className="card audit-card">
-        <div className="hd">
+        <div className="card-header">
           <h3 className="audit-title">
           <span aria-hidden="true" style={{ marginRight: '0.5em' }}>{icons.recent}</span>
             {entries.length} recent event{entries.length === 1 ? '' : 's'}
@@ -48,24 +48,24 @@ async function AuditPage() {
           </h3>
         </div>
         {loadError ? (
-          <div className="bd">
-            <div className="login-error">Could not load the audit log: {loadError}</div>
+          <div className="card-body">
+            <div className="error-message">Could not load the audit log: {loadError}</div>
           </div>
         ) : entries.length === 0 ? (
-          <div className="bd">
-            <p className="muted" style={{ margin: 0 }}>
+          <div className="card-body">
+            <p className="text-muted" style={{ margin: 0 }}>
               No attendance edits recorded yet.
             </p>
           </div>
         ) : (
           <div className="audit-scroll" role="region" aria-label="Attendance audit log" tabIndex={0}>
-            <table className="audit-table sticky-th">
+            <table className="audit-table sticky-table-header">
               <colgroup>
-                <col className="audit-col-when" />
-                <col className="audit-col-type" />
-                <col className="audit-col-actor" />
-                <col className="audit-col-employee" />
-                <col className="audit-col-detail" />
+                <col className="audit-column-when" />
+                <col className="audit-column-type" />
+                <col className="audit-column-actor" />
+                <col className="audit-column-employee" />
+                <col className="audit-column-detail" />
               </colgroup>
               <thead>
                 <tr>
@@ -79,28 +79,28 @@ async function AuditPage() {
               <tbody>
                 {entries.map((e) => (
                   <tr key={e.id}>
-                    <td className="mono muted">
+                    <td className="text-monospace text-muted">
                       {stampTime(e.occurredAt)}
                     </td>
                     <td>
                       <span
-                        className="pill"
-                        style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}
+                        className="status-badge"
+                        style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}
                       >
                         {eventLabel[e.eventType] ?? e.eventType}
                       </span>
                     </td>
-                    <td>{e.actor ?? <span className="muted">system</span>}</td>
+                    <td>{e.actor ?? <span className="text-muted">system</span>}</td>
                     <td>
                       {e.employeeName ? (
                         <>
                           {e.employeeName}
-                          <span className="mono muted audit-employee-code">
+                          <span className="text-monospace text-muted audit-employee-code">
                             {e.employeeCode}
                           </span>
                         </>
                       ) : (
-                        <span className="muted">—</span>
+                        <span className="text-muted">—</span>
                       )}
                     </td>
                     {/* Rendered as text by React — activity_log messages are never HTML. */}

@@ -177,13 +177,13 @@ function DocumentsScreen({
   }
 
   return (
-    <div className="wrap documents-screen">
+    <div className="content-container documents-screen">
       {confirmDialog}
       {promptDialog}
       {toastNode}
 
-      <div className="emp-top documents-toolbar">
-        <div className="search">
+      <div className="records-toolbar documents-toolbar">
+        <div className="search-field">
           <svg
             width="15"
             height="15"
@@ -203,45 +203,45 @@ function DocumentsScreen({
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
-        <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
+        <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
           {rows.length} of {register.length}
         </span>
-        <button className="btn primary" onClick={() => setDrawer({ mode: 'upload' })}>
+        <button className="button primary" onClick={() => setDrawer({ mode: 'upload' })}>
           + Upload document
         </button>
       </div>
 
-      <div className="kpis five documents-kpis">
-        <div className="card kpi">
-          <div className="lab">On file</div>
-          <div className="val">{stats.total}</div>
-          <div className="note">current versions, all employees</div>
+      <div className="summary-cards has-five-columns documents-summary-cards">
+        <div className="card summary-card">
+          <div className="metric-label">On file</div>
+          <div className="metric-value">{stats.total}</div>
+          <div className="metric-note">current versions, all employees</div>
         </div>
-        <div className="card kpi">
-          <div className="lab">Awaiting verification</div>
-          <div className="val" style={{ color: stats.awaiting ? 'var(--lm)' : undefined }}>
+        <div className="card summary-card">
+          <div className="metric-label">Awaiting verification</div>
+          <div className="metric-value" style={{ color: stats.awaiting ? 'var(--attendance-late)' : undefined }}>
             {stats.awaiting}
           </div>
-          <div className="note">filed, not yet checked</div>
+          <div className="metric-note">filed, not yet checked</div>
         </div>
-        <div className="card kpi">
-          <div className="lab">Returned</div>
-          <div className="val" style={{ color: stats.returned ? 'var(--hd)' : undefined }}>
+        <div className="card summary-card">
+          <div className="metric-label">Returned</div>
+          <div className="metric-value" style={{ color: stats.returned ? 'var(--attendance-half-day)' : undefined }}>
             {stats.returned}
           </div>
-          <div className="note">sent back, awaiting a replacement</div>
+          <div className="metric-note">sent back, awaiting a replacement</div>
         </div>
-        <div className="card kpi">
-          <div className="lab">HR issued</div>
-          <div className="val">{stats.issued}</div>
-          <div className="note">relieving · experience · F&amp;F</div>
+        <div className="card summary-card">
+          <div className="metric-label">HR issued</div>
+          <div className="metric-value">{stats.issued}</div>
+          <div className="metric-note">relieving · experience · F&amp;F</div>
         </div>
-        <div className="card kpi">
-          <div className="lab">Missing</div>
-          <div className="val" style={{ color: stats.missing ? 'var(--lm)' : undefined }}>
+        <div className="card summary-card">
+          <div className="metric-label">Missing</div>
+          <div className="metric-value" style={{ color: stats.missing ? 'var(--attendance-late)' : undefined }}>
             {stats.missing}
           </div>
-          <div className="note">
+          <div className="metric-note">
             required docs across {stats.employeesMissing} employee
             {stats.employeesMissing === 1 ? '' : 's'}
           </div>
@@ -250,7 +250,7 @@ function DocumentsScreen({
 
       {queue.length > 0 && (
         <div className="card documents-card documents-queue">
-          <div className="hd">
+          <div className="card-header">
             <h3>
               Needs attention (<span style={{ color: 'red' }}>{queue.length}</span>)
             </h3>
@@ -261,11 +261,11 @@ function DocumentsScreen({
               aria-label="Documents needing attention"
             >
               <colgroup>
-                <col className="documents-col-employee" />
+                <col className="documents-column-employee" />
                 <col />
-                <col className="documents-col-status" />
-                <col className="documents-col-filed" />
-                <col className="documents-col-actions" />
+                <col className="documents-column-status" />
+                <col className="documents-column-filed" />
+                <col className="documents-column-actions" />
               </colgroup>
               <thead>
                 <tr>
@@ -281,13 +281,13 @@ function DocumentsScreen({
                   <tr key={d.id}>
                     <td data-label="Employee">
                       <EmployeeLink row={d} onOpen={setPanelFor} />
-                      <span className="document-employee-code mono muted">{d.code}</span>
+                      <span className="document-employee-code text-monospace text-muted">{d.code}</span>
                     </td>
                     <td data-label="Document" className="document-title-cell">
                       {documentCategoryLabel(d.category)} — {d.title ?? '—'}
-                      {d.version > 1 && <span className="muted"> · v{d.version}</span>}
+                      {d.version > 1 && <span className="text-muted"> · v{d.version}</span>}
                       {d.verifyRemark && (
-                        <div style={{ fontSize: 11, color: 'var(--hd)' }}>
+                        <div style={{ fontSize: 11, color: 'var(--attendance-half-day)' }}>
                           <b>Note:</b> {d.verifyRemark}
                         </div>
                       )}
@@ -295,7 +295,7 @@ function DocumentsScreen({
                     <td data-label="Status">
                       <StatusPill row={d} />
                     </td>
-                    <td data-label="Filed" className="document-filed mono">
+                    <td data-label="Filed" className="document-filed text-monospace">
                       {formatDate(d.uploadedAt.slice(0, 10))}
                     </td>
                     <td data-label="Actions" className="document-actions-cell">
@@ -319,7 +319,7 @@ function DocumentsScreen({
       )}
 
       <div className="card documents-card">
-        <div className="hd">
+        <div className="card-header">
           <h3>
             Document register (<span style={{ color: 'var(--brand)' }}>{rows.length}</span>)
           </h3>
@@ -327,13 +327,13 @@ function DocumentsScreen({
         <div className="documents-table-wrap">
           <table className="documents-table" aria-label="Document register">
             <colgroup>
-              <col className="documents-col-employee" />
-              <col className="documents-col-category" />
+              <col className="documents-column-employee" />
+              <col className="documents-column-category" />
               <col />
-              <col className="documents-col-source" />
-              <col className="documents-col-status" />
-              <col className="documents-col-filed" />
-              <col className="documents-col-actions" />
+              <col className="documents-column-source" />
+              <col className="documents-column-status" />
+              <col className="documents-column-filed" />
+              <col className="documents-column-actions" />
             </colgroup>
             <thead>
               <tr>
@@ -359,7 +359,7 @@ function DocumentsScreen({
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={cols.length + 1} className="muted documents-empty">
+                  <td colSpan={cols.length + 1} className="text-muted documents-empty">
                     {register.length === 0
                       ? 'No documents on file yet. Upload one to start the register.'
                       : 'No documents match the current search or filters.'}
@@ -370,20 +370,20 @@ function DocumentsScreen({
                   <tr key={d.id}>
                     <td data-label="Employee">
                       <EmployeeLink row={d} onOpen={setPanelFor} />
-                      <div className="document-employee-code mono muted">{d.code}</div>
+                      <div className="document-employee-code text-monospace text-muted">{d.code}</div>
                     </td>
                     <td data-label="Category">
                       {documentCategoryLabel(d.category, d.source === 'issued')}
                     </td>
                     <td data-label="Document" className="document-title-cell">
                       {d.title ?? '—'}
-                      {d.version > 1 && <span className="muted"> · v{d.version}</span>}
+                      {d.version > 1 && <span className="text-muted"> · v{d.version}</span>}
                     </td>
                     <td data-label="Source">{d.source === 'issued' ? 'HR issued' : 'Uploaded'}</td>
                     <td data-label="Status">
                       <StatusPill row={d} />
                     </td>
-                    <td data-label="Filed" className="document-filed mono">
+                    <td data-label="Filed" className="document-filed text-monospace">
                       {formatDate(d.uploadedAt.slice(0, 10))}
                     </td>
                     <td data-label="Actions" className="document-actions-cell">

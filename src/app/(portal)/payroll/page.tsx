@@ -197,30 +197,30 @@ async function PayrollPage({
   }
 
   return (
-    <div className="wrap">
-      <div className="reg-head">
-        <div className="month-nav">
+    <div className="content-container">
+      <div className="period-toolbar">
+        <div className="month-navigation">
           <Link href={`/payroll?m=${prev}` as Route} aria-label="Previous month" role="button">
             ‹
           </Link>
-          <span className="cur">{label.toUpperCase()}</span>
+          <span className="current-month">{label.toUpperCase()}</span>
           <Link href={`/payroll?m=${next}` as Route} aria-label="Next month" role="button">
             ›
           </Link>
         </div>
       </div>
 
-      <div className="run-banner">
-        <span className="state">{statusLabel.toUpperCase()}</span>
-        <div className="tl">
+      <div className="payroll-run-banner">
+        <span className="payroll-run-status">{statusLabel.toUpperCase()}</span>
+        <div className="payroll-run-details">
           {segments.length > 0 ? (
             segments.map(([l, v]) => (
-              <span className="seg" key={l}>
+              <span className="payroll-run-detail" key={l}>
                 {l} <b>&nbsp;{v}</b>
               </span>
             ))
           ) : (
-            <span className="seg">
+            <span className="payroll-run-detail">
               {run ? 'No milestones recorded yet' : `No payroll run for ${label}`}
             </span>
           )}
@@ -256,7 +256,7 @@ async function PayrollPage({
         adjustments={adjustments}
       />
 
-      <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>
+      <p className="text-muted" style={{ fontSize: 12, marginTop: 10 }}>
         Statutory lines follow the confirmed rules: PF 12% at actual Basic+DA, ESIC 0.75% below the
         ₹21,000 gross cap, PT by branch state (Gujarat: nil ≤ ₹12,000, ₹200 above). Click a row for
         the full breakdown and manual adjustments.

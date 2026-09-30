@@ -1,119 +1,119 @@
 /* payroll */
-.run-banner {
+.payroll-run-banner {
   display: flex;
   align-items: center;
   gap: 18px;
   padding: 15px 20px;
-  border: 1px solid var(--lm-line);
+  border: 1px solid var(--attendance-late-border);
   background: linear-gradient(155deg, rgba(251, 240, 211, 0.92), rgba(251, 240, 211, 0.62));
-  -webkit-backdrop-filter: var(--blur-sm);
-  backdrop-filter: var(--blur-sm);
-  border-radius: var(--radius);
+  -webkit-backdrop-filter: var(--backdrop-blur-small);
+  backdrop-filter: var(--backdrop-blur-small);
+  border-radius: var(--border-radius);
   margin-bottom: 16px;
   flex-wrap: wrap;
   box-shadow:
-    var(--shadow),
+    var(--shadow-card),
     inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
-.run-banner .state {
-  font: 700 12px var(--mono);
+.payroll-run-banner .payroll-run-status {
+  font: 700 12px var(--font-monospace);
   letter-spacing: 0.1em;
-  color: var(--lm);
+  color: var(--attendance-late);
 }
-.run-banner .tl {
+.payroll-run-banner .payroll-run-details {
   display: flex;
   gap: 0;
   align-items: center;
-  font: 500 11.5px var(--mono);
-  color: var(--ink-2);
+  font: 500 11.5px var(--font-monospace);
+  color: var(--text-secondary);
   flex-wrap: wrap;
 }
-.run-banner .tl b {
-  color: var(--ink);
+.payroll-run-banner .payroll-run-details b {
+  color: var(--text-primary);
 }
-.run-banner .tl .seg {
+.payroll-run-banner .payroll-run-details .payroll-run-detail {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 0 14px;
-  border-left: 1px dashed var(--lm-line);
+  border-left: 1px dashed var(--attendance-late-border);
 }
-.run-banner .tl .seg:first-child {
+.payroll-run-banner .payroll-run-details .payroll-run-detail:first-child {
   border-left: 0;
   padding-left: 0;
 }
-.totals {
+.payroll-totals {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 12px;
   margin-bottom: 16px;
 }
-.totals .card {
+.payroll-totals .card {
   padding: 13px 15px;
 }
-.totals .lab {
-  font: 600 10px var(--mono);
+.payroll-totals .metric-label {
+  font: 600 10px var(--font-monospace);
   letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--text-muted);
 }
-.totals .val {
-  font: 600 19px var(--mono);
+.payroll-totals .metric-value {
+  font: 600 19px var(--font-monospace);
   margin-top: 5px;
-  color: var(--ink);
+  color: var(--text-primary);
 }
-.adj input {
+.payroll-adjustments input {
   width: 112px;
   padding: 7px 10px;
-  border: 1px solid var(--edge);
+  border: 1px solid var(--border-surface);
   border-radius: 9px;
-  font: 500 12px var(--mono);
+  font: 500 12px var(--font-monospace);
   text-align: right;
   background: linear-gradient(180deg, #e7ecf4, #f6f8fc);
-  color: var(--ink);
-  box-shadow: var(--nu-press);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-inset);
   transition:
-    border-color var(--t-fast) var(--ease),
-    box-shadow var(--t-fast) var(--ease);
+    border-color var(--transition-fast) var(--easing-standard),
+    box-shadow var(--transition-fast) var(--easing-standard);
 }
-.adj input:focus {
+.payroll-adjustments input:focus {
   border-color: rgba(14, 122, 143, 0.45);
   outline: none;
-  box-shadow: var(--nu-press), var(--ring);
+  box-shadow: var(--shadow-inset), var(--focus-ring);
 }
-.wapill {
-  border-color: var(--od-line);
-  background: var(--od-bg);
-  color: var(--od);
+.payslip-status {
+  border-color: var(--attendance-outdoor-duty-border);
+  background: var(--attendance-outdoor-duty-background);
+  color: var(--attendance-outdoor-duty);
 }
 
 /* payroll & KPI figures align like a ledger */
-.totals .val {
+.payroll-totals .metric-value {
   font-variant-numeric: tabular-nums;
 }
 
 /* responsive */
 @media (max-width: 1120px) {
-  .totals {
+  .payroll-totals {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
 /* Phones proper. */
 @media (max-width: 640px) {
-  .totals {
+  .payroll-totals {
     grid-template-columns: 1fr;
   }
 
-  /* 16px is the threshold below which iOS Safari zooms the page on focus and never zooms back — the single most disorienting mobile form bug there is. Every text control gets it, not just .f input. */
-  .adj input {
+  /* 16px is the threshold below which iOS Safari zooms the page on focus and never zooms back — the single most disorienting mobile form bug there is. Every text control gets it, not just .form-field input. */
+  .payroll-adjustments input {
     font-size: 16px;
   }
 }
 
 /* Print */
 @media print {
-  .run-banner {
+  .payroll-run-banner {
     background: #fff !important;
     box-shadow: none !important;
     border-color: #bfbfbf !important;

@@ -169,8 +169,8 @@ function EmployeesScreen({
   }
 
   return (
-    <div className="wrap">
-      <div className="emp-top employees-toolbar">
+    <div className="content-container">
+      <div className="records-toolbar employees-toolbar">
         <EmployeePicker
           label="Find employee"
           employees={editOptions}
@@ -185,7 +185,7 @@ function EmployeesScreen({
           }}
           disabled={pending}
         />
-        <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
+        <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
           {activeCount} active{inactiveCount ? ` · ${inactiveCount} inactive` : ''}
         </span>
         {inactiveCount > 0 && (
@@ -195,7 +195,7 @@ function EmployeesScreen({
               alignItems: 'center',
               gap: 6,
               fontSize: 13,
-              color: 'var(--ink-2)',
+              color: 'var(--text-secondary)',
             }}
           >
             <input
@@ -206,7 +206,7 @@ function EmployeesScreen({
             Show inactive
           </label>
         )}
-        <button className="btn primary" onClick={openAdd}>
+        <button className="button primary" onClick={openAdd}>
           + Add employee
         </button>
       </div>
@@ -223,7 +223,7 @@ function EmployeesScreen({
                 <th>Branch</th>
                 <th>Gender</th>
                 <th>Joined</th>
-                <th className="right">Gross / mo</th>
+                <th className="text-right">Gross / mo</th>
                 <th>PF UAN</th>
                 <th>ESIC</th>
                 <th>Status</th>
@@ -233,13 +233,13 @@ function EmployeesScreen({
             <tbody>
               {filtered.map((e) => (
                 <tr key={e.code}>
-                  <td className="mono muted">{e.code}</td>
+                  <td className="text-monospace text-muted">{e.code}</td>
                   <td>
                     <b>{e.name}</b>
                   </td>
                   <td>
                     <span
-                      className="pill"
+                      className="status-badge"
                       style={{
                         borderColor: branchColor(e.branch),
                         color: branchColor(e.branch),
@@ -249,26 +249,26 @@ function EmployeesScreen({
                     </span>
                   </td>
                   <td>{e.gender}</td>
-                  <td className="mono">{e.doj}</td>
-                  <td className="right mono">{inr(e.gross)}</td>
-                  <td className="mono muted">{e.uan}</td>
-                  <td className="mono muted">{e.esic_no ?? '—'}</td>
+                  <td className="text-monospace">{e.doj}</td>
+                  <td className="text-right text-monospace">{inr(e.gross)}</td>
+                  <td className="text-monospace text-muted">{e.uan}</td>
+                  <td className="text-monospace text-muted">{e.esic_no ?? '—'}</td>
                   <td>
                     {e.active ? (
                       <span
-                        className="pill"
+                        className="status-badge"
                         style={{
-                          borderColor: 'var(--p-line)',
-                          color: 'var(--p)',
-                          background: 'var(--p-bg)',
+                          borderColor: 'var(--attendance-present-border)',
+                          color: 'var(--attendance-present)',
+                          background: 'var(--attendance-present-background)',
                         }}
                       >
                         Active
                       </span>
                     ) : (
                       <span
-                        className="pill"
-                        style={{ borderColor: 'var(--line-2)', color: 'var(--ink-3)' }}
+                        className="status-badge"
+                        style={{ borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }}
                       >
                         Inactive
                       </span>
@@ -279,14 +279,14 @@ function EmployeesScreen({
                       {e.active ? (
                         <>
                           <button
-                            className="btn quiet"
+                            className="button quiet"
                             onClick={() => openEdit(e.code)}
                             disabled={pending && busyCode === e.code}
                           >
                             {pending && busyCode === e.code ? '…' : 'Edit'}
                           </button>
                           <button
-                            className="btn quiet"
+                            className="button quiet"
                             onClick={() => onDeactivate(e.code, e.name)}
                             disabled={pending && busyCode === e.code}
                             title="Deactivate this employee"
@@ -297,7 +297,7 @@ function EmployeesScreen({
                       ) : (
                         <>
                           <button
-                            className="btn quiet"
+                            className="button quiet"
                             onClick={() => onReactivate(e.code, e.name)}
                             disabled={pending}
                             title="Reactivate this employee"
@@ -307,7 +307,7 @@ function EmployeesScreen({
                           {e.status === 'inactive' && (
                             <button
                               type="button"
-                              className="btn danger"
+                              className="button danger"
                               onClick={() => onDelete(e.code, e.name)}
                               disabled={pending}
                               title="Delete this inactive employee from the list"
@@ -323,7 +323,7 @@ function EmployeesScreen({
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td className="muted" colSpan={10} style={{ textAlign: 'center' }}>
+                  <td className="text-muted" colSpan={10} style={{ textAlign: 'center' }}>
                     {q ? `No employees match “${q}”.` : 'No employees yet.'}
                   </td>
                 </tr>

@@ -9,15 +9,15 @@
   gap: 6px;
   padding: 6px 8px;
   min-height: 44px;
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--border-strong);
   border-radius: 10px;
   background: #fff;
 }
 .recipient-tags:focus-within {
   border-color: var(--brand);
-  box-shadow: var(--ring);
+  box-shadow: var(--focus-ring);
 }
-.f .recipient-tags input:not([type='hidden']) {
+.form-field .recipient-tags input:not([type='hidden']) {
   flex: 1 1 170px;
   width: auto;
   min-width: 100px;
@@ -55,9 +55,9 @@
   max-height: 270px;
   overflow-y: auto;
   background: #fff;
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--border-strong);
   border-radius: 10px;
-  box-shadow: var(--shadow-lift);
+  box-shadow: var(--shadow-elevated);
 }
 .recipient-options button {
   display: flex;
@@ -67,9 +67,9 @@
   padding: 10px 12px;
   text-align: left;
   border: 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--border-subtle);
   background: #fff;
-  color: var(--ink);
+  color: var(--text-primary);
   cursor: pointer;
   overflow-wrap: anywhere;
 }
@@ -81,7 +81,7 @@
 .recipient-options small,
 .recipient-hint {
   font-size: 11px;
-  color: var(--ink-3);
+  color: var(--text-muted);
 }
 .recipient-options p {
   padding: 0 12px;
@@ -111,10 +111,10 @@
 .request-decision {
   padding-top: 14px;
   margin-top: 16px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--border-subtle);
   font-size: 13px;
 }
-.request-decision .acts {
+.request-decision .request-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -139,7 +139,7 @@
   flex-wrap: wrap;
   gap: 14px;
   padding: 12px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
   font-size: 12px;
 }

@@ -43,22 +43,22 @@ function AddItemDrawer({
 
   return (
     <>
-      <div className={`overlay${open ? ' on' : ''}`} onClick={onClose} />
+      <div className={`dialog-backdrop${open ? ' is-active' : ''}`} onClick={onClose} />
       <aside
-        className={`drawer${open ? ' on' : ''}`}
+        className={`drawer${open ? ' is-active' : ''}`}
         aria-label={editing ? 'Edit material / tool' : 'Add material / tool'}
       >
         <form key={item?.id ?? 'new'} action={formAction} style={{ display: 'contents' }}>
           {editing && <input type="hidden" name="id" value={item!.id} />}
-          <div className="dhd">
+          <div className="drawer-header">
             <h3>{editing ? 'Edit material / tool' : 'Add material / tool'}</h3>
             <span style={{ flex: 1 }} />
-            <button type="button" className="btn quiet" onClick={onClose}>
+            <button type="button" className="button quiet" onClick={onClose}>
               ✕
             </button>
           </div>
-          <div className="dbd">
-            <div className="f-row">
+          <div className="drawer-body">
+            <div className="form-row">
               <Field
                 name="item_name"
                 label="Name"
@@ -73,7 +73,7 @@ function AddItemDrawer({
                 defaultValue={item?.item_code ?? undefined}
               />
             </div>
-            <div className="f-row">
+            <div className="form-row">
               <Field
                 name="category"
                 label="Category"
@@ -94,8 +94,8 @@ function AddItemDrawer({
               defaultValue={item?.size_spec ?? undefined}
             />
 
-            <div className="fold">Stock</div>
-            <div className="f-row">
+            <div className="section-heading">Stock</div>
+            <div className="form-row">
               <Field
                 name="total_quantity"
                 label="Total quantity"
@@ -110,7 +110,7 @@ function AddItemDrawer({
                 defaultValue={item?.unit ?? undefined}
               />
             </div>
-            <div className="f-row">
+            <div className="form-row">
               <SelectField
                 name="returnable"
                 label="Returnable"
@@ -136,13 +136,13 @@ function AddItemDrawer({
               </div>
             )}
 
-            {state.error && <div className="login-error">{state.error}</div>}
+            {state.error && <div className="error-message">{state.error}</div>}
           </div>
-          <div className="dft">
-            <button type="button" className="btn" onClick={onClose}>
+          <div className="drawer-footer">
+            <button type="button" className="button" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn primary" disabled={pending}>
+            <button type="submit" className="button primary" disabled={pending}>
               {pending ? 'Saving…' : editing ? 'Save changes' : 'Save material / tool'}
             </button>
           </div>
@@ -168,11 +168,11 @@ function Field({
   mono?: boolean;
 }) {
   return (
-    <div className="f">
+    <div className="form-field">
       <label>{label}</label>
       <input
         name={name}
-        className={mono ? 'mono' : undefined}
+        className={mono ? 'text-monospace' : undefined}
         placeholder={placeholder}
         defaultValue={defaultValue}
         type={type}
@@ -193,7 +193,7 @@ function SelectField({
   defaultValue?: string;
 }) {
   return (
-    <div className="f">
+    <div className="form-field">
       <label>{label}</label>
       <select name={name} defaultValue={defaultValue}>
         {options.map((o) => (

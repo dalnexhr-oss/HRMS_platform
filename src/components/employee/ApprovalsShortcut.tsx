@@ -9,7 +9,7 @@ function ApprovalsShortcut() {
   return (
     <Link
       href="/employee/approvals"
-      className={`btn ${active ? 'primary' : 'quiet'}`}
+      className={`button ${active ? 'primary' : 'quiet'}`}
       aria-label="My approvals"
       title="My approvals"
       aria-current={active ? 'page' : undefined}

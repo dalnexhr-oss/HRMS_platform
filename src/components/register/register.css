@@ -1,138 +1,138 @@
 /* The register is a dense grid: it keeps a solid-ish ground so the hairlines and stamps stay crisp instead of swimming in blur. */
-.register {
+.attendance-register {
   overflow: hidden;
   background: rgba(255, 255, 255, 0.8);
 }
-.reg-scroll {
+.attendance-scroll {
   overflow-x: auto;
 }
-.reg-table {
+.attendance-grid {
   display: grid;
   grid-template-columns: 250px 1fr;
   min-width: 0;
 }
-.reg-left {
-  border-right: 1px solid var(--line-2);
+.attendance-identity-column {
+  border-right: 1px solid var(--border-strong);
 }
-.reg-days {
+.attendance-days-scroll {
   overflow-x: auto;
 }
-.rrow {
+.attendance-row {
   display: grid;
   grid-template-columns: 250px 1fr;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--border-subtle);
 }
-.rrow:last-child {
+.attendance-row:last-child {
   border-bottom: 0;
 }
-.rrow.hd-row {
-  background: var(--card-2);
+.attendance-row.attendance-header-row {
+  background: var(--surface-inset);
 }
-.emp-cell {
+.attendance-employee-cell {
   padding: 12px 14px;
-  border-right: 1px solid var(--line);
+  border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
   gap: 6px;
   justify-content: center;
-  color: var(--ink);
+  color: var(--text-primary);
 }
-.emp-cell .nm {
+.attendance-employee-cell .employee-name {
   font-weight: 600;
-  color: var(--ink);
+  color: var(--text-primary);
 }
-.emp-cell .meta {
-  font: 500 11px var(--mono);
-  color: var(--ink-3);
+.attendance-employee-cell .entry-details {
+  font: 500 11px var(--font-monospace);
+  color: var(--text-muted);
 }
-.emp-cell .sums {
+.attendance-employee-cell .attendance-summary {
   display: flex;
   gap: 10px;
-  font: 600 11px var(--mono);
-  color: var(--ink-2);
+  font: 600 11px var(--font-monospace);
+  color: var(--text-secondary);
 }
-.emp-cell .sums b {
-  color: var(--ink);
+.attendance-employee-cell .attendance-summary b {
+  color: var(--text-primary);
 }
-.hrsbar {
+.worked-hours-bar {
   height: 7px;
   border-radius: 99px;
-  background: var(--card-2);
+  background: var(--surface-inset);
   overflow: hidden;
-  box-shadow: var(--nu-press);
+  box-shadow: var(--shadow-inset);
 }
-.hrsbar i {
+.worked-hours-bar i {
   display: block;
   height: 100%;
   border-radius: 99px;
-  background: linear-gradient(90deg, #1e9159, var(--p));
+  background: linear-gradient(90deg, #1e9159, var(--attendance-present));
 }
-.hrsbar.short i {
-  background: linear-gradient(90deg, #d4761c, var(--hd));
+.worked-hours-bar.has-hours-shortfall i {
+  background: linear-gradient(90deg, #d4761c, var(--attendance-half-day));
 }
-.daystrip {
+.attendance-days {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 44px;
   align-items: stretch;
 }
-.dhead {
+.attendance-day-header {
   padding: 8px 0 6px;
   text-align: center;
-  border-left: 1px solid var(--line);
-  color: var(--ink);
+  border-left: 1px solid var(--border-subtle);
+  color: var(--text-primary);
 }
-.dhead .dw {
-  font: 600 9px var(--mono);
+.attendance-day-header .weekday-label {
+  font: 600 9px var(--font-monospace);
   letter-spacing: 0.08em;
-  color: var(--ink-3);
+  color: var(--text-muted);
 }
-.dhead .dn {
-  font: 600 12px var(--mono);
-  color: var(--ink);
+.attendance-day-header .day-number {
+  font: 600 12px var(--font-monospace);
+  color: var(--text-primary);
 }
-.dhead.wo-col {
-  background: var(--wo-bg);
+.attendance-day-header.is-weekly-off {
+  background: var(--attendance-weekly-off-background);
 }
-.dcell {
-  border-left: 1px solid var(--line);
+.attendance-day-cell {
+  border-left: 1px solid var(--border-subtle);
   display: grid;
   place-items: center;
   padding: 8px 3px;
   min-height: 52px;
-  color: var(--ink);
+  color: var(--text-primary);
 }
-.dcell.wo-col {
+.attendance-day-cell.is-weekly-off {
   background: linear-gradient(180deg, rgba(226, 231, 238, 0.7), rgba(214, 222, 232, 0.7));
 }
-.dcell .tms {
+.attendance-day-cell .punch-times {
   display: none;
-  font: 500 9px/1.5 var(--mono);
-  color: var(--ink-2);
+  font: 500 9px/1.5 var(--font-monospace);
+  color: var(--text-secondary);
   text-align: center;
   margin-top: 4px;
 }
-.rrow.open .dcell {
+.attendance-row.is-open .attendance-day-cell {
   min-height: 88px;
   align-content: center;
 }
-.rrow.open .dcell .tms {
+.attendance-row.is-open .attendance-day-cell .punch-times {
   display: block;
 }
 
 /* tidy scrollbars on every inner scroller */
-.reg-scroll,
-.reg-days {
+.attendance-scroll,
+.attendance-days-scroll {
   scrollbar-width: thin;
   scrollbar-color: rgba(143, 164, 197, 0.7) transparent;
 }
-.reg-scroll::-webkit-scrollbar,
-.reg-days::-webkit-scrollbar {
+.attendance-scroll::-webkit-scrollbar,
+.attendance-days-scroll::-webkit-scrollbar {
   width: 9px;
   height: 9px;
 }
-.reg-scroll::-webkit-scrollbar-thumb,
-.reg-days::-webkit-scrollbar-thumb {
+.attendance-scroll::-webkit-scrollbar-thumb,
+.attendance-days-scroll::-webkit-scrollbar-thumb {
   background: rgba(143, 164, 197, 0.6);
   border-radius: 99px;
   border: 2px solid transparent;
@@ -140,26 +140,26 @@
 }
 @media (max-width: 860px) {
   /* The register's frozen name column is 250px of a 390px screen. */
-  .reg-table,
-  .rrow {
+  .attendance-grid,
+  .attendance-row {
     grid-template-columns: 150px 1fr;
   }
 }
 
 /* Print */
 @media print {
-  .register {
+  .attendance-register {
     max-height: none;
     overflow: visible;
   }
-  .register {
+  .attendance-register {
     background: #fff !important;
     box-shadow: none !important;
     border-color: #bfbfbf !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
   }
-  .rrow.hd-row {
+  .attendance-row.attendance-header-row {
     background: #f4f4f4 !important;
     box-shadow: none !important;
   }

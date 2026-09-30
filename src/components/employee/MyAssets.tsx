@@ -5,13 +5,13 @@ import type { MyAssetRow } from '@/lib/queries';
 function MyAssets({ assets, id }: { assets: MyAssetRow[]; id?: string }) {
   return (
     <div className="card" id={id}>
-      <div className="hd">
+      <div className="card-header">
         <h3>My assets</h3>
-        <span className="folio">{assets.length} assigned to you</span>
+        <span className="card-caption">{assets.length} assigned to you</span>
       </div>
-      <div className="bd">
+      <div className="card-body">
         {assets.length === 0 ? (
-          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
             No IT asset is assigned to you.
           </p>
         ) : (
@@ -33,9 +33,9 @@ function MyAssets({ assets, id }: { assets: MyAssetRow[]; id?: string }) {
                       <b>{a.desktop_name}</b>
                     </td>
                     <td>{a.brand ?? '—'}</td>
-                    <td className="mono">{a.serial_no ?? '—'}</td>
+                    <td className="text-monospace">{a.serial_no ?? '—'}</td>
                     <td>{a.model_no ?? '—'}</td>
-                    <td className="mono">{a.assigned_date ? formatDate(a.assigned_date) : '—'}</td>
+                    <td className="text-monospace">{a.assigned_date ? formatDate(a.assigned_date) : '—'}</td>
                   </tr>
                 ))}
               </tbody>

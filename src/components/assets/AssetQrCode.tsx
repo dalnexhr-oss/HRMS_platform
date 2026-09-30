@@ -5,7 +5,7 @@ function AssetQrCode({ url, name }: { url: string | null; name: string }) {
   const link = parseAssetLink(url);
   if (!link.ok || !link.url) {
     return (
-      <p className="muted">Add and save a destination link to generate this asset’s QR code.</p>
+      <p className="text-muted">Add and save a destination link to generate this asset’s QR code.</p>
     );
   }
 
@@ -27,7 +27,7 @@ function AssetQrCode({ url, name }: { url: string | null; name: string }) {
       >
         Open linked page
       </a>
-      <span className="muted" style={{ fontSize: 12 }}>
+      <span className="text-muted" style={{ fontSize: 12 }}>
         Scan to open the saved link. The destination may require a login.
       </span>
     </div>

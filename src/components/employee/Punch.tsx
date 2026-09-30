@@ -26,38 +26,38 @@ function Punch({ id }: { id?: string }) {
   return (
     <div className="card punch" id={id}>
       {toastNode}
-      <div className="hd">
+      <div className="card-header">
         <h3>Attendance clock</h3>
-        <span className="folio">Today</span>
+        <span className="card-caption">Today</span>
       </div>
-      <div className="bd">
+      <div className="card-body">
         {state?.lastNightSweep && (
-          <p className="punch-alert is-warn" role="alert">
+          <p className="punch-alert is-warning" role="alert">
             <b>Missed punch-out.</b> {state.lastNightSweep.message}
           </p>
         )}
         {loading ? (
-          <div className="punch-face">
-            <div className="bone bone-stamp" />
-            <div className="bone bone-title" style={{ marginTop: 12 }} />
+          <div className="punch-clock-layout">
+            <div className="loading-placeholder loading-status" />
+            <div className="loading-placeholder loading-title" style={{ marginTop: 12 }} />
           </div>
         ) : !state ? (
-          <p className="punch-alert is-bad" role="alert">
+          <p className="punch-alert is-error" role="alert">
             {loadError ?? 'Could not load your clock.'}
           </p>
         ) : (
-          <div className="punch-face">
-            <div className="punch-read">
-              <span className={`punch-state${isIn ? ' on' : ''}`}>
-                <i className="dot" />
+          <div className="punch-clock-layout">
+            <div className="punch-summary">
+              <span className={`punch-status${isIn ? ' is-active' : ''}`}>
+                <i className="status-dot" />
                 {isIn ? 'Punched in' : 'Punched out'}
               </span>
-              <div className="punch-elapsed mono">{duration(worked)}</div>
-              <div className="punch-meta muted">
+              <div className="punch-elapsed text-monospace">{duration(worked)}</div>
+              <div className="punch-details text-muted">
                 {state.lastPunchAt ? (
                   <>
                     Last {state.lastKind === 'in' ? 'in' : 'out'} at{' '}
-                    <b className="mono">{clock(state.lastPunchAt)}</b>
+                    <b className="text-monospace">{clock(state.lastPunchAt)}</b>
                     <GeoChip
                       withinGeofence={state.lastWithinGeofence}
                       lat={state.lastLat}
@@ -72,7 +72,7 @@ function Punch({ id }: { id?: string }) {
 
             <button
               type="button"
-              className={`btn punch-btn${isIn ? ' danger' : ' primary'}`}
+              className={`button punch-button${isIn ? ' danger' : ' primary'}`}
               onClick={() => void punch()}
               disabled={pending || !state || !webPunchAllowed}
               aria-describedby={!webPunchAllowed ? 'device-punch-help' : undefined}
@@ -84,19 +84,19 @@ function Punch({ id }: { id?: string }) {
         )}
 
         {state && !webPunchAllowed && (
-          <p id="device-punch-help" className="punch-note muted">
+          <p id="device-punch-help" className="punch-note text-muted">
             Use the ZKTeco machine to punch in or out. Your attendance and worked time appear here.
           </p>
         )}
 
         {/* Browser location applies only to employees with web punch access. */}
         {webPunchAllowed && state && (blocked === 'denied' || permission === 'denied') ? (
-          <p className="punch-alert is-bad" role="alert">
+          <p className="punch-alert is-error" role="alert">
             <b>Location is blocked.</b> {failureText.denied}
             {state.requireLocation ? ' You cannot punch until it is allowed.' : ''}
           </p>
         ) : webPunchAllowed && state && blocked ? (
-          <p className="punch-alert is-warn" role="alert">
+          <p className="punch-alert is-warning" role="alert">
             {failureText[blocked]}
           </p>
         ) : webPunchAllowed &&
@@ -109,7 +109,7 @@ function Punch({ id }: { id?: string }) {
         ) : null}
 
         {webPunchAllowed && state && !state.geofenceConfigured ? (
-          <p className="punch-note muted">
+          <p className="punch-note text-muted">
             No office location is configured yet, so punches are recorded but not marked at-office
             or off-site. An admin can set one under Settings.
           </p>

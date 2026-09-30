@@ -154,11 +154,11 @@ function UsersScreen({
 
   if (loadError) {
     return (
-      <div className="wrap users-screen">
+      <div className="content-container users-screen">
         <div className="card">
-          <div className="bd">
-            <div className="login-error">{loadError}</div>
-            <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>
+          <div className="card-body">
+            <div className="error-message">{loadError}</div>
+            <p className="text-muted" style={{ fontSize: 12, marginTop: 10 }}>
               User administration writes the users collection directly, which needs the database on
               the server. Nothing is shown rather than a misleading empty list.
             </p>
@@ -169,14 +169,14 @@ function UsersScreen({
   }
 
   return (
-    <div className="wrap grid users-screen">
+    <div className="content-container grid users-screen">
       {promptDialog}
       {toastNode}
-      <div className="emp-top users-toolbar">
-        <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
+      <div className="records-toolbar users-toolbar">
+        <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
           {users.length} account{users.length === 1 ? '' : 's'}
         </span>
-        <button className="btn primary" onClick={() => setDrawer(true)}>
+        <button className="button primary" onClick={() => setDrawer(true)}>
           + Add user
         </button>
       </div>
@@ -184,12 +184,12 @@ function UsersScreen({
       <div className="card users-table-card">
         <table className="users-table" role="table" aria-label="User accounts">
           <colgroup>
-            <col className="users-col-account" />
-            <col className="users-col-role" />
-            <col className="users-col-employee" />
-            <col className="users-col-punch" />
-            <col className="users-col-signin" />
-            <col className="users-col-actions" />
+            <col className="users-column-account" />
+            <col className="users-column-role" />
+            <col className="users-column-employee" />
+            <col className="users-column-punch" />
+            <col className="users-column-signin" />
+            <col className="users-column-actions" />
           </colgroup>
           <thead>
             <tr>
@@ -206,7 +206,7 @@ function UsersScreen({
               <tr key={u.id} role="row">
                 <td className="users-account" data-label="Account" role="cell">
                   <b>{u.fullName ?? '—'}</b>
-                  <span className="mono muted users-email">{u.email}</span>
+                  <span className="text-monospace text-muted users-email">{u.email}</span>
                 </td>
                 <td data-label="Role" role="cell">
                   <select
@@ -236,10 +236,10 @@ function UsersScreen({
                   {u.employeeCode ? (
                     <>
                       <span>{u.employeeName}</span>
-                      <span className="mono muted users-employee-code">{u.employeeCode}</span>
+                      <span className="text-monospace text-muted users-employee-code">{u.employeeCode}</span>
                     </>
                   ) : (
-                    <span className="muted">—</span>
+                    <span className="text-muted">—</span>
                   )}
                 </td>
                 <td data-label="Punch in/out access" role="cell">
@@ -259,7 +259,7 @@ function UsersScreen({
                     }}
                   />
                 </td>
-                <td className="mono muted" data-label="Last sign-in" role="cell">
+                <td className="text-monospace text-muted" data-label="Last sign-in" role="cell">
                   {stamp(u.lastSignInAt)}
                 </td>
                 <td className="users-actions-cell" data-label="Actions" role="cell">
@@ -293,7 +293,7 @@ function UsersScreen({
             ))}
             {users.length === 0 && (
               <tr className="users-empty">
-                <td className="muted" colSpan={6} style={{ textAlign: 'center' }}>
+                <td className="text-muted" colSpan={6} style={{ textAlign: 'center' }}>
                   No login accounts yet.
                 </td>
               </tr>
@@ -302,7 +302,7 @@ function UsersScreen({
         </table>
       </div>
 
-      <p className="muted" style={{ fontSize: 12 }}>
+      <p className="text-muted" style={{ fontSize: 12 }}>
         New accounts are created with the password you set and can sign in immediately. They can
         change it themselves from <b>My account</b>, or use <b>Forgot your password?</b> on the
         sign-in page. Only an admin can create or grant the admin role.
@@ -358,37 +358,37 @@ function AddUserDrawer({
 
   return (
     <>
-      <div className={`overlay${open ? ' on' : ''}`} onClick={onClose} />
-      <aside className={`drawer${open ? ' on' : ''}`} aria-label="Add user">
+      <div className={`dialog-backdrop${open ? ' is-active' : ''}`} onClick={onClose} />
+      <aside className={`drawer${open ? ' is-active' : ''}`} aria-label="Add user">
         <form action={action} style={{ display: 'contents' }}>
-          <div className="dhd">
+          <div className="drawer-header">
             <h3>Add user</h3>
             <span style={{ flex: 1 }} />
-            <button type="button" className="btn quiet" onClick={onClose}>
+            <button type="button" className="button quiet" onClick={onClose}>
               ✕
             </button>
           </div>
-          <div className="dbd">
-            <div className="f">
+          <div className="drawer-body">
+            <div className="form-field">
               <label>Full name</label>
               <input name="full_name" placeholder="e.g. Meera Kulkarni" required />
             </div>
-            <div className="f">
+            <div className="form-field">
               <label>Email</label>
               <input
                 name="email"
                 type="email"
-                className="mono"
+                className="text-monospace"
                 placeholder="name@dalnex.com"
                 required
               />
             </div>
-            <div className="f">
+            <div className="form-field">
               <label>Temporary password</label>
               <input
                 name="password"
                 type="text"
-                className="mono"
+                className="text-monospace"
                 minLength={8}
                 placeholder="min 8 characters"
                 required
@@ -398,8 +398,8 @@ function AddUserDrawer({
               </span>
             </div>
 
-            <div className="fold">Access</div>
-            <div className="f">
+            <div className="section-heading">Access</div>
+            <div className="form-field">
               <label>Role</label>
               <select name="role" value={role} onChange={(e) => setRole(e.target.value as AppRole)}>
                 {assignable.map((r) => (
@@ -422,7 +422,7 @@ function AddUserDrawer({
               }
             />
 
-            <div className="f">
+            <div className="form-field">
               <label htmlFor="new-user-punch-access">Punch in/out access</label>
               <PunchAccessSelect
                 id="new-user-punch-access"
@@ -437,13 +437,13 @@ function AddUserDrawer({
               </span>
             </div>
 
-            {state.error && <div className="login-error">{state.error}</div>}
+            {state.error && <div className="error-message">{state.error}</div>}
           </div>
-          <div className="dft">
-            <button type="button" className="btn" onClick={onClose}>
+          <div className="drawer-footer">
+            <button type="button" className="button" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn primary" disabled={pending}>
+            <button type="submit" className="button primary" disabled={pending}>
               {pending ? 'Creating…' : 'Create user'}
             </button>
           </div>

@@ -81,16 +81,16 @@ function EmployeeScreen({ initial }: { initial: BoardData }) {
   const { totals } = board;
 
   return (
-    <div className="tv">
-      <header className="card tv-head">
-        <div className="tv-head-brand">
+    <div className="tv-dashboard-content">
+      <header className="card tv-dashboard-header">
+        <div className="tv-dashboard-brand">
           {/* The real mark, not a retyped wordmark — same component as the sidebar and the login card, sized for the wall in globals.css. */}
           <Brand href="/dashboard" priority />
           <p>TV dashboard</p>
         </div>
 
-        <div className="tv-clock">
-          <span className="tv-time mono">
+        <div className="tv-dashboard-clock">
+          <span className="tv-dashboard-time text-monospace">
             {now
               ? new Intl.DateTimeFormat('en-IN', {
                   hour: '2-digit',
@@ -100,7 +100,7 @@ function EmployeeScreen({ initial }: { initial: BoardData }) {
                 }).format(now)
               : '--:--'}
           </span>
-          <span className="tv-date">
+          <span className="tv-dashboard-date">
             {new Intl.DateTimeFormat('en-IN', {
               weekday: 'long',
               day: 'numeric',
@@ -111,34 +111,34 @@ function EmployeeScreen({ initial }: { initial: BoardData }) {
         </div>
       </header>
 
-      <div className="kpis tv-kpis">
-        <div className="card kpi tv-kpi is-in">
-          <div className="lab">{presenceLabel.in}</div>
-          <div className="val">{totals.in}</div>
+      <div className="summary-cards tv-dashboard-summary-cards">
+        <div className="card summary-card tv-dashboard-summary-card is-in">
+          <div className="metric-label">{presenceLabel.in}</div>
+          <div className="metric-value">{totals.in}</div>
         </div>
-        <div className="card kpi tv-kpi">
-          <div className="lab">{presenceLabel.out}</div>
-          <div className="val">{totals.out}</div>
+        <div className="card summary-card tv-dashboard-summary-card">
+          <div className="metric-label">{presenceLabel.out}</div>
+          <div className="metric-value">{totals.out}</div>
         </div>
-        <div className="card kpi tv-kpi">
-          <div className="lab">{presenceLabel.awaited}</div>
-          <div className="val">{totals.awaited}</div>
+        <div className="card summary-card tv-dashboard-summary-card">
+          <div className="metric-label">{presenceLabel.awaited}</div>
+          <div className="metric-value">{totals.awaited}</div>
         </div>
-        <div className="card kpi tv-kpi">
-          <div className="lab">Total employees</div>
-          <div className="val">{totals.headcount}</div>
+        <div className="card summary-card tv-dashboard-summary-card">
+          <div className="metric-label">Total employees</div>
+          <div className="metric-value">{totals.headcount}</div>
         </div>
       </div>
 
       {stale ? (
-        <p className="tv-stale" role="status">
+        <p className="tv-dashboard-stale-notice" role="status">
           Connection lost — showing the last update received.
         </p>
       ) : null}
 
-      <div className="tv-body">
+      <div className="tv-dashboard-body">
         {board.rows.length === 0 ? (
-          <p className="card tv-empty">No active employees to show.</p>
+          <p className="card tv-dashboard-empty">No active employees to show.</p>
         ) : (
           bands.map((key) => {
             const rows = board.rows.filter((row) => row.presence === key);
@@ -146,13 +146,13 @@ function EmployeeScreen({ initial }: { initial: BoardData }) {
               return null;
             }
             return (
-              <section className="card tv-band" key={key}>
-                <div className="hd">
+              <section className="card tv-dashboard-group" key={key}>
+                <div className="card-header">
                   <h3>{presenceLabel[key]}</h3>
-                  <span className="pill tv-band-n">{rows.length}</span>
+                  <span className="status-badge tv-dashboard-group-count">{rows.length}</span>
                 </div>
-                <div className="bd">
-                  <div className="tv-grid">
+                <div className="card-body">
+                  <div className="tv-dashboard-grid">
                     {rows.map((row) => (
                       <EmployeeCard key={row.id} employee={row} />
                     ))}

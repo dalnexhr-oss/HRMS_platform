@@ -122,18 +122,18 @@ function AssignAssetDrawer({
 
   return (
     <>
-      <div className={`overlay${open ? ' on' : ''}`} onClick={onClose} />
-      <aside className={`drawer${open ? ' on' : ''}`} aria-label="Asset detail">
+      <div className={`dialog-backdrop${open ? ' is-active' : ''}`} onClick={onClose} />
+      <aside className={`drawer${open ? ' is-active' : ''}`} aria-label="Asset detail">
         {asset && (
           <>
-            <div className="dhd">
+            <div className="drawer-header">
               <h3>{asset.desktop_name}</h3>
               <span style={{ flex: 1 }} />
-              <button type="button" className="btn quiet" onClick={onClose}>
+              <button type="button" className="button quiet" onClick={onClose}>
                 ✕
               </button>
             </div>
-            <div className="dbd">
+            <div className="drawer-body">
               {asset.assigned_employee_id ? (
                 <div className="hint">
                   Currently held by <b>{asset.assigned_person_name ?? '—'}</b>
@@ -155,13 +155,13 @@ function AssignAssetDrawer({
                   required
                   disabled={submitting}
                 />
-                <div className="f">
+                <div className="form-field">
                   <label>Remarks</label>
                   <input name="remarks" placeholder="Optional note for the history" />
                 </div>
-                {state.error && <div className="login-error">{state.error}</div>}
+                {state.error && <div className="error-message">{state.error}</div>}
                 <div style={{ margin: '4px 0 8px' }}>
-                  <button type="submit" className="btn primary" disabled={submitting}>
+                  <button type="submit" className="button primary" disabled={submitting}>
                     {submitting ? 'Assigning…' : asset.assigned_employee_id ? 'Reassign' : 'Assign'}
                   </button>
                 </div>
@@ -169,11 +169,11 @@ function AssignAssetDrawer({
 
               {asset.assigned_employee_id && (
                 <>
-                  <div className="fold">Return</div>
-                  {rowError && <div className="login-error">{rowError}</div>}
+                  <div className="section-heading">Return</div>
+                  {rowError && <div className="error-message">{rowError}</div>}
                   <button
                     type="button"
-                    className="btn quiet"
+                    className="button quiet"
                     onClick={onUnassign}
                     disabled={pending}
                   >
@@ -183,9 +183,9 @@ function AssignAssetDrawer({
               )}
 
               {/* transfer history */}
-              <div className="fold">Transfer history</div>
+              <div className="section-heading">Transfer history</div>
               {history.length === 0 ? (
-                <p className="muted" style={{ fontSize: 13 }}>
+                <p className="text-muted" style={{ fontSize: 13 }}>
                   No transfers recorded yet.
                 </p>
               ) : (
@@ -203,11 +203,11 @@ function AssignAssetDrawer({
                         <tr key={h.id}>
                           <td>
                             {h.person_name ?? '—'}{' '}
-                            <span className="mono muted" style={{ fontSize: 11 }}>
+                            <span className="text-monospace text-muted" style={{ fontSize: 11 }}>
                               {h.employee_code ?? ''}
                             </span>
                           </td>
-                          <td className="mono">{h.assigned_date}</td>
+                          <td className="text-monospace">{h.assigned_date}</td>
                           <td>{h.returned ? `Returned ${h.returned_date ?? ''}` : 'Held'}</td>
                         </tr>
                       ))}
@@ -217,11 +217,11 @@ function AssignAssetDrawer({
               )}
 
               {/* maintenance */}
-              <div className="fold">Maintenance</div>
+              <div className="section-heading">Maintenance</div>
               <form key={maintKey} action={maintAction} style={{ display: 'contents' }}>
                 <input type="hidden" name="asset_id" value={asset.id} />
-                <div className="f-row">
-                  <div className="f">
+                <div className="form-row">
+                  <div className="form-field">
                     <label>Date</label>
                     {/* A maintenance row records work that HAS been done, so it
                         looks backwards: no floor, and a ceiling of today. Blank
@@ -234,17 +234,17 @@ function AssignAssetDrawer({
                       onChange={(e) => onMaintDateChange(e.target.value)}
                     />
                   </div>
-                  <div className="f">
+                  <div className="form-field">
                     <label>Type</label>
                     <input name="maint_type" placeholder="service / repair / upgrade" />
                   </div>
                 </div>
-                <div className="f-row">
-                  <div className="f">
+                <div className="form-row">
+                  <div className="form-field">
                     <label>Cost (₹)</label>
-                    <input name="cost" className="mono" inputMode="decimal" placeholder="0" />
+                    <input name="cost" className="text-monospace" inputMode="decimal" placeholder="0" />
                   </div>
-                  <div className="f">
+                  <div className="form-field">
                     <label>Next due</label>
                     {/* The other end of the same interval: the next service
                         falls after the one just logged, never before it. */}
@@ -257,16 +257,16 @@ function AssignAssetDrawer({
                     />
                   </div>
                 </div>
-                <div className="f">
+                <div className="form-field">
                   <label>Vendor / notes</label>
                   <input name="vendor" placeholder="Vendor" />
                 </div>
-                <div className="f">
+                <div className="form-field">
                   <input name="notes" placeholder="Notes" />
                 </div>
-                {maintState.error && <div className="login-error">{maintState.error}</div>}
+                {maintState.error && <div className="error-message">{maintState.error}</div>}
                 <div style={{ margin: '4px 0 8px' }}>
-                  <button type="submit" className="btn quiet" disabled={maintPending}>
+                  <button type="submit" className="button quiet" disabled={maintPending}>
                     {maintPending ? 'Saving…' : 'Add maintenance record'}
                   </button>
                 </div>
@@ -278,17 +278,17 @@ function AssignAssetDrawer({
                       <tr>
                         <th>Date</th>
                         <th>Type</th>
-                        <th className="right">Cost</th>
+                        <th className="text-right">Cost</th>
                         <th>Next due</th>
                       </tr>
                     </thead>
                     <tbody>
                       {maint.map((m) => (
                         <tr key={m.id}>
-                          <td className="mono">{m.maint_date}</td>
+                          <td className="text-monospace">{m.maint_date}</td>
                           <td>{m.maint_type ?? '—'}</td>
-                          <td className="right mono">{m.cost != null ? `₹${m.cost}` : '—'}</td>
-                          <td className="mono">{m.next_due ?? '—'}</td>
+                          <td className="text-right text-monospace">{m.cost != null ? `₹${m.cost}` : '—'}</td>
+                          <td className="text-monospace">{m.next_due ?? '—'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -296,7 +296,7 @@ function AssignAssetDrawer({
                 </div>
               )}
 
-              <div className="fold">Asset label</div>
+              <div className="section-heading">Asset label</div>
               <AssetQrEditor
                 key={`${asset.id}:${asset.qr_url ?? ''}`}
                 assetId={asset.id}
@@ -304,8 +304,8 @@ function AssignAssetDrawer({
                 url={asset.qr_url}
               />
             </div>
-            <div className="dft">
-              <button type="button" className="btn" onClick={onClose}>
+            <div className="drawer-footer">
+              <button type="button" className="button" onClick={onClose}>
                 Close
               </button>
             </div>

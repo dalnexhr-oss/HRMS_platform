@@ -47,7 +47,7 @@ function RecipientPicker({
   }
   return (
     <div
-      className="f recipient-picker"
+      className="form-field recipient-picker"
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) {
           setOpen(false);
@@ -139,7 +139,7 @@ function RecipientPicker({
               <small>{person.detail}</small>
             </button>
           ))}
-          {matches.length === 0 && <p className="muted">No matching company accounts.</p>}
+          {matches.length === 0 && <p className="text-muted">No matching company accounts.</p>}
         </div>
       )}
       <div className="recipient-hint" id={`${id}-hint`}>

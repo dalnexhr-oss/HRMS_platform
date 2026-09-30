@@ -1,10 +1,10 @@
 .audit-card {
   min-width: 0;
   overflow: hidden;
-  border-color: var(--line-2);
+  border-color: var(--border-strong);
 }
 
-.audit-card .hd {
+.audit-card .card-header {
   flex-wrap: wrap;
 }
 
@@ -14,7 +14,7 @@
   gap: 10px;
 }
 
-.audit-title .ic {
+.audit-title .icon {
   width: 20px;
   height: 20px;
   flex: none;
@@ -38,23 +38,23 @@
   table-layout: fixed;
 }
 
-.audit-col-when {
+.audit-column-when {
   width: 19%;
 }
 
-.audit-col-type {
+.audit-column-type {
   width: 14%;
 }
 
-.audit-col-actor {
+.audit-column-actor {
   width: 15%;
 }
 
-.audit-col-employee {
+.audit-column-employee {
   width: 18%;
 }
 
-.audit-col-detail {
+.audit-column-detail {
   width: 34%;
 }
 
@@ -65,7 +65,7 @@
 }
 
 .audit-table th {
-  background: var(--card-2);
+  background: var(--surface-inset);
 }
 
 .audit-table td {

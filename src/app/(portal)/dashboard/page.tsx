@@ -110,7 +110,7 @@ async function TodayPage() {
         periodMonthLabel={monthLabelOf(periodMonth)}
       />
 
-      <div className="wrap grid">
+      <div className="content-container grid">
         <CompOffAdminCard
           rows={compOffs.ok ? compOffs.data : []}
           error={compOffs.ok ? undefined : compOffs.error}

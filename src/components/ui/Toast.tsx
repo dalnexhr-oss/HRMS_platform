@@ -22,7 +22,7 @@ function ToastRow({ toast, onDone }: { toast: ToastItem; onDone: () => void }) {
   }, [onDone]);
   return (
     <div
-      className={`toast${toast.kind !== 'info' ? ` ${toast.kind}` : ''}`}
+      className={`notification-message${toast.kind !== 'info' ? ` ${toast.kind}` : ''}`}
       role="status"
       onClick={onDone}
     >
@@ -45,7 +45,7 @@ function useToast() {
   }, []);
 
   const toastNode = (
-    <div className="toast-wrap" aria-live="polite">
+    <div className="notification-container" aria-live="polite">
       {items.map((t) => (
         <ToastRow key={t.id} toast={t} onDone={() => dismiss(t.id)} />
       ))}

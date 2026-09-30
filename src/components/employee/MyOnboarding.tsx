@@ -24,13 +24,13 @@ function MyOnboarding({ tasks, id }: { tasks: OnboardingTaskRow[]; id?: string }
 
   return (
     <div className="card" id={id}>
-      <div className="hd">
+      <div className="card-header">
         <h3>Your onboarding</h3>
-        <span className="folio">
+        <span className="card-caption">
           {done}/{tasks.length} complete
         </span>
       </div>
-      <div className="bd">
+      <div className="card-body">
         {mine.length > 0 && (
           <div className="hint" style={{ marginBottom: 12 }}>
             <b>
@@ -41,7 +41,7 @@ function MyOnboarding({ tasks, id }: { tasks: OnboardingTaskRow[]; id?: string }
         )}
 
         {open.length === 0 ? (
-          <p className="muted" style={{ margin: 0 }}>
+          <p className="text-muted" style={{ margin: 0 }}>
             Everything is done — welcome aboard.
           </p>
         ) : (
@@ -60,17 +60,17 @@ function MyOnboarding({ tasks, id }: { tasks: OnboardingTaskRow[]; id?: string }
                   <tr key={t.id}>
                     <td>{t.title}</td>
                     <td>{t.assigneeRole ? (ownerLabel[t.assigneeRole] ?? t.assigneeRole) : '—'}</td>
-                    <td className="mono">{t.dueDate ? formatDate(t.dueDate) : '—'}</td>
+                    <td className="text-monospace">{t.dueDate ? formatDate(t.dueDate) : '—'}</td>
                     <td>
                       <span
-                        className="pill"
+                        className="status-badge"
                         style={
                           t.status === 'blocked'
-                            ? { borderColor: 'var(--line-2)', color: 'var(--hd)' }
+                            ? { borderColor: 'var(--border-strong)', color: 'var(--attendance-half-day)' }
                             : {
-                                borderColor: 'var(--lm-line)',
-                                color: 'var(--lm)',
-                                background: 'var(--lm-bg)',
+                                borderColor: 'var(--attendance-late-border)',
+                                color: 'var(--attendance-late)',
+                                background: 'var(--attendance-late-background)',
                               }
                         }
                       >

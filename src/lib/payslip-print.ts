@@ -87,40 +87,40 @@ function payslipHtml(p: PayslipRow, logoUrl: string): string {
 <style>
   * { box-sizing: border-box; }
   body { font: 13px/1.5 'Segoe UI', system-ui, sans-serif; color: #1a1a1a; margin: 0; padding: 32px; }
-  .doc { max-width: 720px; margin: 0 auto; }
-  .hd { display: flex; justify-content: space-between; align-items: flex-start;
+  .payslip-document { max-width: 720px; margin: 0 auto; }
+  .payslip-document-header { display: flex; justify-content: space-between; align-items: flex-start;
         border-bottom: 2px solid #1a1a1a; padding-bottom: 12px; margin-bottom: 20px; }
-  .hd h1 { font-size: 22px; margin: 0; }
-  .hd .co { font-size: 12px; color: #666; margin-top: 2px; }
-  .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; margin-bottom: 22px; font-size: 12px; }
-  .meta b { color: #333; }
-  .meta .payable { grid-column: 1 / -1; }
+  .payslip-document-header h1 { font-size: 22px; margin: 0; }
+  .payslip-document-header .payslip-company { font-size: 12px; color: #666; margin-top: 2px; }
+  .payslip-employee-details { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; margin-bottom: 22px; font-size: 12px; }
+  .payslip-employee-details b { color: #333; }
+  .payslip-employee-details .payable { grid-column: 1 / -1; }
   h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #666;
        margin: 18px 0 6px; border-bottom: 1px solid #e5e3dd; padding-bottom: 4px; }
   table { width: 100%; border-collapse: collapse; }
-  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
-  .net { margin-top: 20px; padding: 12px 16px; background: #f3f7f4; border: 1px solid #cfe3d6;
+  .payslip-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .payslip-net-total { margin-top: 20px; padding: 12px 16px; background: #f3f7f4; border: 1px solid #cfe3d6;
          border-radius: 8px; display: flex; justify-content: space-between; font-size: 16px; font-weight: 700; }
-  .foot { margin-top: 26px; font-size: 11px; color: #888; border-top: 1px solid #e5e3dd; padding-top: 10px; }
+  .payslip-footer { margin-top: 26px; font-size: 11px; color: #888; border-top: 1px solid #e5e3dd; padding-top: 10px; }
   @media print { body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                 .noprint { display: none; } }
+                 .print-hidden { display: none; } }
 </style></head>
 <body>
-  <div class="doc">
-    <div class="hd">
+  <div class="payslip-document">
+    <div class="payslip-document-header">
       <div>
         <img src="${esc(logoUrl)}" alt="Dalnex" width="99" height="34"
           style="display:block;margin-bottom:8px" />
         <h1>Payslip</h1>
-        <div class="co">${esc(company)} · ${esc(period)}</div>
+        <div class="payslip-company">${esc(company)} · ${esc(period)}</div>
       </div>
-      <button class="noprint" onclick="window.print()"
+      <button class="print-hidden" onclick="window.print()"
         style="padding:8px 14px;border:1px solid #1a1a1a;background:#1a1a1a;color:#fff;border-radius:8px;cursor:pointer;font:inherit;">
         Print / Save as PDF
       </button>
     </div>
 
-    <div class="meta">
+    <div class="payslip-employee-details">
       <div><b>Employee:</b> ${esc(p.name)}</div>
       <div><b>Code:</b> ${esc(p.code)}</div>
       <div><b>Branch:</b> ${esc(p.branch)} (${esc(p.state)})</div>
@@ -135,7 +135,7 @@ function payslipHtml(p: PayslipRow, logoUrl: string): string {
       }</div>
     </div>
 
-    <div class="cols">
+    <div class="payslip-columns">
       <div>
         <h2>Earnings</h2>
         <table>
@@ -166,7 +166,7 @@ function payslipHtml(p: PayslipRow, logoUrl: string): string {
       </div>
     </div>
 
-    <div class="net">
+    <div class="payslip-net-total">
       <span>Net payable</span>
       <span>${inr(p.netPayable)}</span>
     </div>
@@ -177,7 +177,7 @@ function payslipHtml(p: PayslipRow, logoUrl: string): string {
       ${row('ESIC ', p.esicEmployer ? inr(p.esicEmployer) : '—')}
     </table>
 
-    <div class="foot">
+    <div class="payslip-footer">
       Computer-generated payslip — no signature required.
     </div>
   </div>

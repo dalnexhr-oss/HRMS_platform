@@ -1,35 +1,35 @@
 /* approvals / placeholders */
-.appr {
+.approval-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
-.appr .req {
+.approval-grid .approval-request {
   padding: 18px 20px;
 }
-.req .top {
+.approval-request .request-header {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 8px;
 }
-.req .who-nm {
+.approval-request .request-employee-name {
   font-weight: 600;
-  color: var(--ink);
+  color: var(--text-primary);
 }
-.req .body {
+.approval-request .entry-body {
   font-size: 13px;
-  color: var(--ink-2);
+  color: var(--text-secondary);
   margin: 6px 0 12px;
 }
-.req .acts {
+.approval-request .request-actions {
   display: flex;
   gap: 8px;
 }
 
 /* responsive */
 @media (max-width: 1120px) {
-  .appr {
+  .approval-grid {
     grid-template-columns: 1fr;
   }
 }

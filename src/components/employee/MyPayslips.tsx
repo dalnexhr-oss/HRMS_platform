@@ -49,16 +49,16 @@ function MyPayslips({ payslips, id }: { payslips: PayslipRow[]; id?: string }) {
 
   return (
     <div className="card" id={id}>
-      <div className="hd">
+      <div className="card-header">
         <h3>My payslips</h3>
-        <span className="folio">
+        <span className="card-caption">
           {payslips.length ? `${payslips.length} · newest first` : 'None yet'}
         </span>
       </div>
 
       {payslips.length === 0 ? (
-        <div className="bd">
-          <div className="empty">
+        <div className="card-body">
+          <div className="empty-state">
             <h3>No payslips yet</h3>
             <p>Your payslips appear here once a payroll run for your month has been computed.</p>
           </div>
@@ -69,10 +69,10 @@ function MyPayslips({ payslips, id }: { payslips: PayslipRow[]; id?: string }) {
             <thead>
               <tr>
                 <th>Payslip</th>
-                <th className="right">Payable days</th>
-                <th className="right">Earned gross</th>
-                <th className="right">Deductions</th>
-                <th className="right">Net payable</th>
+                <th className="text-right">Payable days</th>
+                <th className="text-right">Earned gross</th>
+                <th className="text-right">Deductions</th>
+                <th className="text-right">Net payable</th>
               </tr>
             </thead>
             <tbody>
@@ -86,15 +86,15 @@ function MyPayslips({ payslips, id }: { payslips: PayslipRow[]; id?: string }) {
                       <b>
                         {monthLabel(p.periodMonth) ?? (ix === 0 ? 'Latest' : `Earlier · ${ix + 1}`)}
                       </b>{' '}
-                      <span className="mono muted">{p.code}</span>
+                      <span className="text-monospace text-muted">{p.code}</span>
                     </td>
-                    <td className="right mono">{p.payableDays}</td>
-                    <td className="right mono">{inr(p.earnedGross)}</td>
-                    <td className="right mono" style={{ color: 'var(--hd)' }}>
+                    <td className="text-right text-monospace">{p.payableDays}</td>
+                    <td className="text-right text-monospace">{inr(p.earnedGross)}</td>
+                    <td className="text-right text-monospace" style={{ color: 'var(--attendance-half-day)' }}>
                       {totalDeductions(p) ? `-${inr(totalDeductions(p))}` : '—'}
                     </td>
                     <td
-                      className="right mono"
+                      className="text-right text-monospace"
                       style={{ fontWeight: 700, color: 'var(--brand-deep)' }}
                     >
                       {inr(p.netPayable)}
@@ -114,10 +114,10 @@ function MyPayslips({ payslips, id }: { payslips: PayslipRow[]; id?: string }) {
 function PayslipBreakdown({ p }: { p: PayslipRow }) {
   const { toast, toastNode } = useToast();
   return (
-    <tr className="exp">
+    <tr className="payslip-breakdown">
       <td colSpan={5}>
-        <div className="exp-grid">
-          <div className="exp-col">
+        <div className="payslip-breakdown-grid">
+          <div className="payslip-breakdown-column">
             <h4>Earnings — {p.payableDays} payable days</h4>
             <Kv label="Per-day rate" value={inr(p.perDayRate)} />
             <Kv label="Basic (earned)" value={inr(p.basicEarned)} />
@@ -125,7 +125,7 @@ function PayslipBreakdown({ p }: { p: PayslipRow }) {
             <Kv label="Special allowance (earned)" value={inr(p.specialEarned)} />
             <Kv label="Earned gross" value={inr(p.earnedGross)} total />
           </div>
-          <div className="exp-col">
+          <div className="payslip-breakdown-column">
             <h4>Deductions</h4>
             <Kv
               label={`Hours shortfall (${p.shortfallMinutes} min)`}
@@ -168,19 +168,19 @@ function PayslipBreakdown({ p }: { p: PayslipRow }) {
             />
             <Kv label="Net payable" value={inr(p.netPayable)} total />
           </div>
-          {/* .exp-grid is a three-column grid (see PayrollTable); the staff-only
+          {/* .payslip-breakdown-grid is a three-column grid (see PayrollTable); the staff-only
               adjustments column has no employee equivalent, so the employer's
               own contributions take the slot rather than leaving it blank. */}
-          <div className="exp-col">
+          <div className="payslip-breakdown-column">
             <h4>Employer contributions</h4>
             <Kv label="PF · 12%" value={p.pfEmployer ? inr(p.pfEmployer) : '—'} />
             <Kv label="ESIC · 3.25%" value={p.esicEmployer ? inr(p.esicEmployer) : '—'} />
-            <div className="kv muted" style={{ fontSize: 11 }}>
+            <div className="label-value-row text-muted" style={{ fontSize: 11 }}>
               <span>Paid by the company on top of your gross — not deducted from your pay.</span>
             </div>
             <div style={{ marginTop: 12 }}>
               <button
-                className="btn primary"
+                className="button primary"
                 type="button"
                 onClick={() => downloadPayslip(p, () => toast(popupBlocked, 'error'))}
               >
@@ -197,9 +197,9 @@ function PayslipBreakdown({ p }: { p: PayslipRow }) {
 
 function Kv({ label, value, total }: { label: string; value: string; total?: boolean }) {
   return (
-    <div className={`kv${total ? ' total' : ''}`}>
+    <div className={`label-value-row${total ? ' total' : ''}`}>
       <span>{label}</span>
-      <span className="v">{value}</span>
+      <span className="label-value">{value}</span>
     </div>
   );
 }

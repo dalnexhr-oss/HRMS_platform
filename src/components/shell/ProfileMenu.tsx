@@ -57,7 +57,7 @@ function ProfileMenu({
     <div ref={boxRef} className="avatar-menu">
       <button
         type="button"
-        className="av av-trigger"
+        className="avatar avatar-button"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="true"
         aria-expanded={open}
@@ -67,21 +67,21 @@ function ProfileMenu({
       </button>
 
       {open && (
-        <div role="menu" className="avatar-pop">
-          <div className="profile-id">
-            <span className="av">
+        <div role="menu" className="avatar-popover">
+          <div className="profile-identity">
+            <span className="avatar">
               <AvatarInner name={name} avatar={avatar} />
             </span>
-            <div className="profile-id-txt">
+            <div className="profile-identity-text">
               <b>{name || 'Signed in'}</b>
-              {role && <span className="muted">{roleLabel[role] ?? role}</span>}
-              {email && <span className="muted mono">{email}</span>}
+              {role && <span className="text-muted">{roleLabel[role] ?? role}</span>}
+              {email && <span className="text-muted text-monospace">{email}</span>}
             </div>
           </div>
 
           <Link
             href={accountHref}
-            className="btn"
+            className="button"
             style={{ width: '100%', justifyContent: 'center' }}
             onClick={() => setOpen(false)}
           >

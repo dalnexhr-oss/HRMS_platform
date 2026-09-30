@@ -161,16 +161,16 @@ function TicketChatDrawer({
 
   return (
     <>
-      <div className={`overlay${open ? ' on' : ''}`} onClick={onClose} />
-      <aside className={`drawer chat-drawer${open ? ' on' : ''}`} aria-label="Ticket conversation">
+      <div className={`dialog-backdrop${open ? ' is-active' : ''}`} onClick={onClose} />
+      <aside className={`drawer chat-drawer${open ? ' is-active' : ''}`} aria-label="Ticket conversation">
         {ticket && (
           <>
-            <div className="dhd">
+            <div className="drawer-header">
               <div style={{ minWidth: 0 }}>
                 <h3 style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {ticket.subject}
                 </h3>
-                <div className="muted" style={{ fontSize: 12 }}>
+                <div className="text-muted" style={{ fontSize: 12 }}>
                   {ticket.employeeName
                     ? `${ticket.employeeName}${ticket.employeeCode ? ` · ${ticket.employeeCode}` : ''}`
                     : 'Conversation'}
@@ -191,7 +191,7 @@ function TicketChatDrawer({
                   ))}
                 </select>
               )}
-              <button type="button" className="btn quiet" onClick={onClose}>
+              <button type="button" className="button quiet" onClick={onClose}>
                 ✕
               </button>
             </div>
@@ -205,12 +205,12 @@ function TicketChatDrawer({
                   const role = roleLabel(m.authorRole);
                   const name = m.authorName ?? (m.authorIsStaff ? 'Support' : 'Employee');
                   return (
-                    <div key={m.id} className={`chat-row${mine ? ' me' : ''}`}>
-                      <span className="av chat-av">
+                    <div key={m.id} className={`chat-row${mine ? ' is-own-message' : ''}`}>
+                      <span className="avatar chat-avatar">
                         <AvatarInner name={name} />
                       </span>
-                      <div className="chat-col">
-                        <div className="chat-meta">
+                      <div className="chat-message-content">
+                        <div className="chat-message-details">
                           {role && <span className="chat-role">{role}</span>}
                           <span>{mine ? 'You' : name}</span>
                           <span className="chat-time">{stampTime(m.createdAt)}</span>
@@ -226,7 +226,7 @@ function TicketChatDrawer({
             <div className="chat-composer">
               {error && (
                 <div
-                  className="login-error"
+                  className="error-message"
                   style={{ fontSize: 12, flexBasis: '100%', marginBottom: 6 }}
                 >
                   {error}
@@ -247,7 +247,7 @@ function TicketChatDrawer({
               />
               <button
                 type="button"
-                className="btn primary"
+                className="button primary"
                 onClick={send}
                 disabled={pending || !body.trim()}
               >

@@ -146,54 +146,54 @@ function EmployeeDocumentsPanel({
 
   return (
     <>
-      <div className={`overlay${open ? ' on' : ''}`} onClick={onClose} />
+      <div className={`dialog-backdrop${open ? ' is-active' : ''}`} onClick={onClose} />
       <aside
-        className={`drawer${open ? ' on' : ''}`}
+        className={`drawer${open ? ' is-active' : ''}`}
         aria-label={employee ? `Documents for ${employee.name}` : 'Employee documents'}
       >
         {confirmDialog}
         {promptDialog}
         {toastNode}
 
-        <div className="dhd">
+        <div className="drawer-header">
           <h3>
             {employee?.name}{' '}
-            <span className="mono muted" style={{ fontSize: 12 }}>
+            <span className="text-monospace text-muted" style={{ fontSize: 12 }}>
               {employee?.code}
             </span>
           </h3>
           <span style={{ flex: 1 }} />
-          <button className="btn quiet" onClick={onClose} aria-label="Close">
+          <button className="button quiet" onClick={onClose} aria-label="Close">
             ✕
           </button>
         </div>
 
-        <div className="dbd" style={{ display: 'grid', gap: 14, alignContent: 'start' }}>
+        <div className="drawer-body" style={{ display: 'grid', gap: 14, alignContent: 'start' }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <button
-              className="btn primary"
+              className="button primary"
               disabled={!employee}
               onClick={() => employee && onUpload(employee.id)}
             >
               + Upload for {employee ? employee.name.split(' ')[0] : 'employee'}
             </button>
             <span style={{ flex: 1 }} />
-            <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
+            <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
               {chains.length} document{chains.length === 1 ? '' : 's'}
             </span>
           </div>
 
           {missing.length > 0 && (
-            <div className="card" style={{ borderColor: 'var(--lm)' }}>
-              <div className="bd">
-                <b style={{ color: 'var(--lm)' }}>
+            <div className="card" style={{ borderColor: 'var(--attendance-late)' }}>
+              <div className="card-body">
+                <b style={{ color: 'var(--attendance-late)' }}>
                   Missing {missing.length} required document
                   {missing.length === 1 ? '' : 's'}
                 </b>
-                <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                <div className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
                   {missing.map((c) => documentCategoryLabel(c)).join(' · ')}
                 </div>
-                <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
+                <div className="text-muted" style={{ fontSize: 11, marginTop: 6 }}>
                   A document counts as held once it is <b>verified</b> — one that is awaiting
                   verification or has been returned still shows as missing.
                 </div>
@@ -202,30 +202,30 @@ function EmployeeDocumentsPanel({
           )}
 
           {rows === null ? (
-            <p className="muted" style={{ margin: 0 }}>
+            <p className="text-muted" style={{ margin: 0 }}>
               Loading…
             </p>
           ) : chains.length === 0 ? (
-            <p className="muted" style={{ margin: 0 }}>
+            <p className="text-muted" style={{ margin: 0 }}>
               Nothing on file for this employee yet.
             </p>
           ) : (
             <div style={{ display: 'grid', gap: 10 }}>
               {chains.map(({ current, history }) => (
                 <div className="card" key={current.docGroup}>
-                  <div className="bd" style={{ display: 'grid', gap: 8 }}>
+                  <div className="card-body" style={{ display: 'grid', gap: 8 }}>
                     <div
                       style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}
                     >
                       <b>{documentCategoryLabel(current.category, current.source === 'issued')}</b>
-                      <span className="muted" style={{ fontSize: 12 }}>
+                      <span className="text-muted" style={{ fontSize: 12 }}>
                         {current.title ?? '—'}
                       </span>
                       <span style={{ flex: 1 }} />
                       <StatusPill row={current} />
                     </div>
 
-                    <div className="muted" style={{ fontSize: 11 }}>
+                    <div className="text-muted" style={{ fontSize: 11 }}>
                       v{current.version} · filed {formatDate(current.uploadedAt.slice(0, 10))}
                       {current.source === 'issued' && ' · issued by HR'}
                       {current.verifiedAt &&
@@ -233,21 +233,21 @@ function EmployeeDocumentsPanel({
                     </div>
 
                     {current.verifyRemark && (
-                      <div style={{ fontSize: 12, color: 'var(--hd)' }}>
+                      <div style={{ fontSize: 12, color: 'var(--attendance-half-day)' }}>
                         <b>Note:</b> {current.verifyRemark}
                       </div>
                     )}
 
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <button
-                        className="btn quiet"
+                        className="button quiet"
                         onClick={() => openDocument(current.id, (m) => toast(m, 'error'))}
                       >
                         📎 Open
                       </button>
                       {current.status !== 'verified' && (
                         <button
-                          className="btn primary"
+                          className="button primary"
                           disabled={pending && busy === current.id}
                           onClick={() =>
                             run(
@@ -262,11 +262,11 @@ function EmployeeDocumentsPanel({
                       )}
                       {current.source === 'uploaded' && (
                         <>
-                          <button className="btn" onClick={() => onReplace(current)}>
+                          <button className="button" onClick={() => onReplace(current)}>
                             ⟳ Replace
                           </button>
                           <button
-                            className="btn"
+                            className="button"
                             disabled={pending && busy === current.id}
                             onClick={() => onReturn(current)}
                           >
@@ -275,7 +275,7 @@ function EmployeeDocumentsPanel({
                         </>
                       )}
                       <button
-                        className="btn danger"
+                        className="button danger"
                         disabled={pending && busy === current.id}
                         onClick={() => onDelete(current)}
                       >
@@ -283,7 +283,7 @@ function EmployeeDocumentsPanel({
                       </button>
                       {history.length > 0 && (
                         <button
-                          className="btn quiet"
+                          className="button quiet"
                           onClick={() =>
                             setExpanded(expanded === current.docGroup ? null : current.docGroup)
                           }
@@ -296,7 +296,7 @@ function EmployeeDocumentsPanel({
                     {expanded === current.docGroup && history.length > 0 && (
                       <div
                         style={{
-                          borderTop: '1px solid var(--line)',
+                          borderTop: '1px solid var(--border-subtle)',
                           paddingTop: 8,
                           display: 'grid',
                           gap: 6,
@@ -313,25 +313,25 @@ function EmployeeDocumentsPanel({
                               fontSize: 12,
                             }}
                           >
-                            <span className="mono muted">v{h.version}</span>
+                            <span className="text-monospace text-muted">v{h.version}</span>
                             <span>{h.title ?? '—'}</span>
-                            <span className="muted">
+                            <span className="text-muted">
                               filed {formatDate(h.uploadedAt.slice(0, 10))}
                             </span>
                             {h.supersededAt && (
-                              <span className="muted">
+                              <span className="text-muted">
                                 · replaced {formatDate(h.supersededAt.slice(0, 10))}
                               </span>
                             )}
                             <span style={{ flex: 1 }} />
                             <button
-                              className="btn quiet"
+                              className="button quiet"
                               onClick={() => openDocument(h.id, (m) => toast(m, 'error'))}
                             >
                               Open
                             </button>
                             <button
-                              className="btn"
+                              className="button"
                               disabled={pending && busy === h.id}
                               onClick={() => onDelete(h)}
                             >

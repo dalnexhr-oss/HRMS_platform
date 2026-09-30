@@ -32,9 +32,9 @@ const monthNames = [
 ];
 
 const statusColor: Record<string, string> = {
-  draft: 'var(--ink-2)',
-  finalized: 'var(--lm)',
-  paid: 'var(--p)',
+  draft: 'var(--text-secondary)',
+  finalized: 'var(--attendance-late)',
+  paid: 'var(--attendance-present)',
 };
 
 function LeaveSalaryAdmin({
@@ -97,27 +97,27 @@ function LeaveSalaryAdmin({
   const grandTotal = rows.reduce((a, r) => a + effectiveFigures(r.working, r.live).total, 0);
 
   return (
-    <div className="wrap grid">
+    <div className="content-container grid">
       {confirmDialog}
       {toastNode}
 
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>Leave salary working · {year}</h3>
-          <span className="folio">
+          <span className="card-caption">
             {rows.length} employee{rows.length === 1 ? '' : 's'} · total {inr(grandTotal)}
           </span>
           <span style={{ flex: 1 }} />
           {/* Year switcher: the working is strictly per calendar year. */}
           <button
-            className="btn quiet"
+            className="button quiet"
             disabled={pending}
             onClick={() => router.push(`/leave-salary?y=${year - 1}`)}
           >
             ← {year - 1}
           </button>
           <button
-            className="btn quiet"
+            className="button quiet"
             disabled={pending}
             onClick={() => router.push(`/leave-salary?y=${year + 1}`)}
           >
@@ -127,8 +127,8 @@ function LeaveSalaryAdmin({
         </div>
 
         {!migrated && (
-          <div className="bd">
-            <p className="muted" style={{ margin: 0 }}>
+          <div className="card-body">
+            <p className="text-muted" style={{ margin: 0 }}>
               Leave salary is not set up on this database yet — run <b>npm run db:setup</b> to
               create the collections. The figures below are computed live and correct, but nothing
               can be saved until then.
@@ -137,8 +137,8 @@ function LeaveSalaryAdmin({
         )}
 
         {rows.length === 0 ? (
-          <div className="bd">
-            <p className="muted" style={{ margin: 0 }}>
+          <div className="card-body">
+            <p className="text-muted" style={{ margin: 0 }}>
               No employees on the roster for {year}.
             </p>
           </div>
@@ -148,14 +148,14 @@ function LeaveSalaryAdmin({
               <thead>
                 <tr>
                   <th>Employee</th>
-                  <th className="right">Salary before</th>
-                  <th className="right">Salary after</th>
+                  <th className="text-right">Salary before</th>
+                  <th className="text-right">Salary after</th>
                   <th>Increment from</th>
-                  <th className="right">Present · before</th>
-                  <th className="right">Present · after</th>
-                  <th className="right">Payable · before</th>
-                  <th className="right">Payable · after</th>
-                  <th className="right">Total</th>
+                  <th className="text-right">Present · before</th>
+                  <th className="text-right">Present · after</th>
+                  <th className="text-right">Payable · before</th>
+                  <th className="text-right">Payable · after</th>
+                  <th className="text-right">Total</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -184,8 +184,8 @@ function LeaveSalaryAdmin({
             </table>
           </div>
         )}
-        <div className="bd">
-          <p className="muted" style={{ fontSize: 12, margin: 0 }}>
+        <div className="card-body">
+          <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>
             Formula per period: (monthly salary ÷ 2) × months ÷ 12 × present days ÷ calendar days.
             Week-offs, holidays and comp-offs count as present; a half day counts 0.5; absences and
             leave days count 0. Salaries pre-fill from the employee record — correct the
@@ -197,17 +197,17 @@ function LeaveSalaryAdmin({
       </div>
 
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>Paid-leave pool · {year}</h3>
-          <span className="folio">15 days a year · approvals deduct from this</span>
+          <span className="card-caption">15 days a year · approvals deduct from this</span>
           <span style={{ flex: 1 }} />
-          <button className="btn primary" onClick={onProvision} disabled={pending}>
+          <button className="button primary" onClick={onProvision} disabled={pending}>
             {pending ? 'Working…' : `Open leave year ${year}`}
           </button>
         </div>
         {pool.length === 0 ? (
-          <div className="bd">
-            <p className="muted" style={{ margin: 0 }}>
+          <div className="card-body">
+            <p className="text-muted" style={{ margin: 0 }}>
               No paid-leave balances for {year} yet. Use <b>Open leave year</b> to credit everyone —
               until then, approving leave deducts nothing.
             </p>
@@ -218,7 +218,7 @@ function LeaveSalaryAdmin({
               <thead>
                 <tr>
                   <th>Employee</th>
-                  <th className="right">Days left</th>
+                  <th className="text-right">Days left</th>
                   <th>Adjust</th>
                 </tr>
               </thead>
@@ -227,13 +227,13 @@ function LeaveSalaryAdmin({
                   <tr key={b.employeeId}>
                     <td>
                       <b>{b.name}</b>{' '}
-                      <span className="mono muted" style={{ fontSize: 11 }}>
+                      <span className="text-monospace text-muted" style={{ fontSize: 11 }}>
                         {b.code}
                       </span>
                     </td>
                     <td
-                      className="right mono"
-                      style={{ color: b.balance < 0 ? 'var(--ab)' : undefined }}
+                      className="text-right text-monospace"
+                      style={{ color: b.balance < 0 ? 'var(--attendance-absent)' : undefined }}
                     >
                       {b.balance}
                     </td>
@@ -349,26 +349,26 @@ function WorkingRow({
       <tr style={{ cursor: 'pointer' }} onClick={() => setOpen((o) => !o)}>
         <td>
           <b>{row.name}</b>{' '}
-          <span className="mono muted" style={{ fontSize: 11 }}>
+          <span className="text-monospace text-muted" style={{ fontSize: 11 }}>
             {row.code}
           </span>
           {!row.onRoster && (
-            <div className="muted" style={{ fontSize: 11 }}>
+            <div className="text-muted" style={{ fontSize: 11 }}>
               no longer on the roster
             </div>
           )}
           {row.drift && (
-            <div style={{ fontSize: 11, color: 'var(--lm)' }}>
+            <div style={{ fontSize: 11, color: 'var(--attendance-late)' }}>
               attendance changed since {status} — reopen to recompute
             </div>
           )}
         </td>
-        <td className="right" onClick={(e) => e.stopPropagation()}>
+        <td className="text-right" onClick={(e) => e.stopPropagation()}>
           {locked ? (
-            <span className="mono">{inr(row.salaryBefore)}</span>
+            <span className="text-monospace">{inr(row.salaryBefore)}</span>
           ) : (
             <input
-              className="mono"
+              className="text-monospace"
               value={before}
               onChange={(e) => setBefore(e.target.value)}
               style={inputStyle}
@@ -376,12 +376,12 @@ function WorkingRow({
             />
           )}
         </td>
-        <td className="right" onClick={(e) => e.stopPropagation()}>
+        <td className="text-right" onClick={(e) => e.stopPropagation()}>
           {locked ? (
-            <span className="mono">{inr(row.salaryAfter)}</span>
+            <span className="text-monospace">{inr(row.salaryAfter)}</span>
           ) : (
             <input
-              className="mono"
+              className="text-monospace"
               value={after}
               onChange={(e) => setAfter(e.target.value)}
               style={inputStyle}
@@ -406,18 +406,18 @@ function WorkingRow({
             </select>
           )}
         </td>
-        <td className="right mono" onClick={(e) => e.stopPropagation()}>
+        <td className="text-right text-monospace" onClick={(e) => e.stopPropagation()}>
           {locked ? (
             <>
               {fig.presentP1}
-              <span className="muted">/{fig.calendarDaysP1}</span>
+              <span className="text-muted">/{fig.calendarDaysP1}</span>
             </>
           ) : (
             <span style={{ whiteSpace: 'nowrap' }}>
               {fig.presentP1}
-              <span className="muted">/</span>
+              <span className="text-muted">/</span>
               <input
-                className="mono"
+                className="text-monospace"
                 value={daysP1}
                 onChange={(e) => setDaysP1(e.target.value)}
                 placeholder={String(live.p1.calendarDays)}
@@ -428,18 +428,18 @@ function WorkingRow({
             </span>
           )}
         </td>
-        <td className="right mono" onClick={(e) => e.stopPropagation()}>
+        <td className="text-right text-monospace" onClick={(e) => e.stopPropagation()}>
           {locked ? (
             <>
               {fig.presentP2}
-              <span className="muted">/{fig.calendarDaysP2}</span>
+              <span className="text-muted">/{fig.calendarDaysP2}</span>
             </>
           ) : (
             <span style={{ whiteSpace: 'nowrap' }}>
               {fig.presentP2}
-              <span className="muted">/</span>
+              <span className="text-muted">/</span>
               <input
-                className="mono"
+                className="text-monospace"
                 value={daysP2}
                 onChange={(e) => setDaysP2(e.target.value)}
                 placeholder={String(live.p2.calendarDays)}
@@ -450,15 +450,15 @@ function WorkingRow({
             </span>
           )}
         </td>
-        <td className="right mono">{inr(fig.amountP1)}</td>
-        <td className="right mono">{inr(fig.amountP2)}</td>
-        <td className="right mono" style={{ fontWeight: 700 }}>
+        <td className="text-right text-monospace">{inr(fig.amountP1)}</td>
+        <td className="text-right text-monospace">{inr(fig.amountP2)}</td>
+        <td className="text-right text-monospace" style={{ fontWeight: 700 }}>
           {inr(fig.total)}
         </td>
         <td>
           <span
-            className="pill"
-            style={{ borderColor: 'var(--line-2)', color: statusColor[status ?? 'draft'] }}
+            className="status-badge"
+            style={{ borderColor: 'var(--border-strong)', color: statusColor[status ?? 'draft'] }}
           >
             {status ?? 'unsaved'}
           </span>
@@ -467,7 +467,7 @@ function WorkingRow({
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {!locked && (
               <button
-                className="btn quiet"
+                className="button quiet"
                 disabled={pending || !migrated || !valid || !dirty}
                 title={
                   !migrated
@@ -500,7 +500,7 @@ function WorkingRow({
             )}
             {status === 'draft' && !dirty && (
               <button
-                className="btn quiet"
+                className="button quiet"
                 disabled={pending}
                 onClick={() =>
                   onAction(() => finalizeLeaveSalary(row.working!.id), 'Working finalized.')
@@ -512,7 +512,7 @@ function WorkingRow({
             {status === 'finalized' && (
               <>
                 <button
-                  className="btn quiet"
+                  className="button quiet"
                   disabled={pending}
                   onClick={() =>
                     onAction(
@@ -524,7 +524,7 @@ function WorkingRow({
                   Reopen
                 </button>
                 <button
-                  className="btn quiet"
+                  className="button quiet"
                   disabled={pending}
                   onClick={async () => {
                     if (!(await onConfirmPaid(row.name, fig.total))) {
@@ -540,14 +540,14 @@ function WorkingRow({
                 </button>
               </>
             )}
-            {status === 'paid' && <span className="muted">settled</span>}
+            {status === 'paid' && <span className="text-muted">settled</span>}
           </div>
         </td>
       </tr>
 
       {open && (
         <tr>
-          <td colSpan={11} style={{ background: 'var(--paper-2, #fafaf8)' }}>
+          <td colSpan={11} style={{ background: 'var(--page-background-muted, #fafaf8)' }}>
             <Breakdown
               year={year}
               salaryBefore={locked ? row.salaryBefore : salaryBefore}
@@ -592,8 +592,8 @@ function Breakdown({
 
   const line = (label: string, value: string) => (
     <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
-      <span className="muted">{label}</span>
-      <span className="mono">{value}</span>
+      <span className="text-muted">{label}</span>
+      <span className="text-monospace">{value}</span>
     </div>
   );
 
@@ -642,7 +642,7 @@ function Breakdown({
           remarks ? (
             <p style={{ margin: 0 }}>{remarks}</p>
           ) : (
-            <p className="muted" style={{ margin: 0 }}>
+            <p className="text-muted" style={{ margin: 0 }}>
               No remarks.
             </p>
           )
@@ -684,7 +684,7 @@ function AdjustForm({
   return (
     <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
       <input
-        className="mono"
+        className="text-monospace"
         value={delta}
         onChange={(e) => setDelta(e.target.value)}
         placeholder="±days"
@@ -699,7 +699,7 @@ function AdjustForm({
         aria-label="Reason for the adjustment"
       />
       <button
-        className="btn quiet"
+        className="button quiet"
         disabled={disabled || busy || !ready}
         title={!ready ? 'Enter a non-zero day count and a reason' : undefined}
         onClick={async () => {

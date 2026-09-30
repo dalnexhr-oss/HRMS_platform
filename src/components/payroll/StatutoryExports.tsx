@@ -16,7 +16,7 @@ function StatutoryExports({
   }
   return (
     <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-      <span className="muted" style={{ fontSize: 12 }}>
+      <span className="text-muted" style={{ fontSize: 12 }}>
         Statutory:
       </span>
       <XlsxExportButton action={exportPfEcr.bind(null, periodMonth)} label="PF ECR" />

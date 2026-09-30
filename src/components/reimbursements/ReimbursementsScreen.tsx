@@ -27,15 +27,15 @@ const statusLabel: Record<ReimbursementView['status'], string> = {
 
 function statusPillStyle(status: ReimbursementView['status']): React.CSSProperties {
   if (status === 'pending' || status === 'finance_review') {
-    return { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' };
+    return { borderColor: 'var(--attendance-late-border)', color: 'var(--attendance-late)', background: 'var(--attendance-late-background)' };
   }
   if (status === 'approved') {
-    return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
+    return { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' };
   }
   if (status === 'rejected') {
-    return { borderColor: 'var(--line-2)', color: 'var(--hd)' };
+    return { borderColor: 'var(--border-strong)', color: 'var(--attendance-half-day)' };
   }
-  return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
+  return { borderColor: 'var(--border-strong)', color: 'var(--text-muted)' };
 }
 
 type Filter = 'pending' | 'all';
@@ -153,44 +153,44 @@ function ReimbursementsScreen({
   }
 
   return (
-    <div className="wrap grid">
+    <div className="content-container grid">
       {promptDialog}
       {toastNode}
-      <div className="kpis">
-        <div className="card kpi">
-          <div className="lab">Pending claims</div>
-          <div className="val" style={{ color: 'var(--lm)' }}>
+      <div className="summary-cards">
+        <div className="card summary-card">
+          <div className="metric-label">Pending claims</div>
+          <div className="metric-value" style={{ color: 'var(--attendance-late)' }}>
             {claims.filter((c) => c.status === 'pending').length}
           </div>
-          <div className="note">{inr(pendingTotal)} awaiting review</div>
+          <div className="metric-note">{inr(pendingTotal)} awaiting review</div>
         </div>
-        <div className="card kpi">
-          <div className="lab">Approved (unpaid)</div>
-          <div className="val" style={{ color: 'var(--p)' }}>
+        <div className="card summary-card">
+          <div className="metric-label">Approved (unpaid)</div>
+          <div className="metric-value" style={{ color: 'var(--attendance-present)' }}>
             {claims.filter((c) => c.status === 'approved').length}
           </div>
-          <div className="note">{inr(approvedTotal)} added to payroll</div>
+          <div className="metric-note">{inr(approvedTotal)} added to payroll</div>
         </div>
-        <div className="card kpi">
-          <div className="lab">Total claims</div>
-          <div className="val">{claims.length}</div>
-          <div className="note">All time</div>
+        <div className="card summary-card">
+          <div className="metric-label">Total claims</div>
+          <div className="metric-value">{claims.length}</div>
+          <div className="metric-note">All time</div>
         </div>
       </div>
 
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>Expense claims</h3>
-          <span className="folio">{rows.length} shown</span>
+          <span className="card-caption">{rows.length} shown</span>
           <span style={{ flex: 1 }} />
           <button
-            className={`btn${filter === 'pending' ? ' primary' : ' quiet'}`}
+            className={`button${filter === 'pending' ? ' primary' : ' quiet'}`}
             onClick={() => setFilter('pending')}
           >
             Pending
           </button>
           <button
-            className={`btn${filter === 'all' ? ' primary' : ' quiet'}`}
+            className={`button${filter === 'all' ? ' primary' : ' quiet'}`}
             onClick={() => setFilter('all')}
           >
             All
@@ -199,8 +199,8 @@ function ReimbursementsScreen({
         </div>
 
         {rows.length === 0 ? (
-          <div className="bd">
-            <div className="empty">
+          <div className="card-body">
+            <div className="empty-state">
               <p>{filter === 'pending' ? 'No claims waiting for review.' : 'No claims yet.'}</p>
             </div>
           </div>
@@ -215,9 +215,9 @@ function ReimbursementsScreen({
                   <th>Purpose</th>
                   <th>Date</th>
                   <th>Source / Medium</th>
-                  <th className="right">Kms</th>
+                  <th className="text-right">Kms</th>
                   <th>Mode of payment</th>
-                  <th className="right">Amount</th>
+                  <th className="text-right">Amount</th>
                   <th>Remarks</th>
                   <th>Status</th>
                   <th>Action</th>
@@ -228,33 +228,33 @@ function ReimbursementsScreen({
                   <tr key={c.id}>
                     {/* Sr. No is positional, never stored — deleting a claim
                         can't leave a gap in the sequence. */}
-                    <td className="mono muted">{ix + 1}</td>
+                    <td className="text-monospace text-muted">{ix + 1}</td>
                     <td>
                       <b>{c.employeeName}</b>
                       <br />
-                      <span className="mono muted" style={{ fontSize: 11 }}>
+                      <span className="text-monospace text-muted" style={{ fontSize: 11 }}>
                         {c.employeeCode}
                       </span>
                     </td>
                     <td>{c.description}</td>
                     <td>{purposeLabel[c.purpose]}</td>
-                    <td className="mono">{formatDate(c.claimDate)}</td>
-                    <td>{c.sourceMedium ?? <span className="muted">—</span>}</td>
-                    <td className="right mono">{c.kms ?? '—'}</td>
-                    <td>{c.modeOfPayment ?? <span className="muted">—</span>}</td>
-                    <td className="right mono" style={{ fontWeight: 700 }}>
+                    <td className="text-monospace">{formatDate(c.claimDate)}</td>
+                    <td>{c.sourceMedium ?? <span className="text-muted">—</span>}</td>
+                    <td className="text-right text-monospace">{c.kms ?? '—'}</td>
+                    <td>{c.modeOfPayment ?? <span className="text-muted">—</span>}</td>
+                    <td className="text-right text-monospace" style={{ fontWeight: 700 }}>
                       {inr(c.amount)}
                     </td>
-                    <td className="muted" style={{ fontSize: 12 }}>
+                    <td className="text-muted" style={{ fontSize: 12 }}>
                       {c.remarks ?? '—'}
                       {c.status === 'rejected' && c.reviewRemark && (
-                        <div style={{ color: 'var(--hd)', marginTop: 4 }}>
+                        <div style={{ color: 'var(--attendance-half-day)', marginTop: 4 }}>
                           <b>Rejected:</b> {c.reviewRemark}
                         </div>
                       )}
                     </td>
                     <td>
-                      <span className="pill" style={statusPillStyle(c.status)}>
+                      <span className="status-badge" style={statusPillStyle(c.status)}>
                         {statusLabel[c.status]}
                       </span>
                     </td>
@@ -263,7 +263,7 @@ function ReimbursementsScreen({
                         {c.status === 'pending' && (
                           <>
                             <button
-                              className="btn primary"
+                              className="button primary"
                               disabled={pending && busy === c.id}
                               onClick={() =>
                                 run(
@@ -276,7 +276,7 @@ function ReimbursementsScreen({
                               {pending && busy === c.id ? '…' : 'Approve'}
                             </button>
                             <button
-                              className="btn"
+                              className="button"
                               disabled={pending && busy === c.id}
                               onClick={() => reject(c.id)}
                             >
@@ -288,7 +288,7 @@ function ReimbursementsScreen({
                           (canFinance ? (
                             <>
                               <button
-                                className="btn primary"
+                                className="button primary"
                                 disabled={pending && busy === c.id}
                                 onClick={() =>
                                   run(
@@ -302,7 +302,7 @@ function ReimbursementsScreen({
                                 {pending && busy === c.id ? '…' : 'Finance approve'}
                               </button>
                               <button
-                                className="btn"
+                                className="button"
                                 disabled={pending && busy === c.id}
                                 onClick={() => financeReject(c.id)}
                               >
@@ -310,13 +310,13 @@ function ReimbursementsScreen({
                               </button>
                             </>
                           ) : (
-                            <span className="muted" style={{ fontSize: 12 }}>
+                            <span className="text-muted" style={{ fontSize: 12 }}>
                               Awaiting Finance
                             </span>
                           ))}
                         {c.status === 'approved' && (
                           <button
-                            className="btn quiet"
+                            className="button quiet"
                             disabled={pending && busy === c.id}
                             onClick={() => markPaid(c.id)}
                           >
@@ -325,7 +325,7 @@ function ReimbursementsScreen({
                         )}
                         {c.receiptPath && (
                           <button
-                            className="btn quiet"
+                            className="button quiet"
                             onClick={() => openReceipt(c.id)}
                             title="Open the attached receipt"
                           >
@@ -333,7 +333,7 @@ function ReimbursementsScreen({
                           </button>
                         )}
                         {(c.status === 'rejected' || c.status === 'paid') && !c.receiptPath && (
-                          <span className="muted" style={{ fontSize: 12 }}>
+                          <span className="text-muted" style={{ fontSize: 12 }}>
                             —
                           </span>
                         )}
@@ -347,7 +347,7 @@ function ReimbursementsScreen({
         )}
       </div>
 
-      <p className="muted" style={{ fontSize: 12 }}>
+      <p className="text-muted" style={{ fontSize: 12 }}>
         Approving a claim adds its amount to that employee’s “Reimbursement / bonus” adjustment on
         the payslip for the claim’s month and recomputes it, so it is paid with salary. Travel
         claims are calculated as km × the rate in Settings.

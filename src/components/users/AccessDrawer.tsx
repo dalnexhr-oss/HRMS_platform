@@ -103,23 +103,23 @@ function AccessDrawer({
 
   return (
     <>
-      <div className={`overlay${open ? ' on' : ''}`} onClick={onClose} />
-      <aside className={`drawer${open ? ' on' : ''}`} aria-label="Tab access">
+      <div className={`dialog-backdrop${open ? ' is-active' : ''}`} onClick={onClose} />
+      <aside className={`drawer${open ? ' is-active' : ''}`} aria-label="Tab access">
         {user && (
           <>
-            <div className="dhd">
+            <div className="drawer-header">
               <h3>Tab access</h3>
               <span style={{ flex: 1 }} />
-              <button type="button" className="btn quiet" onClick={onClose}>
+              <button type="button" className="button quiet" onClick={onClose}>
                 ✕
               </button>
             </div>
 
-            <div className="dbd">
+            <div className="drawer-body">
               <div className="hint" style={{ marginBottom: 14 }}>
                 <span>
                   <b>{user.fullName || user.email}</b>{' '}
-                  <span className="mono muted" style={{ fontSize: 11 }}>
+                  <span className="text-monospace text-muted" style={{ fontSize: 11 }}>
                     {user.role === 'hr' ? 'HR' : 'Admin'}
                   </span>
                   <br />
@@ -136,13 +136,13 @@ function AccessDrawer({
               </div>
 
               {loadError && (
-                <div className="hint" style={{ borderColor: 'var(--ab)', color: 'var(--ab)' }}>
+                <div className="hint" style={{ borderColor: 'var(--attendance-absent)', color: 'var(--attendance-absent)' }}>
                   {loadError}
                 </div>
               )}
 
               {loading ? (
-                <p className="muted">Loading…</p>
+                <p className="text-muted">Loading…</p>
               ) : (
                 groupOrder.map((group) => {
                   const rows = eligible.filter((n) => n.group === group);
@@ -153,10 +153,10 @@ function AccessDrawer({
                     <div key={group} style={{ marginBottom: 16 }}>
                       <div
                         style={{
-                          font: '600 10px var(--mono)',
+                          font: '600 10px var(--font-monospace)',
                           letterSpacing: '.13em',
                           textTransform: 'uppercase',
-                          color: 'var(--ink-3)',
+                          color: 'var(--text-muted)',
                           marginBottom: 6,
                         }}
                       >
@@ -190,7 +190,7 @@ function AccessDrawer({
                               }}
                             />
                             <span style={{ flex: 1 }}>{n.label}</span>
-                            <span className="mono muted" style={{ fontSize: 11 }}>
+                            <span className="text-monospace text-muted" style={{ fontSize: 11 }}>
                               /{n.slug}
                             </span>
                           </label>
@@ -202,17 +202,17 @@ function AccessDrawer({
               )}
             </div>
 
-            <div className="dft">
+            <div className="drawer-footer">
               <button
                 type="button"
-                className="btn quiet"
+                className="button quiet"
                 onClick={onReset}
                 disabled={pending && busySlug === '__reset'}
                 title="Give this account every tab its role allows"
               >
                 Restore all tabs
               </button>
-              <button type="button" className="btn primary" onClick={onClose}>
+              <button type="button" className="button primary" onClick={onClose}>
                 Done
               </button>
             </div>

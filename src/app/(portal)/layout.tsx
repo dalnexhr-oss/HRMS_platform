@@ -45,9 +45,9 @@ async function PortalLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="shell">
+    <div className="app-layout">
       <Sidebar name={profile?.full_name} role={profile?.role} access={access} />
-      <main className="main">
+      <main className="app-main">
         <Topbar
           name={profile?.full_name}
           avatar={profile?.avatar ?? null}
@@ -57,7 +57,7 @@ async function PortalLayout({ children }: { children: React.ReactNode }) {
           unread={unread}
           stats={stats}
         />
-        <section className="screen">{children}</section>
+        <section className="page-content">{children}</section>
       </main>
     </div>
   );

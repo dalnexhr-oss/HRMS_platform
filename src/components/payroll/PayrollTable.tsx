@@ -78,7 +78,7 @@ function RunActions({
     return (
       <>
         <button
-          className="btn primary"
+          className="button primary"
           disabled={pending}
           onClick={() => {
             setError(null);
@@ -93,7 +93,7 @@ function RunActions({
           {pending ? 'Starting…' : 'Start payroll run'}
         </button>
         {error && (
-          <div className="login-error" style={{ flexBasis: '100%', margin: '4px 0 0' }}>
+          <div className="error-message" style={{ flexBasis: '100%', margin: '4px 0 0' }}>
             {error}
           </div>
         )}
@@ -136,7 +136,7 @@ function RunActions({
     <>
       {confirmDialog}
       <button
-        className="btn"
+        className="button"
         disabled={!run || frozen || pending}
         title={
           !run
@@ -151,7 +151,7 @@ function RunActions({
       </button>
 
       <button
-        className="btn primary"
+        className="button primary"
         disabled={!run || frozen || nothingToLock || pending}
         title={
           !run
@@ -178,7 +178,7 @@ function RunActions({
 
       {run?.status === 'locked' && (
         <button
-          className="btn"
+          className="button"
           disabled={pending}
           onClick={() => call(markRunPaid, 'Mark this run — and every payslip in it — as paid?')}
         >
@@ -187,7 +187,7 @@ function RunActions({
       )}
 
       {error && (
-        <div className="login-error" style={{ flexBasis: '100%', margin: '4px 0 0' }}>
+        <div className="error-message" style={{ flexBasis: '100%', margin: '4px 0 0' }}>
           {error}
         </div>
       )}
@@ -228,27 +228,27 @@ function PayrollTable({
 
   return (
     <>
-      <div className="totals">
+      <div className="payroll-totals">
         {totals.map(([l, v]) => (
           <div className="card" key={l}>
-            <div className="lab">{l}</div>
-            <div className="val">{v}</div>
+            <div className="metric-label">{l}</div>
+            <div className="metric-value">{v}</div>
           </div>
         ))}
       </div>
 
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>Payslips — {monthLabel}</h3>
-          <span className="folio">
+          <span className="card-caption">
             {payslips.length} {payslips.length === 1 ? 'employee' : 'employees'} ·{' '}
             {statusLabel.toLowerCase()}
           </span>
         </div>
 
         {payslips.length === 0 ? (
-          <div className="bd">
-            <p className="muted">
+          <div className="card-body">
+            <p className="text-muted">
               {run
                 ? 'This run has no payslips yet — use “Recompute drafts” to build them.'
                 : `No payroll run exists for ${monthLabel} yet.`}
@@ -262,13 +262,13 @@ function PayrollTable({
                   <th>Emp</th>
                   <th>Name</th>
                   <th>Branch</th>
-                  <th className="right">Payable days</th>
-                  <th className="right">Earned gross</th>
-                  <th className="right">Hours shortfall</th>
-                  <th className="right">PF</th>
-                  <th className="right">ESIC</th>
-                  <th className="right">PT</th>
-                  <th className="right">Net payable</th>
+                  <th className="text-right">Payable days</th>
+                  <th className="text-right">Earned gross</th>
+                  <th className="text-right">Hours shortfall</th>
+                  <th className="text-right">PF</th>
+                  <th className="text-right">ESIC</th>
+                  <th className="text-right">PT</th>
+                  <th className="text-right">Net payable</th>
                   <th>Payslip</th>
                 </tr>
               </thead>
@@ -279,30 +279,30 @@ function PayrollTable({
                       style={{ cursor: 'pointer' }}
                       onClick={() => setOpen((o) => (o === p.id ? null : p.id))}
                     >
-                      <td className="mono muted">{p.code}</td>
+                      <td className="text-monospace text-muted">{p.code}</td>
                       <td>
                         <b>{p.name}</b>
                       </td>
                       <td>{p.branch}</td>
-                      <td className="right mono">{p.payableDays}</td>
-                      <td className="right mono">{inr(p.earnedGross)}</td>
+                      <td className="text-right text-monospace">{p.payableDays}</td>
+                      <td className="text-right text-monospace">{inr(p.earnedGross)}</td>
                       <td
-                        className="right mono"
-                        style={{ color: p.shortfallAmount ? 'var(--hd)' : 'var(--ink-3)' }}
+                        className="text-right text-monospace"
+                        style={{ color: p.shortfallAmount ? 'var(--attendance-half-day)' : 'var(--text-muted)' }}
                       >
                         {p.shortfallAmount ? `-${inr(p.shortfallAmount)}` : '—'}
                       </td>
-                      <td className="right mono">{inr(p.pfEmployee)}</td>
-                      <td className="right mono">{p.esicEmployee ? inr(p.esicEmployee) : '—'}</td>
-                      <td className="right mono">{inr(p.professionalTax)}</td>
+                      <td className="text-right text-monospace">{inr(p.pfEmployee)}</td>
+                      <td className="text-right text-monospace">{p.esicEmployee ? inr(p.esicEmployee) : '—'}</td>
+                      <td className="text-right text-monospace">{inr(p.professionalTax)}</td>
                       <td
-                        className="right mono"
+                        className="text-right text-monospace"
                         style={{ fontWeight: 700, color: 'var(--brand-deep)' }}
                       >
                         {inr(p.netPayable)}
                       </td>
                       <td>
-                        <span className="pill wapill">{payslipLabel}</span>
+                        <span className="status-badge payslip-status">{payslipLabel}</span>
                       </td>
                     </tr>
                     {open === p.id && (
@@ -339,10 +339,10 @@ function PayExpand({
   daysInMonth: number | null;
 }) {
   return (
-    <tr className="exp">
+    <tr className="payslip-breakdown">
       <td colSpan={11}>
-        <div className="exp-grid">
-          <div className="exp-col">
+        <div className="payslip-breakdown-grid">
+          <div className="payslip-breakdown-column">
             <h4>
               Earnings — {p.payableDays} payable days
               {daysInMonth ? ` of ${daysInMonth}` : ''}
@@ -353,7 +353,7 @@ function PayExpand({
             <Kv label="Special allowance (earned)" value={inr(p.specialEarned)} />
             <Kv label="Earned gross" value={inr(p.earnedGross)} total />
           </div>
-          <div className="exp-col">
+          <div className="payslip-breakdown-column">
             <h4>Deductions</h4>
             <Kv
               label={`Hours shortfall (${p.shortfallMinutes} min)`}
@@ -370,14 +370,14 @@ function PayExpand({
             <Kv label="Other deductions" value={p.otherDeductions ? inr(p.otherDeductions) : '—'} />
             <Kv label="Late marks / Loss & damage" value={p.lossDamage ? inr(p.lossDamage) : '—'} />
             <Kv label="Net payable" value={inr(p.netPayable)} total />
-            <div className="kv muted" style={{ fontSize: 11 }}>
+            <div className="label-value-row text-muted" style={{ fontSize: 11 }}>
               <span>
                 Employer side: PF {inr(p.pfEmployer)} · ESIC{' '}
                 {p.esicEmployer ? inr(p.esicEmployer) : '—'}
               </span>
             </div>
           </div>
-          <div className="exp-col adj">
+          <div className="payslip-breakdown-column payroll-adjustments">
             {/* key: re-seed the controlled inputs when a different payslip opens */}
             <AdjForm key={p.id} p={p} adj={adj} frozen={frozen} runStatus={runStatus} />
           </div>
@@ -470,7 +470,7 @@ function AdjForm({
         readOnly={frozen}
       />
 
-      <div className="kv">
+      <div className="label-value-row">
         <span style={{ alignSelf: 'center' }}>Remarks</span>
         <input
           name="remarks"
@@ -482,7 +482,7 @@ function AdjForm({
       </div>
 
       {state.error && (
-        <div className="login-error" style={{ margin: '10px 0 0' }}>
+        <div className="error-message" style={{ margin: '10px 0 0' }}>
           {state.error}
         </div>
       )}
@@ -494,7 +494,7 @@ function AdjForm({
 
       <div style={{ marginTop: 10, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <button
-          className="btn"
+          className="button"
           type="button"
           onClick={() => {
             if (!printPayslip(p)) {
@@ -509,7 +509,7 @@ function AdjForm({
           Payslip PDF
         </button>
         {!frozen && (
-          <button className="btn primary" type="submit" disabled={pending}>
+          <button className="button primary" type="submit" disabled={pending}>
             {pending ? 'Saving…' : 'Save'}
           </button>
         )}
@@ -520,9 +520,9 @@ function AdjForm({
 
 function Kv({ label, value, total }: { label: string; value: string; total?: boolean }) {
   return (
-    <div className={`kv${total ? ' total' : ''}`}>
+    <div className={`label-value-row${total ? ' total' : ''}`}>
       <span>{label}</span>
-      <span className="v">{value}</span>
+      <span className="label-value">{value}</span>
     </div>
   );
 }
@@ -541,7 +541,7 @@ function AdjRow({
   readOnly: boolean;
 }) {
   return (
-    <div className="kv">
+    <div className="label-value-row">
       <span>{label}</span>
       <input
         name={name}

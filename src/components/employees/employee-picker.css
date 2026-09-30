@@ -5,7 +5,7 @@
 .employee-picker-control {
   position: relative;
 }
-.f .employee-picker-control > input {
+.form-field .employee-picker-control > input {
   min-width: 0;
   padding-right: 80px;
 }
@@ -26,7 +26,7 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: var(--ink-2);
+  color: var(--text-secondary);
   font-size: 20px;
   cursor: pointer;
 }
@@ -49,10 +49,10 @@
   max-height: 240px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--border-strong);
   border-radius: 12px;
-  background: var(--card-solid);
-  box-shadow: var(--shadow-lift);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-elevated);
 }
 .employee-picker-options button {
   display: flex;
@@ -62,9 +62,9 @@
   min-height: 44px;
   padding: 10px 12px;
   border: 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--border-subtle);
   background: transparent;
-  color: var(--ink);
+  color: var(--text-primary);
   font: inherit;
   text-align: left;
   white-space: normal;
@@ -80,11 +80,11 @@
 }
 .employee-picker-options small {
   font-size: 11px;
-  color: var(--ink-3);
+  color: var(--text-muted);
 }
 .employee-picker-empty {
   padding: 14px 12px;
-  color: var(--ink-3);
+  color: var(--text-muted);
 }
 .employee-picker-status {
   position: absolute;

@@ -76,7 +76,7 @@ function UserActions({
       <button
         ref={trigger}
         type="button"
-        className="btn quiet users-actions-toggle"
+        className="button quiet users-actions-toggle"
         disabled={disabled}
         aria-label={`Actions for ${name}`}
         aria-haspopup="menu"
@@ -117,7 +117,7 @@ function UserActions({
               key={item.label}
               type="button"
               role="menuitem"
-              className={`btn quiet${item.danger ? ' users-delete' : ''}`}
+              className={`button quiet${item.danger ? ' users-delete' : ''}`}
               disabled={disabled || item.disabled}
               onClick={() => {
                 setOpen(false);

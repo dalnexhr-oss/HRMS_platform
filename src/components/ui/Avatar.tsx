@@ -17,13 +17,13 @@ function AvatarInner({ name, avatar }: { name?: string | null; avatar?: string |
   if (avatar && avatar.startsWith('data:image/')) {
     // A data-URL photo — next/image can't optimise these.
     // eslint-disable-next-line @next/next/no-img-element
-    return <img className="av-img" src={avatar} alt="" />;
+    return <img className="avatar-image" src={avatar} alt="" />;
   }
   if (avatar && avatar.startsWith('preset:')) {
     const id = avatar.slice('preset:'.length);
     if (isAvatarPresetId(id)) {
       // eslint-disable-next-line @next/next/no-img-element
-      return <img className="av-img" src={avatarPresetSrc(id)} alt="" />;
+      return <img className="avatar-image" src={avatarPresetSrc(id)} alt="" />;
     }
   }
   return <>{initials(name)}</>;
@@ -40,7 +40,7 @@ function Avatar({
   className?: string;
 }) {
   return (
-    <span className={`av ${className}`.trim()}>
+    <span className={`avatar ${className}`.trim()}>
       <AvatarInner name={name} avatar={avatar} />
     </span>
   );

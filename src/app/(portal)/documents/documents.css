@@ -5,23 +5,23 @@
   flex-wrap: wrap;
   gap: 12px;
 }
-.documents-toolbar .search {
+.documents-toolbar .search-field {
   flex: 1 1 260px;
   min-width: 0;
   max-width: 440px;
 }
-.documents-toolbar .search input {
+.documents-toolbar .search-field input {
   min-width: 0;
   width: 100%;
 }
-.documents-toolbar > .btn {
+.documents-toolbar > .button {
   margin-left: auto;
 }
-.documents-kpis,
+.documents-summary-cards,
 .documents-queue {
   margin-bottom: 16px;
 }
-.documents-kpis .kpi {
+.documents-summary-cards .summary-card {
   min-width: 0;
 }
 .documents-table-wrap {
@@ -32,25 +32,25 @@
   width: 100%;
   table-layout: fixed;
 }
-.documents-col-employee {
+.documents-column-employee {
   width: 16%;
 }
-.documents-col-category {
+.documents-column-category {
   width: 12%;
 }
-.documents-col-source {
+.documents-column-source {
   width: 90px;
 }
-.documents-col-status {
+.documents-column-status {
   width: 176px;
 }
-.documents-col-filed {
+.documents-column-filed {
   width: 108px;
 }
-.documents-col-actions {
+.documents-column-actions {
   width: 166px;
 }
-.documents-queue-table .documents-col-employee {
+.documents-queue-table .documents-column-employee {
   width: 22%;
 }
 .documents-table th,
@@ -102,12 +102,12 @@
   border-radius: 8px;
 }
 .document-actions .document-delete {
-  color: var(--ab);
-  border-color: var(--ab-line);
+  color: var(--attendance-absent);
+  border-color: var(--attendance-absent-border);
 }
 .document-actions .document-delete:hover {
-  color: var(--ab);
-  background: var(--ab-bg);
+  color: var(--attendance-absent);
+  background: var(--attendance-absent-background);
 }
 .documents-table .documents-empty {
   padding: 20px;
@@ -129,7 +129,7 @@
     flex-wrap: wrap;
     gap: 12px 20px;
     padding: 12px 16px;
-    background: var(--card-2);
+    background: var(--surface-inset);
   }
   .documents-table th {
     padding: 0;
@@ -144,7 +144,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px 16px;
     padding: 16px;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--border-subtle);
   }
   .documents-table tbody tr:last-child {
     border-bottom: 0;
@@ -159,8 +159,8 @@
     content: attr(data-label);
     display: block;
     margin-bottom: 5px;
-    font: 600 10px/1.4 var(--mono);
-    color: var(--ink-3);
+    font: 600 10px/1.4 var(--font-monospace);
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.06em;
   }

@@ -37,7 +37,7 @@ function RequestRoutingSummary({
                 {step.forwardedTo
                   ? ` this stage and forwarded to ${step.forwardedTo.name}`
                   : ' the request'}
-                <div className="muted">
+                <div className="text-muted">
                   {new Date(step.decidedAt).toLocaleString('en-GB', {
                     timeZone: 'Asia/Kolkata',
                     dateStyle: 'medium',

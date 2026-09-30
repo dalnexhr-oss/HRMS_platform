@@ -260,7 +260,7 @@ function ThMenu({
       <button
         ref={btnRef}
         type="button"
-        className={`th-btn${active ? ' on' : ''}`}
+        className={`table-column-menu-button${active ? ' is-active' : ''}`}
         onClick={toggleOpen}
         aria-haspopup="true"
         aria-expanded={open}
@@ -294,7 +294,7 @@ function ThMenu({
         createPortal(
           <div
             ref={popRef}
-            className="th-pop"
+            className="table-column-menu"
             style={{ left: pos.left, top: pos.top, width }}
             // A date column's body is form controls, not menu items; announcing
             // it as a menu tells a screen-reader user to expect arrow-key
@@ -304,7 +304,7 @@ function ThMenu({
           >
             <button
               type="button"
-              className={`th-pop-item${sortDir === 'asc' ? ' on' : ''}`}
+              className={`table-column-menu-item${sortDir === 'asc' ? ' is-active' : ''}`}
               onClick={() => {
                 onSort(sortDir === 'asc' ? null : 'asc');
                 setOpen(false);
@@ -314,7 +314,7 @@ function ThMenu({
             </button>
             <button
               type="button"
-              className={`th-pop-item${sortDir === 'desc' ? ' on' : ''}`}
+              className={`table-column-menu-item${sortDir === 'desc' ? ' is-active' : ''}`}
               onClick={() => {
                 onSort(sortDir === 'desc' ? null : 'desc');
                 setOpen(false);
@@ -323,16 +323,16 @@ function ThMenu({
               ↓ {sortLabels[kind][1]}
             </button>
 
-            <div className="th-pop-sep" />
+            <div className="table-column-menu-divider" />
 
             {isDate ? (
               <>
-                <div className="th-pop-hd">
+                <div className="table-column-menu-header">
                   Filter by date
                   {rangeActive(range) && (
                     <button
                       type="button"
-                      className="th-pop-clear"
+                      className="table-column-menu-clear"
                       onClick={() => onRange?.(noRange)}
                     >
                       Clear
@@ -343,12 +343,12 @@ function ThMenu({
                 {/* Presets apply immediately — a shortcut that then needs an
                     Apply click is not a shortcut. The menu stays open so the
                     range can be nudged from a preset into a custom span. */}
-                <div className="th-pop-chips">
+                <div className="table-column-date-presets">
                   {presets.map((p) => (
                     <button
                       key={p.label}
                       type="button"
-                      className={`th-chip${sameRange(p.range, range) ? ' on' : ''}`}
+                      className={`table-column-date-preset${sameRange(p.range, range) ? ' is-active' : ''}`}
                       aria-pressed={sameRange(p.range, range)}
                       onClick={() => onRange?.(sameRange(p.range, range) ? noRange : p.range)}
                     >
@@ -358,7 +358,7 @@ function ThMenu({
                   {hasBlanks && (
                     <button
                       type="button"
-                      className={`th-chip${range.blank ? ' on' : ''}`}
+                      className={`table-column-date-preset${range.blank ? ' is-active' : ''}`}
                       aria-pressed={!!range.blank}
                       onClick={() =>
                         onRange?.(range.blank ? noRange : { from: '', to: '', blank: true })
@@ -372,7 +372,7 @@ function ThMenu({
                 {/* Native date inputs: a real calendar on every platform, the
                     keyboard and screen-reader behaviour the OS already ships,
                     and no picker dependency to carry. */}
-                <div className="th-pop-dates">
+                <div className="table-column-date-range">
                   <label>
                     <span>From</span>
                     <input
@@ -399,7 +399,7 @@ function ThMenu({
                   </label>
                 </div>
 
-                <p className="th-pop-note" aria-live="polite">
+                <p className="table-column-menu-note" aria-live="polite">
                   {rangeActive(range)
                     ? rangeLabel(range)
                     : span
@@ -409,10 +409,10 @@ function ThMenu({
               </>
             ) : (
               <>
-                <div className="th-pop-hd">
+                <div className="table-column-menu-header">
                   Filter
                   {selected.length > 0 && (
-                    <button type="button" className="th-pop-clear" onClick={onClear}>
+                    <button type="button" className="table-column-menu-clear" onClick={onClear}>
                       Clear ({selected.length})
                     </button>
                   )}
@@ -420,16 +420,16 @@ function ThMenu({
 
                 {options.length > 8 && (
                   <input
-                    className="th-pop-find"
+                    className="table-column-menu-search"
                     placeholder="Find value…"
                     value={find}
                     onChange={(e) => setFind(e.target.value)}
                   />
                 )}
 
-                <div className="th-pop-list">
+                <div className="table-column-menu-options">
                   {shown.map((o) => (
-                    <label key={o} className="th-pop-opt">
+                    <label key={o} className="table-column-menu-option">
                       <input
                         type="checkbox"
                         checked={selected.includes(o)}
@@ -439,7 +439,7 @@ function ThMenu({
                     </label>
                   ))}
                   {shown.length === 0 && (
-                    <div className="muted" style={{ padding: '5px 8px', fontSize: 12 }}>
+                    <div className="text-muted" style={{ padding: '5px 8px', fontSize: 12 }}>
                       No matching values
                     </div>
                   )}

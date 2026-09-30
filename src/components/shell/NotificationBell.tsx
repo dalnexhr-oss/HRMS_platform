@@ -46,8 +46,8 @@ function scrollToSection(id: string): void {
     return;
   }
   el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  el.classList.add('jump-flash');
-  window.setTimeout(() => el.classList.remove('jump-flash'), 1600);
+  el.classList.add('section-highlight');
+  window.setTimeout(() => el.classList.remove('section-highlight'), 1600);
 }
 
 // "x minutes ago" for a notification timestamp. The server always sends UTC ISO strings, so the
@@ -160,7 +160,7 @@ function NotificationBell({
     <div ref={boxRef} style={{ position: 'relative' }}>
       <button
         type="button"
-        className="btn quiet"
+        className="button quiet"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="true"
         aria-expanded={open}
@@ -188,9 +188,9 @@ function NotificationBell({
               height: 16,
               padding: '0 4px',
               borderRadius: 8,
-              background: 'var(--ab)',
+              background: 'var(--attendance-absent)',
               color: '#fff',
-              font: '700 10px var(--mono)',
+              font: '700 10px var(--font-monospace)',
               display: 'grid',
               placeItems: 'center',
             }}
@@ -211,7 +211,7 @@ function NotificationBell({
             maxHeight: 420,
             overflowY: 'auto',
             background: '#fff',
-            border: '1px solid var(--line-2)',
+            border: '1px solid var(--border-strong)',
             borderRadius: 10,
             boxShadow: '0 8px 28px rgba(0,0,0,.12)',
             zIndex: 50,
@@ -223,27 +223,27 @@ function NotificationBell({
               alignItems: 'center',
               gap: 8,
               padding: '10px 12px',
-              borderBottom: '1px solid var(--line-2)',
+              borderBottom: '1px solid var(--border-strong)',
             }}
           >
             <b style={{ fontSize: 13 }}>Notifications</b>
             <span style={{ flex: 1 }} />
             {unread > 0 && (
-              <button className="btn quiet" style={{ fontSize: 12 }} onClick={onMarkAll}>
+              <button className="button quiet" style={{ fontSize: 12 }} onClick={onMarkAll}>
                 Mark all read
               </button>
             )}
           </div>
 
           {error && (
-            <div className="login-error" role="alert" style={{ margin: 10, fontSize: 12 }}>
+            <div className="error-message" role="alert" style={{ margin: 10, fontSize: 12 }}>
               {error}
             </div>
           )}
 
           {notifications.length === 0 ? (
             <p
-              className="muted"
+              className="text-muted"
               style={{ fontSize: 13, padding: 16, margin: 0, textAlign: 'center' }}
             >
               Nothing yet.
@@ -261,13 +261,13 @@ function NotificationBell({
                     </span>
                     {n.body && (
                       <span
-                        className="muted"
+                        className="text-muted"
                         style={{ display: 'block', fontSize: 12, wordBreak: 'break-word' }}
                       >
                         {n.body}
                       </span>
                     )}
-                    <span className="muted" style={{ fontSize: 11 }}>
+                    <span className="text-muted" style={{ fontSize: 11 }}>
                       {ago(n.createdAt)}
                     </span>
                   </span>
@@ -291,8 +291,8 @@ function NotificationBell({
                 gap: 10,
                 alignItems: 'flex-start',
                 padding: '10px 12px',
-                borderBottom: '1px solid var(--line)',
-                background: n.readAt ? '#fff' : 'var(--p-bg, #f6faf7)',
+                borderBottom: '1px solid var(--border-subtle)',
+                background: n.readAt ? '#fff' : 'var(--attendance-present-background, #f6faf7)',
                 textDecoration: 'none',
                 color: 'inherit',
                 width: '100%',

@@ -9,9 +9,9 @@ async function PoliciesPage() {
   ]);
 
   return (
-    <div className="wrap grid">
+    <div className="content-container grid">
       <PolicyAdmin policies={policies} ackCounts={ackCounts} headcount={headcount} />
-      <p className="muted" style={{ fontSize: 12 }}>
+      <p className="text-muted" style={{ fontSize: 12 }}>
         Published policies appear on every employee&rsquo;s dashboard, where they can read and
         acknowledge them. The count on each published policy is how many active employees have
         marked it as read.

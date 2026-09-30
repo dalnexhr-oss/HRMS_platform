@@ -27,24 +27,24 @@ function EmployeeHolidays({
           gap: 10,
           flexWrap: 'wrap',
           padding: '10px 12px',
-          border: '1px solid var(--line-2)',
+          border: '1px solid var(--border-strong)',
           borderRadius: 8,
           marginBottom: 14,
         }}
       >
         <div style={{ flex: '1 1 220px', minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: 13 }}>Add to your calendar</div>
-          <div className="muted" style={{ fontSize: 12 }}>
+          <div className="text-muted" style={{ fontSize: 12 }}>
             Your approved leave, comp-off credits and company holidays as one calendar file.
           </div>
         </div>
-        <a className="btn quiet" href="/api/calendar" download="dalnex-hr.ics">
+        <a className="button quiet" href="/api/calendar" download="dalnex-hr.ics">
           ⬇ Download .ics
         </a>
       </div>
 
       {holidays.length === 0 ? (
-        <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+        <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
           No public holidays published yet.
         </p>
       ) : (
@@ -59,8 +59,8 @@ function EmployeeHolidays({
 
           {past.length > 0 && (
             <>
-              <div className="holi-sep">Earlier</div>
-              <div className="holi-dim">
+              <div className="holiday-group-heading">Earlier</div>
+              <div className="holiday-past-group">
                 {past.map((h) => (
                   <HolidayRow key={h.id} holiday={h} />
                 ))}
@@ -113,11 +113,11 @@ function weekOffSentence(policy: WeekOffPolicy): string {
 function WeekOffBanner({ policy }: { policy: WeekOffPolicy }) {
   const sentence = weekOffSentence(policy);
   return (
-    <div className="weekoff">
-      <span className="weekoff-tag">Weekly offs</span>
-      <div className="weekoff-txt">
+    <div className="weekly-off-summary">
+      <span className="weekly-off-label">Weekly offs</span>
+      <div className="weekly-off-description">
         <b>{describePolicy(policy)}</b>
-        {sentence && <span className="sub">{sentence}</span>}
+        {sentence && <span className="subtitle">{sentence}</span>}
       </div>
     </div>
   );
@@ -136,21 +136,21 @@ function HolidayRow({ holiday, next = false }: { holiday: HolidayView; next?: bo
   });
 
   return (
-    <div className={`holi${next ? ' holi-next' : ''}`}>
-      <div className="holi-cal">
-        <span className="d">{day}</span>
-        <span className="m">{mon}</span>
+    <div className={`holiday-row${next ? ' holiday-upcoming' : ''}`}>
+      <div className="holiday-date">
+        <span className="holiday-day">{day}</span>
+        <span className="holiday-month">{mon}</span>
       </div>
-      <div className="holi-nm">
+      <div className="holiday-name">
         <b>
           {holiday.name}
-          {next && <span className="holi-badge">Next up</span>}
+          {next && <span className="holiday-upcoming-badge">Next up</span>}
         </b>
-        <span className="sub">
+        <span className="subtitle">
           {weekday} · {full}
         </span>
       </div>
-      <span className="pill">{holiday.branch ?? 'All branches'}</span>
+      <span className="status-badge">{holiday.branch ?? 'All branches'}</span>
     </div>
   );
 }

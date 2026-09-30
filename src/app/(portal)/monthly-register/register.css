@@ -12,7 +12,7 @@
   flex-wrap: wrap;
   gap: 8px 12px;
   padding: 10px 12px;
-  border-bottom: 1px solid var(--line-2);
+  border-bottom: 1px solid var(--border-strong);
 }
 .register-controls .register-search {
   flex: 1 1 240px;
@@ -27,7 +27,7 @@
   flex-wrap: wrap;
   gap: 8px 16px;
 }
-.register-expanded-title .mono {
+.register-expanded-title .text-monospace {
   font-size: 12px;
 }
 .register-search input {
@@ -41,7 +41,7 @@
 .register-count {
   font-size: 11px;
 }
-.register-controls .btn {
+.register-controls .button {
   padding: 7px 10px;
   font-size: 12px;
   white-space: nowrap;
@@ -56,8 +56,8 @@
   flex-wrap: wrap;
   gap: 8px;
   padding: 8px;
-  border-radius: var(--radius-xs);
-  background: var(--p-bg);
+  border-radius: var(--border-radius-extra-small);
+  background: var(--attendance-present-background);
 }
 .register-selection-note {
   margin: 0;
@@ -69,13 +69,13 @@
     var(--register-employee-width) + var(--register-day-count) * var(--register-day-width)
   );
 }
-.monthly-register .rrow {
+.monthly-register .attendance-row {
   grid-template-columns: var(--register-employee-width) minmax(0, 1fr);
 }
-.monthly-register .daystrip {
+.monthly-register .attendance-days {
   grid-auto-columns: minmax(var(--register-day-width), 1fr);
 }
-.monthly-register .emp-cell {
+.monthly-register .attendance-employee-cell {
   padding: 8px 12px;
   gap: 4px;
 }
@@ -87,12 +87,12 @@
   justify-content: space-between;
   gap: 4px 8px;
 }
-.register-identity .nm {
+.register-identity .employee-name {
   font-size: 13px;
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
-.register-row-footer .rowtoggle {
+.register-row-footer .details-toggle {
   margin: 0;
   min-height: 24px;
 }
@@ -101,15 +101,15 @@
   gap: 6px;
   margin-top: 4px;
 }
-.monthly-register .sums {
+.monthly-register .attendance-summary {
   flex-wrap: wrap;
   gap: 10px;
 }
-.monthly-register .dcell {
+.monthly-register .attendance-day-cell {
   min-height: 56px;
   padding: 4px 2px;
 }
-.monthly-register .rrow.open .dcell {
+.monthly-register .attendance-row.is-open .attendance-day-cell {
   min-height: 88px;
 }
 .register-empty {
@@ -119,11 +119,11 @@
 /* Expansion keeps the same grid and selection while using the available window. */
 .monthly-register.is-expanded {
   position: fixed;
-  inset: var(--gutter);
+  inset: var(--layout-gap);
   z-index: 55;
   display: flex;
   flex-direction: column;
-  background: var(--card-solid);
+  background: var(--surface-solid);
 }
 .monthly-register.is-expanded .register-controls,
 .monthly-register.is-expanded .register-selection-note {
@@ -134,7 +134,7 @@
   min-height: 0;
   max-height: none;
 }
-.screen:has(.monthly-register.is-expanded) {
+.page-content:has(.monthly-register.is-expanded) {
   animation: none;
 }
 /* One scroll container keeps dates aligned with the employee list in both directions. */
@@ -147,21 +147,21 @@
 .register-scroll:focus-visible {
   outline-offset: -3px;
 }
-.register-scroll .rrow.hd-row {
+.register-scroll .attendance-row.attendance-header-row {
   position: sticky;
   top: 0;
   z-index: 3;
-  box-shadow: 0 1px 0 var(--line-2);
+  box-shadow: 0 1px 0 var(--border-strong);
 }
-.register-scroll .emp-cell {
+.register-scroll .attendance-employee-cell {
   position: sticky;
   left: 0;
   z-index: 1;
-  background: var(--card-solid);
-  box-shadow: 1px 0 0 var(--line-2);
+  background: var(--surface-solid);
+  box-shadow: 1px 0 0 var(--border-strong);
 }
-.register-scroll .hd-row .emp-cell {
-  background: var(--card-2);
+.register-scroll .attendance-header-row .attendance-employee-cell {
+  background: var(--surface-inset);
 }
 @media (max-width: 860px) {
   .monthly-register {
@@ -186,8 +186,8 @@
     max-height: none;
     overflow: visible;
   }
-  .register-scroll .rrow.hd-row,
-  .register-scroll .emp-cell {
+  .register-scroll .attendance-row.attendance-header-row,
+  .register-scroll .attendance-employee-cell {
     position: static;
   }
   .monthly-register.is-expanded {
@@ -197,7 +197,7 @@
   }
   .register-controls,
   .register-selection-note,
-  .monthly-register .rowtoggle {
+  .monthly-register .details-toggle {
     display: none !important;
   }
   .monthly-register .register-row-details {

@@ -2,10 +2,10 @@
   max-width: 860px;
   margin: 30px auto;
 }
-.request-detail > .btn {
+.request-detail > .button {
   justify-self: start;
 }
-.request-detail .hd h3,
-.request-detail .pill {
+.request-detail .card-header h3,
+.request-detail .status-badge {
   text-transform: capitalize;
 }

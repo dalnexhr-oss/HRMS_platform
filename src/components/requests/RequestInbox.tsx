@@ -16,11 +16,11 @@ function RequestInbox({ requests, userId }: { requests: RequestView[]; userId: s
   }
   return (
     <div className="card" id="request-inbox">
-      <div className="hd">
+      <div className="card-header">
         <h3>Requests sent to you</h3>
-        <span className="folio">Assigned · CC · earlier reviews</span>
+        <span className="card-caption">Assigned · CC · earlier reviews</span>
       </div>
-      <div className="bd request-inbox">
+      <div className="card-body request-inbox">
         {received.map((request) => (
           <Link key={request.id} href={`/requests/${request.id}`} className="request-inbox-row">
             <div>

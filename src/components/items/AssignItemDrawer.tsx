@@ -131,18 +131,18 @@ function AssignItemDrawer({
 
   return (
     <>
-      <div className={`overlay${open ? ' on' : ''}`} onClick={onClose} />
-      <aside className={`drawer${open ? ' on' : ''}`} aria-label="Assign item">
+      <div className={`dialog-backdrop${open ? ' is-active' : ''}`} onClick={onClose} />
+      <aside className={`drawer${open ? ' is-active' : ''}`} aria-label="Assign item">
         {item && (
           <>
-            <div className="dhd">
+            <div className="drawer-header">
               <h3>Assign · {item.item_name}</h3>
               <span style={{ flex: 1 }} />
-              <button type="button" className="btn quiet" onClick={onClose}>
+              <button type="button" className="button quiet" onClick={onClose}>
                 ✕
               </button>
             </div>
-            <div className="dbd">
+            <div className="drawer-body">
               <div className="hint">
                 Total {item.total_quantity} · Assigned {activeAssigned} ·{' '}
                 <b>Remaining {remaining}</b>
@@ -159,8 +159,8 @@ function AssignItemDrawer({
                   required
                   disabled={submitting}
                 />
-                <div className="f-row">
-                  <div className="f">
+                <div className="form-row">
+                  <div className="form-field">
                     <label>Quantity</label>
                     <input
                       name="quantity"
@@ -168,10 +168,10 @@ function AssignItemDrawer({
                       min={1}
                       max={remaining}
                       defaultValue={1}
-                      className="mono"
+                      className="text-monospace"
                     />
                   </div>
-                  <div className="f">
+                  <div className="form-field">
                     <label>Assigned date</label>
                     {/*
                      * Assignments cannot be backdated. Blank uses today's date; assignItem
@@ -185,15 +185,15 @@ function AssignItemDrawer({
                     />
                   </div>
                 </div>
-                <div className="f">
+                <div className="form-field">
                   <label>Remarks</label>
                   <input name="remarks" />
                 </div>
-                {state.error && <div className="login-error">{state.error}</div>}
+                {state.error && <div className="error-message">{state.error}</div>}
                 <div style={{ margin: '4px 0 8px' }}>
                   <button
                     type="submit"
-                    className="btn primary"
+                    className="button primary"
                     disabled={submitting || remaining <= 0}
                   >
                     {submitting ? 'Assigning…' : 'Assign'}
@@ -201,12 +201,12 @@ function AssignItemDrawer({
                 </div>
               </form>
 
-              <div className="fold">Assignment history</div>
-              {rowError && <div className="login-error">{rowError}</div>}
+              <div className="section-heading">Assignment history</div>
+              {rowError && <div className="error-message">{rowError}</div>}
               {loading ? (
-                <p className="muted">Loading…</p>
+                <p className="text-muted">Loading…</p>
               ) : log.length === 0 ? (
-                <p className="muted">No assignments yet.</p>
+                <p className="text-muted">No assignments yet.</p>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
                   <table>
@@ -214,7 +214,7 @@ function AssignItemDrawer({
                       <tr>
                         <th>Person</th>
                         <th>Emp ID</th>
-                        <th className="right">Qty</th>
+                        <th className="text-right">Qty</th>
                         <th>Date</th>
                         <th>By</th>
                         <th>Status</th>
@@ -225,16 +225,16 @@ function AssignItemDrawer({
                       {log.map((a) => (
                         <tr key={a.id}>
                           <td>{a.person_name ?? '—'}</td>
-                          <td className="mono muted">{a.employee_code ?? '—'}</td>
-                          <td className="right mono">{a.quantity}</td>
-                          <td className="mono">{a.assigned_date}</td>
+                          <td className="text-monospace text-muted">{a.employee_code ?? '—'}</td>
+                          <td className="text-right text-monospace">{a.quantity}</td>
+                          <td className="text-monospace">{a.assigned_date}</td>
                           <td>{a.assigned_by ?? '—'}</td>
                           <td>{a.returned ? `Returned ${a.returned_date ?? ''}` : 'Held'}</td>
                           <td>
                             <div style={{ display: 'flex', gap: 6 }}>
                               {!a.returned && item.returnable && (
                                 <button
-                                  className="btn quiet"
+                                  className="button quiet"
                                   onClick={() => onReturn(a)}
                                   disabled={pending && busyId === a.id}
                                 >
@@ -242,7 +242,7 @@ function AssignItemDrawer({
                                 </button>
                               )}
                               <button
-                                className="btn quiet"
+                                className="button quiet"
                                 onClick={() => onDeleteAssignment(a)}
                                 disabled={pending && busyId === a.id}
                                 title="Delete this assignment record"
@@ -258,8 +258,8 @@ function AssignItemDrawer({
                 </div>
               )}
             </div>
-            <div className="dft">
-              <button type="button" className="btn" onClick={onClose}>
+            <div className="drawer-footer">
+              <button type="button" className="button" onClick={onClose}>
                 Close
               </button>
             </div>

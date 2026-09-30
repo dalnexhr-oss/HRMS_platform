@@ -196,14 +196,14 @@ function RegisterGrid({
   }
 
   return (
-    <div className={`card register monthly-register${expanded ? ' is-expanded' : ''}`}>
+    <div className={`card attendance-register monthly-register${expanded ? ' is-expanded' : ''}`}>
       {confirmDialog}
       {toastNode}
       <div className="register-controls">
         {expanded && (
           <div className="register-expanded-title">
             <b>Monthly register</b>
-            <span className="mono muted">
+            <span className="text-monospace text-muted">
               {new Intl.DateTimeFormat('en-GB', {
                 month: 'long',
                 year: 'numeric',
@@ -212,8 +212,8 @@ function RegisterGrid({
             </span>
           </div>
         )}
-        <label className="search register-search">
-          <span className="sr-only">Search employees by name or employee ID</span>
+        <label className="search-field register-search">
+          <span className="visually-hidden">Search employees by name or employee ID</span>
           <svg
             width="16"
             height="16"
@@ -236,7 +236,7 @@ function RegisterGrid({
           />
         </label>
         <span
-          className="register-count mono muted"
+          className="register-count text-monospace text-muted"
           role="status"
           aria-live="polite"
           aria-atomic="true"
@@ -246,7 +246,7 @@ function RegisterGrid({
         {query && (
           <button
             type="button"
-            className="btn quiet"
+            className="button quiet"
             onClick={() => changeSearch('')}
             disabled={applying}
           >
@@ -255,7 +255,7 @@ function RegisterGrid({
         )}
         <button
           type="button"
-          className="btn quiet register-expand"
+          className="button quiet register-expand"
           aria-pressed={expanded}
           onClick={() => setExpanded((value) => !value)}
         >
@@ -304,11 +304,11 @@ function RegisterGrid({
         )}
       </div>
       {bulkMode && (
-        <p className="register-selection-note muted">Changing the search clears selected cells.</p>
+        <p className="register-selection-note text-muted">Changing the search clears selected cells.</p>
       )}
       <div
         ref={scrollRef}
-        className="reg-scroll register-scroll"
+        className="attendance-scroll register-scroll"
         role="region"
         aria-label="Monthly attendance register"
         tabIndex={0}
@@ -319,15 +319,15 @@ function RegisterGrid({
           style={{ '--register-day-count': days.length } as CSSProperties}
         >
           {/* header row */}
-          <div className="rrow hd-row">
-            <div className="emp-cell">
-              <span className="folio">Employee · summary</span>
+          <div className="attendance-row attendance-header-row">
+            <div className="attendance-employee-cell">
+              <span className="card-caption">Employee · summary</span>
             </div>
-            <div className="daystrip">
+            <div className="attendance-days">
               {days.map((d) => (
-                <div key={d} className={`dhead${wo.has(d) ? ' wo-col' : ''}`}>
-                  <div className="dw">{weekdayLabel(periodMonth, d)}</div>
-                  <div className="dn">{d}</div>
+                <div key={d} className={`attendance-day-header${wo.has(d) ? ' is-weekly-off' : ''}`}>
+                  <div className="weekday-label">{weekdayLabel(periodMonth, d)}</div>
+                  <div className="day-number">{d}</div>
                 </div>
               ))}
             </div>
@@ -345,19 +345,19 @@ function RegisterGrid({
             // Index by day so a month with missing rows still lines up with the header.
             const byDay = new Map(e.days.map((c) => [c.day, c]));
             return (
-              <div key={e.id} className={`rrow${isOpen ? ' open' : ''}`}>
-                <div className="emp-cell">
+              <div key={e.id} className={`attendance-row${isOpen ? ' is-open' : ''}`}>
+                <div className="attendance-employee-cell">
                   <div className="register-identity">
-                    <span className="nm">{e.name}</span>
-                    <span className="meta">{e.code}</span>
+                    <span className="employee-name">{e.name}</span>
+                    <span className="entry-details">{e.code}</span>
                   </div>
                   <div className="register-row-footer">
-                    <span className="meta" title="Worked hours / target hours">
+                    <span className="entry-details" title="Worked hours / target hours">
                       {formatHrs(e.workedMinutes)} / {formatHrs(e.targetMinutes)} hrs
                     </span>
                     <button
                       type="button"
-                      className="rowtoggle"
+                      className="details-toggle"
                       aria-expanded={!!isOpen}
                       aria-controls={`register-summary-${e.id}`}
                       aria-label={`${isOpen ? 'Hide' : 'Show'} summary and punches for ${e.name}`}
@@ -371,10 +371,10 @@ function RegisterGrid({
                     className="register-row-details"
                     hidden={!isOpen}
                   >
-                    <div className="meta">
+                    <div className="entry-details">
                       {e.branch} · {e.gender}
                     </div>
-                    <div className="sums">
+                    <div className="attendance-summary">
                       <span>
                         P <b>{e.summary.P}</b>
                       </span>
@@ -391,7 +391,7 @@ function RegisterGrid({
                         WO <b>{e.summary.WO}</b>
                       </span>
                     </div>
-                    <div className="sums">
+                    <div className="attendance-summary">
                       <span>
                         Working <b>{e.summary.working}</b>
                       </span>
@@ -400,16 +400,16 @@ function RegisterGrid({
                         payable <b>{e.summary.working + e.summary.WO + e.summary.HD - e.summary.L}</b>
                       </span>
                     </div>
-                    <div className={`hrsbar${short ? ' short' : ''}`}>
+                    <div className={`worked-hours-bar${short ? ' has-hours-shortfall' : ''}`}>
                       <i style={{ width: `${pct}%` }} />
                     </div>
-                    <div className="meta mono">
+                    <div className="entry-details text-monospace">
                       {formatHrs(e.workedMinutes)} / {formatHrs(e.targetMinutes)} hrs{' '}
                       {short ? '· short' : '· met'}
                     </div>
                   </div>
                 </div>
-                <div className="daystrip">
+                <div className="attendance-days">
                   {days.map((d) => {
                     const c = byDay.get(d);
                     const isWeekOff = c ? c.isWeekOff : wo.has(d);
@@ -429,7 +429,7 @@ function RegisterGrid({
                     return (
                       <div
                         key={d}
-                        className={`dcell${isWeekOff ? ' wo-col' : ''}`}
+                        className={`attendance-day-cell${isWeekOff ? ' is-weekly-off' : ''}`}
                         title={
                           canCorrect
                             ? bulkMode
@@ -466,7 +466,7 @@ function RegisterGrid({
                                   ? {
                                       outline: '2px solid var(--brand)',
                                       outlineOffset: -2,
-                                      background: 'var(--p-bg)',
+                                      background: 'var(--attendance-present-background)',
                                     }
                                   : {}),
                               }
@@ -486,13 +486,13 @@ function RegisterGrid({
                                 width: 7,
                                 height: 7,
                                 borderRadius: '50%',
-                                background: coGranted ? 'var(--p)' : 'var(--lm)',
+                                background: coGranted ? 'var(--attendance-present)' : 'var(--attendance-late)',
                               }}
                             />
                           )}
                           {c ? <Stamp status={c.status} /> : null}
                           {c?.in ? (
-                            <div className="tms">
+                            <div className="punch-times">
                               {c.in}
                               <br />
                               {c.out}
@@ -500,7 +500,7 @@ function RegisterGrid({
                               <b>{c.hours}</b>
                             </div>
                           ) : (
-                            <div className="tms muted">—</div>
+                            <div className="punch-times text-muted">—</div>
                           )}
                         </div>
                       </div>
@@ -513,7 +513,7 @@ function RegisterGrid({
         </div>
       </div>
       {visibleEmployees.length === 0 && (
-        <div className="register-empty muted" role="status">
+        <div className="register-empty text-muted" role="status">
           {employees.length === 0
             ? 'No employees in this register.'
             : 'No employees match your search. Try a different name or employee ID.'}
@@ -523,10 +523,10 @@ function RegisterGrid({
       {canCorrect && (
         <>
           <div
-            className={`overlay${drawerOpen ? ' on' : ''}`}
+            className={`dialog-backdrop${drawerOpen ? ' is-active' : ''}`}
             onClick={() => setDrawerOpen(false)}
           />
-          <aside className={`drawer${drawerOpen ? ' on' : ''}`} aria-label="Correct attendance">
+          <aside className={`drawer${drawerOpen ? ' is-active' : ''}`} aria-label="Correct attendance">
             {target && (
               // Keying on the cell *and the open counter* remounts the form every
               // time the drawer opens, resetting the field defaults, any stale
@@ -577,20 +577,20 @@ function CorrectionForm({
       <input type="hidden" name="employee_id" value={target.employeeId} />
       <input type="hidden" name="work_date" value={target.workDate} />
 
-      <div className="dhd">
+      <div className="drawer-header">
         <h3>Correct attendance</h3>
         <span style={{ flex: 1 }} />
-        <button type="button" className="btn quiet" onClick={onClose}>
+        <button type="button" className="button quiet" onClick={onClose}>
           ✕
         </button>
       </div>
 
-      <div className="dbd">
+      <div className="drawer-body">
         {target.compOffEligible && <CompOffPanel target={target} />}
 
         <div className="hint">
-          {target.employeeName} · <span className="mono">{target.employeeCode}</span> —{' '}
-          <span className="mono">{target.workDate}</span>
+          {target.employeeName} · <span className="text-monospace">{target.employeeCode}</span> —{' '}
+          <span className="text-monospace">{target.workDate}</span>
           {cell ? (
             <>
               {' '}
@@ -598,7 +598,7 @@ function CorrectionForm({
               {cell.in ? (
                 <>
                   {' '}
-                  <span className="mono">
+                  <span className="text-monospace">
                     {cell.in}–{cell.out}
                   </span>
                 </>
@@ -611,7 +611,7 @@ function CorrectionForm({
           )}
         </div>
 
-        <div className="f">
+        <div className="form-field">
           <label htmlFor="corr-status">Status</label>
           <select id="corr-status" name="status" defaultValue={cell?.status ?? 'P'}>
             {statusOptions.map(([value, label]) => (
@@ -622,30 +622,30 @@ function CorrectionForm({
           </select>
         </div>
 
-        <div className="f-row">
-          <div className="f">
+        <div className="form-row">
+          <div className="form-field">
             <label htmlFor="corr-in">Punch in</label>
             <input
               id="corr-in"
               name="punch_in"
               type="time"
-              className="mono"
+              className="text-monospace"
               defaultValue={cell?.in ?? ''}
             />
           </div>
-          <div className="f">
+          <div className="form-field">
             <label htmlFor="corr-out">Punch out</label>
             <input
               id="corr-out"
               name="punch_out"
               type="time"
-              className="mono"
+              className="text-monospace"
               defaultValue={cell?.out ?? ''}
             />
           </div>
         </div>
 
-        <div className="f">
+        <div className="form-field">
           <label htmlFor="corr-reason">Reason for correction (required)</label>
           <textarea
             id="corr-reason"
@@ -661,14 +661,14 @@ function CorrectionForm({
           against your name and written to the audit log.
         </div>
 
-        {state.error && <div className="login-error">{state.error}</div>}
+        {state.error && <div className="error-message">{state.error}</div>}
       </div>
 
-      <div className="dft">
-        <button type="button" className="btn" onClick={onClose}>
+      <div className="drawer-footer">
+        <button type="button" className="button" onClick={onClose}>
           Cancel
         </button>
-        <button type="submit" className="btn primary" disabled={pending}>
+        <button type="submit" className="button primary" disabled={pending}>
           {pending ? 'Saving…' : 'Save correction'}
         </button>
       </div>
@@ -702,24 +702,24 @@ function CompOffPanel({ target }: { target: Target }) {
   return (
     <div
       style={{
-        border: '1px solid var(--lm-line)',
-        background: 'var(--lm-bg)',
+        border: '1px solid var(--attendance-late-border)',
+        background: 'var(--attendance-late-background)',
         borderRadius: 8,
         padding: '10px 12px',
         marginBottom: 14,
       }}
     >
-      <div style={{ fontWeight: 700, color: 'var(--lm)', marginBottom: 4 }}>
+      <div style={{ fontWeight: 700, color: 'var(--attendance-late)', marginBottom: 4 }}>
         ⚡ Comp off applicable
       </div>
-      <p className="muted" style={{ fontSize: 12, margin: '0 0 10px' }}>
+      <p className="text-muted" style={{ fontSize: 12, margin: '0 0 10px' }}>
         {target.employeeName} worked on {target.cell?.status === 'OH' ? 'a holiday' : 'a week-off'}{' '}
-        (<span className="mono">{target.workDate}</span>
+        (<span className="text-monospace">{target.workDate}</span>
         {target.cell?.in ? (
           <>
             {' '}
             ·{' '}
-            <span className="mono">
+            <span className="text-monospace">
               {target.cell.in}–{target.cell.out}
             </span>
           </>
@@ -730,19 +730,19 @@ function CompOffPanel({ target }: { target: Target }) {
 
       {granted ? (
         <span
-          className="pill"
-          style={{ borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' }}
+          className="status-badge"
+          style={{ borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' }}
         >
           ✓ Comp off granted
         </span>
       ) : (
-        <button type="button" className="btn primary" onClick={onGrant} disabled={pending}>
+        <button type="button" className="button primary" onClick={onGrant} disabled={pending}>
           {pending ? 'Granting…' : 'Grant comp off'}
         </button>
       )}
 
       {error && (
-        <div className="login-error" style={{ marginTop: 8 }}>
+        <div className="error-message" style={{ marginTop: 8 }}>
           {error}
         </div>
       )}
@@ -784,7 +784,7 @@ function BulkBar({
       <div className="register-bulk-toggle">
         <button
           type="button"
-          className="btn quiet"
+          className="button quiet"
           onClick={onEnter}
           title="Select attendance cells for bulk correction"
         >
@@ -798,7 +798,7 @@ function BulkBar({
 
   return (
     <div className="register-bulk-bar">
-      <span className="pill" style={{ borderColor: 'var(--brand)', color: 'var(--brand)' }}>
+      <span className="status-badge" style={{ borderColor: 'var(--brand)', color: 'var(--brand)' }}>
         {count} selected
       </span>
       <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Bulk status">
@@ -817,7 +817,7 @@ function BulkBar({
       />
       <button
         type="button"
-        className="btn primary"
+        className="button primary"
         disabled={!canApply}
         title={
           count === 0 ? 'Select at least one cell' : !reason.trim() ? 'Enter a reason' : undefined
@@ -828,13 +828,13 @@ function BulkBar({
       </button>
       <button
         type="button"
-        className="btn quiet"
+        className="button quiet"
         onClick={onClear}
         disabled={pending || count === 0}
       >
         Clear
       </button>
-      <button type="button" className="btn quiet" onClick={onExit} disabled={pending}>
+      <button type="button" className="button quiet" onClick={onExit} disabled={pending}>
         Done
       </button>
     </div>

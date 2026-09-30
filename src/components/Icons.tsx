@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 
 const svg = (children: ReactNode) => (
   <svg
-    className="ic"
+    className="icon"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -119,7 +119,9 @@ const icons: Record<string, ReactNode> = {
       <path d="M20 16v1" />
     </>,
   ),
-  'inventory-management': svg(<path d="m3 7 9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10M7.5 5l9 4" />),
+  'inventory-management': svg(
+    <path d="m3 7 9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10M7.5 5l9 4" />,
+  ),
   users: svg(
     <>
       <circle cx="8" cy="7" r="3" />
@@ -136,9 +138,8 @@ const icons: Record<string, ReactNode> = {
   ),
   recent: svg(
     <>
-    
-     <path d="M3 3h18v18H3V3z" />
-     <path d="M3 9h18M9 3v6" />
+      <path d="M3 3h18v18H3V3z" />
+      <path d="M3 9h18M9 3v6" />
     </>,
   ),
 };

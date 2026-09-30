@@ -17,12 +17,12 @@ const statusLabel: Record<TicketStatus, string> = {
 // Colored pill per status: open=amber, in_progress=brand, resolved/closed=green.
 function statusPillStyle(status: TicketStatus): React.CSSProperties {
   if (status === 'open') {
-    return { borderColor: 'var(--line-2)', color: 'var(--lm)' };
+    return { borderColor: 'var(--border-strong)', color: 'var(--attendance-late)' };
   }
   if (status === 'in_progress') {
-    return { borderColor: 'var(--line-2)', color: 'var(--brand)' };
+    return { borderColor: 'var(--border-strong)', color: 'var(--brand)' };
   }
-  return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
+  return { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' };
 }
 
 function HelpdeskScreen({
@@ -37,16 +37,16 @@ function HelpdeskScreen({
   const [chat, setChat] = useState<TicketView | null>(null);
 
   return (
-    <div className="wrap grid">
-      <div className="two-col">
+    <div className="content-container grid">
+      <div className="two-column-layout">
         <div className="card">
-          <div className="hd">
+          <div className="card-header">
             <h3>Support tickets</h3>
-            <span className="folio">{tickets.length} total</span>
+            <span className="card-caption">{tickets.length} total</span>
           </div>
           {tickets.length === 0 ? (
-            <div className="bd">
-              <div className="empty">
+            <div className="card-body">
+              <div className="empty-state">
                 <p>No tickets yet — raise one on the right.</p>
               </div>
             </div>
@@ -70,7 +70,7 @@ function HelpdeskScreen({
                         <td>
                           <b>{t.subject}</b>
                           {t.body && (
-                            <div className="muted" style={{ fontSize: 12 }}>
+                            <div className="text-muted" style={{ fontSize: 12 }}>
                               {t.body}
                             </div>
                           )}
@@ -82,22 +82,22 @@ function HelpdeskScreen({
                               {t.employeeCode && (
                                 <>
                                   {' '}
-                                  <span className="mono muted">{t.employeeCode}</span>
+                                  <span className="text-monospace text-muted">{t.employeeCode}</span>
                                 </>
                               )}
                             </>
                           ) : (
-                            <span className="muted">—</span>
+                            <span className="text-muted">—</span>
                           )}
                         </td>
-                        <td>{t.category ?? <span className="muted">—</span>}</td>
+                        <td>{t.category ?? <span className="text-muted">—</span>}</td>
                         <td>
-                          <span className="pill" style={statusPillStyle(t.status)}>
+                          <span className="status-badge" style={statusPillStyle(t.status)}>
                             {statusLabel[t.status]}
                           </span>
                         </td>
                         <td>
-                          <button type="button" className="btn primary" onClick={() => setChat(t)}>
+                          <button type="button" className="button primary" onClick={() => setChat(t)}>
                             Open chat{count > 0 ? ` · ${count}` : ''}
                           </button>
                         </td>
@@ -111,10 +111,10 @@ function HelpdeskScreen({
         </div>
 
         <div className="card">
-          <div className="hd">
+          <div className="card-header">
             <h3>Raise a ticket</h3>
           </div>
-          <div className="bd">
+          <div className="card-body">
             <NewTicketForm />
           </div>
         </div>
@@ -140,15 +140,15 @@ function NewTicketForm() {
 
   return (
     <form action={action}>
-      <div className="f">
+      <div className="form-field">
         <label>Subject</label>
         <input name="subject" placeholder="e.g. June payslip mismatch" required />
       </div>
-      <div className="f">
+      <div className="form-field">
         <label>Category</label>
         <input name="category" placeholder="Payroll / Attendance / General…" />
       </div>
-      <div className="f">
+      <div className="form-field">
         <label>Details</label>
         <textarea
           name="body"
@@ -157,7 +157,7 @@ function NewTicketForm() {
           style={{
             width: '100%',
             padding: '9px 11px',
-            border: '1px solid var(--line-2)',
+            border: '1px solid var(--border-strong)',
             borderRadius: 8,
             font: 'inherit',
             background: '#fff',
@@ -166,10 +166,10 @@ function NewTicketForm() {
         />
       </div>
 
-      {state.error && <div className="login-error">{state.error}</div>}
+      {state.error && <div className="error-message">{state.error}</div>}
       {state.ok && <div className="hint">✓&nbsp; Ticket raised.</div>}
 
-      <button className="btn primary" type="submit" disabled={pending} style={{ marginTop: 4 }}>
+      <button className="button primary" type="submit" disabled={pending} style={{ marginTop: 4 }}>
         {pending ? 'Submitting…' : 'Submit ticket'}
       </button>
     </form>

@@ -47,15 +47,15 @@ const statusLabel: Record<RequestView['status'], string> = {
 
 function statusPillStyle(status: RequestView['status']): React.CSSProperties {
   if (status === 'pending') {
-    return { borderColor: 'var(--line-2)', color: 'var(--lm)' };
+    return { borderColor: 'var(--border-strong)', color: 'var(--attendance-late)' };
   }
   if (status === 'approved') {
-    return { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
+    return { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' };
   }
   if (status === 'rejected') {
-    return { borderColor: 'var(--line-2)', color: 'var(--hd)' };
+    return { borderColor: 'var(--border-strong)', color: 'var(--attendance-half-day)' };
   }
-  return { borderColor: 'var(--line-2)', color: 'var(--ink-3)' };
+  return { borderColor: 'var(--border-strong)', color: 'var(--text-muted)' };
 }
 
 // ISO timestamp -> 'DD MMM YYYY'; null-safe.
@@ -107,13 +107,13 @@ function ApplyLeave({
   id?: string;
 }) {
   return (
-    <div className="two-col" id={id}>
+    <div className="two-column-layout" id={id}>
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>Leave management</h3>
-          <span className="folio">apply for leave or duty</span>
+          <span className="card-caption">apply for leave or duty</span>
         </div>
-        <div className="bd">
+        <div className="card-body">
           {balances.length > 0 && (
             <div
               style={{
@@ -122,24 +122,24 @@ function ApplyLeave({
                 flexWrap: 'wrap',
                 paddingBottom: 14,
                 marginBottom: 14,
-                borderBottom: '1px dashed var(--line)',
+                borderBottom: '1px dashed var(--border-subtle)',
               }}
             >
               {balances.map((b) => (
                 <div key={b.type}>
                   <div
                     style={{
-                      font: '600 10px var(--mono)',
+                      font: '600 10px var(--font-monospace)',
                       letterSpacing: '.12em',
-                      color: 'var(--ink-3)',
+                      color: 'var(--text-muted)',
                     }}
                   >
                     {b.type}
                   </div>
-                  <div style={{ font: '600 18px var(--mono)', color: 'var(--brand-deep)' }}>
+                  <div style={{ font: '600 18px var(--font-monospace)', color: 'var(--brand-deep)' }}>
                     {b.balance}
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                     {leaveKindLabel[b.type]}
                   </div>
                 </div>
@@ -150,7 +150,7 @@ function ApplyLeave({
           {canApply ? (
             <NewRequestForm compOffBalance={compOffBalance} people={people} />
           ) : (
-            <p className="muted" style={{ fontSize: 13 }}>
+            <p className="text-muted" style={{ fontSize: 13 }}>
               Your login is not linked to an employee record, so requests cannot be filed. Ask HR to
               link it.
             </p>
@@ -159,16 +159,16 @@ function ApplyLeave({
       </div>
 
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>Request history &amp; status</h3>
-          <span className="folio">
+          <span className="card-caption">
             {requests.filter((r) => r.status === 'pending').length} pending · {requests.length}{' '}
             total
           </span>
         </div>
-        <div className="bd">
+        <div className="card-body">
           {requests.length === 0 ? (
-            <p className="muted" style={{ fontSize: 13 }}>
+            <p className="text-muted" style={{ fontSize: 13 }}>
               No requests yet — apply on the left. Every request you submit stays listed here with
               its current status, from submission through approval or rejection.
             </p>
@@ -199,26 +199,26 @@ function RequestItem({ request }: { request: RequestView }) {
 
   return (
     <div className="policy">
-      <div className="phd">
+      <div className="entry-header">
         <h4>
           {typeLabel[request.type]}
           {request.leaveKind ? ` · ${request.leaveKind}` : ''}
         </h4>
-        <span className="ver">
+        <span className="entry-version">
           {dateRange(request.startDate, request.endDate)} · {request.days} day
           {request.days === 1 ? '' : 's'}
         </span>
         <span style={{ flex: 1 }} />
-        <span className="pill" style={statusPillStyle(request.status)}>
+        <span className="status-badge" style={statusPillStyle(request.status)}>
           {statusLabel[request.status]}
         </span>
         {request.status === 'pending' && (
-          <button className="btn" onClick={onCancel} disabled={pending}>
+          <button className="button" onClick={onCancel} disabled={pending}>
             {pending ? '…' : 'Cancel'}
           </button>
         )}
       </div>
-      <p className="muted" style={{ fontSize: 11, margin: '2px 0 0' }}>
+      <p className="text-muted" style={{ fontSize: 11, margin: '2px 0 0' }}>
         Submitted {stampDate(request.createdAt) ?? '—'}
         {request.status === 'pending'
           ? ' · awaiting review'
@@ -228,21 +228,21 @@ function RequestItem({ request }: { request: RequestView }) {
               ? ' · withdrawn by you'
               : ''}
       </p>
-      {request.reason && <p className="body">{request.reason}</p>}
+      {request.reason && <p className="entry-body">{request.reason}</p>}
       <RequestRoutingSummary routing={request.routing} status={request.status} />
-      <Link className="btn quiet" href={`/requests/${request.id}`}>
+      <Link className="button quiet" href={`/requests/${request.id}`}>
         View request →
       </Link>
       {request.reviewRemark && (request.status === 'approved' || request.status === 'rejected') && (
         <p
-          className="body"
-          style={{ color: request.status === 'rejected' ? 'var(--hd)' : 'var(--p)' }}
+          className="entry-body"
+          style={{ color: request.status === 'rejected' ? 'var(--attendance-half-day)' : 'var(--attendance-present)' }}
         >
           <b>{request.status === 'approved' ? 'Approved' : 'Rejected'} with note:</b>{' '}
           {request.reviewRemark}
         </p>
       )}
-      {error && <div className="login-error">{error}</div>}
+      {error && <div className="error-message">{error}</div>}
     </div>
   );
 }
@@ -295,7 +295,7 @@ function NewRequestForm({
   return (
     <form action={action}>
       <RequestRecipients key={recipientKey} people={people} disabled={pending} />
-      <div className="f">
+      <div className="form-field">
         <label>Request type</label>
         <select name="type" value={type} onChange={(e) => setType(e.target.value as RequestType)}>
           {typeOptions.map((t) => (
@@ -307,7 +307,7 @@ function NewRequestForm({
       </div>
 
       {type === 'leave' && (
-        <div className="f">
+        <div className="form-field">
           <label>Leave type</label>
           <select
             name="leave_kind"
@@ -321,7 +321,7 @@ function NewRequestForm({
             ))}
           </select>
           {takingCompOff && (
-            <p className="muted" style={{ fontSize: 11, margin: '4px 0 0' }}>
+            <p className="text-muted" style={{ fontSize: 11, margin: '4px 0 0' }}>
               {noCredits
                 ? 'You have no comp-off credits to use. HR grants one when you work a week-off or holiday.'
                 : `${compOffBalance} credit${compOffBalance === 1 ? '' : 's'} available — the one closest to expiring is used first. ` +
@@ -332,13 +332,13 @@ function NewRequestForm({
       )}
 
       {takingCompOff ? (
-        <div className="f">
+        <div className="form-field">
           <label>Take this day off</label>
           <input name="take_date" type="date" min={today} required />
         </div>
       ) : (
-        <div className="f-row">
-          <div className="f">
+        <div className="form-row">
+          <div className="form-field">
             <label>From</label>
             <input
               name="start_date"
@@ -349,7 +349,7 @@ function NewRequestForm({
               required
             />
           </div>
-          <div className="f">
+          <div className="form-field">
             <label>To</label>
             <input
               name="end_date"
@@ -363,7 +363,7 @@ function NewRequestForm({
         </div>
       )}
 
-      <div className="f">
+      <div className="form-field">
         <label>Reason</label>
         <textarea
           name="reason"
@@ -372,7 +372,7 @@ function NewRequestForm({
           style={{
             width: '100%',
             padding: '9px 11px',
-            border: '1px solid var(--line-2)',
+            border: '1px solid var(--border-strong)',
             borderRadius: 8,
             font: 'inherit',
             background: '#fff',
@@ -381,11 +381,11 @@ function NewRequestForm({
         />
       </div>
 
-      {state.error && <div className="login-error">{state.error}</div>}
+      {state.error && <div className="error-message">{state.error}</div>}
       {state.ok && <div className="hint">✓&nbsp; Request submitted for approval.</div>}
 
       <button
-        className="btn primary"
+        className="button primary"
         type="submit"
         disabled={pending || noCredits}
         style={{ marginTop: 4 }}

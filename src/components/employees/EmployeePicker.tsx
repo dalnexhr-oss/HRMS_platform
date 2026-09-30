@@ -107,7 +107,7 @@ function EmployeePicker({
 
   return (
     <div
-      className="f employee-picker"
+      className="form-field employee-picker"
       style={style}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) {
@@ -248,7 +248,7 @@ function EmployeePicker({
                 onClick={() => choose(employee)}
               >
                 <span>{employee.name}</span>
-                <small className="mono">{employee.code}</small>
+                <small className="text-monospace">{employee.code}</small>
               </button>
             ))}
             {matches.length === 0 && (

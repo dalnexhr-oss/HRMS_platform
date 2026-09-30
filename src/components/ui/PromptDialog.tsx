@@ -87,12 +87,12 @@ function PromptDialog({
 
   return (
     <>
-      <div className="overlay on" onClick={onCancel} />
+      <div className="dialog-backdrop is-active" onClick={onCancel} />
       <div className="modal" role="dialog" aria-modal="true" aria-label={title ?? 'Prompt'}>
         <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-          <div className="m-hd">
+          <div className="modal-header">
             {danger && (
-              <span className="m-ic" aria-hidden>
+              <span className="modal-icon" aria-hidden>
                 <svg
                   width="16"
                   height="16"
@@ -109,7 +109,7 @@ function PromptDialog({
             )}
             <span>{title ?? 'Please enter a value'}</span>
           </div>
-          <div className="m-bd">
+          <div className="modal-body">
             <div style={{ whiteSpace: 'pre-line', marginBottom: 10 }}>{message}</div>
             <input
               type={inputType}
@@ -125,7 +125,7 @@ function PromptDialog({
               style={{
                 width: '100%',
                 padding: '8px 10px',
-                border: '1px solid var(--line-2)',
+                border: '1px solid var(--border-strong)',
                 borderRadius: 8,
                 font: 'inherit',
                 fontSize: 14,
@@ -133,18 +133,18 @@ function PromptDialog({
               }}
             />
             {error && (
-              <div className="login-error" style={{ marginTop: 8 }}>
+              <div className="error-message" style={{ marginTop: 8 }}>
                 {error}
               </div>
             )}
           </div>
-          <div className="m-ft">
-            <button type="button" className="btn" onClick={onCancel}>
+          <div className="modal-footer">
+            <button type="button" className="button" onClick={onCancel}>
               {cancelLabel}
             </button>
             <button
               type="button"
-              className={`btn ${danger ? 'danger' : 'primary'}`}
+              className={`button ${danger ? 'danger' : 'primary'}`}
               onClick={submit}
               disabled={!matched}
               title={!matched ? 'The value does not match yet.' : undefined}

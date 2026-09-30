@@ -19,7 +19,7 @@ function EmployeeNotices({
 }) {
   if (!notices.length) {
     return (
-      <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+      <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
         No notices right now — company announcements will appear here.
       </p>
     );
@@ -68,17 +68,17 @@ function NoticeItem({
 
   return (
     <div className={`policy${read ? ' notice-read' : ''}`}>
-      <div className="phd">
+      <div className="entry-header">
         <h4>{notice.title}</h4>
-        <span className="pill">{notice.branch ?? 'All branches'}</span>
+        <span className="status-badge">{notice.branch ?? 'All branches'}</span>
         {notice.publishedAt && (
-          <span className="ver">{formatDate(notice.publishedAt.slice(0, 10))}</span>
+          <span className="entry-version">{formatDate(notice.publishedAt.slice(0, 10))}</span>
         )}
         <span style={{ flex: 1 }} />
         {notice.pdfPath && (
           <button
             type="button"
-            className="btn quiet"
+            className="button quiet"
             onClick={() => openNoticePdf(notice.id, setError)}
             title="Open the attached PDF"
           >
@@ -86,10 +86,10 @@ function NoticeItem({
           </button>
         )}
         {read ? (
-          <span className="ack">✓ Read</span>
+          <span className="signature-confirmation">✓ Read</span>
         ) : (
           canMark && (
-            <button type="button" className="btn" onClick={onRead} disabled={pending}>
+            <button type="button" className="button" onClick={onRead} disabled={pending}>
               {pending ? 'Saving…' : 'Mark as read'}
             </button>
           )
@@ -97,11 +97,11 @@ function NoticeItem({
       </div>
       {body && (
         <>
-          <p className={`body${isLong && !expanded ? ' clamp' : ''}`}>{body}</p>
+          <p className={`entry-body${isLong && !expanded ? ' is-truncated' : ''}`}>{body}</p>
           {isLong && (
             <button
               type="button"
-              className="rowtoggle"
+              className="details-toggle"
               onClick={() => setExpanded((e) => !e)}
               aria-expanded={expanded}
             >
@@ -111,7 +111,7 @@ function NoticeItem({
         </>
       )}
       {error && (
-        <div className="login-error" role="alert">
+        <div className="error-message" role="alert">
           {error}
         </div>
       )}

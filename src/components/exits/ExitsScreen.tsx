@@ -61,15 +61,15 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
   }
 
   return (
-    <div className="wrap grid">
+    <div className="content-container grid">
       {confirmDialog}
       {toastNode}
 
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>Start an exit</h3>
         </div>
-        <div className="bd">
+        <div className="card-body">
           <StartExitForm
             employees={employees}
             disabled={pending}
@@ -86,14 +86,14 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
       </div>
 
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>
             Active exit case{cases.length === 1 ? '' : 's'} <span style={{ color:'var(--brand)' }}>({cases.length})</span>
           </h3>
         </div>
         {cases.length === 0 ? (
-          <div className="bd">
-            <p className="muted" style={{ margin: 0 }}>
+          <div className="card-body">
+            <p className="text-muted" style={{ margin: 0 }}>
               No exits in progress.
             </p>
           </div>
@@ -119,32 +119,32 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
                     <tr key={c.id}>
                       <td>
                         <b>{c.name}</b>{' '}
-                        <span className="mono muted" style={{ fontSize: 11 }}>
+                        <span className="text-monospace text-muted" style={{ fontSize: 11 }}>
                           {c.code}
                         </span>
                         {c.reason && (
-                          <div className="muted" style={{ fontSize: 11 }}>
+                          <div className="text-muted" style={{ fontSize: 11 }}>
                             {c.reason}
                           </div>
                         )}
                       </td>
-                      <td className="mono">
+                      <td className="text-monospace">
                         {c.lastWorkingDay ? formatDate(c.lastWorkingDay) : '—'}
                       </td>
                       <td>
                         <span
-                          className="pill"
+                          className="status-badge"
                           style={
                             c.stage === 'completed'
                               ? {
-                                  borderColor: 'var(--p-line)',
-                                  color: 'var(--p)',
-                                  background: 'var(--p-bg)',
+                                  borderColor: 'var(--attendance-present-border)',
+                                  color: 'var(--attendance-present)',
+                                  background: 'var(--attendance-present-background)',
                                 }
                               : {
-                                  borderColor: 'var(--lm-line)',
-                                  color: 'var(--lm)',
-                                  background: 'var(--lm-bg)',
+                                  borderColor: 'var(--attendance-late-border)',
+                                  color: 'var(--attendance-late)',
+                                  background: 'var(--attendance-late-background)',
                                 }
                           }
                         >
@@ -153,32 +153,32 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
                       </td>
                       <td>
                         {c.clearanceComplete ? (
-                          <span style={{ color: 'var(--p)' }}>✓ clear</span>
+                          <span style={{ color: 'var(--attendance-present)' }}>✓ clear</span>
                         ) : (
-                          <span style={{ color: 'var(--lm)' }}>
+                          <span style={{ color: 'var(--attendance-late)' }}>
                             {outstanding} outstanding
-                            <div className="muted" style={{ fontSize: 11 }}>
+                            <div className="text-muted" style={{ fontSize: 11 }}>
                               {c.assetsOutstanding} asset · {c.itemsOutstanding} item
                             </div>
                           </span>
                         )}
                       </td>
-                      <td className="mono">
+                      <td className="text-monospace">
                         {c.fnfStatus ? (
                           <>
                             {inr(c.fnfNetPayable ?? 0)}
-                            <div className="muted" style={{ fontSize: 11 }}>
+                            <div className="text-muted" style={{ fontSize: 11 }}>
                               {c.fnfStatus}
                             </div>
                           </>
                         ) : (
-                          <span className="muted">not prepared</span>
+                          <span className="text-muted">not prepared</span>
                         )}
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           <button
-                            className="btn quiet"
+                            className="button quiet"
                             onClick={() => setOpenCase(c)}
                             disabled={pending}
                           >
@@ -186,7 +186,7 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
                           </button>
                           {c.stage !== 'completed' && (
                             <button
-                              className="btn quiet"
+                              className="button quiet"
                               disabled={pending}
                               onClick={() =>
                                 run(() => refreshExitClearance(c.id), 'Clearance refreshed.')
@@ -198,7 +198,7 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
                           )}
                           {!c.fnfStatus && c.stage !== 'completed' && (
                             <button
-                              className="btn quiet"
+                              className="button quiet"
                               disabled={pending}
                               onClick={() =>
                                 run(() => prepareFullAndFinal(c.id), 'Settlement prepared.')
@@ -209,7 +209,7 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
                           )}
                           {c.fnfStatus === 'draft' && (
                             <button
-                              className="btn quiet"
+                              className="button quiet"
                               disabled={pending}
                               onClick={() =>
                                 run(
@@ -223,7 +223,7 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
                           )}
                           {c.fnfStatus === 'approved' && (
                             <button
-                              className="btn quiet"
+                              className="button quiet"
                               disabled={pending}
                               onClick={() =>
                                 run(
@@ -237,7 +237,7 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
                           )}
                           {c.stage !== 'completed' && nextStage && nextStage !== 'completed' && (
                             <button
-                              className="btn quiet"
+                              className="button quiet"
                               disabled={pending}
                               onClick={() =>
                                 run(
@@ -251,7 +251,7 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
                           )}
                           {c.stage !== 'completed' && (
                             <button
-                              className="btn"
+                              className="button"
                               disabled={pending}
                               onClick={() => onComplete(c)}
                             >
@@ -306,13 +306,13 @@ function DocMenu({
   };
   return (
     <>
-      <button className="btn quiet" disabled={disabled || busy} onClick={() => gen('relieving')}>
+      <button className="button quiet" disabled={disabled || busy} onClick={() => gen('relieving')}>
         {busy ? '…' : '📄 Relieving'}
       </button>
-      <button className="btn quiet" disabled={disabled || busy} onClick={() => gen('experience')}>
+      <button className="button quiet" disabled={disabled || busy} onClick={() => gen('experience')}>
         📄 Experience
       </button>
-      <button className="btn quiet" disabled={disabled || busy} onClick={() => gen('fnf')}>
+      <button className="button quiet" disabled={disabled || busy} onClick={() => gen('fnf')}>
         📄 F&amp;F
       </button>
     </>
@@ -353,20 +353,20 @@ function ClearanceDrawer({
 
   return (
     <>
-      <div className="overlay on" onClick={onClose} />
-      <aside className="drawer on" aria-label="Exit clearance checklist">
-        <div className="dhd">
+      <div className="dialog-backdrop is-active" onClick={onClose} />
+      <aside className="drawer is-active" aria-label="Exit clearance checklist">
+        <div className="drawer-header">
           <h3>Clearance · {exitCase.name}</h3>
           <span style={{ flex: 1 }} />
-          <button type="button" className="btn quiet" onClick={onClose}>
+          <button type="button" className="button quiet" onClick={onClose}>
             ✕
           </button>
         </div>
-        <div className="dbd">
+        <div className="drawer-body">
           {items === null ? (
-            <p className="muted">Loading…</p>
+            <p className="text-muted">Loading…</p>
           ) : items.length === 0 ? (
-            <p className="muted">
+            <p className="text-muted">
               Nothing outstanding — this employee holds no assets or materials, and no manual
               clearance items have been added.
             </p>
@@ -379,7 +379,7 @@ function ClearanceDrawer({
                   gap: 10,
                   alignItems: 'flex-start',
                   padding: '8px 0',
-                  borderBottom: '1px solid var(--line-2)',
+                  borderBottom: '1px solid var(--border-strong)',
                 }}
               >
                 <input
@@ -405,7 +405,7 @@ function ClearanceDrawer({
                   <span style={{ textDecoration: it.cleared ? 'line-through' : undefined }}>
                     {it.description ?? it.area}
                   </span>
-                  <div className="muted" style={{ fontSize: 11 }}>
+                  <div className="text-muted" style={{ fontSize: 11 }}>
                     {it.area}
                   </div>
                 </span>
@@ -416,8 +416,8 @@ function ClearanceDrawer({
           <InterviewSection exitCaseId={exitCase.id} toast={toast} />
           <KtSection exitCaseId={exitCase.id} employees={employees} toast={toast} />
         </div>
-        <div className="dft">
-          <button type="button" className="btn" onClick={onClose}>
+        <div className="drawer-footer">
+          <button type="button" className="button" onClick={onClose}>
             Close
           </button>
         </div>
@@ -461,18 +461,18 @@ function InterviewSection({
 
   return (
     <>
-      <div className="fold">
+      <div className="section-heading">
         Exit interview{rows && rows.length > 0 ? ` · ${answered}/${rows.length} answered` : ''}
       </div>
       {rows === null ? (
-        <p className="muted">Loading…</p>
+        <p className="text-muted">Loading…</p>
       ) : rows.length === 0 ? (
         <>
-          <p className="muted" style={{ fontSize: 13 }}>
+          <p className="text-muted" style={{ fontSize: 13 }}>
             No interview started for this exit yet.
           </p>
           <button
-            className="btn quiet"
+            className="button quiet"
             disabled={busy}
             onClick={async () => {
               setBusy(true);
@@ -491,7 +491,7 @@ function InterviewSection({
       ) : (
         <>
           {rows.map((r) => (
-            <div className="f" key={r.id}>
+            <div className="form-field" key={r.id}>
               <label>{r.question}</label>
               <textarea
                 rows={2}
@@ -500,7 +500,7 @@ function InterviewSection({
                 style={{
                   width: '100%',
                   padding: '8px 10px',
-                  border: '1px solid var(--line-2)',
+                  border: '1px solid var(--border-strong)',
                   borderRadius: 8,
                   font: 'inherit',
                   background: '#fff',
@@ -510,7 +510,7 @@ function InterviewSection({
             </div>
           ))}
           <button
-            className="btn primary"
+            className="button primary"
             disabled={busy}
             onClick={async () => {
               setBusy(true);
@@ -572,7 +572,7 @@ function KtSection({
 
   return (
     <>
-      <div className="fold">
+      <div className="section-heading">
         Knowledge transfer
         {rows && rows.length > 0
           ? ` · ${rows.filter((r) => r.status === 'done').length}/${rows.length} done`
@@ -600,9 +600,9 @@ function KtSection({
       </div>
 
       {rows === null ? (
-        <p className="muted">Loading…</p>
+        <p className="text-muted">Loading…</p>
       ) : rows.length === 0 ? (
-        <p className="muted" style={{ fontSize: 13 }}>
+        <p className="text-muted" style={{ fontSize: 13 }}>
           Nothing recorded for handover yet.
         </p>
       ) : (
@@ -620,11 +620,11 @@ function KtSection({
               {rows.map((r) => (
                 <tr key={r.id}>
                   <td>{r.task}</td>
-                  <td>{r.handoverName ?? <span className="muted">—</span>}</td>
+                  <td>{r.handoverName ?? <span className="text-muted">—</span>}</td>
                   <td>
                     {/* Cycle checklist status: pending → in_progress → done → pending. */}
                     <button
-                      className="btn quiet"
+                      className="button quiet"
                       disabled={busy}
                       onClick={async () => {
                         setBusy(true);
@@ -643,7 +643,7 @@ function KtSection({
                   </td>
                   <td>
                     <button
-                      className="btn quiet"
+                      className="button quiet"
                       disabled={busy}
                       onClick={async () => {
                         setBusy(true);
@@ -696,7 +696,7 @@ function StartExitForm({
         disabled={disabled || busy}
         style={{ flex: '1 1 180px', marginBottom: 0 }}
       />
-      <div className="f" style={{ marginBottom: 0 }}>
+      <div className="form-field" style={{ marginBottom: 0 }}>
         <label>Resignation date</label>
         <input
           type="date"
@@ -704,7 +704,7 @@ function StartExitForm({
           onChange={(e) => setResignationDate(e.target.value)}
         />
       </div>
-      <div className="f" style={{ marginBottom: 0 }}>
+      <div className="form-field" style={{ marginBottom: 0 }}>
         <label>Last working day</label>
         <input
           type="date"
@@ -712,12 +712,12 @@ function StartExitForm({
           onChange={(e) => setLastWorkingDay(e.target.value)}
         />
       </div>
-      <div className="f" style={{ flex: '1 1 160px', marginBottom: 0 }}>
+      <div className="form-field" style={{ flex: '1 1 160px', marginBottom: 0 }}>
         <label>Reason</label>
         <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Optional" />
       </div>
       <button
-        className="btn primary"
+        className="button primary"
         disabled={disabled || busy || !ready}
         onClick={async () => {
           setBusy(true);

@@ -104,12 +104,12 @@ async function MePage() {
     : 'Your login is not linked to an employee record, so a ticket could not be traced back to you. Ask HR to link it.';
 
   return (
-    <div className="wrap grid">
-      <div className="me-hero">
+    <div className="content-container grid">
+      <div className="employee-overview">
         <AvatarMenu name={displayName} avatar={profile?.avatar} align="left" />
         <div>
           <h2>Hi, {displayName.split(' ')[0]}</h2>
-          <div className="meta">
+          <div className="entry-details">
             {/* an unlinked login has no code/branch */}
             {[overview.code, overview.branch].filter(Boolean).join(' · ') ||
               'No employee record linked'}
@@ -119,8 +119,8 @@ async function MePage() {
 
       {!employeeId && (
         <div className="card">
-          <div className="bd">
-            <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+          <div className="card-body">
+            <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
               Your login is not linked to an employee record yet, so your attendance, payslips,
               requests and tickets cannot be shown. Ask HR to link your account.
             </p>
@@ -129,26 +129,26 @@ async function MePage() {
       )}
 
       {/* personal snapshot */}
-      <div className="kpis">
-        <div className="card kpi">
-          <div className="lab">
+      <div className="summary-cards">
+        <div className="card summary-card">
+          <div className="metric-label">
             <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Present Days</span> -{' '}
             {monthName(periodMonth)}
           </div>
-          <div className="val" style={{ color: 'var(--p)' }}>
+          <div className="metric-value" style={{ color: 'var(--attendance-present)' }}>
             {overview.present}
           </div>
-          <div className="note">
+          <div className="metric-note">
             {overview.halfDays} half-day{overview.halfDays === 1 ? '' : 's'} · {overview.leaves}{' '}
             leave
           </div>
         </div>
-        <div className="card kpi">
-          <div className="lab">
+        <div className="card summary-card">
+          <div className="metric-label">
             <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Hours worked</span> -{' '}
             {monthName(periodMonth)}
           </div>
-          <div className="val mono" style={{ fontSize: 26, paddingTop: 4, paddingBottom: 6 }}>
+          <div className="metric-value text-monospace" style={{ fontSize: 26, paddingTop: 4, paddingBottom: 6 }}>
             {overview.workedHours}
           </div>
           <div className="hours-note">
@@ -156,83 +156,83 @@ async function MePage() {
             {overview.surplusMinutes} min
             <span style={{ color: 'var(--brand)' }}> surplus</span>
           </div>
-          <div className="note" style={{ fontSize: 9, marginTop: 0 }}>
+          <div className="metric-note" style={{ fontSize: 9, marginTop: 0 }}>
             Daily target of 9 hours 15 minutes, across {overview.surplusPresentDays}{' '}
             {overview.surplusPresentDays === 1 ? ' day you were present' : 'days you were present'}.
           </div>
         </div>
-        <div className="card kpi">
-          <div className="lab">
+        <div className="card summary-card">
+          <div className="metric-label">
             <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Pending hours</span> -{' '}
             {monthName(periodMonth)}
           </div>
           <div
-            className="val mono"
+            className="metric-value text-monospace"
             style={{
               fontSize: 26,
               paddingTop: 8,
-              color: overview.pendingMinutes > 0 ? 'var(--lm)' : 'var(--p)',
+              color: overview.pendingMinutes > 0 ? 'var(--attendance-late)' : 'var(--attendance-present)',
             }}
           >
             {overview.pendingHours}
           </div>
-          <div className="note">
+          <div className="metric-note">
             {overview.pendingMinutes > 0
               ? `of ${overview.targetHours} due so far this month`
               : 'you are on target'}
           </div>
         </div>
-        <div className="card kpi">
-          <div className="lab">
+        <div className="card summary-card">
+          <div className="metric-label">
             <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Comp offs remaining</span>
           </div>
-          <div className="val" style={{ color: compOffBalance > 0 ? 'var(--p)' : 'var(--ink-3)' }}>
+          <div className="metric-value" style={{ color: compOffBalance > 0 ? 'var(--attendance-present)' : 'var(--text-muted)' }}>
             {compOffBalance}
           </div>
-          <div className="note">
+          <div className="metric-note">
             {compOffApplied > 0
               ? `${compOffApplied} awaiting approval · ${compOffs.length} earned in total`
               : `${compOffs.length} earned in total`}
           </div>
         </div>
-        <div className="card kpi">
-          <div className="lab">
+        <div className="card summary-card">
+          <div className="metric-label">
             <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Net pay</span> -{' '}
             {monthName(periodMonth)}
           </div>
-          <div className="val" style={{ fontSize: 26, paddingTop: 8, color: 'var(--brand-deep)' }}>
+          <div className="metric-value" style={{ fontSize: 26, paddingTop: 8, color: 'var(--brand-deep)' }}>
             {overview.netPay != null ? inr(overview.netPay) : '—'}
           </div>
-          <div className="note">
+          <div className="metric-note">
             {monthYear(periodMonth)} · {run ? runStatusLabel[run.status] : 'not computed yet'}
           </div>
         </div>
-        <div className="card kpi">
-          <div className="lab">
+        <div className="card summary-card">
+          <div className="metric-label">
             <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Policies to read</span>
           </div>
-          <div className="val" style={{ color: unread ? 'var(--hd)' : 'var(--p)' }}>
+          <div className="metric-value" style={{ color: unread ? 'var(--attendance-half-day)' : 'var(--attendance-present)' }}>
             {unread}
           </div>
-          <div className="note">{policies.length} published in total</div>
+          <div className="metric-note">{policies.length} published in total</div>
         </div>
-        <div className="card kpi">
-          <div className="lab">
+        <div className="card summary-card">
+          <div className="metric-label">
             <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Requests pending</span>
           </div>
-          <div className="val" style={{ color: pendingRequests ? 'var(--lm)' : 'var(--p)' }}>
+          <div className="metric-value" style={{ color: pendingRequests ? 'var(--attendance-late)' : 'var(--attendance-present)' }}>
             {pendingRequests}
           </div>
-          <div className="note">{requests.length} filed in total</div>
+          <div className="metric-note">{requests.length} filed in total</div>
         </div>
-        <div className="card kpi">
-          <div className="lab">
+        <div className="card summary-card">
+          <div className="metric-label">
             <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Opened tickets</span>
           </div>
-          <div className="val" style={{ color: openTickets ? 'var(--lm)' : 'var(--p)' }}>
+          <div className="metric-value" style={{ color: openTickets ? 'var(--attendance-late)' : 'var(--attendance-present)' }}>
             {openTickets}
           </div>
-          <div className="note">{tickets.length} raised in total</div>
+          <div className="metric-note">{tickets.length} raised in total</div>
         </div>
       </div>
 
@@ -245,17 +245,17 @@ async function MePage() {
 
       {/* who is out today — approved leaves overlapping today's date */}
       <div className="card" id="on-leave-today">
-        <div className="hd">
+        <div className="card-header">
           <h3>On leave today</h3>
-          <span className="folio">
+          <span className="card-caption">
             {onLeaveToday.length === 0
               ? 'everyone is in'
               : `${onLeaveToday.length} ${onLeaveToday.length === 1 ? 'colleague' : 'colleagues'}`}
           </span>
         </div>
-        <div className="bd">
+        <div className="card-body">
           {onLeaveToday.length === 0 ? (
-            <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+            <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
               No approved leaves overlap today.
             </p>
           ) : (
@@ -263,11 +263,11 @@ async function MePage() {
               {onLeaveToday.map((p) => (
                 <span
                   key={p.employeeId}
-                  className="pill"
+                  className="status-badge"
                   style={{
-                    borderColor: 'var(--lm-line)',
-                    color: 'var(--lm)',
-                    background: 'var(--lm-bg)',
+                    borderColor: 'var(--attendance-late-border)',
+                    color: 'var(--attendance-late)',
+                    background: 'var(--attendance-late-background)',
                   }}
                   title={`${p.startDate === p.endDate ? p.startDate : `${p.startDate} – ${p.endDate}`}`}
                 >
@@ -283,14 +283,14 @@ async function MePage() {
 
       {/* company notices — the ids on these sections are notification targets ('/employee#notices' etc); NotificationBell scrolls to them on click. */}
       <div className="card" id="notices">
-        <div className="hd">
+        <div className="card-header">
           <h3>Notices</h3>
-          <span className="folio">
+          <span className="card-caption">
             {unreadNotices > 0 ? `${unreadNotices} unread · ` : ''}
             {visibleNotices.length} total
           </span>
         </div>
-        <div className="bd">
+        <div className="card-body">
           <EmployeeNotices
             notices={visibleNotices}
             readIds={readNoticeIds}
@@ -301,13 +301,13 @@ async function MePage() {
 
       {/* holiday calendar */}
       <div className="card" id="holidays">
-        <div className="hd">
+        <div className="card-header">
           <h3>Holiday calendar</h3>
-          <span className="folio">
+          <span className="card-caption">
             {upcomingHolidayCount} upcoming · {visibleHolidays.length} total
           </span>
         </div>
-        <div className="bd">
+        <div className="card-body">
           <EmployeeHolidays holidays={visibleHolidays} policy={weekOffPolicy} />
         </div>
       </div>
@@ -371,26 +371,26 @@ async function MePage() {
 
       {/* company policies */}
       <div className="card" id="policies">
-        <div className="hd">
+        <div className="card-header">
           <h3>Company policies</h3>
-          <span className="folio">Please read &amp; acknowledge</span>
+          <span className="card-caption">Please read &amp; acknowledge</span>
         </div>
-        <div className="bd">
+        <div className="card-body">
           <PolicyList policies={policies} />
         </div>
       </div>
 
       {/* account security lives on its own page now */}
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>My account</h3>
-          <span className="folio">{email ?? 'your account'}</span>
+          <span className="card-caption">{email ?? 'your account'}</span>
         </div>
-        <div className="bd">
-          <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+        <div className="card-body">
+          <p className="text-muted" style={{ fontSize: 13, marginTop: 0 }}>
             Manage your profile picture and password on your account page.
           </p>
-          <Link href="/employee/account" className="btn">
+          <Link href="/employee/account" className="button">
             Manage your account →
           </Link>
         </div>

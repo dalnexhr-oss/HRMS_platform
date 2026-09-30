@@ -7,11 +7,11 @@ const metadata: Metadata = { title: 'Reset password — Dalnex HRMS' };
 
 function ResetPage() {
   return (
-    <div className="login-shell">
+    <div className="login-layout">
       <div className="login-card card">
         <div className="login-brand">
           <Brand priority />
-          <p className="muted">Enter your email and we’ll send a reset link.</p>
+          <p className="text-muted">Enter your email and we’ll send a reset link.</p>
         </div>
 
         <ResetRequestForm />

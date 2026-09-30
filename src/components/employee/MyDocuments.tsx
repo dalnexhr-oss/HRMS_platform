@@ -101,13 +101,13 @@ function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?:
   return (
     <div className="card" id={id}>
       {toastNode}
-      <div className="hd">
+      <div className="card-header">
         <h3>My documents</h3>
-        <span className="folio">
+        <span className="card-caption">
           {documents.length ? `${verified}/${documents.length} verified` : 'none filed'}
         </span>
       </div>
-      <div className="bd">
+      <div className="card-body">
         <div
           style={{
             display: 'flex',
@@ -117,7 +117,7 @@ function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?:
             marginBottom: 12,
           }}
         >
-          <div className="f" style={{ marginBottom: 0 }}>
+          <div className="form-field" style={{ marginBottom: 0 }}>
             <label>Type</label>
             <select value={category} onChange={(e) => setCategory(e.target.value)}>
               {documentCategories.map((c) => (
@@ -127,7 +127,7 @@ function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?:
               ))}
             </select>
           </div>
-          <div className="f" style={{ flex: '1 1 200px', marginBottom: 0 }}>
+          <div className="form-field" style={{ flex: '1 1 200px', marginBottom: 0 }}>
             <label>File</label>
             <input
               type="file"
@@ -175,7 +175,7 @@ function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?:
                     flex: 1,
                     height: 6,
                     borderRadius: 999,
-                    background: 'var(--line-2)',
+                    background: 'var(--border-strong)',
                     overflow: 'hidden',
                   }}
                 >
@@ -184,12 +184,12 @@ function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?:
                       display: 'block',
                       width: `${progress}%`,
                       height: '100%',
-                      background: 'var(--p)',
+                      background: 'var(--attendance-present)',
                       transition: 'width .15s linear',
                     }}
                   />
                 </span>
-                <span className="mono" style={{ whiteSpace: 'nowrap' }}>
+                <span className="text-monospace" style={{ whiteSpace: 'nowrap' }}>
                   {progress < 100 ? `${progress}%` : 'Filing…'}
                 </span>
               </span>
@@ -198,7 +198,7 @@ function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?:
         </div>
 
         {documents.length === 0 ? (
-          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
             Nothing filed yet. Upload what HR has asked for and it will appear here.
           </p>
         ) : (
@@ -218,15 +218,15 @@ function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?:
                   <tr key={d.id}>
                     <td>{d.title ?? '—'}</td>
                     <td>{d.category ? (categoryLabel[d.category] ?? d.category) : '—'}</td>
-                    <td className="mono">{formatDate(d.uploadedAt.slice(0, 10))}</td>
+                    <td className="text-monospace">{formatDate(d.uploadedAt.slice(0, 10))}</td>
                     <td>
                       {d.verifiedAt ? (
                         <span
-                          className="pill"
+                          className="status-badge"
                           style={{
-                            borderColor: 'var(--p-line)',
-                            color: 'var(--p)',
-                            background: 'var(--p-bg)',
+                            borderColor: 'var(--attendance-present-border)',
+                            color: 'var(--attendance-present)',
+                            background: 'var(--attendance-present-background)',
                           }}
                         >
                           Verified
@@ -234,22 +234,22 @@ function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?:
                       ) : d.verifyRemark ? (
                         <>
                           <span
-                            className="pill"
-                            style={{ borderColor: 'var(--line-2)', color: 'var(--hd)' }}
+                            className="status-badge"
+                            style={{ borderColor: 'var(--border-strong)', color: 'var(--attendance-half-day)' }}
                           >
                             Needs fixing
                           </span>
-                          <div style={{ fontSize: 11, color: 'var(--hd)', marginTop: 2 }}>
+                          <div style={{ fontSize: 11, color: 'var(--attendance-half-day)', marginTop: 2 }}>
                             {d.verifyRemark}
                           </div>
                         </>
                       ) : (
                         <span
-                          className="pill"
+                          className="status-badge"
                           style={{
-                            borderColor: 'var(--lm-line)',
-                            color: 'var(--lm)',
-                            background: 'var(--lm-bg)',
+                            borderColor: 'var(--attendance-late-border)',
+                            color: 'var(--attendance-late)',
+                            background: 'var(--attendance-late-background)',
                           }}
                         >
                           Awaiting HR
@@ -257,7 +257,7 @@ function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?:
                       )}
                     </td>
                     <td>
-                      <button className="btn quiet" onClick={() => open(d.id)}>
+                      <button className="button quiet" onClick={() => open(d.id)}>
                         📎 Open
                       </button>
                     </td>

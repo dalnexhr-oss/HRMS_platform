@@ -43,29 +43,29 @@ function AddAssetDrawer({
 
   return (
     <>
-      <div className={`overlay${open ? ' on' : ''}`} onClick={onClose} />
+      <div className={`dialog-backdrop${open ? ' is-active' : ''}`} onClick={onClose} />
       <aside
-        className={`drawer${open ? ' on' : ''}`}
+        className={`drawer${open ? ' is-active' : ''}`}
         aria-label={editing ? 'Edit asset' : 'Add asset'}
       >
         <form key={asset?.id ?? 'new'} action={formAction} style={{ display: 'contents' }}>
           {editing && <input type="hidden" name="id" value={asset!.id} />}
-          <div className="dhd">
+          <div className="drawer-header">
             <h3>{editing ? 'Edit asset' : 'Add asset'}</h3>
             <span style={{ flex: 1 }} />
-            <button type="button" className="btn quiet" onClick={onClose}>
+            <button type="button" className="button quiet" onClick={onClose}>
               ✕
             </button>
           </div>
-          <div className="dbd">
+          <div className="drawer-body">
             <Field
               name="desktop_name"
               label="Desktop name"
               placeholder="e.g. DALNEX-PC-07"
               defaultValue={asset?.desktop_name}
             />
-            <div className="f-row">
-              <div className="f">
+            <div className="form-row">
+              <div className="form-field">
                 <label>Category</label>
                 <input
                   name="asset_category"
@@ -95,7 +95,7 @@ function AddAssetDrawer({
               mono
               defaultValue={asset?.model_no ?? undefined}
             />
-            <div className="f-row">
+            <div className="form-row">
               <Field
                 name="serial_no"
                 label="Serial no."
@@ -118,7 +118,7 @@ function AddAssetDrawer({
 
             <PurchaseAndWarranty asset={asset} />
 
-            <div className="f">
+            <div className="form-field">
               <label htmlFor="asset-form-qr-link">QR destination link</label>
               <input
                 id="asset-form-qr-link"
@@ -130,13 +130,13 @@ function AddAssetDrawer({
                 autoCapitalize="none"
                 spellCheck={false}
               />
-              <span className="muted" style={{ fontSize: 12 }}>
+              <span className="text-muted" style={{ fontSize: 12 }}>
                 Optional. Scanning the QR code opens this link. Leave blank to remove it.
               </span>
             </div>
 
-            <div className="fold">Specifications</div>
-            <div className="f-row">
+            <div className="section-heading">Specifications</div>
+            <div className="form-row">
               <Field
                 name="processor"
                 label="Processor"
@@ -151,7 +151,7 @@ function AddAssetDrawer({
                 defaultValue={asset?.ram ?? undefined}
               />
             </div>
-            <div className="f-row">
+            <div className="form-row">
               <Field
                 name="graphics_card"
                 label="Graphics card"
@@ -173,13 +173,13 @@ function AddAssetDrawer({
               defaultValue={asset?.antivirus ?? undefined}
             />
 
-            {state.error && <div className="login-error">{state.error}</div>}
+            {state.error && <div className="error-message">{state.error}</div>}
           </div>
-          <div className="dft">
-            <button type="button" className="btn" onClick={onClose}>
+          <div className="drawer-footer">
+            <button type="button" className="button" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn primary" disabled={pending}>
+            <button type="submit" className="button primary" disabled={pending}>
               {pending ? 'Saving…' : editing ? 'Save changes' : 'Save asset'}
             </button>
           </div>
@@ -201,8 +201,8 @@ function PurchaseAndWarranty({ asset }: { asset: AssetRow | null }) {
 
   return (
     <>
-      <div className="fold">Purchase</div>
-      <div className="f-row">
+      <div className="section-heading">Purchase</div>
+      <div className="form-row">
         <Field
           name="purchase_date"
           label="Purchased on"
@@ -222,8 +222,8 @@ function PurchaseAndWarranty({ asset }: { asset: AssetRow | null }) {
         />
       </div>
 
-      <div className="fold">Warranty</div>
-      <div className="f-row">
+      <div className="section-heading">Warranty</div>
+      <div className="form-row">
         <Field
           name="warranty_upto"
           label="Warranty upto"
@@ -276,11 +276,11 @@ function Field({
   mono?: boolean;
 }) {
   return (
-    <div className="f">
+    <div className="form-field">
       <label>{label}</label>
       <input
         name={name}
-        className={mono ? 'mono' : undefined}
+        className={mono ? 'text-monospace' : undefined}
         placeholder={placeholder}
         {...(onValueChange
           ? { value: value ?? '', onChange: (e) => onValueChange(e.target.value) }

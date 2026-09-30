@@ -4,8 +4,8 @@ import type { MyItemRow } from '@/lib/queries';
 
 function heldPill(returned: boolean): React.CSSProperties {
   return returned
-    ? { borderColor: 'var(--line-2)', color: 'var(--ink-3)' }
-    : { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' };
+    ? { borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }
+    : { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' };
 }
 
 function MyItems({ items, id }: { items: MyItemRow[]; id?: string }) {
@@ -13,15 +13,15 @@ function MyItems({ items, id }: { items: MyItemRow[]; id?: string }) {
 
   return (
     <div className="card" id={id}>
-      <div className="hd">
+      <div className="card-header">
         <h3>My materials &amp; tools</h3>
-        <span className="folio">
+        <span className="card-caption">
           {held} held · {items.length} issued
         </span>
       </div>
-      <div className="bd">
+      <div className="card-body">
         {items.length === 0 ? (
-          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
             No materials or tools have been issued to you, they will appear here.
           </p>
         ) : (
@@ -31,7 +31,7 @@ function MyItems({ items, id }: { items: MyItemRow[]; id?: string }) {
                 <tr>
                   <th>Material / Tool</th>
                   <th>Category</th>
-                  <th className="right">Qty</th>
+                  <th className="text-right">Qty</th>
                   <th>Issued on</th>
                   <th>Status</th>
                 </tr>
@@ -43,13 +43,13 @@ function MyItems({ items, id }: { items: MyItemRow[]; id?: string }) {
                       <b>{i.itemName}</b>
                     </td>
                     <td>{i.category ?? '—'}</td>
-                    <td className="right mono">
+                    <td className="text-right text-monospace">
                       {i.quantity}
                       {i.unit ? ` ${i.unit}` : ''}
                     </td>
-                    <td className="mono">{formatDate(i.assignedDate)}</td>
+                    <td className="text-monospace">{formatDate(i.assignedDate)}</td>
                     <td>
-                      <span className="pill" style={heldPill(i.returned)}>
+                      <span className="status-badge" style={heldPill(i.returned)}>
                         {i.returned
                           ? `Returned${i.returnedDate ? ` ${formatDate(i.returnedDate)}` : ''}`
                           : 'Held'}

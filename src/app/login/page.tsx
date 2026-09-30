@@ -19,11 +19,11 @@ async function LoginPage({
   const nextPath = safeRedirectPath(Array.isArray(next) ? next[0] : next) ?? undefined;
 
   return (
-    <div className="login-shell">
+    <div className="login-layout">
       <div className="login-card card">
         <div className="login-brand">
           <Brand priority />
-          <p className="muted">Sign in to your staff or employee account.</p>
+          <p className="text-muted">Sign in to your staff or employee account.</p>
         </div>
 
         <LoginForm initialError={initialError} next={nextPath} />

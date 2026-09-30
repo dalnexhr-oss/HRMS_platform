@@ -46,20 +46,20 @@ function EmployeeApprovals({
       .includes(search),
   );
   return (
-    <div className="wrap grid employee-approvals">
+    <div className="content-container grid employee-approvals">
       {toastNode}
       <div>
-        <Link href="/employee" className="btn quiet">
+        <Link href="/employee" className="button quiet">
           ← Back to dashboard
         </Link>
       </div>
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>My approvals</h3>
-          <span className="folio">{groups.pending.length} awaiting your decision</span>
+          <span className="card-caption">{groups.pending.length} awaiting your decision</span>
         </div>
-        <div className="bd">
-          <p className="muted">
+        <div className="card-body">
+          <p className="text-muted">
             Review requests assigned to you and track the leave you have approved, rejected, or
             forwarded.
           </p>
@@ -68,14 +68,14 @@ function EmployeeApprovals({
               <Link
                 key={value}
                 href={`/employee/approvals?view=${value}`}
-                className={`btn ${view === value ? 'primary' : 'quiet'}`}
+                className={`button ${view === value ? 'primary' : 'quiet'}`}
                 aria-current={view === value ? 'page' : undefined}
               >
                 {label} ({groups[value].length})
               </Link>
             ))}
           </nav>
-          <div className="f">
+          <div className="form-field">
             <label htmlFor="approval-search">Search requests</label>
             <input
               id="approval-search"
@@ -85,14 +85,14 @@ function EmployeeApprovals({
               placeholder="Employee name, code, leave date, or status"
             />
           </div>
-          <p className="muted" role="status">
+          <p className="text-muted" role="status">
             {visible.length} request{visible.length === 1 ? '' : 's'}
           </p>
         </div>
       </div>
       {visible.length === 0 && (
         <div className="card">
-          <div className="bd muted">
+          <div className="card-body text-muted">
             {search ? 'No requests match your search.' : emptyMessages[view]}
           </div>
         </div>
@@ -101,14 +101,14 @@ function EmployeeApprovals({
         const myReviews = request.routing!.history.filter((step) => step.approver.id === actor.id);
         return (
           <article className="card employee-approval-card" key={request.id}>
-            <div className="hd">
+            <div className="card-header">
               <h3>{request.employeeName}</h3>
-              <span className={`pill approval-status-${request.status}`}>
+              <span className={`status-badge approval-status-${request.status}`}>
                 Request: {request.status}
               </span>
             </div>
-            <div className="bd">
-              <p className="muted">
+            <div className="card-body">
+              <p className="text-muted">
                 {[request.employeeCode, request.branch].filter(Boolean).join(' · ')}
               </p>
               <p>
@@ -158,7 +158,7 @@ function EmployeeApprovals({
                   </ol>
                 </div>
               )}
-              <Link href={`/requests/${request.id}`} className="btn quiet">
+              <Link href={`/requests/${request.id}`} className="button quiet">
                 View request & full history →
               </Link>
               <RequestDecisionControls

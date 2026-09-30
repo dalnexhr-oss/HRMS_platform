@@ -76,10 +76,10 @@ function ApprovalsScreen({
   }, [initialPending]);
 
   return (
-    <div className="wrap grid">
+    <div className="content-container grid">
       {toastNode}
       {pending.length > 0 && (
-        <div className="appr">
+        <div className="approval-grid">
           {pending.map((req) => (
             <RequestCard
               key={req.id}
@@ -95,8 +95,8 @@ function ApprovalsScreen({
 
       {pending.length === 0 && (
         <div className="card">
-          <div className="empty" style={{ padding: 26 }}>
-            <span className="muted" style={{ font: '500 12px var(--mono)' }}>
+          <div className="empty-state" style={{ padding: 26 }}>
+            <span className="text-muted" style={{ font: '500 12px var(--font-monospace)' }}>
               No requests are waiting for your approval.
             </span>
           </div>
@@ -121,23 +121,23 @@ function RequestCard({
   toast: (message: string, kind?: 'success' | 'error' | 'info') => void;
 }) {
   return (
-    <div className="card req">
-      <div className="top">
+    <div className="card approval-request">
+      <div className="request-header">
         <Stamp status={typeStamp[request.type]} />
-        <span className="who-nm">{request.employeeName}</span>
-        <span className="muted mono" style={{ fontSize: 11 }}>
+        <span className="request-employee-name">{request.employeeName}</span>
+        <span className="text-muted text-monospace" style={{ fontSize: 11 }}>
           {request.employeeCode} · {request.branch}
         </span>
         <span style={{ flex: 1 }} />
         <span
-          className="pill"
-          style={{ borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' }}
+          className="status-badge"
+          style={{ borderColor: 'var(--attendance-late-border)', color: 'var(--attendance-late)', background: 'var(--attendance-late-background)' }}
         >
           Pending
         </span>
       </div>
-      <div className="body">{requestSentence(request)}</div>
-      <div className="bd">
+      <div className="entry-body">{requestSentence(request)}</div>
+      <div className="card-body">
         <RequestRoutingSummary routing={request.routing} status={request.status} />
         <RequestDecisionControls
           request={request}
@@ -155,13 +155,13 @@ function RequestCard({
           }}
         />
       </div>
-      <div className="acts" style={{ flexWrap: 'wrap' }}>
-        <Link className="btn quiet" href={`/requests/${request.id}`}>
+      <div className="request-actions" style={{ flexWrap: 'wrap' }}>
+        <Link className="button quiet" href={`/requests/${request.id}`}>
           View request →
         </Link>
         {/* Leave/WFH decisions are cross-checked against the register. Site visits and outdoor duty would want a location map, which does not exist yet — so no button is shown rather than a dead one. */}
         {(request.type === 'leave' || request.type === 'wfh') && (
-          <Link className="btn quiet" href="/monthly-register">
+          <Link className="button quiet" href="/monthly-register">
             View register
           </Link>
         )}
@@ -186,7 +186,7 @@ function requestSentence(r: RequestView) {
         {r.balanceAfter != null && (
           <>
             {' '}
-            Balance after approval: <b className="mono">{r.balanceAfter.toFixed(1)}</b>
+            Balance after approval: <b className="text-monospace">{r.balanceAfter.toFixed(1)}</b>
             {r.leaveKind ? ` ${r.leaveKind}` : ''}.
           </>
         )}

@@ -19,7 +19,7 @@ function LoginForm({ initialError, next }: { initialError?: string; next?: strin
     <form action={action} className="login-form">
       {/* Where middleware wanted to send them before the login gate stepped in. signIn() only honours relative paths, so this cannot become an open redirect. */}
       {next && <input type="hidden" name="next" value={next} />}
-      <div className="f">
+      <div className="form-field">
         <label htmlFor="email">Email</label>
         <input
           id="email"
@@ -30,7 +30,7 @@ function LoginForm({ initialError, next }: { initialError?: string; next?: strin
           required
         />
       </div>
-      <div className="f">
+      <div className="form-field">
         <label htmlFor="password">Password</label>
         <div className="login-password">
           <input
@@ -69,13 +69,13 @@ function LoginForm({ initialError, next }: { initialError?: string; next?: strin
       </div>
 
       {error && (
-        <div className="login-error" role="alert">
+        <div className="error-message" role="alert">
           {error}
         </div>
       )}
 
       <button
-        className="btn primary"
+        className="button primary"
         type="submit"
         disabled={pending}
         style={{ width: '100%', justifyContent: 'center' }}

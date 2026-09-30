@@ -67,7 +67,7 @@ function RequestDecisionControls({
   }
   return (
     <div className="request-decision">
-      <div className="f">
+      <div className="form-field">
         <label htmlFor={`remark-${request.id}`}>Decision note</label>
         <input
           id={`remark-${request.id}`}
@@ -99,13 +99,13 @@ function RequestDecisionControls({
             required
             disabled={busy}
           />
-          <p className="muted">
+          <p className="text-muted">
             Your approval will be recorded. Leave stays pending until the next approver decides.
           </p>
         </>
       )}
       {error && (
-        <div className="login-error" role="alert">
+        <div className="error-message" role="alert">
           {error}
         </div>
       )}
@@ -114,10 +114,10 @@ function RequestDecisionControls({
           {message}
         </p>
       )}
-      <div className="acts">
+      <div className="request-actions">
         <button
           type="button"
-          className="btn primary"
+          className="button primary"
           disabled={busy || (forward && !next.length)}
           onClick={() => decide('approved')}
         >
@@ -125,7 +125,7 @@ function RequestDecisionControls({
         </button>
         <button
           type="button"
-          className="btn danger"
+          className="button danger"
           disabled={busy}
           onClick={() => decide('rejected')}
         >

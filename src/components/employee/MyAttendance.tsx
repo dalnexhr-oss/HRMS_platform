@@ -68,17 +68,17 @@ function MyAttendance({
   const markedDays = days.filter((d) => presentLike.has(d.status)).length;
 
   return (
-    <div className="card register" id={id}>
-      <div className="hd">
+    <div className="card attendance-register" id={id}>
+      <div className="card-header">
         <h3>My attendance — {monthLabel(periodMonth)}</h3>
-        <span className="folio">
+        <span className="card-caption">
           {days.length ? `${days.length} days marked` : 'No days marked'}
         </span>
       </div>
 
       {days.length === 0 ? (
-        <div className="bd">
-          <div className="empty">
+        <div className="card-body">
+          <div className="empty-state">
             <h3>Nothing marked yet</h3>
             <p>
               Your attendance for {monthLabel(periodMonth)} has not been recorded. Days appear here
@@ -87,36 +87,36 @@ function MyAttendance({
           </div>
         </div>
       ) : (
-        <div className="reg-scroll">
+        <div className="attendance-scroll">
           <div style={{ minWidth: 250 + days.length * 44 }}>
             {/* header row */}
-            <div className="rrow hd-row">
-              <div className="emp-cell">
+            <div className="attendance-row attendance-header-row">
+              <div className="attendance-employee-cell">
                 <span
-                  className="folio"
+                  className="card-caption"
                   style={{
-                    font: '600 10px var(--mono)',
+                    font: '600 10px var(--font-monospace)',
                     letterSpacing: '.14em',
-                    color: 'var(--ink-3)',
+                    color: 'var(--text-muted)',
                   }}
                 >
                   MY MONTH · SUMMARY
                 </span>
               </div>
-              <div className="daystrip">
+              <div className="attendance-days">
                 {days.map((d) => (
-                  <div key={d.day} className={`dhead${d.isWeekOff ? ' wo-col' : ''}`}>
-                    <div className="dw">{dowFor(periodMonth, d.day)}</div>
-                    <div className="dn">{d.day}</div>
+                  <div key={d.day} className={`attendance-day-header${d.isWeekOff ? ' is-weekly-off' : ''}`}>
+                    <div className="weekday-label">{dowFor(periodMonth, d.day)}</div>
+                    <div className="day-number">{d.day}</div>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* the single employee row */}
-            <div className={`rrow${showPunches ? ' open' : ''}`}>
-              <div className="emp-cell">
-                <div className="sums">
+            <div className={`attendance-row${showPunches ? ' is-open' : ''}`}>
+              <div className="attendance-employee-cell">
+                <div className="attendance-summary">
                   <span>
                     P <b>{summary.P}</b>
                   </span>
@@ -133,25 +133,25 @@ function MyAttendance({
                     WO <b>{summary.WO}</b>
                   </span>
                 </div>
-                <div className="meta mono">
+                <div className="entry-details text-monospace">
                   {formatHrs(workedMinutes)} hrs over {markedDays} day
                   {markedDays === 1 ? '' : 's'}
                 </div>
-                <button className="rowtoggle" onClick={() => setShowPunches((s) => !s)}>
+                <button className="details-toggle" onClick={() => setShowPunches((s) => !s)}>
                   {showPunches ? 'Hide punches' : 'Show punches'}
                 </button>
               </div>
-              <div className="daystrip">
+              <div className="attendance-days">
                 {days.map((c) => (
                   <div
                     key={c.day}
-                    className={`dcell${c.isWeekOff ? ' wo-col' : ''}`}
+                    className={`attendance-day-cell${c.isWeekOff ? ' is-weekly-off' : ''}`}
                     title={c.in ? `${c.in} – ${c.out} · ${c.hours}` : undefined}
                   >
                     <div style={{ display: 'grid', placeItems: 'center' }}>
                       <Stamp status={c.status} />
                       {c.in ? (
-                        <div className="tms">
+                        <div className="punch-times">
                           {c.in}
                           <br />
                           {c.out ?? '—'}
@@ -159,7 +159,7 @@ function MyAttendance({
                           <b>{c.hours ?? '—'}</b>
                         </div>
                       ) : (
-                        <div className="tms muted">—</div>
+                        <div className="punch-times text-muted">—</div>
                       )}
                     </div>
                   </div>

@@ -9,10 +9,10 @@ const statusTabs = ['all', 'pending', 'approved', 'rejected', 'cancelled'] as co
 type StatusTab = (typeof statusTabs)[number];
 
 const statusColor: Record<RequestView['status'], string> = {
-  pending: 'var(--lm)',
-  approved: 'var(--p)',
-  rejected: 'var(--hd)',
-  cancelled: 'var(--ink-3)',
+  pending: 'var(--attendance-late)',
+  approved: 'var(--attendance-present)',
+  rejected: 'var(--attendance-half-day)',
+  cancelled: 'var(--text-muted)',
 };
 
 const kindLabel: Record<string, string> = {
@@ -85,17 +85,17 @@ function LeaveHistory({ requests }: { requests: RequestView[] }) {
 
   return (
     <div className="card" id="leave-management">
-      <div className="hd">
+      <div className="card-header">
         <h3>Leave management</h3>
-        <span className="folio">
+        <span className="card-caption">
           complete history · {counts.pending} pending · {requests.length} total
         </span>
         <span style={{ flex: 1 }} />
-        <Link className="btn quiet" href="/approvals">
+        <Link className="button quiet" href="/approvals">
           Review pending →
         </Link>
       </div>
-      <div className="bd">
+      <div className="card-body">
         <div
           style={{
             display: 'flex',
@@ -108,7 +108,7 @@ function LeaveHistory({ requests }: { requests: RequestView[] }) {
           {statusTabs.map((t) => (
             <button
               key={t}
-              className={`btn quiet${tab === t ? ' primary' : ''}`}
+              className={`button quiet${tab === t ? ' primary' : ''}`}
               style={{ padding: '4px 10px', fontSize: 12, textTransform: 'capitalize' }}
               onClick={() => setTab(t)}
             >
@@ -126,7 +126,7 @@ function LeaveHistory({ requests }: { requests: RequestView[] }) {
         </div>
 
         {visible.length === 0 ? (
-          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
             {requests.length === 0
               ? 'No leave requests have been filed yet. Requests submitted from the employee dashboard appear here automatically.'
               : 'Nothing matches this filter.'}
@@ -139,7 +139,7 @@ function LeaveHistory({ requests }: { requests: RequestView[] }) {
                   <th>Employee</th>
                   <th>Type</th>
                   <th>Dates</th>
-                  <th className="right">Days</th>
+                  <th className="text-right">Days</th>
                   <th>Submitted</th>
                   <th>Decided</th>
                   <th>Status</th>
@@ -153,27 +153,27 @@ function LeaveHistory({ requests }: { requests: RequestView[] }) {
                       <Link href={`/requests/${r.id}`}>
                         <b>{r.employeeName}</b>
                       </Link>{' '}
-                      <span className="mono muted" style={{ fontSize: 11 }}>
+                      <span className="text-monospace text-muted" style={{ fontSize: 11 }}>
                         {r.employeeCode}
                       </span>
-                      <div className="muted" style={{ fontSize: 11 }}>
+                      <div className="text-muted" style={{ fontSize: 11 }}>
                         {r.branch}
                       </div>
                     </td>
                     <td>{(r.leaveKind && kindLabel[r.leaveKind]) || r.leaveKind || 'Leave'}</td>
-                    <td className="mono" style={{ whiteSpace: 'nowrap' }}>
+                    <td className="text-monospace" style={{ whiteSpace: 'nowrap' }}>
                       {r.startDate === r.endDate
                         ? day(r.startDate)
                         : `${day(r.startDate)} – ${day(r.endDate)}`}
                     </td>
-                    <td className="right mono">{r.days}</td>
-                    <td className="mono">{stamp(r.createdAt)}</td>
-                    <td className="mono">{stamp(r.reviewedAt)}</td>
+                    <td className="text-right text-monospace">{r.days}</td>
+                    <td className="text-monospace">{stamp(r.createdAt)}</td>
+                    <td className="text-monospace">{stamp(r.reviewedAt)}</td>
                     <td>
                       <span
-                        className="pill"
+                        className="status-badge"
                         style={{
-                          borderColor: 'var(--line-2)',
+                          borderColor: 'var(--border-strong)',
                           color: statusColor[r.status],
                           textTransform: 'capitalize',
                         }}
@@ -188,7 +188,7 @@ function LeaveHistory({ requests }: { requests: RequestView[] }) {
                           <b>Decision:</b> {r.reviewRemark}
                         </div>
                       )}
-                      {!r.reason && !r.reviewRemark && <span className="muted">—</span>}
+                      {!r.reason && !r.reviewRemark && <span className="text-muted">—</span>}
                     </td>
                   </tr>
                 ))}

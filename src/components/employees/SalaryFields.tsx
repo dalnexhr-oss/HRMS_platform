@@ -25,12 +25,12 @@ function SalaryFields({ initial = defaultSalary }: { initial?: SalaryValues }) {
 
   function amountField(name: keyof SalaryValues, label: string) {
     return (
-      <div className="f">
+      <div className="form-field">
         <label htmlFor={`${id}-${name}`}>{label}</label>
         <input
           id={`${id}-${name}`}
           name={name}
-          className="mono"
+          className="text-monospace"
           inputMode="decimal"
           value={amounts[name]}
           onChange={(event) =>
@@ -44,19 +44,19 @@ function SalaryFields({ initial = defaultSalary }: { initial?: SalaryValues }) {
 
   return (
     <>
-      <div className="fold">Salary structure</div>
-      <div className="f-row">
+      <div className="section-heading">Salary structure</div>
+      <div className="form-row">
         {amountField('gross_monthly', 'Gross / month (₹)')}
         {amountField('basic_da', 'Basic + DA (₹)')}
       </div>
-      <div className="f-row">
+      <div className="form-row">
         {amountField('hra', 'HRA (₹)')}
-        <div className="f">
+        <div className="form-field">
           <label htmlFor={`${id}-special`}>Special allowance (₹)</label>
           <input
             id={`${id}-special`}
             name="special_allowance"
-            className="mono"
+            className="text-monospace"
             value={salary.special === null ? '' : formatPaise(salary.special)}
             readOnly
             aria-invalid={!salary.ok}
@@ -69,7 +69,7 @@ function SalaryFields({ initial = defaultSalary }: { initial?: SalaryValues }) {
         state.
       </div>
       {!salary.ok && (
-        <div className="login-error" id={errorId} role="status">
+        <div className="error-message" id={errorId} role="status">
           {salary.error}
         </div>
       )}

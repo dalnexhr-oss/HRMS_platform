@@ -52,12 +52,12 @@ function ConfirmDialog({
 
   return (
     <>
-      <div className="overlay on" onClick={onCancel} />
+      <div className="dialog-backdrop is-active" onClick={onCancel} />
       <div className="modal" role="dialog" aria-modal="true" aria-label={title ?? 'Confirm'}>
         <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-          <div className="m-hd">
+          <div className="modal-header">
             {danger && (
-              <span className="m-ic" aria-hidden>
+              <span className="modal-icon" aria-hidden>
                 <svg
                   width="16"
                   height="16"
@@ -74,14 +74,14 @@ function ConfirmDialog({
             )}
             <span>{title ?? 'Please confirm'}</span>
           </div>
-          <div className="m-bd">{message}</div>
-          <div className="m-ft">
-            <button type="button" className="btn" onClick={onCancel}>
+          <div className="modal-body">{message}</div>
+          <div className="modal-footer">
+            <button type="button" className="button" onClick={onCancel}>
               {cancelLabel}
             </button>
             <button
               type="button"
-              className={`btn ${danger ? 'danger' : 'primary'}`}
+              className={`button ${danger ? 'danger' : 'primary'}`}
               onClick={onConfirm}
               autoFocus
             >

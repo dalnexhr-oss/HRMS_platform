@@ -141,9 +141,9 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
   }
 
   return (
-    <div className="wrap">
-      <div className="emp-top">
-        <div className="search">
+    <div className="content-container">
+      <div className="records-toolbar">
+        <div className="search-field">
           <svg
             width="15"
             height="15"
@@ -161,11 +161,11 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
-        <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
+        <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
           {items.length} item{items.length === 1 ? '' : 's'} · materials &amp; tools
         </span>
         <span style={{ flex: 1 }} />
-        <button className="btn primary" onClick={openAdd}>
+        <button className="button primary" onClick={openAdd}>
           + Add material / tool
         </button>
       </div>
@@ -180,7 +180,7 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
             <thead>
               <tr>
                 {cols.map((c) => (
-                  <th key={c.key} className={c.kind === 'number' ? 'right' : undefined}>
+                  <th key={c.key} className={c.kind === 'number' ? 'text-right' : undefined}>
                     <ThMenu
                       label={c.label}
                       kind={c.kind}
@@ -199,7 +199,7 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
             <tbody>
               {filtered.map((i) => (
                 <tr key={i.id}>
-                  <td className="mono muted" style={{ whiteSpace: 'nowrap' }}>
+                  <td className="text-monospace text-muted" style={{ whiteSpace: 'nowrap' }}>
                     {i.item_code ?? '—'}
                   </td>
                   <td style={{ whiteSpace: 'nowrap' }}>
@@ -213,9 +213,9 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
                     <Trunc v={i.size_spec} w={130} />
                   </td>
                   <td style={{ whiteSpace: 'nowrap' }}>{i.unit ?? '—'}</td>
-                  <td className="right mono">{i.total_quantity}</td>
-                  <td className="right mono">{i.quantity_assigned}</td>
-                  <td className="right mono">
+                  <td className="text-right text-monospace">{i.total_quantity}</td>
+                  <td className="text-right text-monospace">{i.quantity_assigned}</td>
+                  <td className="text-right text-monospace">
                     <b>{i.quantity_remaining}</b>
                   </td>
                   <td style={{ whiteSpace: 'nowrap' }}>{i.status}</td>
@@ -223,7 +223,7 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
                   <td>
                     <div style={{ display: 'flex', gap: 6, whiteSpace: 'nowrap' }}>
                       <button
-                        className="btn quiet"
+                        className="button quiet"
                         onClick={() => setAssignFor(i)}
                         disabled={i.quantity_remaining <= 0}
                         title={
@@ -234,11 +234,11 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
                       >
                         Assign
                       </button>
-                      <button className="btn quiet" onClick={() => openEdit(i)}>
+                      <button className="button quiet" onClick={() => openEdit(i)}>
                         Edit
                       </button>
                       <button
-                        className="btn quiet"
+                        className="button quiet"
                         onClick={() => onDelete(i)}
                         disabled={pending && busyId === i.id}
                         title="Delete this item"
@@ -251,7 +251,7 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td className="muted" colSpan={12} style={{ textAlign: 'center' }}>
+                  <td className="text-muted" colSpan={12} style={{ textAlign: 'center' }}>
                     {q || hasFilters
                       ? 'No materials or tools match the current search / filters.'
                       : 'No materials or tools yet.'}
@@ -285,7 +285,7 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
  */
 function Trunc({ v, w = 150 }: { v: string | null; w?: number }) {
   if (!v) {
-    return <span className="muted">—</span>;
+    return <span className="text-muted">—</span>;
   }
   return (
     <span

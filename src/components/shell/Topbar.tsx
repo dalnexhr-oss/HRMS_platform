@@ -35,23 +35,23 @@ function Topbar({
   const [title, sub] = pageHeader(slug, stats);
 
   return (
-    <div className="topbar">
+    <div className="app-header">
       <div>
         <h2 id="tb-title">{title}</h2>
-        <div className="sub" id="tb-sub">
+        <div className="subtitle" id="tb-sub">
           {sub}
         </div>
       </div>
-      <div className="grow" />
+      <div className="flex-spacer" />
       {/* Driven by the night_sweep_time setting — hidden when it is unset rather than advertising a sweep time the job does not actually use. */}
       {stats?.nightSweep && (
-        <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
-          <span className="dot" style={{ background: 'var(--ok)' }} />
+        <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
+          <span className="status-dot" style={{ background: 'var(--status-success)' }} />
           Night sweep armed · {stats.nightSweep}
         </span>
       )}
       <NotificationBell notifications={notifications} unread={unread} />
-      <div className="who">
+      <div className="profile-summary">
         <ProfileMenu name={name} avatar={avatar} role={role} email={email} accountHref="/account" />
       </div>
       <SignOutButton />

@@ -118,13 +118,13 @@ async function RegisterPage({
     `/monthly-register?m=${mm}${bb ? `&b=${encodeURIComponent(bb)}` : ''}` as Route;
 
   return (
-    <div className="wrap register-page">
-      <div className="reg-head">
-        <div className="month-nav">
+    <div className="content-container register-page">
+      <div className="period-toolbar">
+        <div className="month-navigation">
           <Link href={withParams(prev, branch)} aria-label="Previous month" role="button">
             ‹
           </Link>
-          <span className="cur">{monthLabel(periodMonth)}</span>
+          <span className="current-month">{monthLabel(periodMonth)}</span>
           <Link href={withParams(next, branch)} aria-label="Next month" role="button">
             ›
           </Link>
@@ -134,11 +134,11 @@ async function RegisterPage({
           <div className="legend" role="group" aria-label="Filter by branch">
             <Link
               href={withParams(m && monthRe.test(m) ? m : periodMonth.slice(0, 7), null)}
-              className="pill"
+              className="status-badge"
               style={
                 branch == null
                   ? { borderColor: 'var(--brand)', color: 'var(--brand)' }
-                  : { borderColor: 'var(--line-2)', color: 'var(--ink-3)' }
+                  : { borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }
               }
             >
               All branches
@@ -149,11 +149,11 @@ async function RegisterPage({
                 <Link
                   key={br.id}
                   href={withParams(m && monthRe.test(m) ? m : periodMonth.slice(0, 7), br.name)}
-                  className="pill"
+                  className="status-badge"
                   style={
                     on
                       ? { borderColor: 'var(--brand)', color: 'var(--brand)' }
-                      : { borderColor: 'var(--line-2)', color: 'var(--ink-3)' }
+                      : { borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }
                   }
                 >
                   {br.name}
@@ -164,16 +164,16 @@ async function RegisterPage({
         )}
 
         {run && (run.workingDays != null || run.targetMinutes != null) && (
-          <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
+          <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
             {run.workingDays ?? '—'} working days · target{' '}
-            <b className="mono">
+            <b className="text-monospace">
               &nbsp;{run.targetMinutes != null ? minutesToHHMM(run.targetMinutes) : '—'}
             </b>
           </span>
         )}
 
         {run && (
-          <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
+          <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
             Payroll · {run.status.replace('_', ' ')}
           </span>
         )}
@@ -197,9 +197,9 @@ async function RegisterPage({
 
       {loadError ? (
         <div className="card">
-          <div className="bd">
-            <div className="login-error">Could not load the register: {loadError}</div>
-            <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>
+          <div className="card-body">
+            <div className="error-message">Could not load the register: {loadError}</div>
+            <p className="text-muted" style={{ fontSize: 12, marginTop: 10 }}>
               The register is showing nothing rather than stand-in data — fix the error above and
               reload.
             </p>
@@ -208,15 +208,15 @@ async function RegisterPage({
       ) : (
         <>
           {canCorrect && mismatches.length > 0 && (
-            <div className="card" style={{ marginBottom: 12, borderColor: 'var(--lm-line)' }}>
-              <div className="hd">
+            <div className="card" style={{ marginBottom: 12, borderColor: 'var(--attendance-late-border)' }}>
+              <div className="card-header">
                 <h3>Approved leave not on the register</h3>
-                <span className="folio">
+                <span className="card-caption">
                   {mismatches.length} day{mismatches.length === 1 ? '' : 's'}
                 </span>
               </div>
-              <div className="bd">
-                <p className="muted" style={{ marginTop: 0, fontSize: 12 }}>
+              <div className="card-body">
+                <p className="text-muted" style={{ marginTop: 0, fontSize: 12 }}>
                   These employees have an <b>approved</b> leave request for these days, but the
                   register shows them absent (or has no row). Approving leave draws down the balance
                   but does not stamp the register — mark the day <b>L</b> here so pay and the
@@ -237,16 +237,16 @@ async function RegisterPage({
                         <tr key={`${mm.employeeId}|${mm.date}`}>
                           <td>
                             <b>{mm.name}</b>{' '}
-                            <span className="mono muted" style={{ fontSize: 11 }}>
+                            <span className="text-monospace text-muted" style={{ fontSize: 11 }}>
                               {mm.code}
                             </span>
                           </td>
-                          <td className="mono">{formatDate(mm.date)}</td>
+                          <td className="text-monospace">{formatDate(mm.date)}</td>
                           <td>{mm.leaveKind ?? 'Leave'}</td>
                           <td>
                             <span
-                              className="pill"
-                              style={{ borderColor: 'var(--line-2)', color: 'var(--hd)' }}
+                              className="status-badge"
+                              style={{ borderColor: 'var(--border-strong)', color: 'var(--attendance-half-day)' }}
                             >
                               {mm.registerStatus ?? 'no entry'}
                             </span>

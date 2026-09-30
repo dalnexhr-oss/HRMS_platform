@@ -101,14 +101,14 @@ function ImportScreen({
   }
 
   return (
-    <div className="wrap grid">
+    <div className="content-container grid">
       {!canImport && (
         <div className="card" style={{ borderColor: amberLine, background: amberBg }}>
-          <div className="hd">
+          <div className="card-header">
             <h3 style={{ color: amber }}>Read-only access</h3>
           </div>
-          <div className="bd">
-            <p className="muted" style={{ margin: 0 }}>
+          <div className="card-body">
+            <p className="text-muted" style={{ margin: 0 }}>
               Importing the register needs an admin or HR account
               {role ? ` — yours is “${role}”.` : '.'} You can still upload a file to preview what it
               contains; the import button is disabled.
@@ -119,9 +119,9 @@ function ImportScreen({
 
       {step === 'upload' && (
         <div className="card">
-          <div className="hd">
+          <div className="card-header">
             <h3>Upload monthly register</h3>
-            <span className="folio">.xlsx · from the attendance sheet</span>
+            <span className="card-caption">.xlsx · from the attendance sheet</span>
             <span style={{ flex: 1 }} />
             {canDownloadTemplate && (
               // An arrow closure, not .bind — it is recreated on every render, so
@@ -129,22 +129,22 @@ function ImportScreen({
               <XlsxExportButton
                 action={() => exportRegisterImportTemplateXlsx(templateMonth)}
                 label="Download template"
-                className="btn"
+                className="button"
               />
             )}
           </div>
-          <div className="bd">
+          <div className="card-body">
             {canDownloadTemplate && (
               <>
                 <fieldset
                   style={{
-                    border: `1px solid var(--line, ${amberLine})`,
+                    border: `1px solid var(--border-subtle, ${amberLine})`,
                     borderRadius: 8,
                     padding: '10px 14px 12px',
                     margin: '0 0 14px',
                   }}
                 >
-                  <legend className="muted" style={{ fontSize: 12, padding: '0 6px' }}>
+                  <legend className="text-muted" style={{ fontSize: 12, padding: '0 6px' }}>
                     Template month
                   </legend>
                   <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 18 }}>
@@ -198,7 +198,7 @@ function ImportScreen({
                 setResult(null);
               }}
             >
-              <div className="f">
+              <div className="form-field">
                 <label htmlFor="register-file">Monthly register file</label>
                 <input
                   id="register-file"
@@ -222,9 +222,9 @@ function ImportScreen({
                 </span>
               </div>
 
-              {previewError && <div className="login-error">{previewError}</div>}
+              {previewError && <div className="error-message">{previewError}</div>}
 
-              <button className="btn primary" type="submit" disabled={previewing || !file}>
+              <button className="button primary" type="submit" disabled={previewing || !file}>
                 {previewing ? 'Reading the sheet…' : 'Preview import'}
               </button>
             </form>
@@ -235,20 +235,20 @@ function ImportScreen({
       {step === 'preview' && preview && (
         <>
           <div className="card">
-            <div className="hd">
+            <div className="card-header">
               <h3>{monthLabelUTC(preview.periodMonth)}</h3>
-              <span className="folio">
+              <span className="card-caption">
                 {preview.daysInMonth} days · {preview.matched.length} employee
                 {preview.matched.length === 1 ? '' : 's'} matched · {preview.totalRows} row
                 {preview.totalRows === 1 ? '' : 's'} to write
               </span>
               <span style={{ flex: 1 }} />
-              <span className="pill">Preview only — nothing saved yet</span>
+              <span className="status-badge">Preview only — nothing saved yet</span>
             </div>
 
             {preview.matched.length === 0 ? (
-              <div className="bd">
-                <p className="empty">
+              <div className="card-body">
+                <p className="empty-state">
                   No employee in this sheet could be matched to a record in the system.
                 </p>
               </div>
@@ -265,11 +265,11 @@ function ImportScreen({
                   <tbody>
                     {preview.matched.map((m) => (
                       <tr key={m.code}>
-                        <td className="mono muted">{m.code}</td>
+                        <td className="text-monospace text-muted">{m.code}</td>
                         <td>
                           <b>{m.name}</b>
                         </td>
-                        <td className="mono">{m.days}</td>
+                        <td className="text-monospace">{m.days}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -280,22 +280,22 @@ function ImportScreen({
 
           {(preview.unmatched.length > 0 || preview.warnings.length > 0) && (
             <div className="card" style={{ borderColor: amberLine, background: amberBg }}>
-              <div className="hd">
+              <div className="card-header">
                 <h3 style={{ color: amber }}>Needs a look</h3>
-                <span className="folio">
+                <span className="card-caption">
                   {preview.unmatched.length} unmatched · {preview.warnings.length} warning
                   {preview.warnings.length === 1 ? '' : 's'}
                 </span>
               </div>
-              <div className="bd">
+              <div className="card-body">
                 {preview.unmatched.length > 0 && (
                   <p style={{ marginTop: 0 }}>
                     <b>No employee matches these Empl. IDs:</b>{' '}
-                    <span className="mono">{preview.unmatched.join(', ')}</span>
+                    <span className="text-monospace">{preview.unmatched.join(', ')}</span>
                     <br />
-                    <span className="muted" style={{ fontSize: 12 }}>
-                      Expected an employee code like <span className="mono">DN001</span> for Empl.
-                      ID <span className="mono">1</span>. Their rows will be skipped.
+                    <span className="text-muted" style={{ fontSize: 12 }}>
+                      Expected an employee code like <span className="text-monospace">DN001</span> for Empl.
+                      ID <span className="text-monospace">1</span>. Their rows will be skipped.
                     </span>
                   </p>
                 )}
@@ -313,12 +313,12 @@ function ImportScreen({
           )}
 
           <div className="card">
-            <div className="bd" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="card-body" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               {(() => {
                 const blocked = blockedReason(preview);
                 return (
                   <button
-                    className="btn primary"
+                    className="button primary"
                     type="button"
                     onClick={onCommit}
                     disabled={committing || blocked !== null}
@@ -332,11 +332,11 @@ function ImportScreen({
                   </button>
                 );
               })()}
-              <button className="btn quiet" type="button" onClick={reset} disabled={committing}>
+              <button className="button quiet" type="button" onClick={reset} disabled={committing}>
                 Cancel
               </button>
               <span style={{ flex: 1 }} />
-              <span className="muted" style={{ fontSize: 12 }}>
+              <span className="text-muted" style={{ fontSize: 12 }}>
                 {committing
                   ? 'Writing attendance — this can take a while.'
                   : (blockedReason(preview) ?? 'Overwrites existing attendance for this month.')}
@@ -348,35 +348,35 @@ function ImportScreen({
 
       {step === 'done' && result && (
         <div className="card">
-          <div className="hd">
+          <div className="card-header">
             <h3>{result.ok ? 'Import complete' : 'Import failed'}</h3>
-            {preview && <span className="folio">{monthLabelUTC(preview.periodMonth)}</span>}
+            {preview && <span className="card-caption">{monthLabelUTC(preview.periodMonth)}</span>}
           </div>
-          <div className="bd">
+          <div className="card-body">
             {result.ok ? (
               <>
-                <div className="kpis" style={{ marginBottom: 14 }}>
-                  <div className="card kpi">
-                    <div className="lab">Inserted</div>
-                    <div className="val" style={{ color: 'var(--p)' }}>
+                <div className="summary-cards" style={{ marginBottom: 14 }}>
+                  <div className="card summary-card">
+                    <div className="metric-label">Inserted</div>
+                    <div className="metric-value" style={{ color: 'var(--attendance-present)' }}>
                       {result.inserted}
                     </div>
-                    <div className="note">New attendance rows</div>
+                    <div className="metric-note">New attendance rows</div>
                   </div>
-                  <div className="card kpi">
-                    <div className="lab">Updated</div>
-                    <div className="val">{result.updated}</div>
-                    <div className="note">Existing rows overwritten</div>
+                  <div className="card summary-card">
+                    <div className="metric-label">Updated</div>
+                    <div className="metric-value">{result.updated}</div>
+                    <div className="metric-note">Existing rows overwritten</div>
                   </div>
-                  <div className="card kpi">
-                    <div className="lab">Skipped</div>
+                  <div className="card summary-card">
+                    <div className="metric-label">Skipped</div>
                     <div
-                      className="val"
-                      style={{ color: result.skipped ? 'var(--ab)' : undefined }}
+                      className="metric-value"
+                      style={{ color: result.skipped ? 'var(--attendance-absent)' : undefined }}
                     >
                       {result.skipped}
                     </div>
-                    <div className="note">Unmatched or unreadable</div>
+                    <div className="metric-note">Unmatched or unreadable</div>
                   </div>
                 </div>
 
@@ -385,10 +385,10 @@ function ImportScreen({
                     className="card"
                     style={{ borderColor: amberLine, background: amberBg, marginBottom: 14 }}
                   >
-                    <div className="hd">
+                    <div className="card-header">
                       <h3 style={{ color: amber }}>Imported, with problems</h3>
                     </div>
-                    <div className="bd">
+                    <div className="card-body">
                       <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
                         {result.errors.map((e, i) => (
                           <li key={i} style={{ marginBottom: 4 }}>
@@ -401,12 +401,12 @@ function ImportScreen({
                 )}
               </>
             ) : (
-              <div className="login-error" style={{ marginBottom: 14 }}>
+              <div className="error-message" style={{ marginBottom: 14 }}>
                 {result.error}
               </div>
             )}
 
-            <button className="btn" onClick={reset}>
+            <button className="button" onClick={reset}>
               Import another file
             </button>
           </div>

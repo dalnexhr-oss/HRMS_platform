@@ -6,7 +6,7 @@ async function NoticesPage() {
   const [notices, branches] = await Promise.all([getNotices(), getBranches()]);
 
   return (
-    <div className="wrap grid">
+    <div className="content-container grid">
       <NoticesScreen notices={notices} branchNames={branches.map((b) => b.name)} />
     </div>
   );

@@ -18,7 +18,7 @@ function base64ToBlob(base64: string, mime: string): Blob {
 function XlsxExportButton({
   action,
   label = 'Export .xlsx',
-  className = 'btn',
+  className = 'button',
 }: {
   action: () => Promise<ExportResult>;
   label?: string;
@@ -61,7 +61,7 @@ function XlsxExportButton({
         {pending ? 'Preparing…' : label}
       </button>
       {error ? (
-        <span className="muted" style={{ fontSize: 12, color: 'var(--ab)' }}>
+        <span className="text-muted" style={{ fontSize: 12, color: 'var(--attendance-absent)' }}>
           {error}
         </span>
       ) : null}

@@ -21,22 +21,22 @@
   width: 100%;
   table-layout: fixed;
 }
-.users-col-account {
+.users-column-account {
   width: 26%;
 }
-.users-col-role {
+.users-column-role {
   width: 16%;
 }
-.users-col-employee {
+.users-column-employee {
   width: 17%;
 }
-.users-col-punch {
+.users-column-punch {
   width: 19%;
 }
-.users-col-signin {
+.users-column-signin {
   width: 12%;
 }
-.users-col-actions {
+.users-column-actions {
   width: 10%;
 }
 .users-table th,
@@ -67,10 +67,10 @@
   max-width: 100%;
   min-height: 38px;
   padding: 7px 8px;
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
-  background: var(--card-solid);
-  color: var(--ink);
+  background: var(--surface-solid);
+  color: var(--text-primary);
   font: inherit;
 }
 .users-select:disabled {
@@ -102,12 +102,12 @@
   display: grid;
   gap: 4px;
   padding: 6px;
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--border-strong);
   border-radius: 12px;
-  background: var(--card-solid);
-  box-shadow: var(--shadow);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-card);
 }
-.users-actions-menu .btn {
+.users-actions-menu .button {
   width: 100%;
   min-width: 0;
   justify-content: flex-start;
@@ -116,7 +116,7 @@
   border-color: transparent;
 }
 .users-actions-menu .users-delete {
-  color: var(--ab);
+  color: var(--attendance-absent);
 }
 
 /* Respond to the actual content width, including space taken by the sidebar. */
@@ -145,7 +145,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px 24px;
     padding: 20px;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--border-subtle);
   }
   .users-table tr:last-child {
     border-bottom: 0;
@@ -159,10 +159,10 @@
     content: attr(data-label);
     display: block;
     margin-bottom: 7px;
-    font: 600 10px/1.5 var(--mono);
+    font: 600 10px/1.5 var(--font-monospace);
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--ink-3);
+    color: var(--text-muted);
   }
   .users-table .users-account,
   .users-table .users-actions-cell,

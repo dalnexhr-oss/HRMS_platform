@@ -119,7 +119,7 @@ function AvatarMenu({
     <div ref={boxRef} className="avatar-menu">
       <button
         type="button"
-        className="av av-trigger"
+        className="avatar avatar-button"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="true"
         aria-expanded={open}
@@ -129,12 +129,12 @@ function AvatarMenu({
       </button>
 
       {open && (
-        <div role="menu" className={`avatar-pop${align === 'left' ? ' align-left' : ''}`}>
-          <div className="avatar-pop-hd">Your picture</div>
+        <div role="menu" className={`avatar-popover${align === 'left' ? ' align-left' : ''}`}>
+          <div className="avatar-popover-header">Your picture</div>
 
           <button
             type="button"
-            className="btn primary"
+            className="button primary"
             style={{ width: '100%', justifyContent: 'center' }}
             onClick={() => fileRef.current?.click()}
             disabled={pending}
@@ -149,7 +149,7 @@ function AvatarMenu({
             hidden
           />
 
-          <div className="avatar-pop-lab">Or pick an avatar</div>
+          <div className="avatar-popover-label">Or pick an avatar</div>
           <div className="avatar-swatches">
             {avatarPresetId.map((id) => {
               const value = `preset:${id}`;
@@ -158,7 +158,7 @@ function AvatarMenu({
                 <button
                   key={id}
                   type="button"
-                  className={`av avatar-swatch${selected ? ' is-selected' : ''}`}
+                  className={`avatar avatar-swatch${selected ? ' is-selected' : ''}`}
                   title={avatarPresetLabel(id)}
                   aria-label={avatarPresetLabel(id)}
                   aria-pressed={selected}
@@ -174,7 +174,7 @@ function AvatarMenu({
           {current && (
             <button
               type="button"
-              className="btn quiet"
+              className="button quiet"
               style={{ width: '100%', justifyContent: 'center', marginTop: 4 }}
               onClick={() => commit(null)}
               disabled={pending}
@@ -184,7 +184,7 @@ function AvatarMenu({
           )}
 
           {error && (
-            <div className="login-error" role="alert" style={{ marginTop: 8, fontSize: 12 }}>
+            <div className="error-message" role="alert" style={{ marginTop: 8, fontSize: 12 }}>
               {error}
             </div>
           )}

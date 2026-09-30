@@ -49,20 +49,20 @@ async function HrDashboardPage() {
   ).length;
 
   return (
-    <div className="wrap grid">
+    <div className="content-container grid">
       {/* workforce-at-a-glance KPI band */}
-      <div className="kpis">
-        <div className="card kpi">
-          <div className="lab">Active employees</div>
-          <div className="val">{headcount ?? '—'}</div>
-          <div className="note">on the roster today</div>
+      <div className="summary-cards">
+        <div className="card summary-card">
+          <div className="metric-label">Active employees</div>
+          <div className="metric-value">{headcount ?? '—'}</div>
+          <div className="metric-note">on the roster today</div>
         </div>
-        <div className="card kpi">
-          <div className="lab">On leave today</div>
-          <div className="val" style={{ color: onLeaveToday.length ? 'var(--lm)' : 'var(--p)' }}>
+        <div className="card summary-card">
+          <div className="metric-label">On leave today</div>
+          <div className="metric-value" style={{ color: onLeaveToday.length ? 'var(--attendance-late)' : 'var(--attendance-present)' }}>
             {onLeaveToday.length}
           </div>
-          <div className="note">
+          <div className="metric-note">
             {onLeaveToday.length
               ? onLeaveToday
                   .slice(0, 3)
@@ -71,26 +71,26 @@ async function HrDashboardPage() {
               : 'everyone is in'}
           </div>
         </div>
-        <div className="card kpi">
-          <div className="lab">Leave requests pending</div>
-          <div className="val" style={{ color: pendingLeaves ? 'var(--lm)' : 'var(--p)' }}>
+        <div className="card summary-card">
+          <div className="metric-label">Leave requests pending</div>
+          <div className="metric-value" style={{ color: pendingLeaves ? 'var(--attendance-late)' : 'var(--attendance-present)' }}>
             {pendingLeaves}
           </div>
-          <div className="note">decided on the Approvals page</div>
+          <div className="metric-note">decided on the Approvals page</div>
         </div>
-        <div className="card kpi">
-          <div className="lab">Leaves approved</div>
-          <div className="val" style={{ color: 'var(--p)' }}>
+        <div className="card summary-card">
+          <div className="metric-label">Leaves approved</div>
+          <div className="metric-value" style={{ color: 'var(--attendance-present)' }}>
             {approvedThisMonth}
           </div>
-          <div className="note">this month</div>
+          <div className="metric-note">this month</div>
         </div>
       </div>
 
       {/* the Leave Management tab — complete request history */}
       <LeaveHistory requests={leaves} />
 
-      <p className="muted" style={{ fontSize: 12, margin: 0 }}>
+      <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>
         Every leave request an employee submits lands in <b>Approvals</b> for a decision and is
         tracked here from submission to its final outcome. Balances and the annual leave-salary
         working live on the <b>Leave salary</b> page; day-to-day attendance on the{' '}

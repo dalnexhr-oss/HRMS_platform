@@ -25,17 +25,17 @@ function PolicyAdmin({
   const { toast, toastNode } = useToast();
 
   return (
-    <div className="two-col">
+    <div className="two-column-layout">
       {confirmDialog}
       {toastNode}
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>Published &amp; draft policies</h3>
-          <span className="folio">{policies.length} total</span>
+          <span className="card-caption">{policies.length} total</span>
         </div>
-        <div className="bd">
+        <div className="card-body">
           {policies.length === 0 && (
-            <p className="muted">No policies yet — create one on the right.</p>
+            <p className="text-muted">No policies yet — create one on the right.</p>
           )}
           {policies.map((p) => (
             <PolicyItem
@@ -52,10 +52,10 @@ function PolicyAdmin({
       </div>
 
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>{editing ? 'Edit policy' : 'New policy'}</h3>
         </div>
-        <div className="bd">
+        <div className="card-body">
           <PolicyForm
             key={editing?.id ?? 'new'}
             editing={editing}
@@ -123,10 +123,10 @@ function PolicyItem({
 
   return (
     <div className="policy">
-      <div className="phd">
+      <div className="entry-header">
         <h4>{policy.title}</h4>
-        {policy.category && <span className="cat">{policy.category}</span>}
-        <span className="ver">
+        {policy.category && <span className="entry-category">{policy.category}</span>}
+        <span className="entry-version">
           v{policy.version}
           {policy.effective_date ? ` · from ${formatDate(policy.effective_date)}` : ''}
         </span>
@@ -134,11 +134,11 @@ function PolicyItem({
         {/* Read receipts only mean anything once a policy is published. */}
         {policy.published && (
           <span
-            className="pill"
+            className="status-badge"
             style={
               headcount > 0 && ackCount >= headcount
-                ? { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' }
-                : { borderColor: 'var(--line-2)', color: 'var(--hd)' }
+                ? { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' }
+                : { borderColor: 'var(--border-strong)', color: 'var(--attendance-half-day)' }
             }
             title="Employees who have marked this policy as read"
           >
@@ -146,26 +146,26 @@ function PolicyItem({
           </span>
         )}
         <span
-          className="pill"
+          className="status-badge"
           style={
             policy.published
-              ? { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' }
-              : { borderColor: 'var(--line-2)', color: 'var(--ink-3)' }
+              ? { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' }
+              : { borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }
           }
         >
           {policy.published ? 'Published' : 'Draft'}
         </span>
-        <button className="btn quiet" onClick={onEdit} disabled={pending}>
+        <button className="button quiet" onClick={onEdit} disabled={pending}>
           Edit
         </button>
-        <button className="btn" onClick={toggle} disabled={pending}>
+        <button className="button" onClick={toggle} disabled={pending}>
           {pending ? '…' : policy.published ? 'Unpublish' : 'Publish'}
         </button>
-        <button className="btn quiet" onClick={remove} disabled={pending}>
+        <button className="button quiet" onClick={remove} disabled={pending}>
           {pending ? '…' : 'Delete'}
         </button>
       </div>
-      <p className="body">{policy.body}</p>
+      <p className="entry-body">{policy.body}</p>
     </div>
   );
 }
@@ -195,7 +195,7 @@ function PolicyForm({
 
   return (
     <form action={action}>
-      <div className="f">
+      <div className="form-field">
         <label>Title</label>
         <input
           name="title"
@@ -204,8 +204,8 @@ function PolicyForm({
           defaultValue={editing?.title}
         />
       </div>
-      <div className="f-row">
-        <div className="f">
+      <div className="form-row">
+        <div className="form-field">
           <label>Category</label>
           <input
             name="category"
@@ -213,20 +213,20 @@ function PolicyForm({
             defaultValue={editing?.category ?? ''}
           />
         </div>
-        <div className="f">
+        <div className="form-field">
           <label>Version</label>
           <input
             name="version"
-            className="mono"
+            className="text-monospace"
             defaultValue={editing ? String(editing.version) : '1'}
           />
         </div>
       </div>
-      <div className="f">
+      <div className="form-field">
         <label>Effective date</label>
         <input name="effective_date" type="date" defaultValue={editing?.effective_date ?? ''} />
       </div>
-      <div className="f">
+      <div className="form-field">
         <label>Body</label>
         <textarea
           name="body"
@@ -236,7 +236,7 @@ function PolicyForm({
           style={{
             width: '100%',
             padding: '9px 11px',
-            border: '1px solid var(--line-2)',
+            border: '1px solid var(--border-strong)',
             borderRadius: 8,
             font: 'inherit',
             background: '#fff',
@@ -252,15 +252,15 @@ function PolicyForm({
         </label>
       )}
 
-      {state.error && <div className="login-error">{state.error}</div>}
+      {state.error && <div className="error-message">{state.error}</div>}
       {state.ok && !editing && <div className="hint">✓&nbsp; Policy saved.</div>}
 
       <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn primary" type="submit" disabled={pending}>
+        <button className="button primary" type="submit" disabled={pending}>
           {pending ? 'Saving…' : editing ? 'Save changes' : 'Save policy'}
         </button>
         {editing && (
-          <button className="btn quiet" type="button" onClick={onDone} disabled={pending}>
+          <button className="button quiet" type="button" onClick={onDone} disabled={pending}>
             Cancel
           </button>
         )}

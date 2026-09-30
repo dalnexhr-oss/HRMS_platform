@@ -16,7 +16,7 @@ function UpdatePasswordForm({ token }: { token?: string }) {
   if (!token) {
     return (
       <div>
-        <div className="login-error" role="alert">
+        <div className="error-message" role="alert">
           This reset link is incomplete. Request a new one.
         </div>
         <div style={{ marginTop: 14, textAlign: 'center' }}>
@@ -36,7 +36,7 @@ function UpdatePasswordForm({ token }: { token?: string }) {
         </div>
         <div style={{ marginTop: 14, textAlign: 'center' }}>
           <Link
-            className="btn primary"
+            className="button primary"
             href="/login"
             style={{ width: '100%', justifyContent: 'center' }}
           >
@@ -51,7 +51,7 @@ function UpdatePasswordForm({ token }: { token?: string }) {
     <form action={action} className="login-form">
       <input type="hidden" name="token" value={token} />
 
-      <div className="f">
+      <div className="form-field">
         <label htmlFor="password">New password</label>
         <input
           id="password"
@@ -63,7 +63,7 @@ function UpdatePasswordForm({ token }: { token?: string }) {
         />
         <span className="hint">At least {minLen} characters.</span>
       </div>
-      <div className="f">
+      <div className="form-field">
         <label htmlFor="confirm">Confirm new password</label>
         <input
           id="confirm"
@@ -76,13 +76,13 @@ function UpdatePasswordForm({ token }: { token?: string }) {
       </div>
 
       {state.error && (
-        <div className="login-error" role="alert">
+        <div className="error-message" role="alert">
           {state.error}
         </div>
       )}
 
       <button
-        className="btn primary"
+        className="button primary"
         type="submit"
         disabled={pending}
         style={{ width: '100%', justifyContent: 'center' }}

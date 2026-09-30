@@ -17,21 +17,21 @@ function PunchToggle() {
   }
 
   return (
-    <div className="punch-top">
+    <div className="header-punch-clock">
       {toastNode}
       {state?.lastNightSweep && (
-        <a href="/employee#punch" className="muted" title={state.lastNightSweep.message}>
+        <a href="/employee#punch" className="text-muted" title={state.lastNightSweep.message}>
           Missed punch-out
         </a>
       )}
       {/* Today's running total, so the bar states where you stand before you press anything. Hidden on narrow screens — the button is the point. */}
-      <span className={`punch-top-read${isIn ? ' on' : ''}`} aria-hidden={loading}>
-        <i className="dot" />
-        <b className="mono">{loading ? '—' : duration(worked)}</b>
+      <span className={`header-punch-summary${isIn ? ' is-active' : ''}`} aria-hidden={loading}>
+        <i className="status-dot" />
+        <b className="text-monospace">{loading ? '—' : duration(worked)}</b>
       </span>
       <button
         type="button"
-        className={`btn punch-top-btn${isIn ? ' danger' : ' primary'}`}
+        className={`button header-punch-button${isIn ? ' danger' : ' primary'}`}
         onClick={() => void punch()}
         disabled={loading || pending || !state || !webPunchAllowed}
         aria-busy={pending}

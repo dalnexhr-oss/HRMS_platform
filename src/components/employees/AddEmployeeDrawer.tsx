@@ -68,9 +68,9 @@ function AddEmployeeDrawer({
 
   return (
     <>
-      <div className={`overlay${open ? ' on' : ''}`} onClick={onClose} />
+      <div className={`dialog-backdrop${open ? ' is-active' : ''}`} onClick={onClose} />
       <aside
-        className={`drawer${open ? ' on' : ''}`}
+        className={`drawer${open ? ' is-active' : ''}`}
         aria-label={editing ? 'Edit employee' : 'Add employee'}
       >
         {/* key remounts the form on each open — switching between add and a
@@ -82,15 +82,15 @@ function AddEmployeeDrawer({
           style={{ display: 'contents' }}
         >
           {editing && <input type="hidden" name="original_code" value={employee!.code} />}
-          <div className="dhd">
+          <div className="drawer-header">
             <h3>{editing ? `Edit ${employee!.code}` : 'Add employee'}</h3>
             <span style={{ flex: 1 }} />
-            <button type="button" className="btn quiet" onClick={onClose}>
+            <button type="button" className="button quiet" onClick={onClose}>
               ✕
             </button>
           </div>
-          <div className="dbd">
-            <div className="f-row">
+          <div className="drawer-body">
+            <div className="form-row">
               <Field
                 name="full_name"
                 label="Full name"
@@ -111,7 +111,7 @@ function AddEmployeeDrawer({
               branchDefault={employee?.branch}
               genderDefault={employee?.gender}
             />
-            <div className="f-row">
+            <div className="form-row">
               <ComboField
                 name="department"
                 label="Department"
@@ -129,7 +129,7 @@ function AddEmployeeDrawer({
             {/* Drives the PAYROLL rules, not dashboard access — an intern's
                 login role is set separately on /users. */}
 
-            <div className="f-row">
+            <div className="form-row">
               <Field
                 name="date_of_joining"
                 label="Date of joining"
@@ -151,8 +151,8 @@ function AddEmployeeDrawer({
               defaultValue={employee?.whatsapp ?? undefined}
             />
 
-            <div className="fold">Contact</div>
-            <div className="f-row">
+            <div className="section-heading">Contact</div>
+            <div className="form-row">
               <Field
                 name="mobile_official"
                 label="Mobile (official)"
@@ -168,7 +168,7 @@ function AddEmployeeDrawer({
                 defaultValue={employee?.mobile_personal ?? undefined}
               />
             </div>
-            <div className="f-row">
+            <div className="form-row">
               <Field
                 name="email_official"
                 label="Email (official)"
@@ -187,8 +187,8 @@ function AddEmployeeDrawer({
               />
             </div>
 
-            <div className="fold">Statutory</div>
-            <div className="f-row">
+            <div className="section-heading">Statutory</div>
+            <div className="form-row">
               <Field
                 name="pan"
                 label="PAN"
@@ -204,7 +204,7 @@ function AddEmployeeDrawer({
                 defaultValue={employee?.aadhaar ?? undefined}
               />
             </div>
-            <div className="f-row">
+            <div className="form-row">
               <Field
                 name="pf_uan"
                 label="PF UAN"
@@ -219,14 +219,14 @@ function AddEmployeeDrawer({
               />
             </div>
 
-            <div className="fold">Bank details</div>
+            <div className="section-heading">Bank details</div>
             <Field
               name="bank_name"
               label="Bank name"
               placeholder="e.g. HDFC Bank"
               defaultValue={employee?.bank_name ?? undefined}
             />
-            <div className="f-row">
+            <div className="form-row">
               <Field
                 name="bank_account_number"
                 label="Account number"
@@ -243,8 +243,8 @@ function AddEmployeeDrawer({
               />
             </div>
 
-            <div className="fold">Emergency contact</div>
-            <div className="f-row">
+            <div className="section-heading">Emergency contact</div>
+            <div className="form-row">
               <Field
                 name="emergency_contact_name"
                 label="Contact name"
@@ -268,16 +268,16 @@ function AddEmployeeDrawer({
 
             <SalaryFields initial={employee ?? undefined} />
             {error && (
-              <div className="login-error" role="alert">
+              <div className="error-message" role="alert">
                 {error}
               </div>
             )}
           </div>
-          <div className="dft">
-            <button type="button" className="btn" onClick={onClose}>
+          <div className="drawer-footer">
+            <button type="button" className="button" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn primary" disabled={pending}>
+            <button type="submit" className="button primary" disabled={pending}>
               {pending ? 'Saving…' : editing ? 'Save changes' : 'Save employee'}
             </button>
           </div>
@@ -311,8 +311,8 @@ function BranchPicker({
 
   return (
     <>
-      <div className="f-row">
-        <div className="f">
+      <div className="form-row">
+        <div className="form-field">
           <label>Branch</label>
           <select name="branch" value={sel} onChange={(e) => setSel(e.target.value)} required>
             <option value="" disabled>
@@ -339,7 +339,7 @@ function BranchPicker({
       </div>
       {adding && (
         <>
-          <div className="f-row">
+          <div className="form-row">
             <Field name="branch_new_name" label="New branch name" placeholder="e.g. Nashik" />
             <SelectField
               name="branch_new_state"
@@ -375,11 +375,11 @@ function Field({
   readOnly?: boolean;
 }) {
   return (
-    <div className="f">
+    <div className="form-field">
       <label>{label}</label>
       <input
         name={name}
-        className={mono ? 'mono' : undefined}
+        className={mono ? 'text-monospace' : undefined}
         placeholder={placeholder}
         defaultValue={defaultValue}
         type={type}
@@ -405,7 +405,7 @@ function ComboField({
 }) {
   const listId = `${name}-list`;
   return (
-    <div className="f">
+    <div className="form-field">
       <label>{label}</label>
       <input name={name} list={listId} placeholder={placeholder} defaultValue={defaultValue} />
       <datalist id={listId}>
@@ -429,7 +429,7 @@ function SelectField({
   defaultValue?: string;
 }) {
   return (
-    <div className="f">
+    <div className="form-field">
       <label>{label}</label>
       <select name={name} defaultValue={defaultValue}>
         {options.map((o) => (

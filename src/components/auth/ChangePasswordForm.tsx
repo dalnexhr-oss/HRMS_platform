@@ -16,12 +16,12 @@ function ChangePasswordForm({ email }: { email?: string | null }) {
     <form action={action}>
       {/* The server identifies the account from the session cookie, never from a field the browser could change. Kept as a prop so the account pages can go on labelling the form with the address. */}
       {email && (
-        <p className="muted" style={{ marginTop: 0 }}>
+        <p className="text-muted" style={{ marginTop: 0 }}>
           Signed in as {email}.
         </p>
       )}
 
-      <div className="f">
+      <div className="form-field">
         <label htmlFor="cp-current">Current password</label>
         <input
           id="cp-current"
@@ -31,8 +31,8 @@ function ChangePasswordForm({ email }: { email?: string | null }) {
           required
         />
       </div>
-      <div className="f-row">
-        <div className="f">
+      <div className="form-row">
+        <div className="form-field">
           <label htmlFor="cp-next">New password</label>
           <input
             id="cp-next"
@@ -44,7 +44,7 @@ function ChangePasswordForm({ email }: { email?: string | null }) {
           />
           <span className="hint">At least {minLen} characters.</span>
         </div>
-        <div className="f">
+        <div className="form-field">
           <label htmlFor="cp-confirm">Confirm new password</label>
           <input
             id="cp-confirm"
@@ -58,7 +58,7 @@ function ChangePasswordForm({ email }: { email?: string | null }) {
       </div>
 
       {state.error && (
-        <div className="login-error" role="alert">
+        <div className="error-message" role="alert">
           {state.error}
         </div>
       )}
@@ -68,7 +68,7 @@ function ChangePasswordForm({ email }: { email?: string | null }) {
         </div>
       )}
 
-      <button className="btn primary" type="submit" disabled={pending}>
+      <button className="button primary" type="submit" disabled={pending}>
         {pending ? 'Changing…' : 'Change password'}
       </button>
     </form>

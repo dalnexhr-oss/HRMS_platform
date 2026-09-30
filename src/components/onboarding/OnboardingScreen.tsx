@@ -20,9 +20,9 @@ const roleLabel: Record<string, string> = {
 };
 
 const statusStyle: Record<string, React.CSSProperties> = {
-  pending: { borderColor: 'var(--lm-line)', color: 'var(--lm)', background: 'var(--lm-bg)' },
-  done: { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' },
-  blocked: { borderColor: 'var(--line-2)', color: 'var(--hd)' },
+  pending: { borderColor: 'var(--attendance-late-border)', color: 'var(--attendance-late)', background: 'var(--attendance-late-background)' },
+  done: { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' },
+  blocked: { borderColor: 'var(--border-strong)', color: 'var(--attendance-half-day)' },
 };
 
 function OnboardingScreen({
@@ -89,15 +89,15 @@ function OnboardingScreen({
   }
 
   return (
-    <div className="wrap grid">
+    <div className="content-container grid">
       {confirmDialog}
       {toastNode}
 
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>Start onboarding</h3>
         </div>
-        <div className="bd">
+        <div className="card-body">
           <StartForm
             employees={employees}
             templates={templates}
@@ -115,9 +115,9 @@ function OnboardingScreen({
       </div>
 
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>Onboarding tasks</h3>
-          <span className="folio">
+          <span className="card-caption">
             {openCount} open{doneCount ? ` · ${doneCount} done` : ''}
           </span>
           <span style={{ flex: 1 }} />
@@ -128,7 +128,7 @@ function OnboardingScreen({
                 alignItems: 'center',
                 gap: 6,
                 fontSize: 13,
-                color: 'var(--ink-2)',
+                color: 'var(--text-secondary)',
               }}
             >
               <input
@@ -140,9 +140,9 @@ function OnboardingScreen({
             </label>
           )}
         </div>
-        <div className="bd">
+        <div className="card-body">
           {groups.length === 0 ? (
-            <p className="muted" style={{ margin: 0 }}>
+            <p className="text-muted" style={{ margin: 0 }}>
               {tasks.length === 0
                 ? 'No onboarding in progress — start one above.'
                 : 'Everything is done. Tick “Show completed” to review.'}
@@ -150,7 +150,7 @@ function OnboardingScreen({
           ) : (
             groups.map(([role, list]) => (
               <div key={role} style={{ marginBottom: 18 }}>
-                <div className="fold">
+                <div className="section-heading">
                   {roleLabel[role] ?? role} · {list.length}
                 </div>
                 <div style={{ overflowX: 'auto' }}>
@@ -169,14 +169,14 @@ function OnboardingScreen({
                         <tr key={t.id}>
                           <td>
                             <b>{t.name}</b>{' '}
-                            <span className="mono muted" style={{ fontSize: 11 }}>
+                            <span className="text-monospace text-muted" style={{ fontSize: 11 }}>
                               {t.code}
                             </span>
                           </td>
                           <td>{t.title}</td>
-                          <td className="mono">{t.dueDate ? formatDate(t.dueDate) : '—'}</td>
+                          <td className="text-monospace">{t.dueDate ? formatDate(t.dueDate) : '—'}</td>
                           <td>
-                            <span className="pill" style={statusStyle[t.status]}>
+                            <span className="status-badge" style={statusStyle[t.status]}>
                               {t.status}
                             </span>
                           </td>
@@ -184,7 +184,7 @@ function OnboardingScreen({
                             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                               {t.status !== 'done' && (
                                 <button
-                                  className="btn quiet"
+                                  className="button quiet"
                                   disabled={pending}
                                   onClick={() =>
                                     run(
@@ -198,7 +198,7 @@ function OnboardingScreen({
                               )}
                               {t.status === 'pending' && (
                                 <button
-                                  className="btn quiet"
+                                  className="button quiet"
                                   disabled={pending}
                                   onClick={() =>
                                     run(
@@ -213,7 +213,7 @@ function OnboardingScreen({
                               )}
                               {t.status !== 'pending' && (
                                 <button
-                                  className="btn quiet"
+                                  className="button quiet"
                                   disabled={pending}
                                   onClick={() =>
                                     run(
@@ -226,7 +226,7 @@ function OnboardingScreen({
                                 </button>
                               )}
                               <button
-                                className="btn quiet"
+                                className="button quiet"
                                 disabled={pending}
                                 onClick={() => onDelete(t)}
                               >
@@ -243,7 +243,7 @@ function OnboardingScreen({
             ))
           )}
 
-          <div className="fold">Add a one-off step</div>
+          <div className="section-heading">Add a one-off step</div>
           <AddTaskForm
             employees={employees}
             disabled={pending}
@@ -288,7 +288,7 @@ function StartForm({
         disabled={disabled || busy}
         style={{ flex: '1 1 200px', marginBottom: 0 }}
       />
-      <div className="f" style={{ flex: '1 1 180px', marginBottom: 0 }}>
+      <div className="form-field" style={{ flex: '1 1 180px', marginBottom: 0 }}>
         <label>Template</label>
         <select value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
           {active.length === 0 && <option value="">No active template</option>}
@@ -300,7 +300,7 @@ function StartForm({
         </select>
       </div>
       <button
-        className="btn primary"
+        className="button primary"
         disabled={disabled || busy || !employeeId || !templateId}
         onClick={async () => {
           setBusy(true);
@@ -343,7 +343,7 @@ function AddTaskForm({
         disabled={disabled || busy}
         style={{ flex: '1 1 160px', marginBottom: 0 }}
       />
-      <div className="f" style={{ flex: '1 1 200px', marginBottom: 0 }}>
+      <div className="form-field" style={{ flex: '1 1 200px', marginBottom: 0 }}>
         <label>Step</label>
         <input
           value={title}
@@ -351,7 +351,7 @@ function AddTaskForm({
           placeholder="e.g. Order access card"
         />
       </div>
-      <div className="f" style={{ marginBottom: 0 }}>
+      <div className="form-field" style={{ marginBottom: 0 }}>
         <label>Owner</label>
         <select value={assigneeRole} onChange={(e) => setAssigneeRole(e.target.value)}>
           {Object.entries(roleLabel).map(([k, v]) => (
@@ -361,12 +361,12 @@ function AddTaskForm({
           ))}
         </select>
       </div>
-      <div className="f" style={{ marginBottom: 0 }}>
+      <div className="form-field" style={{ marginBottom: 0 }}>
         <label>Due</label>
         <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
       </div>
       <button
-        className="btn quiet"
+        className="button quiet"
         disabled={disabled || busy || !employeeId || !title.trim()}
         onClick={async () => {
           setBusy(true);

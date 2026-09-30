@@ -26,19 +26,19 @@ function HolidaysScreen({
   const { confirm, confirmDialog } = useConfirm();
   const { toast, toastNode } = useToast();
   return (
-    <div className="wrap grid">
+    <div className="content-container grid">
       {confirmDialog}
       {toastNode}
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>Weekly off schedule</h3>
-          <span className="folio">Applies to every month</span>
+          <span className="card-caption">Applies to every month</span>
         </div>
-        <div className="bd">
+        <div className="card-body">
           <p style={{ margin: 0 }}>
             <b>{weekOffSummary}</b>
           </p>
-          <p className="muted" style={{ fontSize: 12, margin: '6px 0 0' }}>
+          <p className="text-muted" style={{ fontSize: 12, margin: '6px 0 0' }}>
             The <b>2nd and 4th Saturday are working days</b>; the 1st, 3rd and 5th Saturdays and
             every Sunday are week-offs. Change this in Settings (“Week-off days” and “Working
             Saturdays”). Working a scheduled week-off makes a comp off applicable on the register.
@@ -46,15 +46,15 @@ function HolidaysScreen({
         </div>
       </div>
 
-      <div className="two-col">
+      <div className="two-column-layout">
         <div className="card">
-          <div className="hd">
+          <div className="card-header">
             <h3>Holiday calendar {year}</h3>
-            <span className="folio">{holidays.length} holidays</span>
+            <span className="card-caption">{holidays.length} holidays</span>
           </div>
-          <div className="bd">
+          <div className="card-body">
             {holidays.length === 0 && (
-              <p className="empty">No holidays yet — import them or add one on the right.</p>
+              <p className="empty-state">No holidays yet — import them or add one on the right.</p>
             )}
             {holidays.map((h) => (
               <HolidayRow key={h.id} holiday={h} confirm={confirm} toast={toast} />
@@ -64,19 +64,19 @@ function HolidaysScreen({
 
         <div className="grid">
           <div className="card">
-            <div className="hd">
+            <div className="card-header">
               <h3>Import from Google Calendar</h3>
             </div>
-            <div className="bd">
+            <div className="card-body">
               <ImportHolidays year={year} toast={toast} />
             </div>
           </div>
 
           <div className="card">
-            <div className="hd">
+            <div className="card-header">
               <h3>Add holiday</h3>
             </div>
-            <div className="bd">
+            <div className="card-body">
               <AddHolidayForm toast={toast} branchNames={branchNames} />
             </div>
           </div>
@@ -127,12 +127,12 @@ function ImportHolidays({
 
   return (
     <>
-      <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+      <p className="text-muted" style={{ fontSize: 13, marginTop: 0 }}>
         Pulls India’s gazetted public holidays from Google’s published calendar and adds them for
         all branches. Dates you already have are skipped, so it is safe to re-run.
       </p>
 
-      <div className="f">
+      <div className="form-field">
         <label>Year</label>
         <select value={target} onChange={(e) => setTarget(Number(e.target.value))}>
           {years.map((y) => (
@@ -143,7 +143,7 @@ function ImportHolidays({
         </select>
       </div>
 
-      {error && <div className="login-error">{error}</div>}
+      {error && <div className="error-message">{error}</div>}
       {result && <div className="hint">✓&nbsp; {result}</div>}
       {tentative.length > 0 && (
         <div className="hint" style={{ marginTop: 8 }}>
@@ -153,7 +153,7 @@ function ImportHolidays({
       )}
 
       <button
-        className="btn primary"
+        className="button primary"
         type="button"
         onClick={onImport}
         disabled={pending}
@@ -162,7 +162,7 @@ function ImportHolidays({
         {pending ? 'Importing…' : `Import ${target} holidays`}
       </button>
 
-      <p className="muted" style={{ fontSize: 11, marginBottom: 0 }}>
+      <p className="text-muted" style={{ fontSize: 11, marginBottom: 0 }}>
         Only entries Google marks “Public holiday” are imported — the same feed carries ~37
         observances a year (Valentine’s Day, Vasant Panchami…) which are not days off.
       </p>
@@ -209,25 +209,25 @@ function HolidayRow({
     <div
       style={{
         padding: '10px 0',
-        borderBottom: '1px solid var(--line-2)',
+        borderBottom: '1px solid var(--border-strong)',
       }}
     >
-      <div className="f-row" style={{ alignItems: 'center', gap: 12 }}>
-        <span className="mono" style={{ minWidth: 96, color: 'var(--ink-3)' }}>
+      <div className="form-row" style={{ alignItems: 'center', gap: 12 }}>
+        <span className="text-monospace" style={{ minWidth: 96, color: 'var(--text-muted)' }}>
           {formatDate(holiday.date)}
         </span>
         <strong style={{ flex: 1 }}>{holiday.name}</strong>
         <span
-          className="pill"
+          className="status-badge"
           style={
             holiday.branch
-              ? { borderColor: 'var(--line-2)', color: 'var(--ink-3)' }
-              : { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' }
+              ? { borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }
+              : { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' }
           }
         >
           {holiday.branch ?? 'All branches'}
         </span>
-        <button className="btn quiet" onClick={remove} disabled={pending}>
+        <button className="button quiet" onClick={remove} disabled={pending}>
           {pending ? '…' : 'Delete'}
         </button>
       </div>
@@ -255,15 +255,15 @@ function AddHolidayForm({
 
   return (
     <form action={action}>
-      <div className="f">
+      <div className="form-field">
         <label>Date</label>
         <input name="holiday_date" type="date" required />
       </div>
-      <div className="f">
+      <div className="form-field">
         <label>Name</label>
         <input name="name" placeholder="e.g. Independence Day" required />
       </div>
-      <div className="f">
+      <div className="form-field">
         <label>Branch</label>
         <select name="branch" defaultValue="">
           <option value="">All branches</option>
@@ -275,10 +275,10 @@ function AddHolidayForm({
         </select>
       </div>
 
-      {state.error && <div className="login-error">{state.error}</div>}
+      {state.error && <div className="error-message">{state.error}</div>}
       {state.ok && <div className="hint">✓&nbsp; Holiday added.</div>}
 
-      <button className="btn primary" type="submit" disabled={pending}>
+      <button className="button primary" type="submit" disabled={pending}>
         {pending ? 'Adding…' : 'Add holiday'}
       </button>
     </form>

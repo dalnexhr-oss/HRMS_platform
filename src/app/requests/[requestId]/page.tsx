@@ -22,21 +22,21 @@ async function RequestPage({ params }: { params: Promise<{ requestId: string }> 
   const people = canReviewRequest(request, actor) ? await getRequestRecipients() : [];
   const employeeReviewer = !isStaffRole(profile.role) && request.employeeId !== profile.employee_id;
   return (
-    <main className="wrap grid request-detail">
+    <main className="content-container grid request-detail">
       <Link
-        className="btn quiet"
+        className="button quiet"
         href={employeeReviewer ? '/employee/approvals?view=all' : homeForRole(profile.role)}
       >
         ← Back to {employeeReviewer ? 'my approvals' : 'dashboard'}
       </Link>
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>{request.type.replaceAll('_', ' ')} request</h3>
-          <span className="pill">{request.status}</span>
+          <span className="status-badge">{request.status}</span>
         </div>
-        <div className="bd">
+        <div className="card-body">
           <h2>{request.employeeName}</h2>
-          <p className="muted">
+          <p className="text-muted">
             {request.employeeCode} · {request.branch}
           </p>
           <p>

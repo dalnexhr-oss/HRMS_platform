@@ -28,16 +28,16 @@ async function EmployeeLayout({ children }: { children: React.ReactNode }) {
   const name = profile.full_name ?? 'Employee';
 
   return (
-    <div className="main">
-      <div className="topbar">
+    <div className="app-main">
+      <div className="app-header">
         <div>
           <Brand href="/employee" priority />
-          <div className="sub">Employee Dashboard</div>
+          <div className="subtitle">Employee Dashboard</div>
         </div>
-        <div className="grow" />
+        <div className="flex-spacer" />
         <ApprovalsShortcut />
         <NotificationBell notifications={notifications} unread={unread} />
-        <span className="who" style={{ marginRight: 4 }}>
+        <span className="profile-summary" style={{ marginRight: 4 }}>
           <ProfileMenu
             name={name}
             avatar={profile?.avatar ?? null}
@@ -48,13 +48,13 @@ async function EmployeeLayout({ children }: { children: React.ReactNode }) {
         </span>
         <PunchToggle />
       </div>
-      <section className="screen">{children}</section>
+      <section className="page-content">{children}</section>
 
       {/* End of the page: the one control you should have to go looking for. */}
-      <footer className="me-foot">
-        <div className="me-foot-id">
+      <footer className="employee-footer">
+        <div className="employee-footer-identity">
           <b>{name}</b>
-          {email ? <span className="mono">{email}</span> : null}
+          {email ? <span className="text-monospace">{email}</span> : null}
         </div>
         <SignOutButton />
       </footer>

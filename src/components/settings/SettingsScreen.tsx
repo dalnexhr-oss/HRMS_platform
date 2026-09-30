@@ -20,21 +20,21 @@ function SettingsScreen({
   const { toast, toastNode } = useToast();
   const { confirm, confirmDialog } = useConfirm();
   return (
-    <div className="wrap grid">
+    <div className="content-container grid">
       {toastNode}
       {confirmDialog}
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>Branches</h3>
-          <span className="folio">{branches.length} configured</span>
+          <span className="card-caption">{branches.length} configured</span>
         </div>
-        <div className="bd">
-          <p className="muted" style={{ marginTop: 0, marginBottom: 16 }}>
+        <div className="card-body">
+          <p className="text-muted" style={{ marginTop: 0, marginBottom: 16 }}>
             New branches are created from the employee form (&ldquo;+ Add new branch&rdquo;). Fix a
             name or state here, or remove a branch added by mistake — a branch with employees cannot
             be deleted.
           </p>
-          {branches.length === 0 && <p className="empty">No branches yet.</p>}
+          {branches.length === 0 && <p className="empty-state">No branches yet.</p>}
           <div className="settings-branches">
             {branches.map((b) => (
               <BranchManageRow key={b.id} branch={b} toast={toast} confirm={confirm} />
@@ -44,20 +44,20 @@ function SettingsScreen({
       </div>
 
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>Office locations</h3>
-          <span className="folio">
+          <span className="card-caption">
             {branches.filter((b) => b.geofenceLat != null && b.geofenceLng != null).length}/
             {branches.length} branches located
           </span>
         </div>
-        <div className="bd">
-          <p className="muted" style={{ marginTop: 0, marginBottom: 16 }}>
+        <div className="card-body">
+          <p className="text-muted" style={{ marginTop: 0, marginBottom: 16 }}>
             Where each branch physically is. A punch is compared against its own branch&rsquo;s
             point and stamped <b>at office</b> or <b>off-site</b> — location is recorded, but not
             enforced so a punch is still accepted from anywhere.
           </p>
-          {branches.length === 0 && <p className="empty">No branches yet.</p>}
+          {branches.length === 0 && <p className="empty-state">No branches yet.</p>}
           <div style={{ display: 'grid', gap: 12 }}>
             {branches.map((b) => (
               <BranchLocationRow key={b.id} branch={b} toast={toast} />
@@ -67,15 +67,15 @@ function SettingsScreen({
       </div>
 
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>Rule flags</h3>
-          <span className="folio">{settings.length} rules</span>
+          <span className="card-caption">{settings.length} rules</span>
         </div>
-        <div className="bd">
-          <p className="muted" style={{ marginTop: 0, marginBottom: 16 }}>
+        <div className="card-body">
+          <p className="text-muted" style={{ marginTop: 0, marginBottom: 16 }}>
             Every open rule is a switch.
           </p>
-          {settings.length === 0 && <p className="empty">No rules configured.</p>}
+          {settings.length === 0 && <p className="empty-state">No rules configured.</p>}
           <div style={{ display: 'grid', gap: 12 }}>
             {settings.map((s) => (
               <SettingRow key={s.key} setting={s} toast={toast} />
@@ -158,7 +158,7 @@ function BranchManageRow({
         save();
       }}
     >
-      <div className="f">
+      <div className="form-field">
         <label htmlFor={`branch-name-${branch.id}`}>Branch name</label>
         <input
           id={`branch-name-${branch.id}`}
@@ -169,7 +169,7 @@ function BranchManageRow({
           disabled={pending}
         />
       </div>
-      <div className="f">
+      <div className="form-field">
         <label htmlFor={`branch-state-${branch.id}`}>State</label>
         <select
           id={`branch-state-${branch.id}`}
@@ -188,12 +188,12 @@ function BranchManageRow({
         </select>
       </div>
       <div className="settings-branch-actions">
-        <button type="submit" className="btn primary" disabled={pending || !dirty || !name.trim()}>
+        <button type="submit" className="button primary" disabled={pending || !dirty || !name.trim()}>
           {pending ? 'Working…' : 'Save'}
         </button>
         <button
           type="button"
-          className="btn quiet"
+          className="button quiet"
           onClick={remove}
           disabled={pending}
           aria-label={`Delete ${branch.name} branch`}
@@ -256,30 +256,30 @@ function BranchLocationRow({
         display: 'grid',
         gap: 10,
         padding: '12px 14px',
-        border: '1px solid var(--line-2)',
+        border: '1px solid var(--border-strong)',
         borderRadius: 10,
-        background: 'var(--card-2, #fff)',
+        background: 'var(--surface-inset, #fff)',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
         <b>{branch.name}</b>
-        <span className="muted" style={{ fontSize: 12 }}>
+        <span className="text-muted" style={{ fontSize: 12 }}>
           {branch.state}
         </span>
         <span style={{ flex: 1 }} />
         <span
-          className="pill"
+          className="status-badge"
           style={
             located
-              ? { borderColor: 'var(--p-line)', color: 'var(--p)', background: 'var(--p-bg)' }
-              : { borderColor: 'var(--line-2)', color: 'var(--ink-3)' }
+              ? { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' }
+              : { borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }
           }
         >
           {located ? 'Located' : 'Using company default'}
         </span>
       </div>
 
-      <div className="f" style={{ marginBottom: 0 }}>
+      <div className="form-field" style={{ marginBottom: 0 }}>
         <label>Office address</label>
         <input
           value={address}
@@ -290,36 +290,36 @@ function BranchLocationRow({
 
       {/* Use auto-fit so this three-column layout also collapses on narrow screens. */}
       <div
-        className="f-row"
+        className="form-row"
         style={{
           marginBottom: 0,
           gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
         }}
       >
-        <div className="f" style={{ marginBottom: 0 }}>
+        <div className="form-field" style={{ marginBottom: 0 }}>
           <label>Latitude</label>
           <input
-            className="mono"
+            className="text-monospace"
             inputMode="decimal"
             value={lat}
             onChange={(e) => setLat(e.target.value)}
             placeholder="18.559200"
           />
         </div>
-        <div className="f" style={{ marginBottom: 0 }}>
+        <div className="form-field" style={{ marginBottom: 0 }}>
           <label>Longitude</label>
           <input
-            className="mono"
+            className="text-monospace"
             inputMode="decimal"
             value={lng}
             onChange={(e) => setLng(e.target.value)}
             placeholder="73.779600"
           />
         </div>
-        <div className="f" style={{ marginBottom: 0 }}>
+        <div className="form-field" style={{ marginBottom: 0 }}>
           <label>Radius (m)</label>
           <input
-            className="mono"
+            className="text-monospace"
             inputMode="numeric"
             value={radius}
             onChange={(e) => setRadius(e.target.value)}
@@ -333,7 +333,7 @@ function BranchLocationRow({
           Right-click the office in Google Maps and copy the pair it shows — latitude first. Clear
           both to fall back to the company default.
         </span>
-        <button className="btn primary" onClick={save} disabled={pending || !dirty}>
+        <button className="button primary" onClick={save} disabled={pending || !dirty}>
           {pending ? '…' : 'Save location'}
         </button>
       </div>
@@ -479,19 +479,19 @@ function SettingRow({
         gap: 12,
         alignItems: 'center',
         padding: '12px 14px',
-        border: '1px solid var(--line-2)',
+        border: '1px solid var(--border-strong)',
         borderRadius: 10,
-        background: 'var(--card-2, #fff)',
+        background: 'var(--surface-inset, #fff)',
       }}
     >
       <div style={{ minWidth: 0 }}>
         <div style={{ fontWeight: 600 }}>{setting.label ?? setting.key}</div>
         {setting.description && (
-          <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+          <div className="text-muted" style={{ fontSize: 12, marginTop: 2 }}>
             {setting.description}
           </div>
         )}
-        <div className="mono muted" style={{ fontSize: 11, marginTop: 4 }}>
+        <div className="text-monospace text-muted" style={{ fontSize: 11, marginTop: 4 }}>
           {setting.key}
         </div>
       </div>
@@ -499,7 +499,7 @@ function SettingRow({
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {kind === 'boolean' ? (
           <select
-            className="mono"
+            className="text-monospace"
             value={value}
             onChange={(e) => {
               setValue(e.target.value);
@@ -513,7 +513,7 @@ function SettingRow({
           </select>
         ) : (
           <input
-            className="mono"
+            className="text-monospace"
             type={kind === 'number' ? 'number' : 'text'}
             value={value}
             onChange={(e) => {
@@ -527,7 +527,7 @@ function SettingRow({
             aria-label={setting.label ?? setting.key}
           />
         )}
-        <button className="btn primary" onClick={save} disabled={pending}>
+        <button className="button primary" onClick={save} disabled={pending}>
           {pending ? '…' : 'Save'}
         </button>
         {saved && !pending && (
@@ -536,7 +536,7 @@ function SettingRow({
           </span>
         )}
         {error && !pending && (
-          <span className="login-error" role="alert" style={{ whiteSpace: 'nowrap' }}>
+          <span className="error-message" role="alert" style={{ whiteSpace: 'nowrap' }}>
             {error}
           </span>
         )}

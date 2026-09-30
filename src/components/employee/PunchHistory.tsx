@@ -71,19 +71,19 @@ function PunchHistory({ refreshKey = 0 }: { refreshKey?: number }) {
 
   return (
     <div className="punch-history">
-      <div className="fold">Punch history</div>
+      <div className="section-heading">Punch history</div>
 
-      {loading ? <p className="muted">Loading history…</p> : null}
-      {error ? <p className="login-error">{error}</p> : null}
+      {loading ? <p className="text-muted">Loading history…</p> : null}
+      {error ? <p className="error-message">{error}</p> : null}
       {!loading && !error && punches.length === 0 ? (
-        <p className="muted">No punches recorded yet.</p>
+        <p className="text-muted">No punches recorded yet.</p>
       ) : null}
 
       {days.length > 0 ? (
         <div className="punch-scroll">
           {days.map(([day, rows]) => (
             <div className="punch-day" key={day}>
-              <div className="punch-day-hd mono">
+              <div className="punch-day-heading text-monospace">
                 {new Intl.DateTimeFormat('en-IN', dayFmt).format(new Date(`${day}T12:00:00`))}
               </div>
               <div className="punch-day-rows">
@@ -92,7 +92,7 @@ function PunchHistory({ refreshKey = 0 }: { refreshKey?: number }) {
                     <span className={`punch-kind ${punch.type}`}>
                       {punch.type === 'in' ? 'In' : 'Out'}
                     </span>
-                    <span className="mono punch-row-time">
+                    <span className="text-monospace punch-row-time">
                       {new Intl.DateTimeFormat('en-IN', timeFmt).format(new Date(punch.timestamp))}
                     </span>
                     {/* Pushed to the right edge so the stamps line up into a

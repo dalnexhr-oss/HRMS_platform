@@ -47,21 +47,21 @@ function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; error?: st
   return (
     <div className="card">
       {toastNode}
-      <div className="hd">
+      <div className="card-header">
         <h3>Comp offs</h3>
-        <span className="folio">
+        <span className="card-caption">
           {error
             ? 'unavailable'
             : `${totalUsable} usable · ${rows.length} live credit${rows.length === 1 ? '' : 's'}`}
         </span>
       </div>
-      <div className="bd" style={{ maxHeight: 320, overflowY: 'auto' }}>
+      <div className="card-body" style={{ maxHeight: 320, overflowY: 'auto' }}>
         {error ? (
-          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
             Comp offs could not be loaded: {error}
           </p>
         ) : groups.length === 0 ? (
-          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
             No live comp-off credits. Grant one from the register when an employee works a week-off
             or holiday.
           </p>
@@ -74,16 +74,16 @@ function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; error?: st
               <div key={g.code + g.name} style={{ marginBottom: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
                   <b>{g.name}</b>
-                  <span className="mono muted" style={{ fontSize: 11 }}>
+                  <span className="text-monospace text-muted" style={{ fontSize: 11 }}>
                     {g.code}
                   </span>
                   <span style={{ flex: 1 }} />
                   <span
-                    className="pill"
+                    className="status-badge"
                     style={{
-                      borderColor: balance ? 'var(--p-line)' : 'var(--line-2)',
-                      color: balance ? 'var(--p)' : 'var(--ink-3)',
-                      background: balance ? 'var(--p-bg)' : undefined,
+                      borderColor: balance ? 'var(--attendance-present-border)' : 'var(--border-strong)',
+                      color: balance ? 'var(--attendance-present)' : 'var(--text-muted)',
+                      background: balance ? 'var(--attendance-present-background)' : undefined,
                     }}
                   >
                     Balance: {balance}
@@ -93,29 +93,29 @@ function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; error?: st
                   {g.credits.map((c) => (
                     <span
                       key={c.id}
-                      className="pill"
+                      className="status-badge"
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 6,
-                        borderColor: 'var(--line-2)',
+                        borderColor: 'var(--border-strong)',
                         color:
-                          c.status === 'available' && c.isApplicable ? undefined : 'var(--ink-3)',
+                          c.status === 'available' && c.isApplicable ? undefined : 'var(--text-muted)',
                       }}
                     >
                       {formatDate(c.earnedDate)}
                       {c.expiresOn ? (
-                        <span className="muted" style={{ fontSize: 10 }}>
+                        <span className="text-muted" style={{ fontSize: 10 }}>
                           exp {formatDate(c.expiresOn)}
                         </span>
                       ) : null}
                       {c.status === 'applied' ? (
-                        <span className="muted" style={{ fontSize: 10 }}>
+                        <span className="text-muted" style={{ fontSize: 10 }}>
                           awaiting approval
                         </span>
                       ) : (
                         <button
-                          className="btn quiet"
+                          className="button quiet"
                           style={{ padding: '1px 7px', fontSize: 11 }}
                           disabled={pending && busyId === c.id}
                           title={

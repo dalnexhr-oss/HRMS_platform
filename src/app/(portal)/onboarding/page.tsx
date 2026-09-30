@@ -25,20 +25,20 @@ async function OnboardingPage() {
     <>
       <OnboardingScreen tasks={tasks} templates={templates} employees={employees} />
       {/* Document verification lives at /documents; this page manages onboarding checklists. */}
-      <div className="wrap">
+      <div className="content-container">
         <div className="card">
           <div
-            className="bd"
+            className="card-body"
             style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}
           >
             <div>
               <b>Documents</b>
-              <div className="muted" style={{ fontSize: 12 }}>
+              <div className="text-muted" style={{ fontSize: 12 }}>
                 Uploads, verification and the full register live on the Documents page.
               </div>
             </div>
             <span style={{ flex: 1 }} />
-            <Link className="btn" href="/documents">
+            <Link className="button" href="/documents">
               Open Documents
             </Link>
           </div>

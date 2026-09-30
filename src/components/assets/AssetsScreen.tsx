@@ -163,9 +163,9 @@ function AssetsScreen({
   }
 
   return (
-    <div className="wrap">
-      <div className="emp-top">
-        <div className="search">
+    <div className="content-container">
+      <div className="records-toolbar">
+        <div className="search-field">
           <svg
             width="15"
             height="15"
@@ -183,11 +183,11 @@ function AssetsScreen({
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
-        <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}>
+        <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
           {assets.length} asset{assets.length === 1 ? '' : 's'}
         </span>
         <span style={{ flex: 1 }} />
-        <button className="btn primary" onClick={openAdd}>
+        <button className="button primary" onClick={openAdd}>
           + Add asset
         </button>
       </div>
@@ -197,17 +197,17 @@ function AssetsScreen({
       {/* 14px below, matching .emp-top's own margin, so the search row, summary
           band and table card sit on one consistent vertical rhythm. */}
       {summary.length > 0 && (
-        <div className="kpis" style={{ marginBottom: 14 }}>
+        <div className="summary-cards" style={{ marginBottom: 14 }}>
           {summary.map((s) => (
-            <div className="card kpi" key={s.category}>
-              <div className="lab">{s.category}</div>
-              <div className="val">{s.total}</div>
-              <div className="note">
+            <div className="card summary-card" key={s.category}>
+              <div className="metric-label">{s.category}</div>
+              <div className="metric-value">{s.total}</div>
+              <div className="metric-note">
                 {s.assigned} assigned · {s.available} free
                 {s.warranty_expiring > 0 && (
                   <>
                     {' '}
-                    · <span style={{ color: 'var(--lm)' }}>{s.warranty_expiring} warranty≤30d</span>
+                    · <span style={{ color: 'var(--attendance-late)' }}>{s.warranty_expiring} warranty≤30d</span>
                   </>
                 )}
               </div>
@@ -245,10 +245,10 @@ function AssetsScreen({
             <tbody>
               {filtered.map((a) => (
                 <tr key={a.id}>
-                  <td className="mono" style={{ whiteSpace: 'nowrap' }}>
+                  <td className="text-monospace" style={{ whiteSpace: 'nowrap' }}>
                     {a.purchase_date ?? '—'}
                   </td>
-                  <td className="mono right" style={{ whiteSpace: 'nowrap' }}>
+                  <td className="text-monospace text-right" style={{ whiteSpace: 'nowrap' }}>
                     {a.purchase_cost == null ? '—' : inr(a.purchase_cost)}
                   </td>
                   <td style={{ whiteSpace: 'nowrap' }}>
@@ -257,19 +257,19 @@ function AssetsScreen({
                   <td style={{ whiteSpace: 'nowrap' }}>
                     {a.asset_category ? (
                       <span
-                        className="pill"
-                        style={{ borderColor: 'var(--line-2)', color: 'var(--ink-2)' }}
+                        className="status-badge"
+                        style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}
                       >
                         {a.asset_category}
                       </span>
                     ) : (
-                      <span className="muted">—</span>
+                      <span className="text-muted">—</span>
                     )}
                   </td>
                   <td>
                     <Trunc v={a.brand} w={110} />
                   </td>
-                  <td className="mono" style={{ whiteSpace: 'nowrap' }}>
+                  <td className="text-monospace" style={{ whiteSpace: 'nowrap' }}>
                     {a.serial_no ?? '—'}
                   </td>
                   <td>
@@ -279,15 +279,15 @@ function AssetsScreen({
                     {a.assigned_employee_id ? (
                       <>
                         {a.assigned_person_name ?? '—'}{' '}
-                        <span className="mono muted" style={{ fontSize: 11 }}>
+                        <span className="text-monospace text-muted" style={{ fontSize: 11 }}>
                           {a.assigned_employee_code ?? ''}
                         </span>
                       </>
                     ) : (
-                      <span className="muted">—</span>
+                      <span className="text-muted">—</span>
                     )}
                   </td>
-                  <td className="mono" style={{ whiteSpace: 'nowrap' }}>
+                  <td className="text-monospace" style={{ whiteSpace: 'nowrap' }}>
                     {a.warranty_upto ?? '—'}
                   </td>
                   <td>
@@ -302,14 +302,14 @@ function AssetsScreen({
                   <td>
                     <div style={{ display: 'flex', gap: 6, whiteSpace: 'nowrap' }}>
                       <button
-                        className="btn quiet"
+                        className="button quiet"
                         onClick={() => openEdit(a)}
                         disabled={pending && busyId === a.id}
                       >
                         Edit
                       </button>
                       <button
-                        className="btn quiet"
+                        className="button quiet"
                         onClick={() => setAssigning(a)}
                         disabled={pending && busyId === a.id}
                         title="Assign this asset to an employee"
@@ -317,7 +317,7 @@ function AssetsScreen({
                         {a.assigned_employee_id ? 'Reassign' : 'Assign'}
                       </button>
                       <button
-                        className="btn quiet"
+                        className="button quiet"
                         onClick={() => onDelete(a)}
                         disabled={pending && busyId === a.id}
                         title="Delete this asset"
@@ -330,7 +330,7 @@ function AssetsScreen({
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td className="muted" colSpan={11} style={{ textAlign: 'center' }}>
+                  <td className="text-muted" colSpan={11} style={{ textAlign: 'center' }}>
                     {q || hasFilters
                       ? 'No assets match the current search / filters.'
                       : 'No assets yet.'}
@@ -367,7 +367,7 @@ function AssetsScreen({
  */
 function Trunc({ v, w = 150 }: { v: string | null; w?: number }) {
   if (!v) {
-    return <span className="muted">—</span>;
+    return <span className="text-muted">—</span>;
   }
   return (
     <span

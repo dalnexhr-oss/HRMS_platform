@@ -45,7 +45,7 @@ function NightSweepButton({ date }: { date: string }) {
       {confirmDialog}
       <button
         type="button"
-        className="btn"
+        className="button"
         onClick={onClick}
         disabled={pending}
         title="Close today's open sessions at the configured auto punch-out time"
@@ -53,12 +53,12 @@ function NightSweepButton({ date }: { date: string }) {
         {pending ? 'Sweeping…' : 'Night sweep'}
       </button>
       {message && (
-        <span className="muted" style={{ fontSize: 12 }}>
+        <span className="text-muted" style={{ fontSize: 12 }}>
           {message}
         </span>
       )}
       {error && (
-        <span className="muted" style={{ fontSize: 12, color: 'var(--ab)' }}>
+        <span className="text-muted" style={{ fontSize: 12, color: 'var(--attendance-absent)' }}>
           {error}
         </span>
       )}

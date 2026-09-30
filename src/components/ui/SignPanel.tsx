@@ -35,7 +35,7 @@ function SignPanel({
   if (signedAt) {
     const when = signedAt.slice(0, 10);
     return (
-      <span className="ack" title={`Signed by ${signedName ?? 'you'} on ${when}`}>
+      <span className="signature-confirmation" title={`Signed by ${signedName ?? 'you'} on ${when}`}>
         ✍ Signed {when}
       </span>
     );
@@ -45,7 +45,7 @@ function SignPanel({
     return (
       <>
         {!parentToast && own.toastNode}
-        <button className="btn quiet" onClick={() => setOpen(true)}>
+        <button className="button quiet" onClick={() => setOpen(true)}>
           {label}
         </button>
       </>
@@ -67,7 +67,7 @@ function SignPanel({
           autoFocus
         />
         <button
-          className="btn primary"
+          className="button primary"
           disabled={pending || !ready}
           title={!ready ? 'Type your full name' : undefined}
           onClick={() =>
@@ -85,7 +85,7 @@ function SignPanel({
         >
           {pending ? 'Signing…' : 'Sign'}
         </button>
-        <button className="btn quiet" disabled={pending} onClick={() => setOpen(false)}>
+        <button className="button quiet" disabled={pending} onClick={() => setOpen(false)}>
           Cancel
         </button>
       </span>

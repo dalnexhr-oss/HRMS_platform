@@ -41,7 +41,7 @@ function Sidebar({
   const pathname = usePathname();
   const active = slugFromPathname(pathname) || 'dashboard';
   // Off-canvas on phones. On desktop the sidebar is always in flow and this
-  // flag does nothing — the CSS only honours .open below the rail breakpoint.
+  // flag does nothing — the CSS only honours .is-open below the rail breakpoint.
   const [open, setOpen] = useState(false);
 
   // Navigating is the end of the menu's job. Without this the drawer stays over
@@ -71,7 +71,7 @@ function Sidebar({
       {/* Sits over the topbar's reserved left gutter on mobile, so it reads as part of the bar rather than as a floating button. */}
       <button
         type="button"
-        className="nav-toggle"
+        className="navigation-toggle"
         aria-label={open ? 'Close menu' : 'Open menu'}
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
@@ -98,15 +98,15 @@ function Sidebar({
         </svg>
       </button>
       <div
-        className={`nav-scrim${open ? ' on' : ''}`}
+        className={`navigation-backdrop${open ? ' is-active' : ''}`}
         onClick={() => setOpen(false)}
         aria-hidden="true"
       />
-      <aside className={`sidebar${open ? ' open' : ''}`}>
-        <div className="brand">
+      <aside className={`sidebar${open ? ' is-open' : ''}`}>
+        <div className="sidebar-brand">
           <Brand href="/dashboard" priority onClick={() => setOpen(false)} />
         </div>
-        <nav className="nav" aria-label="Primary">
+        <nav className="sidebar-navigation" aria-label="Primary">
           {/* Walk groupOrder, not the items: it fixes header order, and a group
             whose rows are all role-gated away renders nothing at all rather
             than a bare heading. */}
@@ -118,7 +118,7 @@ function Sidebar({
 
             return (
               <div key={group}>
-                <div className="group">{group}</div>
+                <div className="navigation-group">{group}</div>
                 {/*
                  * Disable prefetch for dynamic, authenticated routes to avoid loading every
                  * sidebar destination at once. staleTimes caches revisits.
@@ -138,7 +138,7 @@ function Sidebar({
             );
           })}
         </nav>
-        <div className="side-foot">
+        <div className="sidebar-footer">
           <b>{name || 'Signed in'}</b>
           <br />
           {role ? (roleLabel[role] ?? role) : 'Dalnex HRMS'}

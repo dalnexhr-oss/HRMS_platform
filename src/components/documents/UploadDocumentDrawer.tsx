@@ -51,9 +51,9 @@ function UploadDocumentDrawer({
 
   return (
     <>
-      <div className={`overlay${open ? ' on' : ''}`} onClick={onClose} />
+      <div className={`dialog-backdrop${open ? ' is-active' : ''}`} onClick={onClose} />
       <aside
-        className={`drawer${open ? ' on' : ''}`}
+        className={`drawer${open ? ' is-active' : ''}`}
         aria-label={replacing ? 'Replace document' : 'Upload document'}
       >
         {/* Remounts per target, so switching from one row's Replace to
@@ -65,31 +65,31 @@ function UploadDocumentDrawer({
           action={formAction}
           style={{ display: 'contents' }}
         >
-          <div className="dhd">
+          <div className="drawer-header">
             <h3>{replacing ? 'Replace document' : 'Upload a document'}</h3>
             <span style={{ flex: 1 }} />
-            <button type="button" className="btn quiet" onClick={onClose}>
+            <button type="button" className="button quiet" onClick={onClose}>
               ✕
             </button>
           </div>
 
-          <div className="dbd">
+          <div className="drawer-body">
             {replacing ? (
               <>
-                <div className="f">
+                <div className="form-field">
                   <label>Employee</label>
                   <div style={{ fontSize: 13, padding: '4px 0' }}>
-                    {replacing.name} <span className="mono muted">{replacing.code}</span>
+                    {replacing.name} <span className="text-monospace text-muted">{replacing.code}</span>
                   </div>
                 </div>
-                <div className="f">
+                <div className="form-field">
                   <label>Document</label>
                   <div style={{ fontSize: 13, padding: '4px 0' }}>
                     {documentCategoryLabel(replacing.category)} — {replacing.title ?? 'untitled'}
-                    <span className="muted"> · currently v{replacing.version}</span>
+                    <span className="text-muted"> · currently v{replacing.version}</span>
                   </div>
                 </div>
-                <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>
+                <p className="text-muted" style={{ fontSize: 12, marginTop: 0 }}>
                   The version on file is kept as history. The replacement goes back to{' '}
                   <b>awaiting verification</b>, whatever the current one’s status.
                 </p>
@@ -104,7 +104,7 @@ function UploadDocumentDrawer({
                   defaultValue={target?.mode === 'upload' ? (target.employeeId ?? '') : ''}
                 />
 
-                <div className="f">
+                <div className="form-field">
                   <label htmlFor="doc-category">Category</label>
                   <select id="doc-category" name="category" defaultValue="offer_letter">
                     {documentCategories.map((c) => (
@@ -117,7 +117,7 @@ function UploadDocumentDrawer({
               </>
             )}
 
-            <div className="f">
+            <div className="form-field">
               <label htmlFor="doc-title">Title</label>
               <input
                 id="doc-title"
@@ -127,32 +127,32 @@ function UploadDocumentDrawer({
               />
             </div>
 
-            <div className="f">
+            <div className="form-field">
               <label htmlFor="doc-file">File</label>
               <input id="doc-file" type="file" name="file" required />
-              <span className="muted" style={{ fontSize: 11 }}>
+              <span className="text-muted" style={{ fontSize: 11 }}>
                 PDF or image, up to 10 MB.
               </span>
             </div>
 
             {replacing && (
-              <div className="f">
+              <div className="form-field">
                 <label htmlFor="doc-note">Why is it being replaced?</label>
                 <input id="doc-note" name="note" placeholder="e.g. Renewed — the old one expired" />
-                <span className="muted" style={{ fontSize: 11 }}>
+                <span className="text-muted" style={{ fontSize: 11 }}>
                   Optional. Shown against the new version while it waits for verification.
                 </span>
               </div>
             )}
 
-            {state.error && <div className="login-error">{state.error}</div>}
+            {state.error && <div className="error-message">{state.error}</div>}
           </div>
 
-          <div className="dft">
-            <button type="button" className="btn" onClick={onClose}>
+          <div className="drawer-footer">
+            <button type="button" className="button" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn primary" disabled={pending}>
+            <button type="submit" className="button primary" disabled={pending}>
               {pending ? 'Uploading…' : replacing ? 'Replace' : 'Upload'}
             </button>
           </div>

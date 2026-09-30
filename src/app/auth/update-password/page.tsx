@@ -15,11 +15,11 @@ async function UpdatePasswordPage({
   const value = Array.isArray(token) ? token[0] : token;
 
   return (
-    <div className="login-shell">
+    <div className="login-layout">
       <div className="login-card card">
         <div className="login-brand">
           <Brand priority />
-          <p className="muted">Choose a new password for your account.</p>
+          <p className="text-muted">Choose a new password for your account.</p>
         </div>
 
         <UpdatePasswordForm token={value} />

@@ -14,19 +14,24 @@ function ErrorState({
   area: string;
 }) {
   return (
-    <div className="wrap">
+    <div className="content-container">
       <div className="card">
-        <div className="empty" style={{ padding: 28 }}>
+        <div className="empty-state" style={{ padding: 28 }}>
           <h3>Couldn’t load the {area}</h3>
           <p
-            className="mono"
-            style={{ fontSize: 12, color: 'var(--ab)', wordBreak: 'break-word', maxWidth: 560 }}
+            className="text-monospace"
+            style={{
+              fontSize: 12,
+              color: 'var(--attendance-absent)',
+              wordBreak: 'break-word',
+              maxWidth: 560,
+            }}
           >
             {error.message}
             {error.digest ? ` (ref: ${error.digest})` : ''}
           </p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16 }}>
-            <button className="btn primary" type="button" onClick={reset}>
+            <button className="button primary" type="button" onClick={reset}>
               Try again
             </button>
             <SignOutButton label="Sign out" />

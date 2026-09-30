@@ -1,76 +1,76 @@
 /* the punch clock in the top bar -------------------------------------- The most-pressed control in the employee app, and the reason Sign out is no longer up here: the two sat a few pixels apart and one slip ended the session instead of starting the day. It is the only filled button in the bar, so it cannot be mistaken for anything else. */
-.punch-top {
+.header-punch-clock {
   display: flex;
   align-items: center;
   gap: 10px;
   flex: none;
 }
-.punch-top-read {
+.header-punch-summary {
   display: inline-flex;
   align-items: center;
   gap: 7px;
   padding: 5px 11px;
   border-radius: 99px;
-  font: 600 11.5px var(--mono);
-  color: var(--ink-2);
-  background: var(--card-2);
-  border: 1px solid var(--edge);
+  font: 600 11.5px var(--font-monospace);
+  color: var(--text-secondary);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-surface);
 }
-.punch-top-read .dot {
-  background: var(--ink-3);
+.header-punch-summary .status-dot {
+  background: var(--text-muted);
 }
-.punch-top-read.on {
-  color: var(--p);
-  background: var(--p-bg);
-  border-color: var(--p-line);
+.header-punch-summary.is-active {
+  color: var(--attendance-present);
+  background: var(--attendance-present-background);
+  border-color: var(--attendance-present-border);
 }
-.punch-top-read.on .dot {
-  background: var(--p);
+.header-punch-summary.is-active .status-dot {
+  background: var(--attendance-present);
   box-shadow: 0 0 0 3px rgba(23, 114, 69, 0.18);
-  animation: punch-pulse 2.4s var(--ease) infinite;
+  animation: punch-pulse 2.4s var(--easing-standard) infinite;
 }
-.punch-top-read b {
+.header-punch-summary b {
   font-weight: 700;
   letter-spacing: -0.01em;
 }
-.punch-top-btn {
+.header-punch-button {
   min-width: 108px;
   justify-content: center;
 }
 
 /* page foot ----------------------------------------------------------- Sign out ends the session, is wanted once a day at most, and is now the last thing on the page rather than the first thing under the thumb. */
-.me-foot {
+.employee-footer {
   display: flex;
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-  margin: 0 0 var(--gutter);
+  margin: 0 0 var(--layout-gap);
   padding: 14px 20px;
-  background: var(--sheen-card);
-  border: 1px solid var(--edge);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  background: var(--surface-card);
+  border: 1px solid var(--border-surface);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-card);
 }
-.me-foot-id {
+.employee-footer-identity {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
   margin-right: auto;
 }
-.me-foot-id b {
-  font: 700 13px var(--sans);
-  color: var(--ink);
+.employee-footer-identity b {
+  font: 700 13px var(--font-body);
+  color: var(--text-primary);
 }
-.me-foot-id .mono {
-  font: 500 11.5px var(--mono);
-  color: var(--ink-3);
+.employee-footer-identity .text-monospace {
+  font: 500 11.5px var(--font-monospace);
+  color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 /* collapsible notice body */
-.policy .body.clamp {
+.policy .entry-body.is-truncated {
   display: -webkit-box;
   -webkit-line-clamp: 3;
   line-clamp: 3;
@@ -83,20 +83,20 @@
 }
 
 /* weekly off-schedule banner (employee holiday card) — a pressed well */
-.weekoff {
+.weekly-off-summary {
   display: flex;
   align-items: flex-start;
   gap: 12px;
   padding: 12px 14px;
   margin-bottom: 12px;
-  background: var(--card-2);
-  border: 1px solid var(--edge);
-  border-radius: var(--radius-s);
-  box-shadow: var(--nu-press);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-surface);
+  border-radius: var(--border-radius-small);
+  box-shadow: var(--shadow-inset);
 }
-.weekoff-tag {
+.weekly-off-label {
   flex: none;
-  font: 600 9px var(--mono);
+  font: 600 9px var(--font-monospace);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #fff;
@@ -106,82 +106,82 @@
   margin-top: 2px;
   box-shadow: 0 3px 8px rgba(14, 122, 143, 0.3);
 }
-.weekoff-txt {
+.weekly-off-description {
   min-width: 0;
 }
-.weekoff-txt b {
+.weekly-off-description b {
   display: block;
-  color: var(--ink);
+  color: var(--text-primary);
   font-size: 13px;
 }
-.weekoff-txt .sub {
+.weekly-off-description .subtitle {
   font-size: 12px;
-  color: var(--ink-3);
+  color: var(--text-muted);
 }
 
 /* employee holiday calendar rows */
-.holi {
+.holiday-row {
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 11px 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--border-subtle);
 }
-.holi:last-child {
+.holiday-row:last-child {
   border-bottom: 0;
 }
-.holi-cal {
+.holiday-date {
   display: grid;
   place-items: center;
   width: 48px;
   height: 50px;
-  border-radius: var(--radius-s);
-  border: 1px solid var(--edge);
+  border-radius: var(--border-radius-small);
+  border: 1px solid var(--border-surface);
   background: linear-gradient(155deg, #ffffff, #e7ecf4);
   flex: none;
   line-height: 1;
-  box-shadow: var(--nu-raise-sm);
+  box-shadow: var(--shadow-raised-small);
 }
-.holi-cal .d {
-  font: 700 18px/1 var(--display);
+.holiday-date .holiday-day {
+  font: 700 18px/1 var(--font-heading);
   color: var(--brand-deep);
   letter-spacing: -0.02em;
 }
-.holi-cal .m {
+.holiday-date .holiday-month {
   margin-top: 3px;
-  font: 600 9px/1 var(--mono);
+  font: 600 9px/1 var(--font-monospace);
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--text-muted);
 }
-.holi-nm {
+.holiday-name {
   flex: 1;
   min-width: 0;
 }
-.holi-nm b {
+.holiday-name b {
   display: block;
-  color: var(--ink);
+  color: var(--text-primary);
 }
-.holi-nm .sub {
-  font: 500 12px var(--mono);
-  color: var(--ink-3);
+.holiday-name .subtitle {
+  font: 500 12px var(--font-monospace);
+  color: var(--text-muted);
 }
 /* next upcoming holiday — accented */
-.holi-next {
+.holiday-upcoming {
   background: linear-gradient(155deg, rgba(212, 238, 244, 0.85), rgba(212, 238, 244, 0.45));
-  border-radius: var(--radius-s);
+  border-radius: var(--border-radius-small);
   padding: 11px 13px;
   margin: 2px 0;
   border-bottom: 0;
   border: 1px solid rgba(14, 122, 143, 0.16);
 }
-.holi-next .holi-cal {
+.holiday-upcoming .holiday-date {
   background: #fff;
   border-color: rgba(14, 122, 143, 0.32);
 }
-.holi-badge {
+.holiday-upcoming-badge {
   margin-left: 8px;
-  font: 600 9px var(--mono);
+  font: 600 9px var(--font-monospace);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #fff;
@@ -191,14 +191,14 @@
   vertical-align: 1px;
 }
 /* past holidays — a labelled, dimmed group */
-.holi-sep {
-  font: 600 10px var(--mono);
+.holiday-group-heading {
+  font: 600 10px var(--font-monospace);
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--text-muted);
   margin: 14px 0 2px;
 }
-.holi-dim {
+.holiday-past-group {
   opacity: 0.62;
 }
 
@@ -208,20 +208,20 @@
   padding: 32px;
   background: linear-gradient(145deg, #ffffff, #eaf4f6);
   border: 1px solid rgba(14, 122, 143, 0.2);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-lift);
-  animation: dx-rise 0.32s var(--ease-out);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-elevated);
+  animation: content-enter 0.32s var(--easing-out);
 }
 .employee-card h2 {
   margin: 0 0 22px;
   color: var(--brand-deep);
-  font: 700 32px/1.1 var(--display);
+  font: 700 32px/1.1 var(--font-heading);
 }
 .employee-card p {
   margin: 0;
   padding: 14px 0;
-  border-bottom: 1px solid var(--line);
-  color: var(--ink-2);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
   font-size: 15px;
 }
 .employee-card p:last-child {
@@ -254,7 +254,7 @@
 .employee-approval-counts a {
   flex: 1 1 180px;
   padding: 14px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--border-subtle);
   border-radius: 12px;
   color: var(--brand);
   font-size: 13px;
@@ -264,17 +264,17 @@
 }
 .employee-approval-counts b {
   display: block;
-  font: 700 24px var(--mono);
+  font: 700 24px var(--font-monospace);
   margin-bottom: 5px;
 }
-.employee-approvals .hd {
+.employee-approvals .card-header {
   flex-wrap: wrap;
   gap: 10px;
 }
-.employee-approval-card .hd .pill {
+.employee-approval-card .card-header .status-badge {
   text-transform: capitalize;
 }
-.employee-approval-card .bd {
+.employee-approval-card .card-body {
   overflow-wrap: anywhere;
   font-size: 13px;
 }
@@ -297,7 +297,7 @@
 }
 .employee-approval-history time {
   display: block;
-  color: var(--ink-3);
+  color: var(--text-muted);
   font-size: 12px;
   margin-top: 4px;
 }
@@ -306,26 +306,26 @@
   white-space: pre-wrap;
 }
 .approval-status-pending {
-  color: var(--lm);
+  color: var(--attendance-late);
 }
 .approval-status-approved {
-  color: var(--p);
+  color: var(--attendance-present);
 }
 .approval-status-rejected {
-  color: var(--ab);
+  color: var(--attendance-absent);
 }
 .approval-status-cancelled {
-  color: var(--ink-3);
+  color: var(--text-muted);
 }
 
 /* employee dashboard */
-.me-hero {
+.employee-overview {
   display: flex;
   align-items: center;
   gap: 16px;
   margin-bottom: 4px;
 }
-.me-hero .av {
+.employee-overview .avatar {
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -333,59 +333,59 @@
   color: #fff;
   display: grid;
   place-items: center;
-  font: 600 19px var(--mono);
+  font: 600 19px var(--font-monospace);
   box-shadow:
     0 8px 20px rgba(14, 122, 143, 0.32),
     inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
-.me-hero h2 {
+.employee-overview h2 {
   margin: 0;
-  font: 700 23px var(--display);
-  color: var(--ink);
+  font: 700 23px var(--font-heading);
+  color: var(--text-primary);
   letter-spacing: -0.03em;
 }
-.me-hero .meta {
-  color: var(--ink-3);
-  font: 500 12px var(--mono);
+.employee-overview .entry-details {
+  color: var(--text-muted);
+  font: 500 12px var(--font-monospace);
 }
 
 /* attendance clock (employee punch card) */
-.punch-face {
+.punch-clock-layout {
   display: flex;
   align-items: center;
   gap: 20px;
   flex-wrap: wrap;
 }
-.punch-read {
+.punch-summary {
   flex: 1;
   min-width: 200px;
 }
 /* The state chip is the first thing read, so presence is carried by the word, the dot colour AND the fill — never colour alone. */
-.punch-state {
+.punch-status {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 5px 12px;
   border-radius: 99px;
-  font: 600 11.5px var(--mono);
+  font: 600 11.5px var(--font-monospace);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ink-2);
-  background: var(--card-2);
-  border: 1px solid var(--edge);
+  color: var(--text-secondary);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-surface);
 }
-.punch-state .dot {
-  background: var(--ink-3);
+.punch-status .status-dot {
+  background: var(--text-muted);
 }
-.punch-state.on {
-  color: var(--p);
-  background: var(--p-bg);
-  border-color: var(--p-line);
+.punch-status.is-active {
+  color: var(--attendance-present);
+  background: var(--attendance-present-background);
+  border-color: var(--attendance-present-border);
 }
-.punch-state.on .dot {
-  background: var(--p);
+.punch-status.is-active .status-dot {
+  background: var(--attendance-present);
   box-shadow: 0 0 0 3px rgba(23, 114, 69, 0.18);
-  animation: punch-pulse 2.4s var(--ease) infinite;
+  animation: punch-pulse 2.4s var(--easing-standard) infinite;
 }
 @keyframes punch-pulse {
   50% {
@@ -393,12 +393,12 @@
   }
 }
 .punch-elapsed {
-  font: 700 34px/1.05 var(--display);
+  font: 700 34px/1.05 var(--font-heading);
   letter-spacing: -0.035em;
-  color: var(--ink);
+  color: var(--text-primary);
   margin-top: 10px;
 }
-.punch-meta {
+.punch-details {
   margin-top: 4px;
   font-size: 12.5px;
   display: flex;
@@ -407,60 +407,60 @@
   flex-wrap: wrap;
 }
 /* The at-office / off-site stamp. When the punch carries coordinates it is a link to that spot on Google Maps — "off-site" with no where is an accusation with no evidence — so it gets a pin glyph and a real press affordance. */
-.punch-geo {
+.punch-location {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   white-space: nowrap;
-  font: 600 9.5px var(--mono);
+  font: 600 9.5px var(--font-monospace);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   padding: 3px 8px;
   border-radius: 99px;
   border: 1px solid;
 }
-.punch-geo.at-office {
-  color: var(--p);
-  background: var(--p-bg);
-  border-color: var(--p-line);
+.punch-location.at-office {
+  color: var(--attendance-present);
+  background: var(--attendance-present-background);
+  border-color: var(--attendance-present-border);
 }
-.punch-geo.off-site {
-  color: var(--lm);
-  background: var(--lm-bg);
-  border-color: var(--lm-line);
+.punch-location.off-site {
+  color: var(--attendance-late);
+  background: var(--attendance-late-background);
+  border-color: var(--attendance-late-border);
 }
-.punch-geo.is-link {
+.punch-location.is-link {
   text-decoration: none;
   cursor: pointer;
   transition:
-    box-shadow var(--t-fast) var(--ease),
-    transform var(--t-fast) var(--ease),
-    filter var(--t-fast) var(--ease);
+    box-shadow var(--transition-fast) var(--easing-standard),
+    transform var(--transition-fast) var(--easing-standard),
+    filter var(--transition-fast) var(--easing-standard);
 }
-.punch-geo.is-link svg {
+.punch-location.is-link svg {
   width: 11px;
   height: 11px;
   opacity: 0.7;
   flex: none;
 }
-.punch-geo.is-link:hover {
+.punch-location.is-link:hover {
   filter: saturate(1.2);
-  box-shadow: var(--nu-raise-sm);
+  box-shadow: var(--shadow-raised-small);
   transform: translateY(-1px);
 }
-.punch-geo.is-link:hover svg {
+.punch-location.is-link:hover svg {
   opacity: 1;
 }
-.punch-geo.is-link:active {
+.punch-location.is-link:active {
   transform: translateY(0);
   box-shadow: none;
 }
-.punch-geo.is-link:focus-visible {
+.punch-location.is-link:focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
 /* The day's single most-used control: oversized on every viewport, not just touch ones, because it is tapped in a hurry on the way in. */
-.punch-btn {
+.punch-button {
   min-width: 172px;
   min-height: 52px;
   justify-content: center;
@@ -484,31 +484,31 @@
 .punch-alert b {
   font-weight: 700;
 }
-.punch-alert.is-bad {
-  color: var(--ab);
-  background: var(--ab-bg);
-  border-color: var(--ab-line);
+.punch-alert.is-error {
+  color: var(--attendance-absent);
+  background: var(--attendance-absent-background);
+  border-color: var(--attendance-absent-border);
 }
-.punch-alert.is-warn {
-  color: var(--lm);
-  background: var(--lm-bg);
-  border-color: var(--lm-line);
+.punch-alert.is-warning {
+  color: var(--attendance-late);
+  background: var(--attendance-late-background);
+  border-color: var(--attendance-late-border);
 }
 .punch-alert.is-info {
-  color: var(--ink-2);
-  background: var(--card-2);
-  border-color: var(--edge);
+  color: var(--text-secondary);
+  background: var(--surface-inset);
+  border-color: var(--border-surface);
 }
 
 /* the punch trail under the clock ------------------------------------ Its own panel inside the card: the card above is read for *today*, this is the record. The API returns the last 100 punches, so the list scrolls in a fixed box rather than running several screens down the page. */
 .punch-history {
   padding: 0 20px 18px;
-  background: var(--sheen-card);
-  border: 1px solid var(--edge);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  background: var(--surface-card);
+  border: 1px solid var(--border-surface);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-card);
 }
-.punch-history .fold {
+.punch-history .section-heading {
   margin-top: 0;
 }
 .punch-history > p {
@@ -529,7 +529,7 @@
   background: transparent;
 }
 .punch-scroll::-webkit-scrollbar-thumb {
-  background: var(--line-2);
+  background: var(--border-strong);
   border-radius: 99px;
 }
 .punch-day {
@@ -539,16 +539,16 @@
   margin-bottom: 0;
 }
 /* Rides along at the top of the scroll box, so a row three days back is still attributable to a date without scrolling back up. */
-.punch-day-hd {
+.punch-day-heading {
   position: sticky;
   top: 0;
   z-index: 1;
   padding: 2px 0 6px;
-  background: var(--sheen-card);
-  font: 600 10px var(--mono);
+  background: var(--surface-card);
+  font: 600 10px var(--font-monospace);
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--text-muted);
 }
 .punch-day-rows {
   display: flex;
@@ -562,18 +562,18 @@
   gap: 12px;
   padding: 7px 12px;
   border-radius: 10px;
-  background: var(--card-2);
-  border: 1px solid var(--edge);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-surface);
   transition:
-    background-color var(--t-fast) var(--ease),
-    border-color var(--t-fast) var(--ease);
+    background-color var(--transition-fast) var(--easing-standard),
+    border-color var(--transition-fast) var(--easing-standard);
 }
 .punch-row:hover {
   background: #fff;
-  border-color: var(--line-2);
+  border-color: var(--border-strong);
 }
 .punch-kind {
-  font: 600 10px var(--mono);
+  font: 600 10px var(--font-monospace);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   padding: 3px 9px;
@@ -584,55 +584,55 @@
   flex: none;
 }
 .punch-kind.in {
-  color: var(--p);
-  background: var(--p-bg);
-  border-color: var(--p-line);
+  color: var(--attendance-present);
+  background: var(--attendance-present-background);
+  border-color: var(--attendance-present-border);
 }
 .punch-kind.out {
-  color: var(--ink-2);
+  color: var(--text-secondary);
   background: #fff;
-  border-color: var(--line-2);
+  border-color: var(--border-strong);
 }
 .punch-row-time {
   font-size: 13px;
-  color: var(--ink);
+  color: var(--text-primary);
   min-width: 48px;
   flex: none;
 }
-.punch-row .punch-geo {
+.punch-row .punch-location {
   margin-left: auto;
 }
 @media (max-width: 860px) {
-  .me-hero {
+  .employee-overview {
     gap: 12px;
   }
-  .me-hero h2 {
+  .employee-overview h2 {
     font-size: 19px;
   }
 }
 
 /* Phones proper. */
 @media (max-width: 640px) {
-  .employee-approvals .hd {
+  .employee-approvals .card-header {
     gap: 6px;
   }
-  .punch-top {
+  .header-punch-clock {
     gap: 8px;
   }
-  .punch-top-read {
+  .header-punch-summary {
     display: none;
   }
-  .topbar .punch-top-btn {
+  .app-header .header-punch-button {
     min-width: 0;
     padding: 11px 14px;
   }
   .punch-history {
     padding: 0 15px 15px;
   }
-  .punch-face {
+  .punch-clock-layout {
     gap: 14px;
   }
-  .punch-btn {
+  .punch-button {
     width: 100%;
     min-height: 44px;
   }
@@ -643,22 +643,22 @@
     gap: 9px;
     padding: 7px 10px;
   }
-  .me-foot {
+  .employee-footer {
     padding: 13px 15px;
   }
 }
 
 /* Preserve the shared button touch target after the desktop punch-button rule. */
 @media (pointer: coarse) {
-  .punch-btn {
+  .punch-button {
     min-height: 44px;
   }
 }
 
 /* Print */
 @media print {
-  .punch-btn,
-  .me-foot {
+  .punch-button,
+  .employee-footer {
     display: none !important;
   }
   /* A printed register has to show the whole trail, not one box of it. */

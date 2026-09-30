@@ -41,7 +41,7 @@ function ResetRequestForm() {
 
   return (
     <form action={action} className="login-form">
-      <div className="f">
+      <div className="form-field">
         <label htmlFor="email">Email</label>
         <input
           id="email"
@@ -54,13 +54,13 @@ function ResetRequestForm() {
       </div>
 
       {state.error && (
-        <div className="login-error" role="alert">
+        <div className="error-message" role="alert">
           {state.error}
         </div>
       )}
 
       <button
-        className="btn primary"
+        className="button primary"
         type="submit"
         disabled={pending}
         style={{ width: '100%', justifyContent: 'center' }}

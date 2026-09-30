@@ -29,17 +29,17 @@ function NoticesScreen({
   const { toast, toastNode } = useToast();
 
   return (
-    <div className="two-col">
+    <div className="two-column-layout">
       {confirmDialog}
       {toastNode}
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>Published notices</h3>
-          <span className="folio">{notices.length} total</span>
+          <span className="card-caption">{notices.length} total</span>
         </div>
-        <div className="bd">
+        <div className="card-body">
           {notices.length === 0 && (
-            <p className="muted">No notices yet — publish one on the right.</p>
+            <p className="text-muted">No notices yet — publish one on the right.</p>
           )}
           {notices.map((n) => (
             <NoticeItem
@@ -54,10 +54,10 @@ function NoticesScreen({
       </div>
 
       <div className="card">
-        <div className="hd">
+        <div className="card-header">
           <h3>{editing ? 'Edit notice' : 'Publish a notice'}</h3>
         </div>
-        <div className="bd">
+        <div className="card-body">
           <NoticeForm
             key={editing?.id ?? 'new'}
             editing={editing}
@@ -122,38 +122,38 @@ function NoticeItem({
 
   return (
     <div className="policy">
-      <div className="phd">
+      <div className="entry-header">
         <h4>{notice.title}</h4>
-        <span className="pill">{channelLabel[notice.channel]}</span>
-        <span className="cat">{notice.branch ?? 'All branches'}</span>
+        <span className="status-badge">{channelLabel[notice.channel]}</span>
+        <span className="entry-category">{notice.branch ?? 'All branches'}</span>
         <span style={{ flex: 1 }} />
         {notice.published && notice.publishedAt ? (
-          <span className="ver">{formatDate(notice.publishedAt.slice(0, 10))}</span>
+          <span className="entry-version">{formatDate(notice.publishedAt.slice(0, 10))}</span>
         ) : (
-          <span className="pill" style={{ borderColor: 'var(--line-2)', color: 'var(--ink-3)' }}>
+          <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }}>
             Draft
           </span>
         )}
         {notice.pdfPath && (
           <button
-            className="btn quiet"
+            className="button quiet"
             onClick={() => openNoticePdf(notice.id, (m) => toast(m, 'error'))}
             title="Open the attached PDF"
           >
             📎 PDF
           </button>
         )}
-        <button className="btn quiet" onClick={onEdit} disabled={pending}>
+        <button className="button quiet" onClick={onEdit} disabled={pending}>
           Edit
         </button>
-        <button className="btn" onClick={toggle} disabled={pending}>
+        <button className="button" onClick={toggle} disabled={pending}>
           {pending ? '…' : notice.published ? 'Unpublish' : 'Publish'}
         </button>
-        <button className="btn quiet" onClick={remove} disabled={pending}>
+        <button className="button quiet" onClick={remove} disabled={pending}>
           {pending ? '…' : 'Delete'}
         </button>
       </div>
-      {notice.body && <p className="body muted">{notice.body}</p>}
+      {notice.body && <p className="entry-body text-muted">{notice.body}</p>}
     </div>
   );
 }
@@ -185,7 +185,7 @@ function NoticeForm({
 
   return (
     <form action={action}>
-      <div className="f">
+      <div className="form-field">
         <label>Title</label>
         <input
           name="title"
@@ -194,7 +194,7 @@ function NoticeForm({
           defaultValue={editing?.title}
         />
       </div>
-      <div className="f">
+      <div className="form-field">
         <label>Body</label>
         <textarea
           name="body"
@@ -203,7 +203,7 @@ function NoticeForm({
           style={{
             width: '100%',
             padding: '9px 11px',
-            border: '1px solid var(--line-2)',
+            border: '1px solid var(--border-strong)',
             borderRadius: 8,
             font: 'inherit',
             background: '#fff',
@@ -211,8 +211,8 @@ function NoticeForm({
           }}
         />
       </div>
-      <div className="f-row">
-        <div className="f">
+      <div className="form-row">
+        <div className="form-field">
           <label>Channel</label>
           <select name="channel" defaultValue={editing?.channel ?? 'app'}>
             <option value="app">App</option>
@@ -220,7 +220,7 @@ function NoticeForm({
             <option value="both">Both</option>
           </select>
         </div>
-        <div className="f">
+        <div className="form-field">
           <label>Branch</label>
           <select name="branch" defaultValue={editing?.branch ?? ''}>
             <option value="">All branches</option>
@@ -232,7 +232,7 @@ function NoticeForm({
           </select>
         </div>
       </div>
-      <div className="f">
+      <div className="form-field">
         <label>
           PDF attachment{' '}
           {editing?.pdfPath ? '(choosing a file replaces the current one)' : '(optional)'}
@@ -254,15 +254,15 @@ function NoticeForm({
         </label>
       )}
 
-      {state.error && <div className="login-error">{state.error}</div>}
+      {state.error && <div className="error-message">{state.error}</div>}
       {state.ok && !editing && <div className="hint">✓&nbsp; Notice saved.</div>}
 
       <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn primary" type="submit" disabled={pending}>
+        <button className="button primary" type="submit" disabled={pending}>
           {pending ? 'Saving…' : editing ? 'Save changes' : 'Publish notice'}
         </button>
         {editing && (
-          <button className="btn quiet" type="button" onClick={onDone} disabled={pending}>
+          <button className="button quiet" type="button" onClick={onDone} disabled={pending}>
             Cancel
           </button>
         )}
