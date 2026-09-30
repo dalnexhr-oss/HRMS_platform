@@ -10,7 +10,7 @@ import { useNotifications } from '@/components/ui/Notifications';
 import { TableColumnMenu, getDistinctColumnValues, sortTableRows } from '@/components/ui/TableColumnMenu';
 import { deleteItem } from '@/lib/actions/items';
 import type { SortDirection, ColumnDataType } from '@/components/ui/TableColumnMenu';
-import type { ItemRow, EmployeeOption } from '@/lib/queries';
+import type { ItemRow, EmployeeOption } from '@/lib/server-queries';
 
 // Header-menu columns in display order. Use an em dash for missing values so they can be filtered;
 // quantity columns compare numerically.

@@ -10,7 +10,7 @@ import { db } from '@/lib/db/mongodb-connection';
 import { columnDefaults, now, today } from '@/lib/db/document-defaults';
 import { isView, runView } from '@/lib/db/aggregation-views';
 import { relationshipFor } from '@/lib/db/collection-relationships';
-import { todayIST } from '@/lib/format';
+import { todayIST } from '@/lib/display-formatting';
 import type { ClientSession, Document, Filter } from 'mongodb';
 import type { Scope } from '@/lib/db/access-scope';
 import type { ScopedCollection } from '@/lib/db/scoped-repository';

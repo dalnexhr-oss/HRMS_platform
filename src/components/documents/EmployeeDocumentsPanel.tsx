@@ -4,7 +4,7 @@
 // current versions.
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { formatDate } from '@/lib/format';
+import { formatDate } from '@/lib/display-formatting';
 import { fetchEmployeeDocumentHistory, verifyEmployeeDocument, deleteEmployeeDocument } from '@/lib/actions/documents';
 import { documentCategoryLabel, requiredDocumentCategories } from '@/lib/constants';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -12,7 +12,7 @@ import { usePrompt } from '@/components/ui/PromptDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { openDocument } from './open-document';
 import { StatusPill } from './StatusPill';
-import type { EmployeeDocumentRow } from '@/lib/queries';
+import type { EmployeeDocumentRow } from '@/lib/server-queries';
 
 // All versions of one document, current first.
 interface DocumentChain {

@@ -4,7 +4,7 @@
 // and sorting pattern.
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { formatDate } from '@/lib/format';
+import { formatDate } from '@/lib/display-formatting';
 import { TableColumnMenu, getDistinctColumnValues, sortTableRows, isWithinDateRange, isDateRangeActive } from '@/components/ui/TableColumnMenu';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { usePrompt } from '@/components/ui/PromptDialog';
@@ -18,7 +18,7 @@ import { StatusPill } from './StatusPill';
 import { DocumentActions } from './DocumentActions';
 import type { DrawerTarget } from './UploadDocumentDrawer';
 import type { SortDirection, ColumnDataType, DateRange } from '@/components/ui/TableColumnMenu';
-import type { DocumentStats, EmployeeDocumentRow, EmployeeOption } from '@/lib/queries';
+import type { DocumentStats, EmployeeDocumentRow, EmployeeOption } from '@/lib/server-queries';
 
 type ColumnKey = 'employee' | 'category' | 'title' | 'source' | 'status' | 'filed';
 

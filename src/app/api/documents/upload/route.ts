@@ -1,10 +1,10 @@
 // Stream the request body directly into GridFS so large uploads can report progress without
 // buffering the entire file in a Server Action. Metadata is sent in the query string.
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession } from '@/lib/server-auth';
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { deleteObject, StorageAccessError } from '@/lib/db/gridfs-file-storage';
-import { resolveUploadType, uploadFile } from '@/lib/storage';
+import { resolveUploadType, uploadFile } from '@/lib/file-storage';
 import { maxBytes, recordUploadedDocument, resolveTargetEmployee, uploadBucket } from '@/lib/documents/upload';
 
 export const runtime = 'nodejs';

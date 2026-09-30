@@ -5,8 +5,8 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server-client';
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
-import { getSession } from '@/lib/auth';
-import { notifyEmployee } from '@/lib/notify';
+import { getSession } from '@/lib/server-auth';
+import { notifyEmployee } from '@/lib/notification-delivery';
 import { toMoney } from '@/lib/db/decimal-conversions';
 import { queryErrorMessage } from '@/lib/db/query-errors';
 import { savePayslipAdjustments } from '@/lib/db/payroll-processing';

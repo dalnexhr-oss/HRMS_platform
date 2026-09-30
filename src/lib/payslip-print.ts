@@ -1,6 +1,6 @@
 // Render a printable payslip from the supplied PayslipRow. Open self-contained HTML in a new
 // window; the browser handles printing and PDF saving.
-import { inr } from '@/lib/format';
+import { inr } from '@/lib/display-formatting';
 import { company } from '@/lib/brand/company';
 import type { PayslipRow } from '@/types/domain';
 

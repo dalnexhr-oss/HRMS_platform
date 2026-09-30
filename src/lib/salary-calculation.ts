@@ -1,4 +1,4 @@
-import { parseMoneyPaise } from '@/lib/money';
+import { parseMoneyPaise } from '@/lib/currency-conversion';
 
 interface SalaryInput {
   gross_monthly: string;

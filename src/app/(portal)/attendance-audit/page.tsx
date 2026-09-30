@@ -1,7 +1,7 @@
-import { getSession } from '@/lib/auth';
-import { formatDate } from '@/lib/format';
+import { getSession } from '@/lib/server-auth';
+import { formatDate } from '@/lib/display-formatting';
 import { redirect } from 'next/navigation';
-import { getAttendanceAudit } from '@/lib/queries';
+import { getAttendanceAudit } from '@/lib/server-queries';
 import { icons } from '@/components/Icons';
 import './audit.css';
 import type { AppRole } from '@/types/database';

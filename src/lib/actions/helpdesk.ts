@@ -2,10 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server-client';
-import { getSession, isStaffRole } from '@/lib/auth';
+import { getSession, isStaffRole } from '@/lib/server-auth';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/guards';
-import { notifyApprovers, notifyEmployee } from '@/lib/notify';
-import type { TicketComment } from '@/lib/queries';
+import { notifyApprovers, notifyEmployee } from '@/lib/notification-delivery';
+import type { TicketComment } from '@/lib/server-queries';
 
 type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 

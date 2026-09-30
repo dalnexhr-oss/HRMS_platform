@@ -5,9 +5,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Brand } from '@/components/ui/Brand';
 import { EmployeeCard } from './EmployeeCard';
-import { presenceLabel } from '@/types/tv';
-import { routes } from '@/lib/routes';
-import type { BoardData, Presence } from '@/types/tv';
+import { presenceLabel } from '@/types/tv-dashboard';
+import { routes } from '@/lib/application-routes';
+import type { BoardData, Presence } from '@/types/tv-dashboard';
 
 const pollMs = 30_000;
 // Mark the board stale after this long without a successful poll.
@@ -163,7 +163,6 @@ function EmployeeScreen({ initial }: { initial: BoardData }) {
           })
         )}
       </div>
-
     </div>
   );
 }

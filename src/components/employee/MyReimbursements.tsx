@@ -4,12 +4,12 @@
 // on submission and approval.
 import { useActionState, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { inr, formatDate } from '@/lib/format';
+import { inr, formatDate } from '@/lib/display-formatting';
 import { createReimbursement, updateReimbursement, deleteReimbursement, uploadReimbursementReceipt, getReceiptUrl } from '@/lib/actions/reimbursements';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import type { NotificationKind } from '@/components/ui/Notifications';
-import type { ReimbursementView } from '@/lib/queries';
+import type { ReimbursementView } from '@/lib/server-queries';
 import type { ReimbursementPurpose } from '@/types/database';
 
 const purposeLabel: Record<ReimbursementPurpose, string> = {

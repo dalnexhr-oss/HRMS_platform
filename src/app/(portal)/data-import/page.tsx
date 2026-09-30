@@ -1,6 +1,6 @@
-import { getSession } from '@/lib/auth';
+import { getSession } from '@/lib/server-auth';
 import { ImportScreen } from '@/components/import/ImportScreen';
-import { currentPeriodMonth } from '@/lib/queries';
+import { currentPeriodMonth } from '@/lib/server-queries';
 import type { Metadata } from 'next';
 import type { AppRole } from '@/types/database';
 

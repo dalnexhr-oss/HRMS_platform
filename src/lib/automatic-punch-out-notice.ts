@@ -1,4 +1,4 @@
-import { todayIST } from '@/lib/format';
+import { todayIST } from '@/lib/display-formatting';
 import type { NightSweepNotice } from '@/types/punch';
 
 interface SweepClosure {

@@ -1,7 +1,7 @@
 import 'server-only';
 import { usersCollection } from '@/lib/db/collection-registry';
 import { db } from '@/lib/db/mongodb-connection';
-import { tierLabel, tierOf } from '@/lib/roles';
+import { tierLabel, tierOf } from '@/lib/user-roles';
 import type { ClientSession } from 'mongodb';
 import type { AppRole } from '@/types/database';
 

@@ -1,6 +1,6 @@
 import './requests.css';
 import Link from 'next/link';
-import type { RequestView } from '@/lib/queries';
+import type { RequestView } from '@/lib/server-queries';
 
 function RequestInbox({ requests, userId }: { requests: RequestView[]; userId: string }) {
   const received = requests.filter(

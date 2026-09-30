@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AvatarInner } from '@/components/ui/Avatar';
 import { addTicketComment, setTicketStatus } from '@/lib/actions/helpdesk';
-import type { TicketComment, TicketView } from '@/lib/queries';
+import type { TicketComment, TicketView } from '@/lib/server-queries';
 
 type ChatTicket = Pick<TicketView, 'id' | 'subject' | 'status' | 'employeeName' | 'employeeCode'>;
 type TicketStatus = TicketView['status'];

@@ -5,7 +5,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server-client';
 import { requireRoles, wroteNothing } from '@/lib/actions/guards';
-import { notifyEmployee } from '@/lib/notify';
+import { notifyEmployee } from '@/lib/notification-delivery';
 import type { AppRole } from '@/types/database';
 
 interface ActionResult {

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { formatDate, todayIST } from '@/lib/format';
+import { formatDate, todayIST } from '@/lib/display-formatting';
 
 type SortDirection = 'asc' | 'desc';
 

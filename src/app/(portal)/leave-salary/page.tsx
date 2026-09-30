@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth';
+import { getSession } from '@/lib/server-auth';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { LeaveSalaryAdmin } from '@/components/leave/LeaveSalaryAdmin';
 import { buildLeaveSalaryView } from '@/lib/leave-salary-view';
 import { exportLeaveSalaryXlsx } from '@/lib/actions/export';
-import { getLeaveBalancesForYear } from '@/lib/queries';
+import { getLeaveBalancesForYear } from '@/lib/server-queries';
 import type { AppRole } from '@/types/database';
 
 // Match the leave-salary actions' staff role gate.

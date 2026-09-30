@@ -2,7 +2,7 @@
 
 import '@/components/payroll/payslip.css';
 import { Fragment, useState } from 'react';
-import { inr } from '@/lib/format';
+import { inr } from '@/lib/display-formatting';
 import { printPayslip } from '@/lib/payslip-print';
 import { useNotifications } from '@/components/ui/Notifications';
 import type { PayslipRow } from '@/types/domain';
@@ -90,7 +90,10 @@ function MyPayslips({ payslips, id }: { payslips: PayslipRow[]; id?: string }) {
                     </td>
                     <td className="text-right text-monospace">{p.payableDays}</td>
                     <td className="text-right text-monospace">{inr(p.earnedGross)}</td>
-                    <td className="text-right text-monospace" style={{ color: 'var(--attendance-half-day)' }}>
+                    <td
+                      className="text-right text-monospace"
+                      style={{ color: 'var(--attendance-half-day)' }}
+                    >
                       {totalDeductions(p) ? `-${inr(totalDeductions(p))}` : '—'}
                     </td>
                     <td

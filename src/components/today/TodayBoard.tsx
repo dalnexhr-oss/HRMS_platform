@@ -3,7 +3,7 @@ import { AttendanceStatusBadge } from '@/components/ui/AttendanceStatusBadge';
 import { ExportButton } from '@/components/today/ExportButton';
 import { NightSweepButton } from '@/components/today/NightSweepButton';
 import { branchColorAt } from '@/lib/constants';
-import type { ActivityRow, PayrollRunView } from '@/lib/queries';
+import type { ActivityRow, PayrollRunView } from '@/lib/server-queries';
 import type { Celebration, MarkWatch, PunchLogRow, TodayKpis } from '@/types/domain';
 
 // Load sections independently and preserve each query's error. The ok discriminant lets TypeScript

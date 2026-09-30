@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getSession, homeForRole } from '@/lib/auth';
+import { getSession, homeForRole } from '@/lib/server-auth';
 
 // Resolve the signed-in user's home by role: staff use /dashboard and employees use /employee.
 async function Home() {

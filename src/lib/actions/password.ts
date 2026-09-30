@@ -8,7 +8,7 @@ import { hashPassword, validatePassword, verifyPassword } from '@/lib/auth/passw
 import { consumeResetToken, createResetToken, resetTokenTtlMinutes } from '@/lib/auth/reset-tokens';
 import { usersCollection } from '@/lib/db/collection-registry';
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
-import { escapeHtml, isEmailConfigured, sendEmail } from '@/lib/email';
+import { escapeHtml, isEmailConfigured, sendEmail } from '@/lib/email-delivery';
 import { appOrigin, originNotConfigured } from '@/lib/auth/origin';
 
 interface PasswordState {

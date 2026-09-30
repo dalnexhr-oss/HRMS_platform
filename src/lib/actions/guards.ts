@@ -1,6 +1,6 @@
 /** Shared Server Action guards for database availability, staff roles, and successful writes. */
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
-import { getSession } from '@/lib/auth';
+import { getSession } from '@/lib/server-auth';
 import { monthSealReason, periodMonthFor } from '@/lib/payroll-month';
 import type { PayrollRunSeal } from '@/lib/payroll-month';
 import type { createClient } from '@/lib/db/server-client';

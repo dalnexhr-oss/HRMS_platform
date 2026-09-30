@@ -8,13 +8,13 @@
 import { revalidatePath } from 'next/cache';
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@/lib/db/server-client';
-import { getSession } from '@/lib/auth';
+import { getSession } from '@/lib/server-auth';
 import { requireDb, requireRoles, wroteNothing } from '@/lib/actions/guards';
-import { uploadFile, signedUrl, resolveUploadType } from '@/lib/storage';
-import { notifyEmployee } from '@/lib/notify';
+import { uploadFile, signedUrl, resolveUploadType } from '@/lib/file-storage';
+import { notifyEmployee } from '@/lib/notification-delivery';
 import { maxBytes, recordUploadedDocument, resolveTargetEmployee, uploadBucket, verifyRoles } from '@/lib/documents/upload';
-import { getEmployeeDocuments as readEmployeeDocuments, getEmployeeDocumentHistory as readEmployeeDocumentHistory } from '@/lib/queries';
-import type { StorageBucket } from '@/lib/storage';
+import { getEmployeeDocuments as readEmployeeDocuments, getEmployeeDocumentHistory as readEmployeeDocumentHistory } from '@/lib/server-queries';
+import type { StorageBucket } from '@/lib/file-storage';
 
 interface ActionResult {
   ok: boolean;

@@ -1,7 +1,7 @@
 'use client';
 
 import './payslip.css';
-import { inr } from '@/lib/format';
+import { inr } from '@/lib/display-formatting';
 import { useNotifications } from '@/components/ui/Notifications';
 import { printPayslip } from '@/lib/payslip-print';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -9,7 +9,7 @@ import { Fragment, useState, useTransition, useActionState } from 'react';
 import { computeRun, lockRun, markRunPaid, openRun, saveAdjustments } from '@/lib/actions/payroll';
 import type { ChangeEvent } from 'react';
 import type { PayslipRow } from '@/types/domain';
-import type { PayrollRunView } from '@/lib/queries';
+import type { PayrollRunView } from '@/lib/server-queries';
 
 interface ActionResult {
   ok: boolean;

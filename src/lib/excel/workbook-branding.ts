@@ -5,7 +5,7 @@
 // the letterhead. Write column labels to the row returned by writeBrandHeader.
 import { logoAspect, logoPngBase64 } from '@/lib/brand/logo';
 import { company } from '@/lib/brand/company';
-import { todayIST } from '@/lib/format';
+import { todayIST } from '@/lib/display-formatting';
 import type ExcelJS from 'exceljs';
 
 // The row a banded sheet's data header lands on (rows 1–3 are the band).

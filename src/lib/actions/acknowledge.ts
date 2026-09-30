@@ -8,7 +8,7 @@ import { queryErrorCodes } from '@/lib/db/query-errors';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/db/server-client';
-import { getSession } from '@/lib/auth';
+import { getSession } from '@/lib/server-auth';
 import { requireDb, wroteNothing } from '@/lib/actions/guards';
 
 interface ActionResult {

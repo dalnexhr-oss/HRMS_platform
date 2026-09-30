@@ -1,6 +1,6 @@
 import { canReviewRequest } from './access';
 import type { RequestActor } from './access';
-import type { RequestView } from '@/lib/queries';
+import type { RequestView } from '@/lib/server-queries';
 import type { EmployeeApprovalView } from '@/types/requests';
 
 /** Keep personal decisions separate from the request's eventual outcome after other reviews. */

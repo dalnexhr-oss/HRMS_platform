@@ -1,7 +1,7 @@
 // Read-only onboarding progress. Staff complete tasks so done_by and done_at record the responsible
 // person.
-import { formatDate } from '@/lib/format';
-import type { OnboardingTaskRow } from '@/lib/queries';
+import { formatDate } from '@/lib/display-formatting';
+import type { OnboardingTaskRow } from '@/lib/server-queries';
 
 const ownerLabel: Record<string, string> = {
   hr: 'HR',

@@ -1,8 +1,8 @@
 import Link from 'next/link';
-import { getSession } from '@/lib/auth';
-import { todayIST, inr } from '@/lib/format';
+import { getSession } from '@/lib/server-auth';
+import { todayIST, inr } from '@/lib/display-formatting';
 import { AvatarMenu } from '@/components/shell/AvatarMenu';
-import { currentPeriodMonth, getEmployeeOverview, getEmployeePolicies, getLeaveBalances, getMyAttendance, getMyPayslips, getMyRequests, getRequests, getMyTickets, getTicketComments, getMyCompOffs, getMyReimbursements, getReimbursementRate, getMyAssets, getMyItems, getEmployeeDocuments, getMyOnboardingTasks, getPayrollRun, getHolidays, getNotices, getOnLeaveToday, getReadNoticeIds, getWeekOffPolicy, isMongoConfigured } from '@/lib/queries';
+import { currentPeriodMonth, getEmployeeOverview, getEmployeePolicies, getLeaveBalances, getMyAttendance, getMyPayslips, getMyRequests, getRequests, getMyTickets, getTicketComments, getMyCompOffs, getMyReimbursements, getReimbursementRate, getMyAssets, getMyItems, getEmployeeDocuments, getMyOnboardingTasks, getPayrollRun, getHolidays, getNotices, getOnLeaveToday, getReadNoticeIds, getWeekOffPolicy, isMongoConfigured } from '@/lib/server-queries';
 import { PolicyList } from '@/components/policies/PolicyList';
 import { EmployeeNotices } from '@/components/employee/EmployeeNotices';
 import { EmployeeHolidays } from '@/components/employee/EmployeeHolidays';
@@ -19,7 +19,7 @@ import { MyOnboarding } from '@/components/employee/MyOnboarding';
 import { Punch } from '@/components/employee/Punch';
 import { getRequestRecipients } from '@/lib/requests/routing';
 import { EmployeeApprovalSummary } from '@/components/employee/EmployeeApprovalSummary';
-import type { CompOffRow, HolidayView, LeaveBalanceRow, NoticeView, PayrollRunView, ReimbursementView, RequestView, TicketView, MyAssetRow, MyItemRow, EmployeeDocumentRow, OnboardingTaskRow, OnLeaveTodayRow } from '@/lib/queries';
+import type { CompOffRow, HolidayView, LeaveBalanceRow, NoticeView, PayrollRunView, ReimbursementView, RequestView, TicketView, MyAssetRow, MyItemRow, EmployeeDocumentRow, OnboardingTaskRow, OnLeaveTodayRow } from '@/lib/server-queries';
 import type { DayCell, PayslipRow } from '@/types/domain';
 
 // Employee self-service dashboard. This is the default landing page for employees after login, and the hub for all their self-service needs. It shows a snapshot of their attendance, payslips, requests, tickets, policies, and other relevant information.

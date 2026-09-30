@@ -3,13 +3,13 @@
 // Staff expense review queue, using the company claim-sheet columns.
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
-import { inr, formatDate } from '@/lib/format';
+import { inr, formatDate } from '@/lib/display-formatting';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { usePrompt } from '@/components/ui/PromptDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { exportReimbursementsXlsx } from '@/lib/actions/export';
 import { reviewReimbursement, markReimbursementPaid, financeReviewReimbursement, getReceiptUrl } from '@/lib/actions/reimbursements';
-import type { ReimbursementView } from '@/lib/queries';
+import type { ReimbursementView } from '@/lib/server-queries';
 
 const purposeLabel: Record<ReimbursementView['purpose'], string> = {
   travel: 'Travel',

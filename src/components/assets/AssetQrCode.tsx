@@ -1,11 +1,13 @@
 import { QRCodeSVG } from 'qrcode.react';
-import { parseAssetLink } from '@/lib/asset-link';
+import { parseAssetLink } from '@/lib/asset-qr-link';
 
 function AssetQrCode({ url, name }: { url: string | null; name: string }) {
   const link = parseAssetLink(url);
   if (!link.ok || !link.url) {
     return (
-      <p className="text-muted">Add and save a destination link to generate this asset’s QR code.</p>
+      <p className="text-muted">
+        Add and save a destination link to generate this asset’s QR code.
+      </p>
     );
   }
 

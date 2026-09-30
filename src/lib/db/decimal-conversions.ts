@@ -1,7 +1,7 @@
 // Store money as Decimal128 and calculate in integer paise to avoid floating-point drift. Round at
 // the calculation boundary; keep values within Number.MAX_SAFE_INTEGER.
 import { Decimal128 } from 'mongodb';
-import { parseMoneyPaise } from '@/lib/money';
+import { parseMoneyPaise } from '@/lib/currency-conversion';
 
 type MoneyInput = Decimal128 | number | string | null | undefined;
 

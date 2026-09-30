@@ -4,9 +4,9 @@
 import { useActionState, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createAsset, updateAsset } from '@/lib/actions/assets';
-import { todayIST } from '@/lib/format';
-import { assetLinkMaxLength } from '@/lib/asset-link';
-import type { AssetRow } from '@/lib/queries';
+import { todayIST } from '@/lib/display-formatting';
+import { assetLinkMaxLength } from '@/lib/asset-qr-link';
+import type { AssetRow } from '@/lib/server-queries';
 
 interface State {
   ok?: boolean;

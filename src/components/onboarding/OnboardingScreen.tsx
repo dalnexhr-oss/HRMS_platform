@@ -4,12 +4,12 @@
 // authorization role; employees see read-only progress.
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { formatDate } from '@/lib/format';
+import { formatDate } from '@/lib/display-formatting';
 import { startOnboarding, setOnboardingTaskStatus, addOnboardingTask, deleteOnboardingTask } from '@/lib/actions/onboarding';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
-import type { OnboardingTaskRow, OnboardingTemplateRow, EmployeeOption } from '@/lib/queries';
+import type { OnboardingTaskRow, OnboardingTemplateRow, EmployeeOption } from '@/lib/server-queries';
 
 const roleLabel: Record<string, string> = {
   hr: 'HR',

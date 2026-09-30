@@ -6,8 +6,8 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchUserTabAccess, setUserTabAccess, resetUserTabAccess } from '@/lib/actions/access';
 import { navItems, groupOrder } from '@/lib/constants';
-import { canAccessTab, staticallyAllowed } from '@/lib/access';
-import type { TabAccess } from '@/lib/access';
+import { canAccessTab, staticallyAllowed } from '@/lib/portal-access';
+import type { TabAccess } from '@/lib/portal-access';
 import type { AppRole } from '@/types/database';
 
 interface AccessTarget {

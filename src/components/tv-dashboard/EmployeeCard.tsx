@@ -1,7 +1,7 @@
 // Use the shared attendance labels and status-pill colours on every employee card.
-import { presenceLabel } from '@/types/tv';
+import { presenceLabel } from '@/types/tv-dashboard';
 import { getAttendanceStatusDetails } from '@/lib/constants';
-import type { EmployeeData } from '@/types/tv';
+import type { EmployeeData } from '@/types/tv-dashboard';
 
 const timeFmt: Intl.DateTimeFormatOptions = {
   hour: '2-digit',

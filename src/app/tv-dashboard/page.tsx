@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
-import { getSession, isStaffRole } from '@/lib/auth';
-import { canAccessTab } from '@/lib/access';
-import { getMyTabAccess } from '@/lib/queries';
-import { readBoard } from '@/lib/tv';
+import { getSession, isStaffRole } from '@/lib/server-auth';
+import { canAccessTab } from '@/lib/portal-access';
+import { getMyTabAccess } from '@/lib/server-queries';
+import { readBoard } from '@/lib/tv-dashboard-data';
 import { EmployeeScreen } from '@/components/tv-dashboard/EmployeeScreen';
 
 export const dynamic = 'force-dynamic';

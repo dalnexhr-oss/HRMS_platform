@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { inr } from '@/lib/format';
+import { inr } from '@/lib/display-formatting';
 import { AddEmployeeDrawer } from './AddEmployeeDrawer';
 import { EmployeePicker } from './EmployeePicker';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -10,7 +10,7 @@ import { useNotifications } from '@/components/ui/Notifications';
 import { fetchEmployeeForEdit, deactivateEmployee, reactivateEmployee } from '@/lib/actions/employees';
 import { branchColorAt } from '@/lib/constants';
 import { deleteEmployee } from '@/lib/actions/employee-deletion';
-import type { EmployeeListRow, EmployeeEditRow, BranchRow } from '@/lib/queries';
+import type { EmployeeListRow, EmployeeEditRow, BranchRow } from '@/lib/server-queries';
 
 function EmployeesScreen({
   rows,

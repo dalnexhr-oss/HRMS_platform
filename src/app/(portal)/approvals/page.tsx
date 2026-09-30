@@ -1,7 +1,7 @@
 import './approvals.css';
-import { getRequests } from '@/lib/queries';
+import { getRequests } from '@/lib/server-queries';
 import { ApprovalsScreen } from '@/components/approvals/ApprovalsScreen';
-import { getSession } from '@/lib/auth';
+import { getSession } from '@/lib/server-auth';
 import { getRequestRecipients } from '@/lib/requests/routing';
 import { redirect } from 'next/navigation';
 

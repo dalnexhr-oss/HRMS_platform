@@ -4,8 +4,8 @@ import { useActionState, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createTicket } from '@/lib/actions/helpdesk';
 import { TicketChatDrawer } from '@/components/helpdesk/TicketChatDrawer';
-import { formatDate } from '@/lib/format';
-import type { TicketComment, TicketView } from '@/lib/queries';
+import { formatDate } from '@/lib/display-formatting';
+import type { TicketComment, TicketView } from '@/lib/server-queries';
 
 const statusLabel: Record<TicketView['status'], string> = {
   open: 'Open',

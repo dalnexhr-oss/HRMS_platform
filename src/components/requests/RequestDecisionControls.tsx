@@ -8,7 +8,7 @@ import { RecipientPicker } from './RecipientPicker';
 import { useState, useTransition } from 'react';
 import type { ActionResult } from '@/lib/actions/requests';
 import type { RequestActor } from '@/lib/requests/access';
-import type { RequestView } from '@/lib/queries';
+import type { RequestView } from '@/lib/server-queries';
 import type { RequestRecipient } from '@/types/requests';
 
 function RequestDecisionControls({

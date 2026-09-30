@@ -1,7 +1,7 @@
 'use client';
 
 // Shared document status labels and colors for the register, queue, and detail panel.
-import type { EmployeeDocumentRow } from '@/lib/queries';
+import type { EmployeeDocumentRow } from '@/lib/server-queries';
 
 const pillMeta: Record<string, { label: string; color: string }> = {
   verified: { label: 'Verified', color: 'var(--attendance-present)' },

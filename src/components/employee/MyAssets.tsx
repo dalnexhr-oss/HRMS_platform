@@ -1,6 +1,6 @@
 // Show the employee's current IT asset assignments. HR manages assignments.
-import { formatDate } from '@/lib/format';
-import type { MyAssetRow } from '@/lib/queries';
+import { formatDate } from '@/lib/display-formatting';
+import type { MyAssetRow } from '@/lib/server-queries';
 
 function MyAssets({ assets, id }: { assets: MyAssetRow[]; id?: string }) {
   return (

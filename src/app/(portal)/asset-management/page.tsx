@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth';
+import { getSession } from '@/lib/server-auth';
 import { AssetsScreen } from '@/components/assets/AssetsScreen';
-import { getAssets, getAssetSummary, getEmployeeOptions } from '@/lib/queries';
+import { getAssets, getAssetSummary, getEmployeeOptions } from '@/lib/server-queries';
 import type { AppRole } from '@/types/database';
 
 // Asset Management is accessible to super_admin/admin/HR .

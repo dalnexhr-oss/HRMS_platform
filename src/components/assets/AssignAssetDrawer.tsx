@@ -7,8 +7,8 @@ import { useRouter } from 'next/navigation';
 import { AssetQrEditor } from './AssetQrEditor';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
 import { assignAsset, unassignAsset, createAssetMaintenance, fetchAssetAssignments, fetchAssetMaintenance } from '@/lib/actions/assets';
-import { todayIST } from '@/lib/format';
-import type { AssetRow, EmployeeOption, AssetAssignmentRow, AssetMaintenanceRow } from '@/lib/queries';
+import { todayIST } from '@/lib/display-formatting';
+import type { AssetRow, EmployeeOption, AssetAssignmentRow, AssetMaintenanceRow } from '@/lib/server-queries';
 
 interface State {
   ok?: boolean;

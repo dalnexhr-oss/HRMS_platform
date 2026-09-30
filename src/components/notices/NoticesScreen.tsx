@@ -2,12 +2,12 @@
 
 import { useActionState, useState, useTransition } from 'react';
 import { openNoticePdf } from '@/components/notices/open-pdf';
-import { formatDate } from '@/lib/format';
+import { formatDate } from '@/lib/display-formatting';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { createNotice, updateNotice, deleteNotice, setNoticePublished } from '@/lib/actions/notices';
 import type { NotificationKind } from '@/components/ui/Notifications';
-import type { NoticeView } from '@/lib/queries';
+import type { NoticeView } from '@/lib/server-queries';
 
 const channelLabel: Record<NoticeView['channel'], string> = {
   app: 'App',

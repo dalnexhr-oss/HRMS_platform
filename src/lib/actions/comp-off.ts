@@ -5,14 +5,14 @@
 import { queryErrorCodes } from '@/lib/db/query-errors';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server-client';
-import { getSession } from '@/lib/auth';
-import { getWeekOffPolicy } from '@/lib/queries';
-import { isScheduledWeekOff } from '@/lib/week-off';
+import { getSession } from '@/lib/server-auth';
+import { getWeekOffPolicy } from '@/lib/server-queries';
+import { isScheduledWeekOff } from '@/lib/weekly-off-policy';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { toDecimal } from '@/lib/db/decimal-conversions';
-import { notifyEmployee } from '@/lib/notify';
+import { notifyEmployee } from '@/lib/notification-delivery';
 import { notifyRequestParticipants, prepareRequestRouting } from '@/lib/requests/routing';
-import { todayIST } from '@/lib/format';
+import { todayIST } from '@/lib/display-formatting';
 
 interface ActionResult {
   ok: boolean;

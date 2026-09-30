@@ -10,8 +10,8 @@ import { createClient } from '@/lib/db/server-client';
 import { db } from '@/lib/db/mongodb-connection';
 import { deleteObject } from '@/lib/db/gridfs-file-storage';
 import { wroteNothing } from '@/lib/actions/guards';
-import { notifyApprovers } from '@/lib/notify';
-import type { StorageBucket } from '@/lib/storage';
+import { notifyApprovers } from '@/lib/notification-delivery';
+import type { StorageBucket } from '@/lib/file-storage';
 import type { AppRole } from '@/types/database';
 
 /** Roles permitted to file documents for other employees and verify submissions. */

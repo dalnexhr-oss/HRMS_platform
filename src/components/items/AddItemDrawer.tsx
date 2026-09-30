@@ -4,7 +4,7 @@
 import { useActionState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createItem, updateItem } from '@/lib/actions/items';
-import type { ItemRow } from '@/lib/queries';
+import type { ItemRow } from '@/lib/server-queries';
 
 interface State {
   ok?: boolean;

@@ -7,8 +7,8 @@ import { usersCollection } from '@/lib/db/collection-registry';
 import { createClient } from '@/lib/db/server-client';
 import { requireRoles } from '@/lib/actions/guards';
 import { navItems } from '@/lib/constants';
-import { isConfigurableRole, staticallyAllowed } from '@/lib/access';
-import type { TabAccess } from '@/lib/access';
+import { isConfigurableRole, staticallyAllowed } from '@/lib/portal-access';
+import type { TabAccess } from '@/lib/portal-access';
 import type { AppRole } from '@/types/database';
 
 interface ActionResult {

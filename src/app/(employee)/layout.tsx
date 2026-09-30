@@ -1,12 +1,12 @@
 import './employee.css';
 import { redirect } from 'next/navigation';
-import { getSession, isStaffRole } from '@/lib/auth';
+import { getSession, isStaffRole } from '@/lib/server-auth';
 import { SignOutButton } from '@/components/auth/SignOutButton';
 import { NotificationBell } from '@/components/shell/NotificationBell';
 import { PunchToggle } from '@/components/employee/PunchToggle';
 import { ProfileMenu } from '@/components/shell/ProfileMenu';
 import { Brand } from '@/components/ui/Brand';
-import { getMyNotifications, getUnreadNotificationCount } from '@/lib/queries';
+import { getMyNotifications, getUnreadNotificationCount } from '@/lib/server-queries';
 import { ApprovalsShortcut } from '@/components/employee/ApprovalsShortcut';
 
 // Employee self-service shell

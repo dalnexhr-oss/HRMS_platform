@@ -8,7 +8,7 @@ import { useNotifications } from '@/components/ui/Notifications';
 import { useState, useTransition } from 'react';
 import { updateBranch, deleteBranch, updateBranchLocation } from '@/lib/actions/branches';
 import type { NotificationKind } from '@/components/ui/Notifications';
-import type { SettingView, BranchRow } from '@/lib/queries';
+import type { SettingView, BranchRow } from '@/lib/server-queries';
 
 function SettingsScreen({
   settings,

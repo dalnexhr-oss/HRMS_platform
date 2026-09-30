@@ -1,6 +1,6 @@
 import './employees.css';
 import { EmployeesScreen } from '@/components/employees/EmployeesScreen';
-import { getEmployees, getDepartments, getBranches } from '@/lib/queries';
+import { getEmployees, getDepartments, getBranches } from '@/lib/server-queries';
 
 async function EmployeesPage() {
   // Load branch options from the database so updateEmployee can resolve each selection.

@@ -2,9 +2,9 @@ import './dashboard.css';
 import { TodayBoard } from '@/components/today/TodayBoard';
 import { CompOffAdminCard } from '@/components/today/CompOffAdminCard';
 import { LiveRefresh } from '@/components/today/LiveRefresh';
-import { currentPeriodMonth, getActivityFeed, getCelebrationsToday, getCompOffAdmin, getPayrollRun, getPunchLogToday, getRegister, getSettings, getTodayBoard } from '@/lib/queries';
+import { currentPeriodMonth, getActivityFeed, getCelebrationsToday, getCompOffAdmin, getPayrollRun, getPunchLogToday, getRegister, getSettings, getTodayBoard } from '@/lib/server-queries';
 import type { Loaded } from '@/components/today/TodayBoard';
-import type { SettingView } from '@/lib/queries';
+import type { SettingView } from '@/lib/server-queries';
 import type { MarkWatch, RegisterEmployee } from '@/types/domain';
 import type { Metadata } from 'next';
 

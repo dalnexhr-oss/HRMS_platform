@@ -1,8 +1,8 @@
 'use client';
 
 import { useId, useState } from 'react';
-import { calculateSalary } from '@/lib/salary';
-import { formatPaise } from '@/lib/money';
+import { calculateSalary } from '@/lib/salary-calculation';
+import { formatPaise } from '@/lib/currency-conversion';
 
 interface SalaryValues {
   gross_monthly: number;

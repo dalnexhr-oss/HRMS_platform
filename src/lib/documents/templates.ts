@@ -1,7 +1,7 @@
 // HR letter templates use dates supplied by the caller and facts from stored records. Use ASCII Rs.
 // with two decimal places because the standard PDF fonts use WinAnsi encoding.
 // One escaper for every HTML email body in the app, next to sendEmail().
-import { escapeHtml } from '@/lib/email';
+import { escapeHtml } from '@/lib/email-delivery';
 // Legal entity name used across every generated document.
 import { company } from '@/lib/brand/company';
 import { logoPngBytes } from '@/lib/brand/logo';

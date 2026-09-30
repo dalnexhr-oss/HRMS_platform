@@ -3,7 +3,7 @@
 // Update the signed-in user's avatar.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server-client';
-import { getSession } from '@/lib/auth';
+import { getSession } from '@/lib/server-auth';
 import { requireDb, wroteNothing } from '@/lib/actions/guards';
 import { isAvatarPresetId } from '@/lib/avatar-presets';
 

@@ -1,6 +1,6 @@
 // Show inventory issued to the employee. HR manages issues and returns.
-import { formatDate } from '@/lib/format';
-import type { MyItemRow } from '@/lib/queries';
+import { formatDate } from '@/lib/display-formatting';
+import type { MyItemRow } from '@/lib/server-queries';
 
 function heldPill(returned: boolean): React.CSSProperties {
   return returned

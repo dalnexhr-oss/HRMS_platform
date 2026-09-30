@@ -1,6 +1,6 @@
 import { ReimbursementsScreen } from '@/components/reimbursements/ReimbursementsScreen';
-import { getReimbursements } from '@/lib/queries';
-import { getSession } from '@/lib/auth';
+import { getReimbursements } from '@/lib/server-queries';
+import { getSession } from '@/lib/server-auth';
 
 async function ReimbursementsPage() {
   const [claims, { profile }] = await Promise.all([getReimbursements(), getSession()]);

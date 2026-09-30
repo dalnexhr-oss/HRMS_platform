@@ -2,7 +2,7 @@
 
 // Server Actions for session authentication: sign in, sign out, and active session termination.
 import { redirect } from 'next/navigation';
-import { homeForRole } from '@/lib/auth';
+import { homeForRole } from '@/lib/server-auth';
 import { isAuthConfigured } from '@/lib/auth/jwt';
 import { verifyPassword } from '@/lib/auth/password';
 import { safeRedirectPath } from '@/lib/auth/redirect';

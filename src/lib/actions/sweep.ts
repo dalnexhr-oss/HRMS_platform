@@ -7,7 +7,7 @@
 // yesterday, whereas this action requires a staff session and defaults to today.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server-client';
-import { todayIST } from '@/lib/format';
+import { todayIST } from '@/lib/display-formatting';
 import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/guards';
 import { getAutoPunchOutMinutes, minutesToClock } from '@/lib/attendance-rules';
 import { closePunchDay } from '@/lib/punch-storage';

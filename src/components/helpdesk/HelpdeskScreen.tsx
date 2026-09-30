@@ -3,7 +3,7 @@
 import { useActionState, useState } from 'react';
 import { createTicket } from '@/lib/actions/helpdesk';
 import { TicketChatDrawer } from '@/components/helpdesk/TicketChatDrawer';
-import type { TicketComment, TicketView } from '@/lib/queries';
+import type { TicketComment, TicketView } from '@/lib/server-queries';
 
 type TicketStatus = TicketView['status'];
 

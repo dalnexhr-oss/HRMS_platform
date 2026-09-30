@@ -1,10 +1,10 @@
 import 'server-only';
-import { getSession } from '@/lib/auth';
+import { getSession } from '@/lib/server-auth';
 import { collections, usersCollection } from '@/lib/db/collection-registry';
 import { db } from '@/lib/db/mongodb-connection';
 import { scoped } from '@/lib/db/scoped-repository';
-import { notifyProfiles } from '@/lib/notify';
-import { isStaffRole } from '@/lib/roles';
+import { notifyProfiles } from '@/lib/notification-delivery';
+import { isStaffRole } from '@/lib/user-roles';
 import type { EmployeeDoc, RequestDoc, RequestRouteDoc } from '@/lib/db/collection-registry';
 import type { RequestPerson, RequestRecipient } from '@/types/requests';
 

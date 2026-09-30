@@ -4,17 +4,17 @@
 // so the employee retains access during clearance and settlement.
 import { queryErrorCodes } from '@/lib/db/query-errors';
 import { revalidatePath } from 'next/cache';
-import { todayIST } from '@/lib/format';
+import { todayIST } from '@/lib/display-formatting';
 import { toMoney } from '@/lib/db/decimal-conversions';
-import { notifyEmployee } from '@/lib/notify';
+import { notifyEmployee } from '@/lib/notification-delivery';
 import { createClient } from '@/lib/db/server-client';
 import { renderLetterPdf } from '@/lib/documents/letters';
 import { deactivateEmployee } from '@/lib/actions/employees';
-import { uploadFileService } from '@/lib/storage';
+import { uploadFileService } from '@/lib/file-storage';
 import { requireRoles, wroteNothing } from '@/lib/actions/guards';
-import { getClearanceItems as readClearanceItems, getExitInterview as readExitInterview, getKtItems as readKtItems } from '@/lib/queries';
+import { getClearanceItems as readClearanceItems, getExitInterview as readExitInterview, getKtItems as readKtItems } from '@/lib/server-queries';
 import { buildRelievingLetter, buildExperienceLetter, buildFullAndFinalStatement } from '@/lib/documents/templates';
-import type { ExitInterviewRow } from '@/lib/queries';
+import type { ExitInterviewRow } from '@/lib/server-queries';
 import type { AppRole } from '@/types/database';
 
 interface ActionResult {

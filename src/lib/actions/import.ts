@@ -4,8 +4,8 @@
 // failures to the caller.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server-client';
-import { getSession } from '@/lib/auth';
-import { isMongoConfigured, getEmployeeCodeMap } from '@/lib/queries';
+import { getSession } from '@/lib/server-auth';
+import { isMongoConfigured, getEmployeeCodeMap } from '@/lib/server-queries';
 import { autoCloseDay, getAutoPunchOutMinutes } from '@/lib/attendance-rules';
 import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/guards';
 import { parseRegisterWorkbook, codeForEmplId, isKnownStatus, minutesToClock } from '@/lib/excel/parse-monthly-register';

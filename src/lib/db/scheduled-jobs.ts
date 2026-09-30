@@ -11,13 +11,13 @@ import { provisionLeaveBalances, scheduled } from '@/lib/db/domain-rpc-handlers'
 import { autoPunchOutMinutesFrom } from '@/lib/attendance-rules';
 import { closePunchDay } from '@/lib/punch-storage';
 import { monthSealReason, periodMonthFor } from '@/lib/payroll-month';
-import { todayIST } from '@/lib/format';
+import { todayIST } from '@/lib/display-formatting';
 import { noticeRetentionDays } from '@/lib/constants';
-import { lastNightSweepNotice } from '@/lib/night-sweep';
+import { lastNightSweepNotice } from '@/lib/automatic-punch-out-notice';
 import { isMongoDuplicateKey } from '@/lib/db/query-errors';
 import type { BaseDoc } from '@/lib/db/collection-registry';
 import type { PayrollRunSeal } from '@/lib/payroll-month';
-import type { SweepClosure } from '@/lib/night-sweep';
+import type { SweepClosure } from '@/lib/automatic-punch-out-notice';
 
 function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`);

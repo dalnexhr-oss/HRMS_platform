@@ -4,7 +4,7 @@
 import 'server-only';
 import { collections } from '@/lib/db/collection-registry';
 import { scoped, scopedFor } from '@/lib/db/scoped-repository';
-import { todayIST } from '@/lib/format';
+import { todayIST } from '@/lib/display-formatting';
 import type { Scope } from '@/lib/db/access-scope';
 import type { Document } from 'mongodb';
 

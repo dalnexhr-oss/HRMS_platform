@@ -10,11 +10,11 @@ import { AccessDrawer } from '@/components/users/AccessDrawer';
 import { PunchAccessSelect, punchAccessHelp } from '@/components/users/PunchAccessSelect';
 import { UserActions } from '@/components/users/UserActions';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
-import { isConfigurableRole } from '@/lib/access';
-import { isEmployeeAreaRole } from '@/lib/roles';
+import { isConfigurableRole } from '@/lib/portal-access';
+import { isEmployeeAreaRole } from '@/lib/user-roles';
 import type { AccessTarget } from '@/components/users/AccessDrawer';
 import type { ManagedUser } from '@/lib/actions/users';
-import type { EmployeeOption } from '@/lib/queries';
+import type { EmployeeOption } from '@/lib/server-queries';
 import type { AppRole } from '@/types/database';
 import type { PunchAccess } from '@/types/punch';
 

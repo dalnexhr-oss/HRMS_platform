@@ -4,11 +4,11 @@
 // employee-documents bucket. Employees cannot delete submitted records.
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { formatDate } from '@/lib/format';
+import { formatDate } from '@/lib/display-formatting';
 import { getDocumentUrl } from '@/lib/actions/documents';
 import { documentCategories } from '@/lib/constants';
 import { useNotifications } from '@/components/ui/Notifications';
-import type { EmployeeDocumentRow } from '@/lib/queries';
+import type { EmployeeDocumentRow } from '@/lib/server-queries';
 
 // Match the server upload limit and reject oversized files before sending them.
 const maxBytes = 10 * 1024 * 1024;

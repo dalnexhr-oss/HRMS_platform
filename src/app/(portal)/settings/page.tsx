@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
-import { getSettings, getBranches } from '@/lib/queries';
-import { getSession } from '@/lib/auth';
+import { getSettings, getBranches } from '@/lib/server-queries';
+import { getSession } from '@/lib/server-auth';
 import { SettingsScreen } from '@/components/settings/SettingsScreen';
 import './settings.css';
 

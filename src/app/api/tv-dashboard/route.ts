@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getSession, isStaffRole } from '@/lib/auth';
-import { canAccessTab } from '@/lib/access';
-import { getMyTabAccess } from '@/lib/queries';
-import { readBoard } from '@/lib/tv';
+import { getSession, isStaffRole } from '@/lib/server-auth';
+import { canAccessTab } from '@/lib/portal-access';
+import { getMyTabAccess } from '@/lib/server-queries';
+import { readBoard } from '@/lib/tv-dashboard-data';
 
 // Require staff access and fetch fresh attendance data for every board request.
 export const dynamic = 'force-dynamic';

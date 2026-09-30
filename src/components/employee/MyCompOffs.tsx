@@ -4,10 +4,10 @@
 // used.
 import { useActionState, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { formatDate, todayIST } from '@/lib/format';
+import { formatDate, todayIST } from '@/lib/display-formatting';
 import { applyCompOff } from '@/lib/actions/comp-off';
 import { RequestRecipients } from '@/components/requests/RequestRecipients';
-import type { CompOffRow } from '@/lib/queries';
+import type { CompOffRow } from '@/lib/server-queries';
 import type { RequestRecipient } from '@/types/requests';
 
 const statusLabel: Record<CompOffRow['status'], string> = {

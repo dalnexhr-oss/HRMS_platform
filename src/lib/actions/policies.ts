@@ -3,9 +3,9 @@
 import { queryErrorCodes } from '@/lib/db/query-errors';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server-client';
-import { getSession } from '@/lib/auth';
+import { getSession } from '@/lib/server-auth';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/guards';
-import { notifyEveryone } from '@/lib/notify';
+import { notifyEveryone } from '@/lib/notification-delivery';
 
 /** Records an employee's acknowledgement of a company policy. */
 async function acknowledgePolicy(policyId: string) {

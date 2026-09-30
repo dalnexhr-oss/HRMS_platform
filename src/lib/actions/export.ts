@@ -1,12 +1,12 @@
 'use server';
 
 // Build staff exports on the server and return workbook bytes as base64 for browser download.
-import { getSession } from '@/lib/auth';
+import { getSession } from '@/lib/server-auth';
 import { buildLeaveSalaryView } from '@/lib/leave-salary-view';
-import { getPayslips, getPunchLogToday, getRegister, getReimbursements, currentPeriodMonth } from '@/lib/queries';
+import { getPayslips, getPunchLogToday, getRegister, getReimbursements, currentPeriodMonth } from '@/lib/server-queries';
 import { requireRoles, requireStaff } from '@/lib/actions/guards';
 import { attendanceTemplateWorkbook, leaveSalaryWorkbook, payrollWorkbook, punchLogWorkbook, registerWorkbook, registerImportTemplateWorkbook, reimbursementsWorkbook } from '@/lib/excel/export-workbooks';
-import { getStatutoryRows, buildPfEcr, buildEsicXlsx, buildPtXlsx } from '@/lib/statutory/statutory';
+import { getStatutoryRows, buildPfEcr, buildEsicXlsx, buildPtXlsx } from '@/lib/statutory/filing-exports';
 import type { AppRole } from '@/types/database';
 
 type ExportResult =

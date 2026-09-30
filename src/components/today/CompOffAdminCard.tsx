@@ -4,10 +4,10 @@
 // are retired regardless of that toggle.
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { formatDate } from '@/lib/format';
+import { formatDate } from '@/lib/display-formatting';
 import { setCompOffApplicability } from '@/lib/actions/comp-off';
 import { useNotifications } from '@/components/ui/Notifications';
-import type { CompOffAdminRow } from '@/lib/queries';
+import type { CompOffAdminRow } from '@/lib/server-queries';
 
 function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; error?: string }) {
   const router = useRouter();

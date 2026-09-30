@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { uploadEmployeeDocument, replaceEmployeeDocument } from '@/lib/actions/documents';
 import { documentCategories, documentCategoryLabel } from '@/lib/constants';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
-import type { EmployeeDocumentRow, EmployeeOption } from '@/lib/queries';
+import type { EmployeeDocumentRow, EmployeeOption } from '@/lib/server-queries';
 
 interface State {
   ok?: boolean;

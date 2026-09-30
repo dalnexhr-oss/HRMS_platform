@@ -4,7 +4,7 @@ import { useActionState, useRef, useState, useTransition } from 'react';
 import { previewImport, commitImport } from '@/lib/actions/import';
 import { exportRegisterImportTemplateXlsx } from '@/lib/actions/export';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
-import { monthLabelUTC, monthOptionsAround } from '@/lib/format';
+import { monthLabelUTC, monthOptionsAround } from '@/lib/display-formatting';
 import type { CommitResult, ImportPreview, PreviewResult } from '@/lib/actions/import';
 import type { AppRole } from '@/types/database';
 
@@ -294,8 +294,9 @@ function ImportScreen({
                     <span className="text-monospace">{preview.unmatched.join(', ')}</span>
                     <br />
                     <span className="text-muted" style={{ fontSize: 12 }}>
-                      Expected an employee code like <span className="text-monospace">DN001</span> for Empl.
-                      ID <span className="text-monospace">1</span>. Their rows will be skipped.
+                      Expected an employee code like <span className="text-monospace">DN001</span>{' '}
+                      for Empl. ID <span className="text-monospace">1</span>. Their rows will be
+                      skipped.
                     </span>
                   </p>
                 )}

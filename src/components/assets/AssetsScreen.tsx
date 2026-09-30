@@ -9,9 +9,9 @@ import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { TableColumnMenu, getDistinctColumnValues, sortTableRows, isWithinDateRange, isDateRangeActive } from '@/components/ui/TableColumnMenu';
 import { deleteAsset } from '@/lib/actions/assets';
-import { inr } from '@/lib/format';
+import { inr } from '@/lib/display-formatting';
 import type { SortDirection, ColumnDataType, DateRange } from '@/components/ui/TableColumnMenu';
-import type { AssetRow, EmployeeOption, AssetSummaryRow } from '@/lib/queries';
+import type { AssetRow, EmployeeOption, AssetSummaryRow } from '@/lib/server-queries';
 
 /** Combine column filters with AND; selected values within a column use OR. */
 type ColumnKey =

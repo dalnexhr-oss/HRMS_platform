@@ -6,7 +6,7 @@ import { collections } from '@/lib/db/collection-registry';
 import { scopedFor } from '@/lib/db/scoped-repository';
 import { registerRpc } from '@/lib/db/scoped-query-client';
 import { toDecimal } from '@/lib/db/decimal-conversions';
-import { todayIST } from '@/lib/format';
+import { todayIST } from '@/lib/display-formatting';
 import { currentScope, systemScope } from '@/lib/db/access-scope';
 import type { AppRole } from '@/types/database';
 import type { Scope } from '@/lib/db/access-scope';

@@ -3,7 +3,7 @@
 import './employee-picker.css';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import type { EmployeeOption } from '@/lib/queries';
+import type { EmployeeOption } from '@/lib/server-queries';
 
 interface EmployeePickerProps {
   employees: Array<EmployeeOption & { searchText?: string }>;

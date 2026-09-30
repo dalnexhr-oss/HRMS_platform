@@ -3,8 +3,8 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { acknowledgePolicy } from '@/lib/actions/policies';
-import { formatDate } from '@/lib/format';
-import type { PolicyView } from '@/lib/queries';
+import { formatDate } from '@/lib/display-formatting';
+import type { PolicyView } from '@/lib/server-queries';
 
 // Record company policy read receipts. Signing documents is handled separately by SignPanel.
 function PolicyList({ policies }: { policies: PolicyView[] }) {

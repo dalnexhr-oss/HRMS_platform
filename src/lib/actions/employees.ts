@@ -4,16 +4,16 @@
 import { queryErrorCodes } from '@/lib/db/query-errors';
 import { revalidatePath } from 'next/cache';
 import { usersCollection } from '@/lib/db/collection-registry';
-import { calculateSalary } from '@/lib/salary';
+import { calculateSalary } from '@/lib/salary-calculation';
 import { States } from '@/lib/constants';
-import { getEmployeeForEdit } from '@/lib/queries';
+import { getEmployeeForEdit } from '@/lib/server-queries';
 import { createClient, createServiceClient, isServiceRoleConfigured } from '@/lib/db/server-client';
 import { fromPaise as formatMoney } from '@/lib/db/decimal-conversions';
-import { sendEmail, isEmailConfigured } from '@/lib/email';
+import { sendEmail, isEmailConfigured } from '@/lib/email-delivery';
 import { requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { buildWelcomeEmail } from '@/lib/documents/templates';
 import { startOnboarding } from '@/lib/actions/onboarding';
-import type { EmployeeEditRow } from '@/lib/queries';
+import type { EmployeeEditRow } from '@/lib/server-queries';
 import type { Decimal128 } from 'mongodb';
 
 // Transient failures worth a second try; a missing account is not one.

@@ -2,12 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server-client';
-import { getSession } from '@/lib/auth';
-import { notifyEmployee } from '@/lib/notify';
-import { todayIST } from '@/lib/format';
+import { getSession } from '@/lib/server-auth';
+import { notifyEmployee } from '@/lib/notification-delivery';
+import { todayIST } from '@/lib/display-formatting';
 import { toMoney } from '@/lib/db/decimal-conversions';
-import { parseAssetLink } from '@/lib/asset-link';
-import { getAssetAssignments, getAssetMaintenance } from '@/lib/queries';
+import { parseAssetLink } from '@/lib/asset-qr-link';
+import { getAssetAssignments, getAssetMaintenance } from '@/lib/server-queries';
 import { requireRoles, wroteNothing } from './guards';
 import type { AppRole } from '@/types/database';
 

@@ -2,12 +2,12 @@
 
 import { usePathname } from 'next/navigation';
 import { pageHeader } from '@/lib/constants';
-import { slugFromPathname } from '@/lib/access';
+import { slugFromPathname } from '@/lib/portal-access';
 import { SignOutButton } from '@/components/auth/SignOutButton';
 import { NotificationBell } from '@/components/shell/NotificationBell';
 import { ProfileMenu } from '@/components/shell/ProfileMenu';
 import type { TopbarStats } from '@/lib/constants';
-import type { NotificationRow } from '@/lib/queries';
+import type { NotificationRow } from '@/lib/server-queries';
 
 function Topbar({
   // Let ProfileMenu use its neutral fallback when the profile has no name.

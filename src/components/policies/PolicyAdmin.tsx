@@ -1,7 +1,7 @@
 'use client';
 
 import { useNotifications } from '@/components/ui/Notifications';
-import { formatDate } from '@/lib/format';
+import { formatDate } from '@/lib/display-formatting';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useActionState, useState, useTransition } from 'react';
 import { createPolicy, updatePolicy, deletePolicy, setPolicyPublished } from '@/lib/actions/policies';
@@ -137,7 +137,11 @@ function PolicyItem({
             className="status-badge"
             style={
               headcount > 0 && ackCount >= headcount
-                ? { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' }
+                ? {
+                    borderColor: 'var(--attendance-present-border)',
+                    color: 'var(--attendance-present)',
+                    background: 'var(--attendance-present-background)',
+                  }
                 : { borderColor: 'var(--border-strong)', color: 'var(--attendance-half-day)' }
             }
             title="Employees who have marked this policy as read"
@@ -149,7 +153,11 @@ function PolicyItem({
           className="status-badge"
           style={
             policy.published
-              ? { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' }
+              ? {
+                  borderColor: 'var(--attendance-present-border)',
+                  color: 'var(--attendance-present)',
+                  background: 'var(--attendance-present-background)',
+                }
               : { borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }
           }
         >

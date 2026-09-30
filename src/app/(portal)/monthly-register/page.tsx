@@ -1,14 +1,14 @@
 import './register.css';
 import Link from 'next/link';
 import { AttendanceStatusBadge } from '@/components/ui/AttendanceStatusBadge';
-import { getSession } from '@/lib/auth';
+import { getSession } from '@/lib/server-auth';
 import { RegisterGrid } from '@/components/register/RegisterGrid';
 import { registerLegend } from '@/lib/constants';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { exportRegisterXlsx } from '@/lib/actions/export';
-import { weekOffDaysInMonth } from '@/lib/week-off';
-import { minutesToHHMM, formatDate } from '@/lib/format';
-import { currentPeriodMonth, getBranches, getCompOffsForMonth, getLeaveRegisterMismatches, getPayrollRun, getRegister, getWeekOffPolicy } from '@/lib/queries';
+import { weekOffDaysInMonth } from '@/lib/weekly-off-policy';
+import { minutesToHHMM, formatDate } from '@/lib/display-formatting';
+import { currentPeriodMonth, getBranches, getCompOffsForMonth, getLeaveRegisterMismatches, getPayrollRun, getRegister, getWeekOffPolicy } from '@/lib/server-queries';
 import type { Route } from 'next';
 import type { AppRole } from '@/types/database';
 import type { RegisterEmployee } from '@/types/domain';

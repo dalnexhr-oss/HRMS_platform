@@ -1,4 +1,4 @@
-import { isStaffRole } from '@/lib/roles';
+import { isStaffRole } from '@/lib/user-roles';
 import type { AppRole } from '@/types/database';
 import type { RequestRouting } from '@/types/requests';
 

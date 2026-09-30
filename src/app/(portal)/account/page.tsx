@@ -1,4 +1,4 @@
-import { getSession } from '@/lib/auth';
+import { getSession } from '@/lib/server-auth';
 import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm';
 import { AvatarMenu } from '@/components/shell/AvatarMenu';
 

@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { formatDate } from '@/lib/format';
+import { formatDate } from '@/lib/display-formatting';
 import { markNoticeRead } from '@/lib/actions/notices';
 import { openNoticePdf } from '@/components/notices/open-pdf';
-import type { NoticeView } from '@/lib/queries';
+import type { NoticeView } from '@/lib/server-queries';
 
 // Show employee notices and their read receipts. canMark controls receipt actions; the server
 // checks permission when saving.

@@ -5,7 +5,7 @@
 // audited adjustments.
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { inr } from '@/lib/format';
+import { inr } from '@/lib/display-formatting';
 import { computeLeaveSalary, effectiveFigures } from '@/lib/leave-salary';
 import { saveLeaveSalaryWorking, finalizeLeaveSalary, reopenLeaveSalary, markLeaveSalaryPaid } from '@/lib/actions/leave-salary';
 import { provisionLeaveYear, adjustLeaveBalance } from '@/lib/actions/leave';
@@ -14,7 +14,7 @@ import { useNotifications } from '@/components/ui/Notifications';
 import type { LeaveSalaryResult } from '@/lib/leave-salary';
 import type { ReactNode } from 'react';
 import type { LeaveSalaryViewRow } from '@/lib/leave-salary-view';
-import type { LeaveBalanceAdminRow } from '@/lib/queries';
+import type { LeaveBalanceAdminRow } from '@/lib/server-queries';
 
 const monthNames = [
   'January',

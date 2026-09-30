@@ -4,12 +4,12 @@
 // employee's login.
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { inr, formatDate } from '@/lib/format';
+import { inr, formatDate } from '@/lib/display-formatting';
 import { initiateExit, refreshExitClearance, setClearanceItemCleared, setExitStage, prepareFullAndFinal, setFullAndFinalStatus, generateExitDocument, fetchClearanceItems, ensureExitInterview, saveExitInterview, fetchExitInterview, setKtStatus, deleteKtItem, fetchKtItems } from '@/lib/actions/exit';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
-import type { ExitCaseRow, ClearanceItemRow, EmployeeOption, ExitInterviewRow, KtItemRow } from '@/lib/queries';
+import type { ExitCaseRow, ClearanceItemRow, EmployeeOption, ExitInterviewRow, KtItemRow } from '@/lib/server-queries';
 
 const stageOrder: Array<ExitCaseRow['stage']> = [
   'initiated',

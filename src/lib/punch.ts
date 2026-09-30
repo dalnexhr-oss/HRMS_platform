@@ -3,17 +3,17 @@
 //
 // Location classifies punches for HR review. Use the employee's branch geofence, falling back to
 // company settings when the branch has no location.
-import { getSession } from '@/lib/auth';
+import { getSession } from '@/lib/server-auth';
 import { createClient } from '@/lib/db/server-client';
 import { toCoordinate } from '@/lib/db/decimal-conversions';
 import { withTransaction } from '@/lib/db/mongodb-connection';
 import { lockEmployeePunches, punchWriteReason } from '@/lib/punch-storage';
-import { lastNightSweepNotice, previousWorkDate } from '@/lib/night-sweep';
+import { lastNightSweepNotice, previousWorkDate } from '@/lib/automatic-punch-out-notice';
 import { allowsWebPunch, readPunchAccess, webPunchDisabled } from '@/lib/punch-access';
 import { localParts, dayFloorUtc, punchInstant, punchedAt, sumWorkedMinutes, summarizePunches } from '@/lib/punch-day';
 import type { DayEvent } from '@/lib/punch-day';
 import type { QueryClient } from '@/lib/db/scoped-query-client';
-import type { SweepClosure } from '@/lib/night-sweep';
+import type { SweepClosure } from '@/lib/automatic-punch-out-notice';
 import type { PunchKind, PunchCoords, PunchStatus, PunchRecord, PunchResult } from '@/types/punch';
 
 // Fallback radius when an office point is set without one. A branch's own
