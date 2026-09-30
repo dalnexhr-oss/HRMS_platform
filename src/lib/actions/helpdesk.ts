@@ -5,7 +5,7 @@ import { createClient } from '@/lib/db/server-client';
 import { getSession, isStaffRole } from '@/lib/server-auth';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { notifyApprovers, notifyEmployee } from '@/lib/notification-delivery';
-import type { TicketComment } from '@/lib/server-queries';
+import type { TicketComment } from '@/lib/queries/helpdesk';
 
 type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 

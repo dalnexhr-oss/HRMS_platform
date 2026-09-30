@@ -7,7 +7,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/db/server-client';
 import { getSession } from '@/lib/server-auth';
-import { getHolidays } from '@/lib/server-queries';
+import { getHolidays } from '@/lib/queries/holidays';
 import { buildIcs } from '@/lib/calendar-export';
 import type { CalendarEvent } from '@/lib/calendar-export';
 

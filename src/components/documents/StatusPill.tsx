@@ -1,7 +1,7 @@
 'use client';
 
 // Shared document status labels and colors for the register, queue, and detail panel.
-import type { EmployeeDocumentRow } from '@/lib/server-queries';
+import type { EmployeeDocumentRow } from '@/lib/documents/document-summary';
 
 const pillMeta: Record<string, { label: string; color: string }> = {
   verified: { label: 'Verified', color: 'var(--attendance-present)' },
@@ -13,7 +13,10 @@ const pillMeta: Record<string, { label: string; color: string }> = {
 function StatusPill({ row }: { row: EmployeeDocumentRow }) {
   const meta = pillMeta[row.status] ?? pillMeta.awaiting;
   return (
-    <span className="status-badge document-status" style={{ borderColor: meta.color, color: meta.color }}>
+    <span
+      className="status-badge document-status"
+      style={{ borderColor: meta.color, color: meta.color }}
+    >
       {meta.label}
       {row.source === 'issued' && row.status === 'verified' ? ' · issued' : ''}
     </span>

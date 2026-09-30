@@ -10,7 +10,7 @@ import { RequestRoutingSummary } from '@/components/requests/RequestRoutingSumma
 import { RequestInbox } from '@/components/requests/RequestInbox';
 import type { RequestActor } from '@/lib/requests/access';
 import type { RequestRecipient } from '@/types/requests';
-import type { RequestView } from '@/lib/server-queries';
+import type { RequestView } from '@/lib/queries/requests';
 
 // Map a request type to the register stamp it corresponds to.
 const typeStamp: Record<RequestView['type'], string> = {
@@ -131,7 +131,11 @@ function RequestCard({
         <span style={{ flex: 1 }} />
         <span
           className="status-badge"
-          style={{ borderColor: 'var(--attendance-late-border)', color: 'var(--attendance-late)', background: 'var(--attendance-late-background)' }}
+          style={{
+            borderColor: 'var(--attendance-late-border)',
+            color: 'var(--attendance-late)',
+            background: 'var(--attendance-late-background)',
+          }}
         >
           Pending
         </span>

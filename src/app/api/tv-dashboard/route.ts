@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession, isStaffRole } from '@/lib/server-auth';
 import { canAccessTab } from '@/lib/portal-access';
-import { getMyTabAccess } from '@/lib/server-queries';
+import { getMyTabAccess } from '@/lib/queries/settings';
 import { readBoard } from '@/lib/tv-dashboard-data';
 
 // Require staff access and fetch fresh attendance data for every board request.

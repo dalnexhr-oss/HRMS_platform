@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { createAsset, updateAsset } from '@/lib/actions/assets';
 import { todayIST } from '@/lib/display-formatting';
 import { assetLinkMaxLength } from '@/lib/asset-qr-link';
-import type { AssetRow } from '@/lib/server-queries';
+import type { AssetRow } from '@/lib/queries/assets';
 
 interface State {
   ok?: boolean;

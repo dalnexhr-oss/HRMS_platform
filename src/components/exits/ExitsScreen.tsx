@@ -9,7 +9,8 @@ import { initiateExit, refreshExitClearance, setClearanceItemCleared, setExitSta
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
-import type { ExitCaseRow, ClearanceItemRow, EmployeeOption, ExitInterviewRow, KtItemRow } from '@/lib/server-queries';
+import type { ExitCaseRow, ClearanceItemRow, ExitInterviewRow, KtItemRow } from '@/lib/queries/exits';
+import type { EmployeeOption } from '@/lib/queries/employees';
 
 const stageOrder: Array<ExitCaseRow['stage']> = [
   'initiated',
@@ -88,7 +89,8 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
       <div className="card">
         <div className="card-header">
           <h3>
-            Active exit case{cases.length === 1 ? '' : 's'} <span style={{ color:'var(--brand)' }}>({cases.length})</span>
+            Active exit case{cases.length === 1 ? '' : 's'}{' '}
+            <span style={{ color: 'var(--brand)' }}>({cases.length})</span>
           </h3>
         </div>
         {cases.length === 0 ? (
@@ -258,7 +260,11 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
                               Complete
                             </button>
                           )}
-                          <DocMenu caseId={c.id} disabled={pending} showNotification={showNotification} />
+                          <DocMenu
+                            caseId={c.id}
+                            disabled={pending}
+                            showNotification={showNotification}
+                          />
                         </div>
                       </td>
                     </tr>
@@ -309,7 +315,11 @@ function DocMenu({
       <button className="button quiet" disabled={disabled || busy} onClick={() => gen('relieving')}>
         {busy ? '…' : '📄 Relieving'}
       </button>
-      <button className="button quiet" disabled={disabled || busy} onClick={() => gen('experience')}>
+      <button
+        className="button quiet"
+        disabled={disabled || busy}
+        onClick={() => gen('experience')}
+      >
         📄 Experience
       </button>
       <button className="button quiet" disabled={disabled || busy} onClick={() => gen('fnf')}>
@@ -414,7 +424,11 @@ function ClearanceDrawer({
           )}
 
           <InterviewSection exitCaseId={exitCase.id} showNotification={showNotification} />
-          <KtSection exitCaseId={exitCase.id} employees={employees} showNotification={showNotification} />
+          <KtSection
+            exitCaseId={exitCase.id}
+            employees={employees}
+            showNotification={showNotification}
+          />
         </div>
         <div className="drawer-footer">
           <button type="button" className="button" onClick={onClose}>

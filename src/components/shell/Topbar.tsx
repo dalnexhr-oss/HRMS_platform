@@ -7,7 +7,7 @@ import { SignOutButton } from '@/components/auth/SignOutButton';
 import { NotificationBell } from '@/components/shell/NotificationBell';
 import { ProfileMenu } from '@/components/shell/ProfileMenu';
 import type { TopbarStats } from '@/lib/portal-navigation';
-import type { NotificationRow } from '@/lib/server-queries';
+import type { NotificationRow } from '@/lib/queries/notifications';
 
 function Topbar({
   // Let ProfileMenu use its neutral fallback when the profile has no name.
@@ -45,7 +45,10 @@ function Topbar({
       <div className="flex-spacer" />
       {/* Driven by the night_sweep_time setting — hidden when it is unset rather than advertising a sweep time the job does not actually use. */}
       {stats?.nightSweep && (
-        <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
+        <span
+          className="status-badge"
+          style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}
+        >
           <span className="status-dot" style={{ background: 'var(--status-success)' }} />
           Night sweep armed · {stats.nightSweep}
         </span>

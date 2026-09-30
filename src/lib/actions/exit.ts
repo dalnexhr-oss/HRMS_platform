@@ -12,9 +12,9 @@ import { renderLetterPdf } from '@/lib/documents/letters';
 import { deactivateEmployee } from '@/lib/actions/employees';
 import { uploadFileService } from '@/lib/file-storage';
 import { requireRoles, wroteNothing } from '@/lib/actions/guards';
-import { getClearanceItems as readClearanceItems, getExitInterview as readExitInterview, getKtItems as readKtItems } from '@/lib/server-queries';
+import { getClearanceItems as readClearanceItems, getExitInterview as readExitInterview, getKtItems as readKtItems } from '@/lib/queries/exits';
 import { buildRelievingLetter, buildExperienceLetter, buildFullAndFinalStatement } from '@/lib/documents/templates';
-import type { ExitInterviewRow } from '@/lib/server-queries';
+import type { ExitInterviewRow } from '@/lib/queries/exits';
 import type { AppRole } from '@/types/database';
 
 interface ActionResult {
@@ -180,7 +180,7 @@ async function seedClearance(
   return null;
 }
 
-/** Client-callable clearance-checklist fetch (server-queries.ts is server-only). */
+/** Client-callable clearance-checklist fetch (queries/exits.ts is server-only). */
 async function fetchClearanceItems(exitCaseId: string) {
   return readClearanceItems(exitCaseId);
 }

@@ -8,7 +8,8 @@ import { useNotifications } from '@/components/ui/Notifications';
 import { useState, useTransition } from 'react';
 import { updateBranch, deleteBranch, updateBranchLocation } from '@/lib/actions/branches';
 import type { NotificationKind } from '@/components/ui/Notifications';
-import type { SettingView, BranchRow } from '@/lib/server-queries';
+import type { SettingView } from '@/lib/queries/settings';
+import type { BranchRow } from '@/lib/queries/branches';
 
 function SettingsScreen({
   settings,
@@ -37,7 +38,12 @@ function SettingsScreen({
           {branches.length === 0 && <p className="empty-state">No branches yet.</p>}
           <div className="settings-branches">
             {branches.map((b) => (
-              <BranchManageRow key={b.id} branch={b} showNotification={showNotification} confirm={confirm} />
+              <BranchManageRow
+                key={b.id}
+                branch={b}
+                showNotification={showNotification}
+                confirm={confirm}
+              />
             ))}
           </div>
         </div>
@@ -188,7 +194,11 @@ function BranchManageRow({
         </select>
       </div>
       <div className="settings-branch-actions">
-        <button type="submit" className="button primary" disabled={pending || !dirty || !name.trim()}>
+        <button
+          type="submit"
+          className="button primary"
+          disabled={pending || !dirty || !name.trim()}
+        >
           {pending ? 'Working…' : 'Save'}
         </button>
         <button
@@ -271,7 +281,11 @@ function BranchLocationRow({
           className="status-badge"
           style={
             located
-              ? { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' }
+              ? {
+                  borderColor: 'var(--attendance-present-border)',
+                  color: 'var(--attendance-present)',
+                  background: 'var(--attendance-present-background)',
+                }
               : { borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }
           }
         >

@@ -1,5 +1,5 @@
 import './approvals.css';
-import { getRequests } from '@/lib/server-queries';
+import { getRequests } from '@/lib/queries/requests';
 import { ApprovalsScreen } from '@/components/approvals/ApprovalsScreen';
 import { getSession } from '@/lib/server-auth';
 import { getRequestRecipients } from '@/lib/requests/routing';

@@ -8,7 +8,8 @@ import { AssetQrEditor } from './AssetQrEditor';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
 import { assignAsset, unassignAsset, createAssetMaintenance, fetchAssetAssignments, fetchAssetMaintenance } from '@/lib/actions/assets';
 import { todayIST } from '@/lib/display-formatting';
-import type { AssetRow, EmployeeOption, AssetAssignmentRow, AssetMaintenanceRow } from '@/lib/server-queries';
+import type { AssetRow, AssetAssignmentRow, AssetMaintenanceRow } from '@/lib/queries/assets';
+import type { EmployeeOption } from '@/lib/queries/employees';
 
 interface State {
   ok?: boolean;
@@ -89,10 +90,10 @@ function AssignAssetDrawer({
     }
   }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [maintenanceResult, submitMaintenance, isMaintenancePending] = useActionState<State, FormData>(
-    async (_prev, formData) => createAssetMaintenance(formData),
-    {},
-  );
+  const [maintenanceResult, submitMaintenance, isMaintenancePending] = useActionState<
+    State,
+    FormData
+  >(async (_prev, formData) => createAssetMaintenance(formData), {});
 
   useEffect(() => {
     if (maintenanceResult.ok && asset) {
@@ -218,7 +219,11 @@ function AssignAssetDrawer({
 
               {/* maintenance */}
               <div className="section-heading">Maintenance</div>
-              <form key={maintenanceFormKey} action={submitMaintenance} style={{ display: 'contents' }}>
+              <form
+                key={maintenanceFormKey}
+                action={submitMaintenance}
+                style={{ display: 'contents' }}
+              >
                 <input type="hidden" name="asset_id" value={asset.id} />
                 <div className="form-row">
                   <div className="form-field">
@@ -242,7 +247,12 @@ function AssignAssetDrawer({
                 <div className="form-row">
                   <div className="form-field">
                     <label>Cost (₹)</label>
-                    <input name="cost" className="text-monospace" inputMode="decimal" placeholder="0" />
+                    <input
+                      name="cost"
+                      className="text-monospace"
+                      inputMode="decimal"
+                      placeholder="0"
+                    />
                   </div>
                   <div className="form-field">
                     <label>Next due</label>
@@ -264,7 +274,9 @@ function AssignAssetDrawer({
                 <div className="form-field">
                   <input name="notes" placeholder="Notes" />
                 </div>
-                {maintenanceResult.error && <div className="error-message">{maintenanceResult.error}</div>}
+                {maintenanceResult.error && (
+                  <div className="error-message">{maintenanceResult.error}</div>
+                )}
                 <div style={{ margin: '4px 0 8px' }}>
                   <button type="submit" className="button quiet" disabled={isMaintenancePending}>
                     {isMaintenancePending ? 'Saving…' : 'Add maintenance record'}
@@ -287,7 +299,9 @@ function AssignAssetDrawer({
                         <tr key={m.id}>
                           <td className="text-monospace">{m.maint_date}</td>
                           <td>{m.maint_type ?? '—'}</td>
-                          <td className="text-right text-monospace">{m.cost != null ? `₹${m.cost}` : '—'}</td>
+                          <td className="text-right text-monospace">
+                            {m.cost != null ? `₹${m.cost}` : '—'}
+                          </td>
                           <td className="text-monospace">{m.next_due ?? '—'}</td>
                         </tr>
                       ))}

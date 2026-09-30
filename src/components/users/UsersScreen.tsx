@@ -14,7 +14,7 @@ import { isConfigurableRole } from '@/lib/portal-access';
 import { isEmployeeAreaRole } from '@/lib/user-roles';
 import type { AccessTarget } from '@/components/users/AccessDrawer';
 import type { ManagedUser } from '@/lib/actions/users';
-import type { EmployeeOption } from '@/lib/server-queries';
+import type { EmployeeOption } from '@/lib/queries/employees';
 import type { AppRole } from '@/types/database';
 import type { PunchAccess } from '@/types/punch';
 
@@ -173,7 +173,10 @@ function UsersScreen({
       {promptDialog}
       {notificationContainer}
       <div className="records-toolbar users-toolbar">
-        <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
+        <span
+          className="status-badge"
+          style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}
+        >
           {users.length} account{users.length === 1 ? '' : 's'}
         </span>
         <button className="button primary" onClick={() => setDrawer(true)}>
@@ -236,7 +239,9 @@ function UsersScreen({
                   {u.employeeCode ? (
                     <>
                       <span>{u.employeeName}</span>
-                      <span className="text-monospace text-muted users-employee-code">{u.employeeCode}</span>
+                      <span className="text-monospace text-muted users-employee-code">
+                        {u.employeeCode}
+                      </span>
                     </>
                   ) : (
                     <span className="text-muted">—</span>

@@ -14,7 +14,7 @@ import { useNotifications } from '@/components/ui/Notifications';
 import type { LeaveSalaryResult } from '@/lib/leave-salary';
 import type { ReactNode } from 'react';
 import type { LeaveSalaryViewRow } from '@/lib/leave-salary-view';
-import type { LeaveBalanceAdminRow } from '@/lib/server-queries';
+import type { LeaveBalanceAdminRow } from '@/lib/queries/leave-salary';
 
 const monthNames = [
   'January',
@@ -328,7 +328,16 @@ function WorkingRow({
         calendarDaysP1Override: p1Override,
         calendarDaysP2Override: p2Override,
       }),
-    [year, salaryBefore, salaryAfter, incrementMonth, row.monthlyPresence, valid, p1Override, p2Override],
+    [
+      year,
+      salaryBefore,
+      salaryAfter,
+      incrementMonth,
+      row.monthlyPresence,
+      valid,
+      p1Override,
+      p2Override,
+    ],
   );
   const fig = locked ? effectiveFigures(row.working, row.live) : effectiveFigures(null, live);
 

@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/server-auth';
 import { DocumentsScreen } from '@/components/documents/DocumentsScreen';
-import { getDocumentRegister, getEmployeeOptions, documentStats } from '@/lib/server-queries';
+import { getDocumentRegister } from '@/lib/queries/documents';
+import { getEmployeeOptions } from '@/lib/queries/employees';
+import { documentStats } from '@/lib/documents/document-summary';
 import './documents.css';
 import type { AppRole } from '@/types/database';
 

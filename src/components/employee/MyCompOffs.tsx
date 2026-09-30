@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { formatDate, todayIST } from '@/lib/display-formatting';
 import { applyCompOff } from '@/lib/actions/comp-off';
 import { RequestRecipients } from '@/components/requests/RequestRecipients';
-import type { CompOffRow } from '@/lib/server-queries';
+import type { CompOffRow } from '@/lib/queries/compensatory-off';
 import type { RequestRecipient } from '@/types/requests';
 
 const statusLabel: Record<CompOffRow['status'], string> = {
@@ -24,10 +24,18 @@ function pillStyle(c: CompOffRow): React.CSSProperties {
     return { borderColor: 'var(--border-strong)', color: 'var(--text-muted)' };
   }
   if (c.status === 'available') {
-    return { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' };
+    return {
+      borderColor: 'var(--attendance-present-border)',
+      color: 'var(--attendance-present)',
+      background: 'var(--attendance-present-background)',
+    };
   }
   if (c.status === 'applied') {
-    return { borderColor: 'var(--attendance-late-border)', color: 'var(--attendance-late)', background: 'var(--attendance-late-background)' };
+    return {
+      borderColor: 'var(--attendance-late-border)',
+      color: 'var(--attendance-late)',
+      background: 'var(--attendance-late-background)',
+    };
   }
   return { borderColor: 'var(--border-strong)', color: 'var(--text-muted)' };
 }

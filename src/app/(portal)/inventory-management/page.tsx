@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/server-auth';
 import { ItemsScreen } from '@/components/items/ItemsScreen';
-import { getItems, getEmployeeOptions } from '@/lib/server-queries';
+import { getItems } from '@/lib/queries/items';
+import { getEmployeeOptions } from '@/lib/queries/employees';
 import type { AppRole } from '@/types/database';
 
 // Match the item actions and navigation role gate.

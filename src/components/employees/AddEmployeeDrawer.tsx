@@ -7,7 +7,8 @@ import { useRouter } from 'next/navigation';
 import { createEmployee, updateEmployee } from '@/lib/actions/employees';
 import { States } from '@/lib/indian-states';
 import { SalaryFields } from './SalaryFields';
-import type { EmployeeEditRow, BranchRow } from '@/lib/server-queries';
+import type { EmployeeEditRow } from '@/lib/queries/employees';
+import type { BranchRow } from '@/lib/queries/branches';
 
 function AddEmployeeDrawer({
   open,
@@ -306,7 +307,9 @@ function BranchPicker({
 }) {
   // No branches at all (first run) → jump straight to the add-new fields, since
   // there is nothing to choose between.
-  const [selectedBranch, setSelectedBranch] = useState(branchDefault || (options.length === 0 ? newBranch : ''));
+  const [selectedBranch, setSelectedBranch] = useState(
+    branchDefault || (options.length === 0 ? newBranch : ''),
+  );
   const adding = selectedBranch === newBranch;
 
   return (
@@ -314,7 +317,12 @@ function BranchPicker({
       <div className="form-row">
         <div className="form-field">
           <label>Branch</label>
-          <select name="branch" value={selectedBranch} onChange={(e) => setSelectedBranch(e.target.value)} required>
+          <select
+            name="branch"
+            value={selectedBranch}
+            onChange={(e) => setSelectedBranch(e.target.value)}
+            required
+          >
             <option value="" disabled>
               Select a branch…
             </option>

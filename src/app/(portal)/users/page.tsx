@@ -2,7 +2,7 @@ import './users.css';
 import { redirect } from 'next/navigation';
 import { UsersScreen } from '@/components/users/UsersScreen';
 import { listUsers } from '@/lib/actions/users';
-import { getEmployeeOptions } from '@/lib/server-queries';
+import { getEmployeeOptions } from '@/lib/queries/employees';
 import { getSession } from '@/lib/server-auth';
 import type { AppRole } from '@/types/database';
 

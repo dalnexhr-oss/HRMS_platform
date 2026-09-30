@@ -9,7 +9,8 @@ import { startOnboarding, setOnboardingTaskStatus, addOnboardingTask, deleteOnbo
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
-import type { OnboardingTaskRow, OnboardingTemplateRow, EmployeeOption } from '@/lib/server-queries';
+import type { OnboardingTaskRow, OnboardingTemplateRow } from '@/lib/queries/onboarding';
+import type { EmployeeOption } from '@/lib/queries/employees';
 
 const roleLabel: Record<string, string> = {
   hr: 'HR',
@@ -20,8 +21,16 @@ const roleLabel: Record<string, string> = {
 };
 
 const statusStyle: Record<string, React.CSSProperties> = {
-  pending: { borderColor: 'var(--attendance-late-border)', color: 'var(--attendance-late)', background: 'var(--attendance-late-background)' },
-  done: { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' },
+  pending: {
+    borderColor: 'var(--attendance-late-border)',
+    color: 'var(--attendance-late)',
+    background: 'var(--attendance-late-background)',
+  },
+  done: {
+    borderColor: 'var(--attendance-present-border)',
+    color: 'var(--attendance-present)',
+    background: 'var(--attendance-present-background)',
+  },
   blocked: { borderColor: 'var(--border-strong)', color: 'var(--attendance-half-day)' },
 };
 
@@ -174,7 +183,9 @@ function OnboardingScreen({
                             </span>
                           </td>
                           <td>{t.title}</td>
-                          <td className="text-monospace">{t.dueDate ? formatDate(t.dueDate) : '—'}</td>
+                          <td className="text-monospace">
+                            {t.dueDate ? formatDate(t.dueDate) : '—'}
+                          </td>
                           <td>
                             <span className="status-badge" style={statusStyle[t.status]}>
                               {t.status}

@@ -3,11 +3,11 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server-client';
 import { getSession } from '@/lib/server-auth';
-import { getItemAssignments } from '@/lib/server-queries';
+import { getItemAssignments } from '@/lib/queries/items';
 import { notifyEmployee } from '@/lib/notification-delivery';
 import { requireRoles, wroteNothing } from './guards';
 import { todayIST } from '@/lib/display-formatting';
-import type { ItemAssignmentRow } from '@/lib/server-queries';
+import type { ItemAssignmentRow } from '@/lib/queries/items';
 import type { AppRole } from '@/types/database';
 
 // Item Management is super-admin/admin/HR — same gate as assets and user admin.

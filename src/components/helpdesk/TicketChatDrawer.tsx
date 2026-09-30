@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AvatarInner } from '@/components/ui/Avatar';
 import { addTicketComment, setTicketStatus } from '@/lib/actions/helpdesk';
-import type { TicketComment, TicketView } from '@/lib/server-queries';
+import type { TicketComment, TicketView } from '@/lib/queries/helpdesk';
 
 type ChatTicket = Pick<TicketView, 'id' | 'subject' | 'status' | 'employeeName' | 'employeeCode'>;
 type TicketStatus = TicketView['status'];
@@ -162,7 +162,10 @@ function TicketChatDrawer({
   return (
     <>
       <div className={`dialog-backdrop${open ? ' is-active' : ''}`} onClick={onClose} />
-      <aside className={`drawer chat-drawer${open ? ' is-active' : ''}`} aria-label="Ticket conversation">
+      <aside
+        className={`drawer chat-drawer${open ? ' is-active' : ''}`}
+        aria-label="Ticket conversation"
+      >
         {ticket && (
           <>
             <div className="drawer-header">

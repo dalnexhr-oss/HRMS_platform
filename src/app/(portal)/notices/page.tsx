@@ -1,5 +1,6 @@
 import { NoticesScreen } from '@/components/notices/NoticesScreen';
-import { getNotices, getBranches } from '@/lib/server-queries';
+import { getNotices } from '@/lib/queries/notices';
+import { getBranches } from '@/lib/queries/branches';
 
 async function NoticesPage() {
   // Notice cleanup runs in the scheduler and createNotice, so this GET has no write side effects.

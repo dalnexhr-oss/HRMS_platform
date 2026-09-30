@@ -8,7 +8,8 @@ import { todayIST } from '@/lib/display-formatting';
 import Link from 'next/link';
 import { RequestRecipients } from '@/components/requests/RequestRecipients';
 import { RequestRoutingSummary } from '@/components/requests/RequestRoutingSummary';
-import type { LeaveBalanceRow, RequestView } from '@/lib/server-queries';
+import type { LeaveBalanceRow } from '@/lib/queries/leave';
+import type { RequestView } from '@/lib/queries/requests';
 import type { RequestType } from '@/types/database';
 import type { RequestRecipient } from '@/types/requests';
 
@@ -50,7 +51,11 @@ function statusPillStyle(status: RequestView['status']): React.CSSProperties {
     return { borderColor: 'var(--border-strong)', color: 'var(--attendance-late)' };
   }
   if (status === 'approved') {
-    return { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' };
+    return {
+      borderColor: 'var(--attendance-present-border)',
+      color: 'var(--attendance-present)',
+      background: 'var(--attendance-present-background)',
+    };
   }
   if (status === 'rejected') {
     return { borderColor: 'var(--border-strong)', color: 'var(--attendance-half-day)' };
@@ -136,7 +141,9 @@ function ApplyLeave({
                   >
                     {b.type}
                   </div>
-                  <div style={{ font: '600 18px var(--font-monospace)', color: 'var(--brand-deep)' }}>
+                  <div
+                    style={{ font: '600 18px var(--font-monospace)', color: 'var(--brand-deep)' }}
+                  >
                     {b.balance}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -236,7 +243,12 @@ function RequestItem({ request }: { request: RequestView }) {
       {request.reviewRemark && (request.status === 'approved' || request.status === 'rejected') && (
         <p
           className="entry-body"
-          style={{ color: request.status === 'rejected' ? 'var(--attendance-half-day)' : 'var(--attendance-present)' }}
+          style={{
+            color:
+              request.status === 'rejected'
+                ? 'var(--attendance-half-day)'
+                : 'var(--attendance-present)',
+          }}
         >
           <b>{request.status === 'approved' ? 'Approved' : 'Rejected'} with note:</b>{' '}
           {request.reviewRemark}

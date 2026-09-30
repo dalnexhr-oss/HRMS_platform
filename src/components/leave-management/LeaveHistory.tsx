@@ -3,7 +3,7 @@
 // Leave request history. Decisions happen on /approvals; revalidation keeps this list in sync.
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import type { RequestView } from '@/lib/server-queries';
+import type { RequestView } from '@/lib/queries/requests';
 
 const statusTabs = ['all', 'pending', 'approved', 'rejected', 'cancelled'] as const;
 type StatusTab = (typeof statusTabs)[number];

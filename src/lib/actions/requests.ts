@@ -3,7 +3,9 @@
 import { queryErrorCodes } from '@/lib/db/query-errors';
 import { revalidatePath } from 'next/cache';
 import { createClient, createServiceClient } from '@/lib/db/server-client';
-import { isMongoConfigured, getWeekOffPolicy, getHolidays } from '@/lib/server-queries';
+import { isMongoConfigured } from '@/lib/db/mongodb-connection';
+import { getWeekOffPolicy } from '@/lib/queries/settings';
+import { getHolidays } from '@/lib/queries/holidays';
 import { countLeaveDays, isScheduledWeekOff } from '@/lib/weekly-off-policy';
 import { getSession } from '@/lib/server-auth';
 import { requireStaff } from '@/lib/actions/guards';

@@ -12,7 +12,7 @@ import { usePrompt } from '@/components/ui/PromptDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { openDocument } from './open-document';
 import { StatusPill } from './StatusPill';
-import type { EmployeeDocumentRow } from '@/lib/server-queries';
+import type { EmployeeDocumentRow } from '@/lib/documents/document-summary';
 
 // All versions of one document, current first.
 interface DocumentChain {
@@ -178,7 +178,10 @@ function EmployeeDocumentsPanel({
               + Upload for {employee ? employee.name.split(' ')[0] : 'employee'}
             </button>
             <span style={{ flex: 1 }} />
-            <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
+            <span
+              className="status-badge"
+              style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}
+            >
               {chains.length} document{chains.length === 1 ? '' : 's'}
             </span>
           </div>
@@ -241,7 +244,9 @@ function EmployeeDocumentsPanel({
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <button
                         className="button quiet"
-                        onClick={() => openDocument(current.id, (m) => showNotification(m, 'error'))}
+                        onClick={() =>
+                          openDocument(current.id, (m) => showNotification(m, 'error'))
+                        }
                       >
                         📎 Open
                       </button>
@@ -326,7 +331,9 @@ function EmployeeDocumentsPanel({
                             <span style={{ flex: 1 }} />
                             <button
                               className="button quiet"
-                              onClick={() => openDocument(h.id, (m) => showNotification(m, 'error'))}
+                              onClick={() =>
+                                openDocument(h.id, (m) => showNotification(m, 'error'))
+                              }
                             >
                               Open
                             </button>

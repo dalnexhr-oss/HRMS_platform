@@ -7,7 +7,8 @@ import { useRouter } from 'next/navigation';
 import { uploadEmployeeDocument, replaceEmployeeDocument } from '@/lib/actions/documents';
 import { documentCategories, documentCategoryLabel } from '@/lib/document-categories';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
-import type { EmployeeDocumentRow, EmployeeOption } from '@/lib/server-queries';
+import type { EmployeeDocumentRow } from '@/lib/documents/document-summary';
+import type { EmployeeOption } from '@/lib/queries/employees';
 
 interface State {
   ok?: boolean;
@@ -79,7 +80,8 @@ function UploadDocumentDrawer({
                 <div className="form-field">
                   <label>Employee</label>
                   <div style={{ fontSize: 13, padding: '4px 0' }}>
-                    {replacing.name} <span className="text-monospace text-muted">{replacing.code}</span>
+                    {replacing.name}{' '}
+                    <span className="text-monospace text-muted">{replacing.code}</span>
                   </div>
                 </div>
                 <div className="form-field">

@@ -1,7 +1,7 @@
 import { getSession } from '@/lib/server-auth';
 import { formatDate } from '@/lib/display-formatting';
 import { redirect } from 'next/navigation';
-import { getAttendanceAudit } from '@/lib/server-queries';
+import { getAttendanceAudit } from '@/lib/queries/attendance';
 import { icons } from '@/components/Icons';
 import './audit.css';
 import type { AppRole } from '@/types/database';
@@ -42,9 +42,10 @@ async function AuditPage() {
       <div className="card audit-card">
         <div className="card-header">
           <h3 className="audit-title">
-          <span aria-hidden="true" style={{ marginRight: '0.5em' }}>{icons.recent}</span>
+            <span aria-hidden="true" style={{ marginRight: '0.5em' }}>
+              {icons.recent}
+            </span>
             {entries.length} recent event{entries.length === 1 ? '' : 's'}
-          
           </h3>
         </div>
         {loadError ? (
@@ -58,7 +59,12 @@ async function AuditPage() {
             </p>
           </div>
         ) : (
-          <div className="audit-scroll" role="region" aria-label="Attendance audit log" tabIndex={0}>
+          <div
+            className="audit-scroll"
+            role="region"
+            aria-label="Attendance audit log"
+            tabIndex={0}
+          >
             <table className="audit-table sticky-table-header">
               <colgroup>
                 <col className="audit-column-when" />
@@ -79,13 +85,14 @@ async function AuditPage() {
               <tbody>
                 {entries.map((e) => (
                   <tr key={e.id}>
-                    <td className="text-monospace text-muted">
-                      {stampTime(e.occurredAt)}
-                    </td>
+                    <td className="text-monospace text-muted">{stampTime(e.occurredAt)}</td>
                     <td>
                       <span
                         className="status-badge"
-                        style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}
+                        style={{
+                          borderColor: 'var(--border-strong)',
+                          color: 'var(--text-secondary)',
+                        }}
                       >
                         {eventLabel[e.eventType] ?? e.eventType}
                       </span>

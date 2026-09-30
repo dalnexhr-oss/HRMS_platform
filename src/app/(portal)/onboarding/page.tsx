@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/server-auth';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
-import { getOnboardingBoard, getOnboardingTemplates, getEmployeeOptions } from '@/lib/server-queries';
+import { getOnboardingBoard, getOnboardingTemplates } from '@/lib/queries/onboarding';
+import { getEmployeeOptions } from '@/lib/queries/employees';
 import type { AppRole } from '@/types/database';
 
 // Match the onboarding actions and collection policies.

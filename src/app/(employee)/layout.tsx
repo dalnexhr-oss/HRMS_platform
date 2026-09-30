@@ -6,7 +6,7 @@ import { NotificationBell } from '@/components/shell/NotificationBell';
 import { PunchToggle } from '@/components/employee/PunchToggle';
 import { ProfileMenu } from '@/components/shell/ProfileMenu';
 import { Brand } from '@/components/ui/Brand';
-import { getMyNotifications, getUnreadNotificationCount } from '@/lib/server-queries';
+import { getMyNotifications, getUnreadNotificationCount } from '@/lib/queries/notifications';
 import { ApprovalsShortcut } from '@/components/employee/ApprovalsShortcut';
 
 // Employee self-service shell

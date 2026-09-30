@@ -9,7 +9,8 @@ import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
 import { todayIST } from '@/lib/display-formatting';
-import type { ItemRow, EmployeeOption, ItemAssignmentRow } from '@/lib/server-queries';
+import type { ItemRow, ItemAssignmentRow } from '@/lib/queries/items';
+import type { EmployeeOption } from '@/lib/queries/employees';
 
 interface State {
   ok?: boolean;

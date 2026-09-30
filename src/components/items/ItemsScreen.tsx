@@ -10,7 +10,8 @@ import { useNotifications } from '@/components/ui/Notifications';
 import { TableColumnMenu, getDistinctColumnValues, sortTableRows } from '@/components/ui/TableColumnMenu';
 import { deleteItem } from '@/lib/actions/items';
 import type { SortDirection, ColumnDataType } from '@/components/ui/TableColumnMenu';
-import type { ItemRow, EmployeeOption } from '@/lib/server-queries';
+import type { ItemRow } from '@/lib/queries/items';
+import type { EmployeeOption } from '@/lib/queries/employees';
 
 // Header-menu columns in display order. Use an em dash for missing values so they can be filtered;
 // quantity columns compare numerically.
@@ -27,7 +28,12 @@ type ColumnKey =
   | 'status'
   | 'returnable';
 
-const columns: Array<{ key: ColumnKey; label: string; get: (i: ItemRow) => string; kind?: ColumnDataType }> = [
+const columns: Array<{
+  key: ColumnKey;
+  label: string;
+  get: (i: ItemRow) => string;
+  kind?: ColumnDataType;
+}> = [
   { key: 'code', label: 'Material / Tool ID', get: (i) => i.item_code ?? '—' },
   { key: 'name', label: 'Name', get: (i) => i.item_name || '—' },
   { key: 'category', label: 'Category', get: (i) => i.category ?? '—' },
@@ -161,7 +167,10 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
+        <span
+          className="status-badge"
+          style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}
+        >
           {items.length} item{items.length === 1 ? '' : 's'} · materials &amp; tools
         </span>
         <span style={{ flex: 1 }} />

@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/display-formatting';
 import { setCompOffApplicability } from '@/lib/actions/comp-off';
 import { useNotifications } from '@/components/ui/Notifications';
-import type { CompOffAdminRow } from '@/lib/server-queries';
+import type { CompOffAdminRow } from '@/lib/queries/compensatory-off';
 
 function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; error?: string }) {
   const router = useRouter();
@@ -81,7 +81,9 @@ function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; error?: st
                   <span
                     className="status-badge"
                     style={{
-                      borderColor: balance ? 'var(--attendance-present-border)' : 'var(--border-strong)',
+                      borderColor: balance
+                        ? 'var(--attendance-present-border)'
+                        : 'var(--border-strong)',
                       color: balance ? 'var(--attendance-present)' : 'var(--text-muted)',
                       background: balance ? 'var(--attendance-present-background)' : undefined,
                     }}
@@ -100,7 +102,9 @@ function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; error?: st
                         gap: 6,
                         borderColor: 'var(--border-strong)',
                         color:
-                          c.status === 'available' && c.isApplicable ? undefined : 'var(--text-muted)',
+                          c.status === 'available' && c.isApplicable
+                            ? undefined
+                            : 'var(--text-muted)',
                       }}
                     >
                       {formatDate(c.earnedDate)}

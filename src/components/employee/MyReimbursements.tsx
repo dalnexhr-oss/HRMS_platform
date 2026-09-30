@@ -9,7 +9,7 @@ import { createReimbursement, updateReimbursement, deleteReimbursement, uploadRe
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import type { NotificationKind } from '@/components/ui/Notifications';
-import type { ReimbursementView } from '@/lib/server-queries';
+import type { ReimbursementView } from '@/lib/queries/reimbursements';
 import type { ReimbursementPurpose } from '@/types/database';
 
 const purposeLabel: Record<ReimbursementPurpose, string> = {
@@ -30,10 +30,18 @@ const statusLabel: Record<ReimbursementView['status'], string> = {
 
 function statusPillStyle(status: ReimbursementView['status']): React.CSSProperties {
   if (status === 'pending' || status === 'finance_review') {
-    return { borderColor: 'var(--attendance-late-border)', color: 'var(--attendance-late)', background: 'var(--attendance-late-background)' };
+    return {
+      borderColor: 'var(--attendance-late-border)',
+      color: 'var(--attendance-late)',
+      background: 'var(--attendance-late-background)',
+    };
   }
   if (status === 'approved') {
-    return { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' };
+    return {
+      borderColor: 'var(--attendance-present-border)',
+      color: 'var(--attendance-present)',
+      background: 'var(--attendance-present-background)',
+    };
   }
   if (status === 'rejected') {
     return { borderColor: 'var(--border-strong)', color: 'var(--attendance-half-day)' };
@@ -138,7 +146,13 @@ function MyReimbursements({
                           </div>
                         )}
                         {c.status === 'rejected' && c.reviewRemark && (
-                          <div style={{ fontSize: 11, color: 'var(--attendance-half-day)', marginTop: 2 }}>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: 'var(--attendance-half-day)',
+                              marginTop: 2,
+                            }}
+                          >
                             <b>Rejected:</b> {c.reviewRemark}
                           </div>
                         )}

@@ -6,7 +6,7 @@ import { queryErrorCodes } from '@/lib/db/query-errors';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server-client';
 import { getSession } from '@/lib/server-auth';
-import { getReimbursementRate, getReimbursementEvents } from '@/lib/server-queries';
+import { getReimbursementRate, getReimbursementEvents } from '@/lib/queries/reimbursements';
 import { uploadFile, signedUrl, resolveUploadType } from '@/lib/file-storage';
 import { requireDb, requireRoles, requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { toDecimal, toMoney } from '@/lib/db/decimal-conversions';
@@ -823,7 +823,7 @@ async function getReceiptUrl(
   return signed.ok ? { ok: true, url: signed.url } : { ok: false, error: signed.error };
 }
 
-// Client-callable timeline fetch for a claim (server-queries.ts is server-only).
+// Client-callable timeline fetch for a claim (queries/reimbursements.ts is server-only).
 async function fetchClaimEvents(claimId: string) {
   return getReimbursementEvents(claimId);
 }

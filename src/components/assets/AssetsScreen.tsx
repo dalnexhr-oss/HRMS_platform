@@ -11,7 +11,8 @@ import { TableColumnMenu, getDistinctColumnValues, sortTableRows, isWithinDateRa
 import { deleteAsset } from '@/lib/actions/assets';
 import { inr } from '@/lib/display-formatting';
 import type { SortDirection, ColumnDataType, DateRange } from '@/components/ui/TableColumnMenu';
-import type { AssetRow, EmployeeOption, AssetSummaryRow } from '@/lib/server-queries';
+import type { AssetRow, AssetSummaryRow } from '@/lib/queries/assets';
+import type { EmployeeOption } from '@/lib/queries/employees';
 
 /** Combine column filters with AND; selected values within a column use OR. */
 type ColumnKey =
@@ -28,7 +29,12 @@ type ColumnKey =
   | 'ram'
   | 'storage';
 
-const columns: Array<{ key: ColumnKey; label: string; kind?: ColumnDataType; get: (a: AssetRow) => string }> = [
+const columns: Array<{
+  key: ColumnKey;
+  label: string;
+  kind?: ColumnDataType;
+  get: (a: AssetRow) => string;
+}> = [
   { key: 'purchased', label: 'Purchased on', kind: 'date', get: (a) => a.purchase_date ?? '—' },
   {
     key: 'cost',
@@ -183,7 +189,10 @@ function AssetsScreen({
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
+        <span
+          className="status-badge"
+          style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}
+        >
           {assets.length} asset{assets.length === 1 ? '' : 's'}
         </span>
         <span style={{ flex: 1 }} />
@@ -207,7 +216,10 @@ function AssetsScreen({
                 {s.warranty_expiring > 0 && (
                   <>
                     {' '}
-                    · <span style={{ color: 'var(--attendance-late)' }}>{s.warranty_expiring} warranty≤30d</span>
+                    ·{' '}
+                    <span style={{ color: 'var(--attendance-late)' }}>
+                      {s.warranty_expiring} warranty≤30d
+                    </span>
                   </>
                 )}
               </div>
@@ -258,7 +270,10 @@ function AssetsScreen({
                     {a.asset_category ? (
                       <span
                         className="status-badge"
-                        style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}
+                        style={{
+                          borderColor: 'var(--border-strong)',
+                          color: 'var(--text-secondary)',
+                        }}
                       >
                         {a.asset_category}
                       </span>

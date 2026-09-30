@@ -1,6 +1,6 @@
 // Show the employee's current IT asset assignments. HR manages assignments.
 import { formatDate } from '@/lib/display-formatting';
-import type { MyAssetRow } from '@/lib/server-queries';
+import type { MyAssetRow } from '@/lib/queries/assets';
 
 function MyAssets({ assets, id }: { assets: MyAssetRow[]; id?: string }) {
   return (
@@ -35,7 +35,9 @@ function MyAssets({ assets, id }: { assets: MyAssetRow[]; id?: string }) {
                     <td>{a.brand ?? '—'}</td>
                     <td className="text-monospace">{a.serial_no ?? '—'}</td>
                     <td>{a.model_no ?? '—'}</td>
-                    <td className="text-monospace">{a.assigned_date ? formatDate(a.assigned_date) : '—'}</td>
+                    <td className="text-monospace">
+                      {a.assigned_date ? formatDate(a.assigned_date) : '—'}
+                    </td>
                   </tr>
                 ))}
               </tbody>

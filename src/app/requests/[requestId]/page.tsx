@@ -2,7 +2,7 @@ import './request.css';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { getSession, homeForRole, isStaffRole } from '@/lib/server-auth';
-import { getRequest } from '@/lib/server-queries';
+import { getRequest } from '@/lib/queries/requests';
 import { getRequestRecipients } from '@/lib/requests/routing';
 import { canReviewRequest } from '@/lib/requests/access';
 import { RequestRoutingSummary } from '@/components/requests/RequestRoutingSummary';

@@ -2,7 +2,24 @@ import Link from 'next/link';
 import { getSession } from '@/lib/server-auth';
 import { todayIST, inr } from '@/lib/display-formatting';
 import { AvatarMenu } from '@/components/shell/AvatarMenu';
-import { currentPeriodMonth, getEmployeeOverview, getEmployeePolicies, getLeaveBalances, getMyAttendance, getMyPayslips, getMyRequests, getRequests, getMyTickets, getTicketComments, getMyCompOffs, getMyReimbursements, getReimbursementRate, getMyAssets, getMyItems, getEmployeeDocuments, getMyOnboardingTasks, getPayrollRun, getHolidays, getNotices, getOnLeaveToday, getReadNoticeIds, getWeekOffPolicy, isMongoConfigured } from '@/lib/server-queries';
+import { currentPeriodMonth } from '@/lib/business-dates';
+import { getEmployeeOverview } from '@/lib/queries/employees';
+import { getEmployeePolicies } from '@/lib/queries/policies';
+import { getLeaveBalances, getOnLeaveToday } from '@/lib/queries/leave';
+import { getMyAttendance } from '@/lib/queries/attendance';
+import { getMyPayslips, getPayrollRun } from '@/lib/queries/payroll';
+import { getMyRequests, getRequests } from '@/lib/queries/requests';
+import { getMyTickets, getTicketComments } from '@/lib/queries/helpdesk';
+import { getMyCompOffs } from '@/lib/queries/compensatory-off';
+import { getMyReimbursements, getReimbursementRate } from '@/lib/queries/reimbursements';
+import { getMyAssets } from '@/lib/queries/assets';
+import { getMyItems } from '@/lib/queries/items';
+import { getEmployeeDocuments } from '@/lib/queries/documents';
+import { getMyOnboardingTasks } from '@/lib/queries/onboarding';
+import { getHolidays } from '@/lib/queries/holidays';
+import { getNotices, getReadNoticeIds } from '@/lib/queries/notices';
+import { getWeekOffPolicy } from '@/lib/queries/settings';
+import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { PolicyList } from '@/components/policies/PolicyList';
 import { EmployeeNotices } from '@/components/employee/EmployeeNotices';
 import { EmployeeHolidays } from '@/components/employee/EmployeeHolidays';
@@ -19,7 +36,18 @@ import { MyOnboarding } from '@/components/employee/MyOnboarding';
 import { Punch } from '@/components/employee/Punch';
 import { getRequestRecipients } from '@/lib/requests/routing';
 import { EmployeeApprovalSummary } from '@/components/employee/EmployeeApprovalSummary';
-import type { CompOffRow, HolidayView, LeaveBalanceRow, NoticeView, PayrollRunView, ReimbursementView, RequestView, TicketView, MyAssetRow, MyItemRow, EmployeeDocumentRow, OnboardingTaskRow, OnLeaveTodayRow } from '@/lib/server-queries';
+import type { CompOffRow } from '@/lib/queries/compensatory-off';
+import type { HolidayView } from '@/lib/queries/holidays';
+import type { LeaveBalanceRow, OnLeaveTodayRow } from '@/lib/queries/leave';
+import type { NoticeView } from '@/lib/queries/notices';
+import type { PayrollRunView } from '@/lib/queries/payroll';
+import type { ReimbursementView } from '@/lib/queries/reimbursements';
+import type { RequestView } from '@/lib/queries/requests';
+import type { TicketView } from '@/lib/queries/helpdesk';
+import type { MyAssetRow } from '@/lib/queries/assets';
+import type { MyItemRow } from '@/lib/queries/items';
+import type { EmployeeDocumentRow } from '@/lib/documents/document-summary';
+import type { OnboardingTaskRow } from '@/lib/queries/onboarding';
 import type { DayCell, PayslipRow } from '@/types/domain';
 
 // Employee self-service dashboard. This is the default landing page for employees after login, and the hub for all their self-service needs. It shows a snapshot of their attendance, payslips, requests, tickets, policies, and other relevant information.
@@ -148,7 +176,10 @@ async function MePage() {
             <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Hours worked</span> -{' '}
             {monthName(periodMonth)}
           </div>
-          <div className="metric-value text-monospace" style={{ fontSize: 26, paddingTop: 4, paddingBottom: 6 }}>
+          <div
+            className="metric-value text-monospace"
+            style={{ fontSize: 26, paddingTop: 4, paddingBottom: 6 }}
+          >
             {overview.workedHours}
           </div>
           <div className="hours-note">
@@ -171,7 +202,10 @@ async function MePage() {
             style={{
               fontSize: 26,
               paddingTop: 8,
-              color: overview.pendingMinutes > 0 ? 'var(--attendance-late)' : 'var(--attendance-present)',
+              color:
+                overview.pendingMinutes > 0
+                  ? 'var(--attendance-late)'
+                  : 'var(--attendance-present)',
             }}
           >
             {overview.pendingHours}
@@ -186,7 +220,12 @@ async function MePage() {
           <div className="metric-label">
             <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Comp offs remaining</span>
           </div>
-          <div className="metric-value" style={{ color: compOffBalance > 0 ? 'var(--attendance-present)' : 'var(--text-muted)' }}>
+          <div
+            className="metric-value"
+            style={{
+              color: compOffBalance > 0 ? 'var(--attendance-present)' : 'var(--text-muted)',
+            }}
+          >
             {compOffBalance}
           </div>
           <div className="metric-note">
@@ -200,7 +239,10 @@ async function MePage() {
             <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Net pay</span> -{' '}
             {monthName(periodMonth)}
           </div>
-          <div className="metric-value" style={{ fontSize: 26, paddingTop: 8, color: 'var(--brand-deep)' }}>
+          <div
+            className="metric-value"
+            style={{ fontSize: 26, paddingTop: 8, color: 'var(--brand-deep)' }}
+          >
             {overview.netPay != null ? inr(overview.netPay) : '—'}
           </div>
           <div className="metric-note">
@@ -211,7 +253,10 @@ async function MePage() {
           <div className="metric-label">
             <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Policies to read</span>
           </div>
-          <div className="metric-value" style={{ color: unread ? 'var(--attendance-half-day)' : 'var(--attendance-present)' }}>
+          <div
+            className="metric-value"
+            style={{ color: unread ? 'var(--attendance-half-day)' : 'var(--attendance-present)' }}
+          >
             {unread}
           </div>
           <div className="metric-note">{policies.length} published in total</div>
@@ -220,7 +265,12 @@ async function MePage() {
           <div className="metric-label">
             <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Requests pending</span>
           </div>
-          <div className="metric-value" style={{ color: pendingRequests ? 'var(--attendance-late)' : 'var(--attendance-present)' }}>
+          <div
+            className="metric-value"
+            style={{
+              color: pendingRequests ? 'var(--attendance-late)' : 'var(--attendance-present)',
+            }}
+          >
             {pendingRequests}
           </div>
           <div className="metric-note">{requests.length} filed in total</div>
@@ -229,7 +279,10 @@ async function MePage() {
           <div className="metric-label">
             <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Opened tickets</span>
           </div>
-          <div className="metric-value" style={{ color: openTickets ? 'var(--attendance-late)' : 'var(--attendance-present)' }}>
+          <div
+            className="metric-value"
+            style={{ color: openTickets ? 'var(--attendance-late)' : 'var(--attendance-present)' }}
+          >
             {openTickets}
           </div>
           <div className="metric-note">{tickets.length} raised in total</div>

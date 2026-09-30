@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { employeeApprovals } from '@/lib/requests/employee-approvals';
-import type { RequestView } from '@/lib/server-queries';
+import type { RequestView } from '@/lib/queries/requests';
 import type { RequestActor } from '@/lib/requests/access';
 
 function EmployeeApprovalSummary({
@@ -20,7 +20,9 @@ function EmployeeApprovalSummary({
         </Link>
       </div>
       <div className="card-body">
-        <p className="text-muted">Review leave requests sent to you and keep track of your decisions.</p>
+        <p className="text-muted">
+          Review leave requests sent to you and keep track of your decisions.
+        </p>
         <div className="employee-approval-counts">
           <Link href="/employee/approvals?view=pending">
             <b>{pending.length}</b> awaiting your approval

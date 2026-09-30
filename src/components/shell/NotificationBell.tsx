@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { markNotificationRead, markAllNotificationsRead } from '@/lib/actions/notifications';
 import { safeRedirectPath } from '@/lib/auth/redirect';
 import type { Route } from 'next';
-import type { NotificationRow } from '@/lib/server-queries';
+import type { NotificationRow } from '@/lib/queries/notifications';
 
 const kindIcon: Record<string, string> = {
   notice: '📣',

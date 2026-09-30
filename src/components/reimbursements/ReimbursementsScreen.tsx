@@ -9,7 +9,7 @@ import { usePrompt } from '@/components/ui/PromptDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { exportReimbursementsXlsx } from '@/lib/actions/export';
 import { reviewReimbursement, markReimbursementPaid, financeReviewReimbursement, getReceiptUrl } from '@/lib/actions/reimbursements';
-import type { ReimbursementView } from '@/lib/server-queries';
+import type { ReimbursementView } from '@/lib/queries/reimbursements';
 
 const purposeLabel: Record<ReimbursementView['purpose'], string> = {
   travel: 'Travel',
@@ -27,10 +27,18 @@ const statusLabel: Record<ReimbursementView['status'], string> = {
 
 function statusPillStyle(status: ReimbursementView['status']): React.CSSProperties {
   if (status === 'pending' || status === 'finance_review') {
-    return { borderColor: 'var(--attendance-late-border)', color: 'var(--attendance-late)', background: 'var(--attendance-late-background)' };
+    return {
+      borderColor: 'var(--attendance-late-border)',
+      color: 'var(--attendance-late)',
+      background: 'var(--attendance-late-background)',
+    };
   }
   if (status === 'approved') {
-    return { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' };
+    return {
+      borderColor: 'var(--attendance-present-border)',
+      color: 'var(--attendance-present)',
+      background: 'var(--attendance-present-background)',
+    };
   }
   if (status === 'rejected') {
     return { borderColor: 'var(--border-strong)', color: 'var(--attendance-half-day)' };

@@ -18,7 +18,8 @@ import { StatusPill } from './StatusPill';
 import { DocumentActions } from './DocumentActions';
 import type { DrawerTarget } from './UploadDocumentDrawer';
 import type { SortDirection, ColumnDataType, DateRange } from '@/components/ui/TableColumnMenu';
-import type { DocumentStats, EmployeeDocumentRow, EmployeeOption } from '@/lib/server-queries';
+import type { DocumentStats, EmployeeDocumentRow } from '@/lib/documents/document-summary';
+import type { EmployeeOption } from '@/lib/queries/employees';
 
 type ColumnKey = 'employee' | 'category' | 'title' | 'source' | 'status' | 'filed';
 
@@ -203,7 +204,10 @@ function DocumentsScreen({
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
+        <span
+          className="status-badge"
+          style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}
+        >
           {rows.length} of {register.length}
         </span>
         <button className="button primary" onClick={() => setDrawer({ mode: 'upload' })}>
@@ -219,14 +223,20 @@ function DocumentsScreen({
         </div>
         <div className="card summary-card">
           <div className="metric-label">Awaiting verification</div>
-          <div className="metric-value" style={{ color: stats.awaiting ? 'var(--attendance-late)' : undefined }}>
+          <div
+            className="metric-value"
+            style={{ color: stats.awaiting ? 'var(--attendance-late)' : undefined }}
+          >
             {stats.awaiting}
           </div>
           <div className="metric-note">filed, not yet checked</div>
         </div>
         <div className="card summary-card">
           <div className="metric-label">Returned</div>
-          <div className="metric-value" style={{ color: stats.returned ? 'var(--attendance-half-day)' : undefined }}>
+          <div
+            className="metric-value"
+            style={{ color: stats.returned ? 'var(--attendance-half-day)' : undefined }}
+          >
             {stats.returned}
           </div>
           <div className="metric-note">sent back, awaiting a replacement</div>
@@ -238,7 +248,10 @@ function DocumentsScreen({
         </div>
         <div className="card summary-card">
           <div className="metric-label">Missing</div>
-          <div className="metric-value" style={{ color: stats.missing ? 'var(--attendance-late)' : undefined }}>
+          <div
+            className="metric-value"
+            style={{ color: stats.missing ? 'var(--attendance-late)' : undefined }}
+          >
             {stats.missing}
           </div>
           <div className="metric-note">
@@ -281,7 +294,9 @@ function DocumentsScreen({
                   <tr key={d.id}>
                     <td data-label="Employee">
                       <EmployeeLink row={d} onOpen={setPanelFor} />
-                      <span className="document-employee-code text-monospace text-muted">{d.code}</span>
+                      <span className="document-employee-code text-monospace text-muted">
+                        {d.code}
+                      </span>
                     </td>
                     <td data-label="Document" className="document-title-cell">
                       {documentCategoryLabel(d.category)} — {d.title ?? '—'}
@@ -370,7 +385,9 @@ function DocumentsScreen({
                   <tr key={d.id}>
                     <td data-label="Employee">
                       <EmployeeLink row={d} onOpen={setPanelFor} />
-                      <div className="document-employee-code text-monospace text-muted">{d.code}</div>
+                      <div className="document-employee-code text-monospace text-muted">
+                        {d.code}
+                      </div>
                     </td>
                     <td data-label="Category">
                       {documentCategoryLabel(d.category, d.source === 'issued')}

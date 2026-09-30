@@ -8,7 +8,12 @@ import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { exportRegisterXlsx } from '@/lib/actions/export';
 import { weekOffDaysInMonth } from '@/lib/weekly-off-policy';
 import { minutesToHHMM, formatDate } from '@/lib/display-formatting';
-import { currentPeriodMonth, getBranches, getCompOffsForMonth, getLeaveRegisterMismatches, getPayrollRun, getRegister, getWeekOffPolicy } from '@/lib/server-queries';
+import { currentPeriodMonth } from '@/lib/business-dates';
+import { getBranches } from '@/lib/queries/branches';
+import { getCompOffsForMonth } from '@/lib/queries/compensatory-off';
+import { getLeaveRegisterMismatches, getRegister } from '@/lib/queries/attendance';
+import { getPayrollRun } from '@/lib/queries/payroll';
+import { getWeekOffPolicy } from '@/lib/queries/settings';
 import type { Route } from 'next';
 import type { AppRole } from '@/types/database';
 import type { RegisterEmployee } from '@/types/domain';
@@ -164,7 +169,10 @@ async function RegisterPage({
         )}
 
         {run && (run.workingDays != null || run.targetMinutes != null) && (
-          <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
+          <span
+            className="status-badge"
+            style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}
+          >
             {run.workingDays ?? '—'} working days · target{' '}
             <b className="text-monospace">
               &nbsp;{run.targetMinutes != null ? minutesToHHMM(run.targetMinutes) : '—'}
@@ -173,7 +181,10 @@ async function RegisterPage({
         )}
 
         {run && (
-          <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
+          <span
+            className="status-badge"
+            style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}
+          >
             Payroll · {run.status.replace('_', ' ')}
           </span>
         )}
@@ -208,7 +219,10 @@ async function RegisterPage({
       ) : (
         <>
           {canCorrect && mismatches.length > 0 && (
-            <div className="card" style={{ marginBottom: 12, borderColor: 'var(--attendance-late-border)' }}>
+            <div
+              className="card"
+              style={{ marginBottom: 12, borderColor: 'var(--attendance-late-border)' }}
+            >
               <div className="card-header">
                 <h3>Approved leave not on the register</h3>
                 <span className="card-caption">
@@ -246,7 +260,10 @@ async function RegisterPage({
                           <td>
                             <span
                               className="status-badge"
-                              style={{ borderColor: 'var(--border-strong)', color: 'var(--attendance-half-day)' }}
+                              style={{
+                                borderColor: 'var(--border-strong)',
+                                color: 'var(--attendance-half-day)',
+                              }}
                             >
                               {mm.registerStatus ?? 'no entry'}
                             </span>

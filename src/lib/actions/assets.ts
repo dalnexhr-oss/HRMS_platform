@@ -7,11 +7,11 @@ import { notifyEmployee } from '@/lib/notification-delivery';
 import { todayIST } from '@/lib/display-formatting';
 import { toMoney } from '@/lib/db/decimal-conversions';
 import { parseAssetLink } from '@/lib/asset-qr-link';
-import { getAssetAssignments, getAssetMaintenance } from '@/lib/server-queries';
+import { getAssetAssignments, getAssetMaintenance } from '@/lib/queries/assets';
 import { requireRoles, wroteNothing } from './guards';
 import type { AppRole } from '@/types/database';
 
-// Client-callable wrappers for the per-asset drawer (server-queries.ts is server-only).
+// Client-callable wrappers for the per-asset drawer (queries/assets.ts is server-only).
 async function fetchAssetAssignments(assetId: string) {
   return getAssetAssignments(assetId);
 }

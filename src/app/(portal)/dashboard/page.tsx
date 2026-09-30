@@ -2,9 +2,14 @@ import './dashboard.css';
 import { TodayBoard } from '@/components/today/TodayBoard';
 import { CompOffAdminCard } from '@/components/today/CompOffAdminCard';
 import { LiveRefresh } from '@/components/today/LiveRefresh';
-import { currentPeriodMonth, getActivityFeed, getCelebrationsToday, getCompOffAdmin, getPayrollRun, getPunchLogToday, getRegister, getSettings, getTodayBoard } from '@/lib/server-queries';
+import { currentPeriodMonth } from '@/lib/business-dates';
+import { getActivityFeed, getCelebrationsToday, getPunchLogToday, getTodayBoard } from '@/lib/queries/dashboard';
+import { getCompOffAdmin } from '@/lib/queries/compensatory-off';
+import { getPayrollRun } from '@/lib/queries/payroll';
+import { getRegister } from '@/lib/queries/attendance';
+import { getSettings } from '@/lib/queries/settings';
 import type { Loaded } from '@/components/today/TodayBoard';
-import type { SettingView } from '@/lib/server-queries';
+import type { SettingView } from '@/lib/queries/settings';
 import type { MarkWatch, RegisterEmployee } from '@/types/domain';
 import type { Metadata } from 'next';
 
@@ -24,7 +29,6 @@ const defaultMarkThreshold = 3;
 // How many names the marks-watch card lists.
 const marksWatchLimit = 5;
 
-
 function todayISO(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
 }
@@ -35,13 +39,11 @@ function todayLabel(): string {
   );
 }
 
-
 function monthLabelOf(periodMonth: string): string {
   return new Intl.DateTimeFormat('en-GB', { month: 'long' }).format(
     new Date(`${periodMonth}T00:00:00`),
   );
 }
-
 
 async function load<T>(promise: Promise<T>): Promise<Loaded<T>> {
   try {

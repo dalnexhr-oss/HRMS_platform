@@ -8,7 +8,7 @@ import { formatDate } from '@/lib/display-formatting';
 import { getDocumentUrl } from '@/lib/actions/documents';
 import { documentCategories } from '@/lib/document-categories';
 import { useNotifications } from '@/components/ui/Notifications';
-import type { EmployeeDocumentRow } from '@/lib/server-queries';
+import type { EmployeeDocumentRow } from '@/lib/documents/document-summary';
 
 // Match the server upload limit and reject oversized files before sending them.
 const maxBytes = 10 * 1024 * 1024;
@@ -235,11 +235,20 @@ function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?:
                         <>
                           <span
                             className="status-badge"
-                            style={{ borderColor: 'var(--border-strong)', color: 'var(--attendance-half-day)' }}
+                            style={{
+                              borderColor: 'var(--border-strong)',
+                              color: 'var(--attendance-half-day)',
+                            }}
                           >
                             Needs fixing
                           </span>
-                          <div style={{ fontSize: 11, color: 'var(--attendance-half-day)', marginTop: 2 }}>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: 'var(--attendance-half-day)',
+                              marginTop: 2,
+                            }}
+                          >
                             {d.verifyRemark}
                           </div>
                         </>

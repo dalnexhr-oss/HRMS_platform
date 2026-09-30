@@ -6,7 +6,7 @@ import { queryErrorCodes } from '@/lib/db/query-errors';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server-client';
 import { getSession } from '@/lib/server-auth';
-import { getWeekOffPolicy } from '@/lib/server-queries';
+import { getWeekOffPolicy } from '@/lib/queries/settings';
 import { isScheduledWeekOff } from '@/lib/weekly-off-policy';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { toDecimal } from '@/lib/db/decimal-conversions';

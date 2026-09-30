@@ -9,7 +9,7 @@ import { Fragment, useState, useTransition, useActionState } from 'react';
 import { computeRun, lockRun, markRunPaid, openRun, saveAdjustments } from '@/lib/actions/payroll';
 import type { ChangeEvent } from 'react';
 import type { PayslipRow } from '@/types/domain';
-import type { PayrollRunView } from '@/lib/server-queries';
+import type { PayrollRunView } from '@/lib/queries/payroll';
 
 interface ActionResult {
   ok: boolean;
@@ -288,12 +288,18 @@ function PayrollTable({
                       <td className="text-right text-monospace">{inr(p.earnedGross)}</td>
                       <td
                         className="text-right text-monospace"
-                        style={{ color: p.shortfallAmount ? 'var(--attendance-half-day)' : 'var(--text-muted)' }}
+                        style={{
+                          color: p.shortfallAmount
+                            ? 'var(--attendance-half-day)'
+                            : 'var(--text-muted)',
+                        }}
                       >
                         {p.shortfallAmount ? `-${inr(p.shortfallAmount)}` : '—'}
                       </td>
                       <td className="text-right text-monospace">{inr(p.pfEmployee)}</td>
-                      <td className="text-right text-monospace">{p.esicEmployee ? inr(p.esicEmployee) : '—'}</td>
+                      <td className="text-right text-monospace">
+                        {p.esicEmployee ? inr(p.esicEmployee) : '—'}
+                      </td>
                       <td className="text-right text-monospace">{inr(p.professionalTax)}</td>
                       <td
                         className="text-right text-monospace"

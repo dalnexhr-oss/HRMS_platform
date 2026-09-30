@@ -4,7 +4,7 @@ import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { LeaveSalaryAdmin } from '@/components/leave/LeaveSalaryAdmin';
 import { buildLeaveSalaryView } from '@/lib/leave-salary-view';
 import { exportLeaveSalaryXlsx } from '@/lib/actions/export';
-import { getLeaveBalancesForYear } from '@/lib/server-queries';
+import { getLeaveBalancesForYear } from '@/lib/queries/leave-salary';
 import type { AppRole } from '@/types/database';
 
 // Match the leave-salary actions' staff role gate.

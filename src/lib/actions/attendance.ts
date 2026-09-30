@@ -4,7 +4,7 @@
 // activity_log. Failed writes must return an error.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server-client';
-import { isMongoConfigured } from '@/lib/server-queries';
+import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { getSession } from '@/lib/server-auth';
 import { hhmmToMinutes } from '@/lib/display-formatting';
 import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/guards';

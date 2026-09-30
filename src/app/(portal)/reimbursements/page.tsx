@@ -1,5 +1,5 @@
 import { ReimbursementsScreen } from '@/components/reimbursements/ReimbursementsScreen';
-import { getReimbursements } from '@/lib/server-queries';
+import { getReimbursements } from '@/lib/queries/reimbursements';
 import { getSession } from '@/lib/server-auth';
 
 async function ReimbursementsPage() {

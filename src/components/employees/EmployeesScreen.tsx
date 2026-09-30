@@ -10,7 +10,8 @@ import { useNotifications } from '@/components/ui/Notifications';
 import { fetchEmployeeForEdit, deactivateEmployee, reactivateEmployee } from '@/lib/actions/employees';
 import { branchColorAt } from '@/lib/branch-colors';
 import { deleteEmployee } from '@/lib/actions/employee-deletion';
-import type { EmployeeListRow, EmployeeEditRow, BranchRow } from '@/lib/server-queries';
+import type { EmployeeListRow, EmployeeEditRow } from '@/lib/queries/employees';
+import type { BranchRow } from '@/lib/queries/branches';
 
 function EmployeesScreen({
   rows,
@@ -185,7 +186,10 @@ function EmployeesScreen({
           }}
           disabled={pending}
         />
-        <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
+        <span
+          className="status-badge"
+          style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}
+        >
           {activeCount} active{inactiveCount ? ` · ${inactiveCount} inactive` : ''}
         </span>
         {inactiveCount > 0 && (

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createTicket } from '@/lib/actions/helpdesk';
 import { TicketChatDrawer } from '@/components/helpdesk/TicketChatDrawer';
 import { formatDate } from '@/lib/display-formatting';
-import type { TicketComment, TicketView } from '@/lib/server-queries';
+import type { TicketComment, TicketView } from '@/lib/queries/helpdesk';
 
 const statusLabel: Record<TicketView['status'], string> = {
   open: 'Open',
@@ -22,7 +22,11 @@ function statusPillStyle(status: TicketView['status']): React.CSSProperties {
   if (status === 'in_progress') {
     return { borderColor: 'var(--border-strong)', color: 'var(--brand)' };
   }
-  return { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' };
+  return {
+    borderColor: 'var(--attendance-present-border)',
+    color: 'var(--attendance-present)',
+    background: 'var(--attendance-present-background)',
+  };
 }
 
 // The employee's own helpdesk tickets, plus a raise-ticket form. Each ticket opens a real-time chat

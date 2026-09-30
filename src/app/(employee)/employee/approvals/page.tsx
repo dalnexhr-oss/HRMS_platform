@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getSession, isStaffRole } from '@/lib/server-auth';
-import { getRequests } from '@/lib/server-queries';
+import { getRequests } from '@/lib/queries/requests';
 import { getRequestRecipients } from '@/lib/requests/routing';
 import { employeeApprovalViews } from '@/lib/requests/employee-approvals';
 import { EmployeeApprovals } from '@/components/employee/EmployeeApprovals';

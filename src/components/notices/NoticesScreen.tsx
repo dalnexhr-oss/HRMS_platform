@@ -7,7 +7,7 @@ import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { createNotice, updateNotice, deleteNotice, setNoticePublished } from '@/lib/actions/notices';
 import type { NotificationKind } from '@/components/ui/Notifications';
-import type { NoticeView } from '@/lib/server-queries';
+import type { NoticeView } from '@/lib/queries/notices';
 
 const channelLabel: Record<NoticeView['channel'], string> = {
   app: 'App',
@@ -130,7 +130,10 @@ function NoticeItem({
         {notice.published && notice.publishedAt ? (
           <span className="entry-version">{formatDate(notice.publishedAt.slice(0, 10))}</span>
         ) : (
-          <span className="status-badge" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }}>
+          <span
+            className="status-badge"
+            style={{ borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }}
+          >
             Draft
           </span>
         )}

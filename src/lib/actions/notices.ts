@@ -6,7 +6,7 @@ import { createClient } from '@/lib/db/server-client';
 import { getSession } from '@/lib/server-auth';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { notifyEveryone } from '@/lib/notification-delivery';
-import { purgeExpiredNotices } from '@/lib/server-queries';
+import { purgeExpiredNotices } from '@/lib/notices/notice-cleanup';
 import { uploadSharedFile, signedUrl } from '@/lib/file-storage';
 import { resolveBranchScope } from '@/lib/actions/branch-helpers';
 

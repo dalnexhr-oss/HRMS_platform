@@ -1,7 +1,7 @@
 // Read-only onboarding progress. Staff complete tasks so done_by and done_at record the responsible
 // person.
 import { formatDate } from '@/lib/display-formatting';
-import type { OnboardingTaskRow } from '@/lib/server-queries';
+import type { OnboardingTaskRow } from '@/lib/queries/onboarding';
 
 const ownerLabel: Record<string, string> = {
   hr: 'HR',
@@ -66,7 +66,10 @@ function MyOnboarding({ tasks, id }: { tasks: OnboardingTaskRow[]; id?: string }
                         className="status-badge"
                         style={
                           t.status === 'blocked'
-                            ? { borderColor: 'var(--border-strong)', color: 'var(--attendance-half-day)' }
+                            ? {
+                                borderColor: 'var(--border-strong)',
+                                color: 'var(--attendance-half-day)',
+                              }
                             : {
                                 borderColor: 'var(--attendance-late-border)',
                                 color: 'var(--attendance-late)',

@@ -3,7 +3,8 @@ import { AttendanceStatusBadge } from '@/components/ui/AttendanceStatusBadge';
 import { ExportButton } from '@/components/today/ExportButton';
 import { NightSweepButton } from '@/components/today/NightSweepButton';
 import { branchColorAt } from '@/lib/branch-colors';
-import type { ActivityRow, PayrollRunView } from '@/lib/server-queries';
+import type { ActivityRow } from '@/lib/queries/dashboard';
+import type { PayrollRunView } from '@/lib/queries/payroll';
 import type { Celebration, MarkWatch, PunchLogRow, TodayKpis } from '@/types/domain';
 
 // Load sections independently and preserve each query's error. The ok discriminant lets TypeScript
@@ -93,7 +94,10 @@ function LoadError({ what, message }: { what: string; message: string }) {
   return (
     <div className="empty-state">
       <h3>Couldn’t load {what}</h3>
-      <p className="text-monospace" style={{ fontSize: 12, color: 'var(--attendance-absent)', wordBreak: 'break-word' }}>
+      <p
+        className="text-monospace"
+        style={{ fontSize: 12, color: 'var(--attendance-absent)', wordBreak: 'break-word' }}
+      >
         {message}
       </p>
     </div>
@@ -134,7 +138,10 @@ function TodayBoard({
               '—'
             )}
           </div>
-          <div className="metric-note" style={board.ok ? undefined : { color: 'var(--attendance-absent)' }}>
+          <div
+            className="metric-note"
+            style={board.ok ? undefined : { color: 'var(--attendance-absent)' }}
+          >
             {board.ok
               ? `${board.data.inOffice} in office · ${board.data.field} on outdoor duty`
               : board.error}
@@ -192,7 +199,10 @@ function TodayBoard({
           <div className="metric-value" style={{ fontSize: 22, paddingTop: 6 }}>
             {!run.ok ? '—' : run.data ? runStatusLabel[run.data.status] : 'Not started'}
           </div>
-          <div className="metric-note" style={run.ok ? undefined : { color: 'var(--attendance-absent)' }}>
+          <div
+            className="metric-note"
+            style={run.ok ? undefined : { color: 'var(--attendance-absent)' }}
+          >
             {run.ok ? (
               <>
                 {runNote(run.data)} ·{' '}

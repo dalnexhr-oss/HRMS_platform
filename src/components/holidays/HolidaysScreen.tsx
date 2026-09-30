@@ -7,7 +7,7 @@ import { formatDate } from '@/lib/display-formatting';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import type { NotificationKind } from '@/components/ui/Notifications';
-import type { HolidayView } from '@/lib/server-queries';
+import type { HolidayView } from '@/lib/queries/holidays';
 
 function HolidaysScreen({
   holidays,
@@ -57,7 +57,12 @@ function HolidaysScreen({
               <p className="empty-state">No holidays yet — import them or add one on the right.</p>
             )}
             {holidays.map((h) => (
-              <HolidayRow key={h.id} holiday={h} confirm={confirm} showNotification={showNotification} />
+              <HolidayRow
+                key={h.id}
+                holiday={h}
+                confirm={confirm}
+                showNotification={showNotification}
+              />
             ))}
           </div>
         </div>
@@ -222,7 +227,11 @@ function HolidayRow({
           style={
             holiday.branch
               ? { borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }
-              : { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' }
+              : {
+                  borderColor: 'var(--attendance-present-border)',
+                  color: 'var(--attendance-present)',
+                  background: 'var(--attendance-present-background)',
+                }
           }
         >
           {holiday.branch ?? 'All branches'}

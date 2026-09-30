@@ -1,11 +1,15 @@
 // Show inventory issued to the employee. HR manages issues and returns.
 import { formatDate } from '@/lib/display-formatting';
-import type { MyItemRow } from '@/lib/server-queries';
+import type { MyItemRow } from '@/lib/queries/items';
 
 function heldPill(returned: boolean): React.CSSProperties {
   return returned
     ? { borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }
-    : { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' };
+    : {
+        borderColor: 'var(--attendance-present-border)',
+        color: 'var(--attendance-present)',
+        background: 'var(--attendance-present-background)',
+      };
 }
 
 function MyItems({ items, id }: { items: MyItemRow[]; id?: string }) {

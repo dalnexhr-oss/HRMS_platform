@@ -1,5 +1,6 @@
 import { PolicyAdmin } from '@/components/policies/PolicyAdmin';
-import { getAllPolicies, getPolicyAckCounts, getActiveEmployeeCount } from '@/lib/server-queries';
+import { getAllPolicies, getPolicyAckCounts } from '@/lib/queries/policies';
+import { getActiveEmployeeCount } from '@/lib/queries/employees';
 
 async function PoliciesPage() {
   const [policies, ackCounts, headcount] = await Promise.all([

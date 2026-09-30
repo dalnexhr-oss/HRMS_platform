@@ -3,7 +3,8 @@ import { todayIST } from '@/lib/display-formatting';
 import { getSession } from '@/lib/server-auth';
 import { createClient } from '@/lib/db/server-client';
 import { LeaveHistory } from '@/components/leave-management/LeaveHistory';
-import { getOnLeaveToday, getRequests } from '@/lib/server-queries';
+import { getOnLeaveToday } from '@/lib/queries/leave';
+import { getRequests } from '@/lib/queries/requests';
 import type { AppRole } from '@/types/database';
 
 // Fetch live leave queues on each request.
@@ -59,7 +60,12 @@ async function HrDashboardPage() {
         </div>
         <div className="card summary-card">
           <div className="metric-label">On leave today</div>
-          <div className="metric-value" style={{ color: onLeaveToday.length ? 'var(--attendance-late)' : 'var(--attendance-present)' }}>
+          <div
+            className="metric-value"
+            style={{
+              color: onLeaveToday.length ? 'var(--attendance-late)' : 'var(--attendance-present)',
+            }}
+          >
             {onLeaveToday.length}
           </div>
           <div className="metric-note">
@@ -73,7 +79,12 @@ async function HrDashboardPage() {
         </div>
         <div className="card summary-card">
           <div className="metric-label">Leave requests pending</div>
-          <div className="metric-value" style={{ color: pendingLeaves ? 'var(--attendance-late)' : 'var(--attendance-present)' }}>
+          <div
+            className="metric-value"
+            style={{
+              color: pendingLeaves ? 'var(--attendance-late)' : 'var(--attendance-present)',
+            }}
+          >
             {pendingLeaves}
           </div>
           <div className="metric-note">decided on the Approvals page</div>

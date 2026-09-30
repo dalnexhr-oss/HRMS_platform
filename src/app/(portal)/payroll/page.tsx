@@ -5,10 +5,11 @@ import { StatutoryExports } from '@/components/payroll/StatutoryExports';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { PayrollTable, RunActions } from '@/components/payroll/PayrollTable';
-import { getPayrollRun, getPayslips, currentPeriodMonth } from '@/lib/server-queries';
+import { getPayrollRun, getPayslips } from '@/lib/queries/payroll';
+import { currentPeriodMonth } from '@/lib/business-dates';
 import { exportPayrollXlsx, exportAttendanceTemplateXlsx } from '@/lib/actions/export';
 import type { Route } from 'next';
-import type { PayrollRunView } from '@/lib/server-queries';
+import type { PayrollRunView } from '@/lib/queries/payroll';
 import type { PayslipAdjustments } from '@/components/payroll/PayrollTable';
 
 // Use the business timezone for server-rendered timestamps.

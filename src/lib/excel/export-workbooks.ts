@@ -10,7 +10,7 @@ import { minutesToHHMM } from '@/lib/display-formatting';
 import { effectiveFigures } from '@/lib/leave-salary';
 import { writeBrandHeader, writeBrandOverlay } from '@/lib/excel/workbook-branding';
 import { statusFill, headerFill, timeFormat, clockToExcelTime } from '@/lib/excel/monthly-register-styles';
-import type { ReimbursementView } from '@/lib/server-queries';
+import type { ReimbursementView } from '@/lib/queries/reimbursements';
 import type { LeaveSalaryViewRow } from '@/lib/leave-salary-view';
 import type { PayslipRow, PunchLogRow, RegisterEmployee, DayCell } from '@/types/domain';
 

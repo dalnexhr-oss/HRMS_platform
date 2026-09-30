@@ -5,7 +5,9 @@ import { Topbar } from '@/components/shell/Topbar';
 import { getSession, isStaffRole } from '@/lib/server-auth';
 import { canAccessTab, slugFromPathname } from '@/lib/portal-access';
 import { navItems } from '@/lib/portal-navigation';
-import { getMyNotifications, getUnreadNotificationCount, getTopbarStats, getMyTabAccess } from '@/lib/server-queries';
+import { getMyNotifications, getUnreadNotificationCount } from '@/lib/queries/notifications';
+import { getTopbarStats } from '@/lib/queries/dashboard';
+import { getMyTabAccess } from '@/lib/queries/settings';
 import type { Route } from 'next';
 
 // Shared portal shell. Each route renders inside the main content area.

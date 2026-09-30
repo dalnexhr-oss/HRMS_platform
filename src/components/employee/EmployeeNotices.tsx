@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { formatDate } from '@/lib/display-formatting';
 import { markNoticeRead } from '@/lib/actions/notices';
 import { openNoticePdf } from '@/components/notices/open-pdf';
-import type { NoticeView } from '@/lib/server-queries';
+import type { NoticeView } from '@/lib/queries/notices';
 
 // Show employee notices and their read receipts. canMark controls receipt actions; the server
 // checks permission when saving.

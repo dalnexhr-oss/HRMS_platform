@@ -3,7 +3,7 @@
 import { useActionState, useState } from 'react';
 import { createTicket } from '@/lib/actions/helpdesk';
 import { TicketChatDrawer } from '@/components/helpdesk/TicketChatDrawer';
-import type { TicketComment, TicketView } from '@/lib/server-queries';
+import type { TicketComment, TicketView } from '@/lib/queries/helpdesk';
 
 type TicketStatus = TicketView['status'];
 
@@ -22,7 +22,11 @@ function statusPillStyle(status: TicketStatus): React.CSSProperties {
   if (status === 'in_progress') {
     return { borderColor: 'var(--border-strong)', color: 'var(--brand)' };
   }
-  return { borderColor: 'var(--attendance-present-border)', color: 'var(--attendance-present)', background: 'var(--attendance-present-background)' };
+  return {
+    borderColor: 'var(--attendance-present-border)',
+    color: 'var(--attendance-present)',
+    background: 'var(--attendance-present-background)',
+  };
 }
 
 function HelpdeskScreen({
@@ -82,7 +86,9 @@ function HelpdeskScreen({
                               {t.employeeCode && (
                                 <>
                                   {' '}
-                                  <span className="text-monospace text-muted">{t.employeeCode}</span>
+                                  <span className="text-monospace text-muted">
+                                    {t.employeeCode}
+                                  </span>
                                 </>
                               )}
                             </>
@@ -97,7 +103,11 @@ function HelpdeskScreen({
                           </span>
                         </td>
                         <td>
-                          <button type="button" className="button primary" onClick={() => setChat(t)}>
+                          <button
+                            type="button"
+                            className="button primary"
+                            onClick={() => setChat(t)}
+                          >
                             Open chat{count > 0 ? ` · ${count}` : ''}
                           </button>
                         </td>

@@ -8,7 +8,7 @@ import { formatDate } from '@/lib/display-formatting';
 import { useNotifications } from '@/components/ui/Notifications';
 import type { RequestActor } from '@/lib/requests/access';
 import type { EmployeeApprovalView, RequestRecipient } from '@/types/requests';
-import type { RequestView } from '@/lib/server-queries';
+import type { RequestView } from '@/lib/queries/requests';
 
 const typeLabels: Record<RequestView['type'], string> = {
   leave: 'Leave',

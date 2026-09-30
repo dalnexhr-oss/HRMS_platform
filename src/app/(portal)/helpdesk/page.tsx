@@ -1,5 +1,5 @@
 import { getSession } from '@/lib/server-auth';
-import { getTickets, getTicketComments } from '@/lib/server-queries';
+import { getTickets, getTicketComments } from '@/lib/queries/helpdesk';
 import { HelpdeskScreen } from '@/components/helpdesk/HelpdeskScreen';
 
 async function HelpdeskPage() {

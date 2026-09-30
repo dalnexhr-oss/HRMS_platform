@@ -13,7 +13,7 @@ import { requireDb, requireRoles, wroteNothing } from '@/lib/actions/guards';
 import { uploadFile, signedUrl, resolveUploadType } from '@/lib/file-storage';
 import { notifyEmployee } from '@/lib/notification-delivery';
 import { maxBytes, recordUploadedDocument, resolveTargetEmployee, uploadBucket, verifyRoles } from '@/lib/documents/upload';
-import { getEmployeeDocuments as readEmployeeDocuments, getEmployeeDocumentHistory as readEmployeeDocumentHistory } from '@/lib/server-queries';
+import { getEmployeeDocuments as readEmployeeDocuments, getEmployeeDocumentHistory as readEmployeeDocumentHistory } from '@/lib/queries/documents';
 import type { StorageBucket } from '@/lib/file-storage';
 
 interface ActionResult {
@@ -323,7 +323,7 @@ async function deleteEmployeeDocument(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-/** Client-callable history for one employee (server-queries.ts is server-only). */
+/** Client-callable history for one employee (queries/documents.ts is server-only). */
 async function fetchEmployeeDocumentHistory(employeeId: string) {
   const gate = await requireRoles(verifyRoles, 'Viewing an employee’s documents');
   if (!gate.ok) {
@@ -361,7 +361,7 @@ async function getDocumentUrl(id: string): Promise<{ ok: boolean; url?: string; 
   return signed.ok ? { ok: true, url: signed.url } : { ok: false, error: signed.error };
 }
 
-/** Client-callable document list for one employee (server-queries.ts is server-only). */
+/** Client-callable document list for one employee (queries/documents.ts is server-only). */
 async function fetchEmployeeDocuments(employeeId: string) {
   return readEmployeeDocuments(employeeId);
 }
