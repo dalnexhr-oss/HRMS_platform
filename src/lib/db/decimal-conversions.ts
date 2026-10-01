@@ -1,7 +1,7 @@
 // Store money as Decimal128 and calculate in integer paise to avoid floating-point drift. Round at
 // the calculation boundary; keep values within Number.MAX_SAFE_INTEGER.
 import { Decimal128 } from 'mongodb';
-import { parseMoneyPaise } from '@/lib/currency-conversion';
+import { parseMoneyPaise, scalePaiseAmount, roundToRupee } from '@/lib/currency-conversion';
 
 type MoneyInput = Decimal128 | number | string | null | undefined;
 
@@ -89,16 +89,7 @@ function scalePaise(value: MoneyInput, ratio: number): number {
   if (!Number.isFinite(ratio)) {
     throw new TypeError(`Ratio must be finite, got ${ratio}`);
   }
-  const exact = toPaise(value) * ratio;
-  return exact < 0 ? -Math.round(-exact) : Math.round(exact);
-}
-
-/**
- * Rounds paise to the nearest 100 paise (whole rupee) using half-away-from-zero rounding.
- */
-function roundToRupee(paise: number): number {
-  const rupees = paise / 100;
-  return (rupees < 0 ? -Math.round(-rupees) : Math.round(rupees)) * 100;
+  return scalePaiseAmount(toPaise(value), ratio);
 }
 
 /** Split proportionally without losing a paisa — the remainder goes to the first. */

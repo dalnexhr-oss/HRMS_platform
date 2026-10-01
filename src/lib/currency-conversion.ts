@@ -24,4 +24,19 @@ function formatPaise(paise: number): string {
   });
 }
 
-export { parseMoneyPaise, formatPaise };
+/** Scale integer paise, rounding half away from zero. */
+function scalePaiseAmount(paise: number, ratio: number): number {
+  if (!Number.isFinite(ratio)) {
+    throw new TypeError(`Ratio must be finite, got ${ratio}`);
+  }
+  const exact = paise * ratio;
+  return exact < 0 ? -Math.round(-exact) : Math.round(exact);
+}
+
+/** Round integer paise to whole rupees, symmetrically for earnings and deductions. */
+function roundToRupee(paise: number): number {
+  const rupees = paise / 100;
+  return (rupees < 0 ? -Math.round(-rupees) : Math.round(rupees)) * 100;
+}
+
+export { parseMoneyPaise, formatPaise, scalePaiseAmount, roundToRupee };
