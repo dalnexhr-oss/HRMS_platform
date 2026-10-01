@@ -10,14 +10,12 @@ import { collections } from '@/lib/db/collection-registry';
 import { scopedFor } from '@/lib/db/scoped-repository';
 import { systemScope } from '@/lib/db/access-scope';
 import { withTransaction } from '@/lib/db/mongodb-connection';
-import { addPaise, fromPaise, roundToRupee, scalePaise, subPaise, toPaise } from '@/lib/db/decimal-conversions';
+import { fromPaise, toPaise } from '@/lib/db/decimal-conversions';
+import { calculatePayslip } from '@/lib/payroll/payslip-calculation';
 import { registerRpc } from '@/lib/db/scoped-query-client';
+import type { PayslipComputation } from '@/lib/payroll/payslip-calculation';
 import type { ClientSession, Document } from 'mongodb';
 import type { BaseDoc } from '@/lib/db/collection-registry';
-
-// Statuses counted as a full working day.
-const fullDay = ['P', 'T', 'S', 'LM'];
-const paidDayOff = ['CO', 'OH', 'WO'];
 
 // Retrieves a numeric configuration setting with a fallback default.
 async function settingNumeric(
@@ -33,12 +31,6 @@ async function settingNumeric(
   const row = await settings.findOne({ key });
   const n = Number(row?.value ?? fallback);
   return Number.isFinite(n) ? n : fallback;
-}
-
-// Days in the month a 'YYYY-MM-01' period refers to.
-function daysInMonth(periodMonth: string): number {
-  const [y, m] = periodMonth.split('-').map(Number);
-  return new Date(Date.UTC(y, m, 0)).getUTCDate();
 }
 
 // Calculates professional tax based on state, gross pay, gender, and month.
@@ -87,26 +79,6 @@ async function professionalTax(
   return matching.length ? toPaise(matching[0].amount as never) : 0;
 }
 
-interface PayslipComputation {
-  payable_days: number;
-  worked_minutes: number;
-  target_minutes: number;
-  shortfall_minutes: number;
-  // All amounts in paise; converted to Decimal128 on write.
-  per_day_rate: number;
-  basic_earned: number;
-  hra_earned: number;
-  special_earned: number;
-  earned_gross: number;
-  shortfall_amount: number;
-  pf_employee: number;
-  pf_employer: number;
-  esic_employee: number;
-  esic_employer: number;
-  professional_tax: number;
-  net_payable: number;
-}
-
 /**
  * Computes earnings, deductions, and net payable amounts for an employee in a payroll run,
  * persisting the resulting draft/recomputed payslip.
@@ -145,7 +117,6 @@ async function computePayslipInTransaction(
 
   const periodMonth = run.period_month as string; // 'YYYY-MM-01'
   const month = Number(periodMonth.slice(5, 7));
-  const dim = daysInMonth(periodMonth);
 
   const esicCapPaise = toPaise(await settingNumeric('esic_gross_cap', 21000, session));
   let fullDayMin = await settingNumeric('full_day_minutes', 555, session);
@@ -163,93 +134,34 @@ async function computePayslipInTransaction(
     work_date: { $regex: `^${prefix}-` },
   });
 
-  let workingDays = 0;
-  let paidDaysOff = 0;
-  let workedMinutes = 0;
-  for (const d of days) {
-    const status = d.status as string;
-    if (fullDay.includes(status)) {
-      workingDays += 1;
-    } else if (status === 'HD') {
-      workingDays += 0.5;
-    } else if (paidDayOff.includes(status)) {
-      paidDaysOff += 1;
-    }
-    workedMinutes += Number(d.worked_minutes ?? 0);
-  }
-
-  const payableDays = workingDays + paidDaysOff;
-
-  // Per-EMPLOYEE target: the days they were actually scheduled to work.
-  const targetMinutes = Math.round(workingDays * fullDayMin);
-
-  // earnings, pro-rated on days in month
   const grossPaise = toPaise(e.gross_monthly as never);
-  const perDayRate = scalePaise(e.gross_monthly as never, 1 / dim);
-  const basicEarned = scalePaise(e.basic_da as never, payableDays / dim);
-  const hraEarned = scalePaise(e.hra as never, payableDays / dim);
-  const specialEarned = scalePaise(e.special_allowance as never, payableDays / dim);
-  const earnedGross = basicEarned + hraEarned + specialEarned;
-
-  // shortfall
-  let shortfallMinutes = 0;
-  let shortfallAmount = 0;
-  if (targetMinutes > 0 && workedMinutes < targetMinutes) {
-    shortfallMinutes = targetMinutes - workedMinutes;
-    // Floor shortfall deduction to whole rupees (100 paise) per payroll specification.
-    shortfallAmount = Math.floor(((perDayRate / fullDayMin) * shortfallMinutes) / 100) * 100;
-  }
-
-  // statutory deductions
-  // PF and ESIC round half away from zero to whole rupees (100 paise multiples).
-  const toRupee = roundToRupee;
-
-  const pfEmployee = toRupee(scalePaise(fromPaise(basicEarned), 0.12));
-  let esicEmployee = 0;
-  let esicEmployer = 0;
-  if (grossPaise <= esicCapPaise) {
-    esicEmployee = toRupee(scalePaise(fromPaise(earnedGross), 0.0075));
-    esicEmployer = toRupee(scalePaise(fromPaise(earnedGross), 0.0325));
-  }
-
   const pt = await professionalTax(state, grossPaise, e.gender as string, month, session);
-
-  // adjustments
   const payslips = scopedFor<BaseDoc>(collections.payslips, systemScope, session);
   const adjustments = scopedFor<BaseDoc>(collections.payslipAdjustments, systemScope, session);
-
   const existing = await payslips.findOne({ payroll_run_id: runId, employee_id: employeeId });
-  // payslip_adjustments shares primary key with the payslip record; absent on initial run.
+  // Adjustments share the payslip's primary key and are absent on the first computation.
   const adj = existing ? await adjustments.findOne({ _id: existing._id as string }) : null;
-
-  const advance = toPaise((adj?.advance_recovery as never) ?? 0);
-  const loss = toPaise((adj?.loss_damage as never) ?? 0);
-  const lastMonth = toPaise((adj?.last_month_balance as never) ?? 0);
-  const reimbursement = toPaise((adj?.reimbursement_bonus as never) ?? 0);
-  const other = toPaise((adj?.other_deductions as never) ?? 0);
-  const bonus = toPaise((adj?.bonus as never) ?? 0);
-
-  const netRaw = addPaise(
-    fromPaise(
-      subPaise(
-        fromPaise(earnedGross),
-        fromPaise(shortfallAmount),
-        fromPaise(pfEmployee),
-        fromPaise(esicEmployee),
-        fromPaise(pt),
-        fromPaise(advance),
-        fromPaise(loss),
-        fromPaise(other),
-      ),
-    ),
-    fromPaise(lastMonth),
-    fromPaise(reimbursement),
-    fromPaise(bonus),
-  );
-  // round(..., 0) — the net is paid in whole rupees.
-  const netPayable = toRupee(netRaw);
-
-  const result: PayslipComputation = {
+  const result = calculatePayslip({
+    periodMonth,
+    grossPaise,
+    basicPaise: toPaise(e.basic_da as never),
+    hraPaise: toPaise(e.hra as never),
+    specialAllowancePaise: toPaise(e.special_allowance as never),
+    fullDayMinutes: fullDayMin,
+    esicCapPaise,
+    professionalTaxPaise: pt,
+    attendance: days.map((day) => ({
+      status: day.status as string,
+      workedMinutes: Number(day.worked_minutes ?? 0),
+    })),
+    advancePaise: toPaise((adj?.advance_recovery as never) ?? 0),
+    lossPaise: toPaise((adj?.loss_damage as never) ?? 0),
+    lastMonthBalancePaise: toPaise((adj?.last_month_balance as never) ?? 0),
+    reimbursementPaise: toPaise((adj?.reimbursement_bonus as never) ?? 0),
+    otherDeductionsPaise: toPaise((adj?.other_deductions as never) ?? 0),
+    bonusPaise: toPaise((adj?.bonus as never) ?? 0),
+  });
+  const {
     payable_days: payableDays,
     worked_minutes: workedMinutes,
     target_minutes: targetMinutes,
@@ -261,13 +173,10 @@ async function computePayslipInTransaction(
     earned_gross: earnedGross,
     shortfall_amount: shortfallAmount,
     pf_employee: pfEmployee,
-    // Statutory employer PF contribution matches employee contribution.
-    pf_employer: pfEmployee,
     esic_employee: esicEmployee,
     esic_employer: esicEmployer,
-    professional_tax: pt,
     net_payable: netPayable,
-  };
+  } = result;
 
   const money = {
     payable_days: fromPaise(Math.round(payableDays * 100)),
