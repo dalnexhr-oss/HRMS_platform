@@ -4,7 +4,7 @@ import json
 import sqlite3
 
 
-def open_queue(path, config):
+def open_polling_queue(path, config):
     """Open the existing queue without resetting its identity or import cutoff."""
     queue = sqlite3.connect(path)
     queue.execute("PRAGMA journal_mode=WAL")
@@ -34,7 +34,7 @@ def open_queue(path, config):
     return queue
 
 
-def queue_status(config, directory):
+def print_polling_status(config, directory):
     """Read local delivery state without a terminal connection or any new delivery."""
     path = directory / "queue.sqlite3"
     if not path.exists():
@@ -42,7 +42,7 @@ def queue_status(config, directory):
             "deviceId": config.get("deviceId"),
             "queueCreated": False,
             "message": (
-                "The bridge has not created a queue yet. "
+                "The polling service has not created a queue yet. "
                 "No terminal connection was attempted."
             ),
         }))

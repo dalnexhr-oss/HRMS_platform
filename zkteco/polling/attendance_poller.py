@@ -2,15 +2,16 @@
 import datetime as dt
 import json
 
-from .device_connection import connect, verify_serial
-from .attendance_events import IST, attendance_event, event_key
+from device.device_connection import connect_device, verify_device_serial
+from shared.event_identity import device_event_id
+from .attendance_events import IST, build_polling_event
 
 
-def poll_device(queue, config):
-    conn = connect(config)
+def poll_device_attendance(queue, config):
+    connection = connect_device(config)
     try:
-        verify_serial(conn, config)
-        device_time = conn.get_time().replace(tzinfo=IST)
+        verify_device_serial(connection, config)
+        device_time = connection.get_time().replace(tzinfo=IST)
         if abs((device_time - dt.datetime.now(IST)).total_seconds()) > 120:
             raise ValueError(
                 "Device clock differs from IST by more than two minutes. "
@@ -18,11 +19,11 @@ def poll_device(queue, config):
             )
         cutoff = queue.execute("SELECT value FROM meta WHERE key='since'").fetchone()[0]
         since = dt.datetime.fromisoformat(cutoff)
-        for row in conn.get_attendance():
-            event = attendance_event(row, config)
+        for row in connection.get_attendance():
+            event = build_polling_event(row, config)
             if dt.datetime.fromisoformat(event["timestamp"].replace("Z", "+00:00")) < since:
                 continue
-            key = event_key(event)
+            key = device_event_id(event)
             queue.execute(
                 "INSERT OR IGNORE INTO events (id, uid, timestamp, payload) VALUES (?, ?, ?, ?)",
                 (key, event["uid"], event["timestamp"], json.dumps(event)),
@@ -34,4 +35,4 @@ def poll_device(queue, config):
             )
         queue.commit()
     finally:
-        conn.disconnect()
+        connection.disconnect()

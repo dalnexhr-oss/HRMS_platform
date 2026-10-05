@@ -1,25 +1,25 @@
 """Plan conservative name/code updates without changing biometric identities."""
 
 
-def normalize(value):
+def normalize_employee_name(value):
     return " ".join(str(value).casefold().split())
 
 
-def device_name(name, limit, encoding):
+def truncate_device_name(name, limit, encoding):
     return name.encode(encoding, errors="strict")[:limit].decode(encoding, errors="ignore")
 
 
-def build_plan(roster, users, packet_size=72, encoding="UTF-8", mapping=None):
+def build_user_sync_plan(employees, users, packet_size=72, encoding="UTF-8", mapping=None):
     """Return create/update/conflict rows. This function does not contact the device."""
     mapping = mapping or {}
-    if not isinstance(roster, list) or not roster:
-        raise ValueError("Employee roster must be a nonempty array.")
-    if len({str(row["userId"]).casefold() for row in roster}) != len(roster):
-        raise ValueError("Duplicate employee IDs in the roster.")
+    if not isinstance(employees, list) or not employees:
+        raise ValueError("Employee list must be a nonempty array.")
+    if len({str(row["userId"]).casefold() for row in employees}) != len(employees):
+        raise ValueError("Duplicate employee IDs in the employee list.")
     used = set()
     occupied = {int(user["uid"]) for user in users}
     result = []
-    for employee in roster:
+    for employee in employees:
         code, name = str(employee["userId"]), employee["name"]
         if not code or not name or len(code.encode(encoding)) > 24:
             raise ValueError(f"Invalid name or user ID for {code}.")
@@ -28,11 +28,11 @@ def build_plan(roster, users, packet_size=72, encoding="UTF-8", mapping=None):
                 f"This device accepts numeric IDs only; it cannot store {code}. "
                 "No users changed."
             )
-        target_name = device_name(name, 8 if packet_size == 28 else 24, encoding)
+        target_name = truncate_device_name(name, 8 if packet_size == 28 else 24, encoding)
         same_code = [user for user in users if str(user["user_id"]) == code]
         same_name = [
             user for user in users
-            if normalize(user["name"]) in {normalize(name), normalize(target_name)}
+            if normalize_employee_name(user["name"]) in {normalize_employee_name(name), normalize_employee_name(target_name)}
         ]
         if code in mapping:
             matches = [user for user in users if int(user["uid"]) == int(mapping[code])]
@@ -54,14 +54,14 @@ def build_plan(roster, users, packet_size=72, encoding="UTF-8", mapping=None):
         if target_name != name:
             entry["warning"] = (
                 "Full name exceeds the device name field; "
-                "full name is retained in HRMS/roster."
+                "full name is retained in HRMS/employee list."
             )
         # A partial-name collision needs an explicit UID mapping, never a fuzzy biometric reassignment.
         candidates = [
             user for user in users
-            if normalize(user["name"]) and (
-                normalize(name).startswith(normalize(user["name"]))
-                or normalize(user["name"]).startswith(normalize(name))
+            if normalize_employee_name(user["name"]) and (
+                normalize_employee_name(name).startswith(normalize_employee_name(user["name"]))
+                or normalize_employee_name(user["name"]).startswith(normalize_employee_name(name))
             )
         ]
         if len(matches) > 1 or (not matches and candidates):

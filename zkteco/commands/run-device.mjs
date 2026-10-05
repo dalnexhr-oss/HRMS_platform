@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import nextEnv from '@next/env';
+import { getPythonExecutable } from '../shared/python-runtime.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const require = createRequire(import.meta.url);
@@ -68,9 +69,10 @@ async function main() {
     web.once('exit', (code) => stop(code ?? 1));
   }
   const command = combined ? 'bridge' : mode;
-  const worker = start(process.env.ZKTECO_PYTHON ?? 'python', [
+  const worker = start(getPythonExecutable(), [
+    '-B',
     '-u',
-    path.join(root, 'zkteco/cli/device_cli.py'),
+    path.join(root, 'zkteco/commands/device_commands.py'),
     command,
     '--config',
     configFile,

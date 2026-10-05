@@ -2,8 +2,8 @@
 import os
 
 
-class DeviceLock:
-    """Keep one bridge/administration process per device state directory; release on process exit."""
+class StateDirectoryLock:
+    """Keep one polling/administration process per device state directory; release on process exit."""
     def __init__(self, directory):
         self.path = directory / "device.lock"
         self.stream = None
@@ -24,7 +24,7 @@ class DeviceLock:
         except OSError as error:
             self.stream.close()
             raise RuntimeError(
-                "Another bridge or terminal administration process is using this "
+                "Another receiver, polling or terminal administration process is using this "
                 "state directory. Stop it before starting another."
             ) from error
         return self

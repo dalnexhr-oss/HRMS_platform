@@ -1,7 +1,7 @@
 """pyzk connection and hardware identity verification."""
 
 
-def connect(config):
+def connect_device(config):
     """Open a short-lived pyzk session; callers own disconnect in a finally block."""
     from zk import ZK
 
@@ -18,8 +18,8 @@ def connect(config):
     ).connect()
 
 
-def verify_serial(conn, config):
-    serial = str(conn.get_serialnumber()).strip()
+def verify_device_serial(connection, config):
+    serial = str(connection.get_serialnumber()).strip()
     if not config.get("serialNumber") or serial != str(config["serialNumber"]).strip():
         raise ValueError(
             f"Device serial mismatch/unconfigured. Observed serial: {serial}. "

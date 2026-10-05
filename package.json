@@ -7,11 +7,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "dev:device": "node zkteco/cli/run-device.mjs dev",
-    "start:device": "node zkteco/cli/run-device.mjs start",
+    "dev:device": "node zkteco/commands/run-device.mjs dev",
+    "start:device": "node zkteco/commands/run-device.mjs start",
     "device:configure": "node zkteco/cli/configure-device.mjs",
-    "device:bridge": "node zkteco/cli/run-device.mjs bridge",
-    "device:status": "node zkteco/cli/run-device.mjs status",
+    "device:bridge": "node zkteco/commands/run-device.mjs bridge",
+    "device:status": "node zkteco/commands/run-device.mjs status",
     "device:roster": "node zkteco/cli/export-roster.mjs",
     "device:link": "node zkteco/cli/link-employees.mjs",
     "device:onboard": "node zkteco/cli/onboard-employees.mjs",
@@ -24,8 +24,8 @@
     "format:check": "prettier --check .",
     "check:names": "node scripts/check-file-names.mjs",
     "check": "npm run format:check && npm run check:names && npm run lint && npm run typecheck",
-    "device:inspect": "node zkteco/cli/run-device.mjs inspect",
-    "device:sync-users": "node zkteco/cli/run-device.mjs sync-users"
+    "device:inspect": "node zkteco/commands/run-device.mjs inspect",
+    "device:sync-users": "node zkteco/commands/run-device.mjs sync-users"
   },
   "dependencies": {
     "exceljs": "^4.4.0",

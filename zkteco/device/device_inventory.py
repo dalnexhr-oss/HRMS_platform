@@ -3,16 +3,16 @@ import hashlib
 import json
 import time
 
-from .device_connection import connect
-from .state_files import save_json
+from .device_connection import connect_device
+from shared.state_files import save_private_json
 
 
-def user_record(user):
+def serialize_device_user(user):
     fields = ("uid", "name", "privilege", "password", "group_id", "user_id", "card")
     return {key: getattr(user, key) for key in fields}
 
 
-def fingerprint_signatures(conn):
+def read_fingerprint_digests(connection):
     return sorted(
         (
             int(finger.uid),
@@ -20,34 +20,34 @@ def fingerprint_signatures(conn):
             int(finger.valid),
             hashlib.sha256(finger.template).hexdigest(),
         )
-        for finger in conn.get_templates()
+        for finger in connection.get_templates()
     )
 
 
 def inspect_device(config, directory):
-    conn = connect(config)
+    connection = connect_device(config)
     try:
-        users = [user_record(user) for user in conn.get_users()]
-        serial = str(conn.get_serialnumber()).strip()
+        users = [serialize_device_user(user) for user in connection.get_users()]
+        serial = str(connection.get_serialnumber()).strip()
         output = directory / f"inventory-{time.time_ns()}.json"
         # Passwords/card numbers stay out of the inventory and console.
         inventory = {
             "serialNumber": serial,
-            "name": conn.get_device_name(),
-            "firmware": conn.get_firmware_version(),
-            "deviceTime": conn.get_time().isoformat(),
-            "userPacketSize": conn.user_packet_size,
+            "name": connection.get_device_name(),
+            "firmware": connection.get_firmware_version(),
+            "deviceTime": connection.get_time().isoformat(),
+            "userPacketSize": connection.user_packet_size,
             "users": [
                 {key: user[key] for key in ("uid", "user_id", "name", "privilege")}
                 for user in users
             ],
         }
-        save_json(output, inventory)
+        save_private_json(output, inventory)
         print(json.dumps({
             "inventory": str(output),
             "serialNumber": serial,
             "users": len(users),
-            "userPacketSize": conn.user_packet_size,
+            "userPacketSize": connection.user_packet_size,
         }))
     finally:
-        conn.disconnect()
+        connection.disconnect()
