@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto';
 import { createEmployee } from './create-employee.mjs';
 
-export async function applyOnboarding({
+export async function saveOnboarding({
   client,
   database,
   config,

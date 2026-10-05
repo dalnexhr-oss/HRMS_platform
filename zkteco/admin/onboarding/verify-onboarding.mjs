@@ -1,4 +1,4 @@
-// Confirm written source fields and ensure out-of-roster records are unchanged.
+// Confirm written source fields and ensure employees outside this import are unchanged.
 import { BSON } from 'mongodb';
 
 export async function verifyOnboarding({ database, config, plan, employees, reportPath }) {
@@ -21,7 +21,7 @@ export async function verifyOnboarding({ database, config, plan, employees, repo
   )) {
     const saved = await database.collection('employees').findOne({ _id: before._id });
     if (BSON.EJSON.stringify(saved) !== BSON.EJSON.stringify(before)) {
-      throw new Error(`An out-of-roster employee changed concurrently; see ${reportPath}.`);
+      throw new Error(`An employee outside this import changed concurrently; see ${reportPath}.`);
     }
   }
 }

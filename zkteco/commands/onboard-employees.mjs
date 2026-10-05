@@ -1,6 +1,6 @@
 // Command-line options only; the workflow is independently maintained under admin/.
 import { parseArgs } from 'node:util';
-import { onboardEmployees } from '../admin/onboard/onboard-employees.mjs';
+import { onboardEmployees } from '../admin/onboarding/onboard-employees.mjs';
 import { runCommand } from './command-errors.mjs';
 
 runCommand(async () => {

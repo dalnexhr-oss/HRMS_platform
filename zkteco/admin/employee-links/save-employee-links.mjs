@@ -1,7 +1,7 @@
 // Preserve permanent employee/login IDs and apply the planned identity changes atomically.
 import { randomUUID } from 'node:crypto';
 
-export async function applyLinks({
+export async function saveEmployeeLinks({
   client,
   database,
   config,

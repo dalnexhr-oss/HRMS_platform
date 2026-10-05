@@ -2,11 +2,11 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import nextEnv from '@next/env';
 import { BSON, MongoClient } from 'mongodb';
-import { readRoster } from '../roster/read-employee-workbook.mjs';
+import { readEmployeeWorkbook } from '../employees/read-employee-workbook.mjs';
 import { provisionDeviceCollections } from '../../server/provision-device-collections.mjs';
-import { buildLinkPlan } from './plan-employee-links.mjs';
-import { applyLinks } from './save-employee-links.mjs';
-import { verifyLinks } from './verify-employee-links.mjs';
+import { planEmployeeLinks } from './plan-employee-links.mjs';
+import { saveEmployeeLinks } from './save-employee-links.mjs';
+import { verifyEmployeeLinks } from './verify-employee-links.mjs';
 
 const readJson = async (file) => JSON.parse(await readFile(file, 'utf8'));
 
@@ -19,8 +19,8 @@ export async function linkEmployees(values) {
   if (!config.deviceId || !config.serialNumber || inventory.serialNumber !== config.serialNumber) {
     throw new Error('The inventory must match the configured terminal serial.');
   }
-  const roster = values.file
-    ? await readRoster(values.file)
+  const importedEmployees = values.file
+    ? await readEmployeeWorkbook(values.file)
     : await readJson('.local/zkteco/employees.json');
   const mapping = values.mapping ? await readJson(values.mapping) : {};
   nextEnv.loadEnvConfig(process.cwd(), true);
@@ -39,10 +39,10 @@ export async function linkEmployees(values) {
       database.collection('device_employee_links').find({ device_id: config.deviceId }).toArray(),
       database.collection('attendance_devices').findOne({ _id: config.deviceId }),
     ]);
-    const { plan, branch, ignoredEmployeeIds } = buildLinkPlan({
+    const { plan, branch, ignoredEmployeeIds } = planEmployeeLinks({
       config,
       inventory,
-      roster,
+      importedEmployees,
       mapping,
       values,
       employees,
@@ -90,7 +90,7 @@ export async function linkEmployees(values) {
       return;
     }
     await provisionDeviceCollections(database);
-    await applyLinks({
+    await saveEmployeeLinks({
       client,
       database,
       config,
@@ -100,7 +100,7 @@ export async function linkEmployees(values) {
       plan,
       users,
     });
-    await verifyLinks(database, config, plan, report);
+    await verifyEmployeeLinks(database, config, plan, report);
     console.log(
       `Saved ${plan.filter((row) => row.action === 'link').length} employee links. Employee IDs, user links, passwords and roles retained. No attendance was imported.`,
     );

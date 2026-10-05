@@ -8,7 +8,7 @@ const normal = (value) =>
     .toLowerCase();
 
 export function buildOnboardingPlan({
-  roster,
+  importedEmployees,
   employees,
   inventory,
   links,
@@ -19,7 +19,7 @@ export function buildOnboardingPlan({
   hra,
   special,
 }) {
-  const plan = roster.map((row) => {
+  const plan = importedEmployees.map((row) => {
     const matches = employees.filter((employee) => normal(employee.code) === normal(row.userId));
     if (matches.length > 1) {
       throw new Error(`Duplicate HRMS code ${row.userId}.`);

@@ -1,5 +1,5 @@
 // Accept explicit calendar dates; never guess ambiguous workbook dates.
-function calendarDate(cell, label) {
+function parseEmployeeDate(cell, label) {
   const value = cell.value;
   if (value == null || cell.text.trim() === '') {
     return null;
@@ -35,4 +35,4 @@ function calendarDate(cell, label) {
   return parsed.toISOString().slice(0, 10);
 }
 
-export { calendarDate };
+export { parseEmployeeDate };

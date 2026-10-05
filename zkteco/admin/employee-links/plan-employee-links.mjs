@@ -1,8 +1,8 @@
 // Resolve each enrolled device user to one existing, eligible employee.
-import { cleanName } from '../roster/normalize-employee-names.mjs';
+import { cleanEmployeeName } from '../employees/normalize-employee-names.mjs';
 
 const normal = (value) =>
-  cleanName(value ?? '')
+  cleanEmployeeName(value ?? '')
     .normalize('NFKC')
     .toLowerCase();
 const email = (value) =>
@@ -10,10 +10,10 @@ const email = (value) =>
     .trim()
     .toLowerCase();
 
-export function buildLinkPlan({
+export function planEmployeeLinks({
   config,
   inventory,
-  roster,
+  importedEmployees,
   mapping,
   values,
   employees,
@@ -50,8 +50,8 @@ export function buildLinkPlan({
   const plan = [];
   const used = new Set();
   for (const device of inventory.users) {
-    const rosterRow = roster.find((row) => row.userId === device.user_id);
-    const expectedName = rosterRow?.name ?? device.name;
+    const importedEmployee = importedEmployees.find((row) => row.userId === device.user_id);
+    const expectedName = importedEmployee?.name ?? device.name;
     if (values.defer.includes(device.user_id)) {
       plan.push({
         deviceUid: String(device.uid),
@@ -64,13 +64,13 @@ export function buildLinkPlan({
     const manual = mapping[device.user_id] ?? mapping[`uid:${device.uid}`];
     const codeMatches = active.filter((row) => row.code === device.user_id);
     const nameMatches = active.filter((row) => normal(row.full_name) === normal(expectedName));
-    const emailMatches = rosterRow?.email
+    const emailMatches = importedEmployee?.email
       ? active.filter((row) =>
           [
             row.email_official,
             row.email_personal,
             ...users.filter((user) => user.employee_id === row._id).map((user) => user.email),
-          ].some((value) => email(value) === email(rosterRow.email)),
+          ].some((value) => email(value) === email(importedEmployee.email)),
         )
       : [];
     const candidates = manual
@@ -117,9 +117,9 @@ export function buildLinkPlan({
         designation: match.designation ?? null,
       },
       after: {
-        code: rosterRow?.userId ?? match.code,
+        code: importedEmployee?.userId ?? match.code,
         full_name: expectedName,
-        designation: rosterRow?.designation ?? match.designation ?? null,
+        designation: importedEmployee?.designation ?? match.designation ?? null,
       },
       matchedBy: manual
         ? 'explicit employee ID'

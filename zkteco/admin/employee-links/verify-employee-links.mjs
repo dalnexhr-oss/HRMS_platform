@@ -1,5 +1,5 @@
 // Read back committed identities before reporting a successful administration command.
-export async function verifyLinks(database, config, plan, report) {
+export async function verifyEmployeeLinks(database, config, plan, report) {
   for (const row of plan.filter((item) => item.action === 'link')) {
     const employee = await database.collection('employees').findOne({ _id: row.employeeId });
     const link = await database

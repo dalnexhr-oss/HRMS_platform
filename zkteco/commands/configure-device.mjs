@@ -1,45 +1,13 @@
 // Configure the local bridge and server secret without connecting to the terminal or database.
 import { randomBytes } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import nextEnv from '@next/env';
+import { readOptional, replaceEnv } from '../shared/config-files.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
-
-async function readOptional(file) {
-  try {
-    return await readFile(file, 'utf8');
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      return '';
-    }
-    throw error;
-  }
-}
-
-function replaceEnv(text, values) {
-  const remaining = new Map(Object.entries(values));
-  const seen = new Set();
-  const lines = text.split(/\r?\n/).flatMap((line) => {
-    const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/);
-    if (!match || !Object.hasOwn(values, match[1])) {
-      return [line];
-    }
-    const key = match[1];
-    if (seen.has(key)) {
-      return [];
-    }
-    seen.add(key);
-    remaining.delete(key);
-    return [`${key}=${JSON.stringify(values[key]).replace(/\$/g, '\\$')}`];
-  });
-  for (const [key, value] of remaining) {
-    lines.push(`${key}=${JSON.stringify(value).replace(/\$/g, '\\$')}`);
-  }
-  return `${lines.join('\n').trim()}\n`;
-}
 
 async function configure() {
   nextEnv.loadEnvConfig(root, true);

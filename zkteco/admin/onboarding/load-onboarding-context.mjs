@@ -4,7 +4,7 @@ const normal = (value) =>
     .trim()
     .toLowerCase();
 
-export async function readOnboardingContext(database, config, values) {
+export async function loadOnboardingContext(database, config, values) {
   const [employees, users, branchRows, terminal, links, template] = await Promise.all([
     database.collection('employees').find({}).toArray(),
     database

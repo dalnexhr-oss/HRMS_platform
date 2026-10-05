@@ -1,9 +1,9 @@
 // Read Employee.xlsx without modifying it.
 import ExcelJS from 'exceljs';
-import { cleanName } from './normalize-employee-names.mjs';
-import { calendarDate } from './parse-roster-dates.mjs';
+import { cleanEmployeeName } from './normalize-employee-names.mjs';
+import { parseEmployeeDate } from './parse-employee-dates.mjs';
 
-async function readRoster(file, { details = false } = {}) {
+async function readEmployeeWorkbook(file, { details = false } = {}) {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(file);
   const employees = [];
@@ -28,7 +28,7 @@ async function readRoster(file, { details = false } = {}) {
         return;
       }
       const userId = row.getCell(columns.id).text.trim();
-      const name = cleanName(row.getCell(columns.name).text);
+      const name = cleanEmployeeName(row.getCell(columns.name).text);
       if (!userId && !name) {
         return;
       }
@@ -47,12 +47,12 @@ async function readRoster(file, { details = false } = {}) {
         if (!columns.joining) {
           throw new Error('The workbook must have Date of Joining.');
         }
-        employee.dateOfJoining = calendarDate(
+        employee.dateOfJoining = parseEmployeeDate(
           row.getCell(columns.joining),
           `${userId} joining date`,
         );
         employee.dateOfBirth = columns.birth
-          ? calendarDate(row.getCell(columns.birth), `${userId} birth date`)
+          ? parseEmployeeDate(row.getCell(columns.birth), `${userId} birth date`)
           : null;
         employee.mobilePersonal = columns.phone ? row.getCell(columns.phone).text.trim() : '';
         employee.sourceName = row.getCell(columns.name).text.trim();
@@ -69,4 +69,4 @@ async function readRoster(file, { details = false } = {}) {
   return employees;
 }
 
-export { readRoster };
+export { readEmployeeWorkbook };

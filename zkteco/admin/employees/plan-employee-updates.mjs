@@ -1,12 +1,12 @@
 // Match existing employees only; preserve canonical MongoDB IDs.
-import { normalName } from './normalize-employee-names.mjs';
+import { normalizeEmployeeName } from './normalize-employee-names.mjs';
 
-function planHrms(employees, records) {
+function planEmployeeUpdates(employees, records) {
   const used = new Set();
   return employees.map((employee) => {
     const byCode = records.filter((record) => record.code === employee.userId);
     const byName = records.filter(
-      (record) => normalName(record.full_name) === normalName(employee.name),
+      (record) => normalizeEmployeeName(record.full_name) === normalizeEmployeeName(employee.name),
     );
     const matches = byCode.length ? byCode : byName;
     if (
@@ -33,4 +33,4 @@ function planHrms(employees, records) {
   });
 }
 
-export { planHrms };
+export { planEmployeeUpdates };

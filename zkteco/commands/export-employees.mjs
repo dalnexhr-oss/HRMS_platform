@@ -1,6 +1,6 @@
 // Command-line options only; the workflow is independently maintained under admin/.
 import { parseArgs } from 'node:util';
-import { exportRoster } from '../admin/roster/export-device-roster.mjs';
+import { exportDeviceEmployees } from '../admin/employees/export-device-employees.mjs';
 import { runCommand } from './command-errors.mjs';
 
 runCommand(async () => {
@@ -12,5 +12,5 @@ runCommand(async () => {
       'apply-hrms': { type: 'boolean', default: false },
     },
   });
-  await exportRoster(values);
+  await exportDeviceEmployees(values);
 });

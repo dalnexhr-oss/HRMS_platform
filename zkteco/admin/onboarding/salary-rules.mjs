@@ -13,12 +13,12 @@ const money = (value) => {
 const decimal = (paise) =>
   Decimal128.fromString(`${paise / 100n}.${String(paise % 100n).padStart(2, '0')}`);
 
-export function readSalaryRules(rules, roster) {
+export function readSalaryRules(rules, importedEmployees) {
   if (!Array.isArray(rules.femaleCodes) || rules.otherGender !== 'Male') {
     throw new Error('Supply the explicitly confirmed female codes and otherGender Male.');
   }
   for (const code of rules.femaleCodes) {
-    if (!roster.some((row) => row.userId === code)) {
+    if (!importedEmployees.some((row) => row.userId === code)) {
       throw new Error(`Unknown gender rule code ${code}.`);
     }
   }

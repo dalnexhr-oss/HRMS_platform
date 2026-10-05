@@ -3,9 +3,9 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import nextEnv from '@next/env';
 import { MongoClient } from 'mongodb';
-import { planHrms } from './plan-roster-reconciliation.mjs';
+import { planEmployeeUpdates } from './plan-employee-updates.mjs';
 
-export async function reconcileRoster(employees, values) {
+export async function updateHrmsEmployees(employees, values) {
   nextEnv.loadEnvConfig(process.cwd(), true);
   const uri = process.env.MONGO_URI ?? process.env.MONGODB_URI;
   if (!uri) {
@@ -18,7 +18,7 @@ export async function reconcileRoster(employees, values) {
     const records = await collection
       .find({}, { projection: { _id: 1, code: 1, full_name: 1, designation: 1 } })
       .toArray();
-    const plan = planHrms(employees, records);
+    const plan = planEmployeeUpdates(employees, records);
     const planPath = path.join(path.dirname(values.out), `hrms-plan-${Date.now()}.json`);
     await writeFile(planPath, `${JSON.stringify(plan, null, 2)}\n`, { flag: 'wx' });
     console.log(

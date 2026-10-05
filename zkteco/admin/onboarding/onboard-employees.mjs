@@ -3,11 +3,11 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import nextEnv from '@next/env';
 import { MongoClient, BSON } from 'mongodb';
-import { readRoster } from '../roster/read-employee-workbook.mjs';
+import { readEmployeeWorkbook } from '../employees/read-employee-workbook.mjs';
 import { readSalaryRules } from './salary-rules.mjs';
-import { readOnboardingContext } from './load-onboarding-context.mjs';
+import { loadOnboardingContext } from './load-onboarding-context.mjs';
 import { buildOnboardingPlan } from './plan-onboarding.mjs';
-import { applyOnboarding } from './save-onboarding.mjs';
+import { saveOnboarding } from './save-onboarding.mjs';
 import { verifyOnboarding } from './verify-onboarding.mjs';
 
 const json = async (file) => JSON.parse(await readFile(file, 'utf8'));
@@ -16,7 +16,7 @@ export async function onboardEmployees(values) {
   if (!values.file || !values.inventory || !values.rules || !values.branch) {
     throw new Error('Supply --file, --inventory, --rules and --branch. Use --apply to save.');
   }
-  const roster = await readRoster(values.file, { details: true });
+  const importedEmployees = await readEmployeeWorkbook(values.file, { details: true });
   const inventory = await json(values.inventory);
   const config = await json(values.config);
   const rules = await json(values.rules);
@@ -26,20 +26,20 @@ export async function onboardEmployees(values) {
   if (inventory.serialNumber !== config.serialNumber) {
     throw new Error('Inventory serial differs from configured terminal.');
   }
-  const salary = readSalaryRules(rules, roster);
+  const salary = readSalaryRules(rules, importedEmployees);
   nextEnv.loadEnvConfig(process.cwd(), true);
   const client = await new MongoClient(process.env.MONGO_URI ?? process.env.MONGODB_URI, {
     serverSelectionTimeoutMS: 5000,
   }).connect();
   try {
     const database = client.db();
-    const { employees, users, branch, links, ignored, items } = await readOnboardingContext(
+    const { employees, users, branch, links, ignored, items } = await loadOnboardingContext(
       database,
       config,
       values,
     );
     const plan = buildOnboardingPlan({
-      roster,
+      importedEmployees,
       employees,
       inventory,
       links,
@@ -87,7 +87,7 @@ export async function onboardEmployees(values) {
     if (!values.apply) {
       return;
     }
-    await applyOnboarding({ client, database, config, plan, branch, sourceHash, items });
+    await saveOnboarding({ client, database, config, plan, branch, sourceHash, items });
     await verifyOnboarding({ database, config, plan, employees, reportPath });
     console.log(
       JSON.stringify({
