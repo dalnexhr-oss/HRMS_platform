@@ -6,6 +6,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const kebabCase = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const componentName = /^[A-Z][A-Za-z0-9]*$/;
 const hookName = /^use[A-Z][A-Za-z0-9]*$/;
+const pythonModule = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/;
 const routeGroup = /^\([a-z][a-z0-9-]*\)$/;
 const routeParameter = /^\[(?:\.\.\.)?[a-z][A-Za-z0-9]*\]$/;
 const errors = [];
@@ -37,12 +38,18 @@ async function checkDirectory(directory) {
       continue;
     }
 
-    if (!entry.isFile() || !/\.(?:tsx?|mjs|css)$/.test(entry.name)) {
+    if (!entry.isFile() || !/\.(?:tsx?|mjs|css|py)$/.test(entry.name)) {
       continue;
     }
     const extension = path.extname(entry.name);
-    const stem = entry.name.slice(0, -extension.length).replace(/\.test$/, '');
+    const stem = entry.name.slice(0, -extension.length);
     const component = relative.startsWith('src/components/');
+    if (extension === '.py') {
+      if (stem !== '__init__' && !pythonModule.test(stem)) {
+        errors.push(`${relative}: Python modules must use snake_case`);
+      }
+      continue;
+    }
     const valid =
       component && extension === '.tsx'
         ? componentName.test(stem)

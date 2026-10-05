@@ -1,1 +1,10 @@
+# This file lists all the dependencies required for the ZKTECO Python SDK.
+waitress==3.0.2
+# ADMS HTTP receiver
+# A simple HTTP server for receiving and processing ADMS(Attendance Data Management System)
+# events basically to recieve the attendance data over the cloud network like aws lambda or any other cloud service.
+# ZKTECO Python SDK.
+# A Python library for interacting with ZKTECO devices.
+# https://github.com/zkteam/pyzk
+# it is used to communicate with ZKTECO devices over the network when connected using the ZKTECO protocol or ethernet.
 pyzk==0.9
