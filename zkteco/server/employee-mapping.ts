@@ -33,7 +33,7 @@ async function resolveDeviceEmployee(
   const link = links[0];
   if (links.length !== 1 || !link || link.enabled !== true) {
     throw new UnknownDeviceEmployee(
-      `No unique enabled HRMS link for terminal user ${event.userId} (attendance UID ${event.uid}).`,
+      `No unique enabled HRMS link for terminal user ${event.userId}${event.uid ? ` (attendance UID ${event.uid})` : ' (ADMS)'}.`,
     );
   }
   if (terminal.ignored_employee_ids?.includes(link.employee_id)) {

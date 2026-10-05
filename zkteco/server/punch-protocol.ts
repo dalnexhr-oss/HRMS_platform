@@ -2,8 +2,9 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 
 interface DevicePunch {
   deviceId: string;
+  source?: 'adms';
   /** Raw attendance packet UID; it may differ from the enrolled user's internal UID. */
-  uid: string;
+  uid?: string;
   userId: string;
   timestamp: string;
   punch: number;
@@ -24,10 +25,20 @@ function parseDevicePunch(input: unknown, deviceId: string, now = new Date()): D
     throw new Error('Expected a device punch object.');
   }
   const value = input as Record<string, unknown>;
-  for (const key of ['deviceId', 'uid', 'userId', 'timestamp']) {
+  for (const key of ['deviceId', 'userId', 'timestamp']) {
     if (typeof value[key] !== 'string' || !value[key] || String(value[key]).length > 128) {
       throw new Error(`Invalid ${key}.`);
     }
+  }
+  if (value.source !== undefined && value.source !== 'adms') {
+    throw new Error('Invalid device transport.');
+  }
+  if (value.source === 'adms') {
+    if (value.uid !== undefined) {
+      throw new Error('ADMS attendance must not invent a polling packet UID.');
+    }
+  } else if (typeof value.uid !== 'string' || !/^\d{1,128}$/.test(value.uid)) {
+    throw new Error('Invalid attendance UID.');
   }
   if (!deviceId) {
     throw new Error(
@@ -39,7 +50,7 @@ function parseDevicePunch(input: unknown, deviceId: string, now = new Date()): D
       `Device is not configured for this endpoint: the bridge sends "${value.deviceId}" but HRMS expects "${deviceId}". Set HRMS ZKTECO_DEVICE_ID to the existing bridge deviceId and restart HRMS.`,
     );
   }
-  if (!/^\d+$/.test(String(value.uid)) || !/^[\w.-]+$/.test(String(value.userId))) {
+  if (!/^[\w.-]+$/.test(String(value.userId))) {
     throw new Error('Invalid device user identity.');
   }
   // Require an explicit offset; server-local timestamps must never change attendance dates.
@@ -66,7 +77,7 @@ function parseDevicePunch(input: unknown, deviceId: string, now = new Date()): D
   }
   return {
     deviceId: String(value.deviceId),
-    uid: String(value.uid),
+    ...(value.source === 'adms' ? { source: 'adms' as const } : { uid: String(value.uid) }),
     userId: String(value.userId),
     timestamp: instant.toISOString(),
     punch: Number(value.punch),
@@ -75,11 +86,36 @@ function parseDevicePunch(input: unknown, deviceId: string, now = new Date()): D
 }
 
 function deviceEventId(event: DevicePunch): string {
+  if (event.source === 'adms') {
+    return createHash('sha256')
+      .update(
+        JSON.stringify([
+          'adms',
+          event.deviceId,
+          event.userId,
+          event.timestamp,
+          event.punch,
+          event.status,
+        ]),
+      )
+      .digest('hex');
+  }
   // Retain raw attendance packet identity across retries and code/name corrections.
   // Replacing this UID with the enrollment UID would change existing queue/receipt hashes.
   return createHash('sha256')
     .update(JSON.stringify([event.deviceId, event.uid, event.timestamp, event.punch, event.status]))
     .digest('hex');
+}
+
+function crossTransportReceiptFilter(event: DevicePunch, employeeId: string) {
+  return {
+    device_id: event.deviceId,
+    employee_id: employeeId,
+    'raw.timestamp': event.timestamp,
+    'raw.punch': event.punch,
+    'raw.status': event.status,
+    'raw.source': event.source === 'adms' ? { $ne: 'adms' } : 'adms',
+  };
 }
 
 function devicePunchKind(punch: number, mode: string, lastKind?: string): 'in' | 'out' {
@@ -98,5 +134,11 @@ function devicePunchKind(punch: number, mode: string, lastKind?: string): 'in' |
   throw new Error(`Unsupported device punch code: ${punch}.`);
 }
 
-export { deviceTokenMatches, parseDevicePunch, deviceEventId, devicePunchKind };
+export {
+  deviceTokenMatches,
+  parseDevicePunch,
+  deviceEventId,
+  devicePunchKind,
+  crossTransportReceiptFilter,
+};
 export type { DevicePunch };

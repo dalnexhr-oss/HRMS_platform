@@ -6,7 +6,7 @@ import { localParts } from '@/lib/punch-day';
 import { punchWriteReason, readDayEvents } from '@/lib/punch-storage';
 import { toCoordinate } from '@/lib/db/decimal-conversions';
 import { allowsZktecoPunch } from '@/lib/punch-access';
-import { deviceEventId, devicePunchKind } from './punch-protocol';
+import { crossTransportReceiptFilter, deviceEventId, devicePunchKind } from './punch-protocol';
 import { resolveDeviceEmployee, UnknownDeviceEmployee } from './employee-mapping';
 import type { Document } from 'mongodb';
 import type { DevicePunch } from './punch-protocol';
@@ -35,6 +35,15 @@ async function recordDevicePunch(event: DevicePunch) {
         event,
         session,
       );
+      // Employee resolution holds the same write lock used by all attendance writers.
+      // During cutover, a pull packet and an ADMS row can describe the same scan.
+      const otherTransport = await receipts.findOne(
+        crossTransportReceiptFilter(event, employee._id),
+        { session },
+      );
+      if (otherTransport) {
+        return { status: otherTransport.status as string, duplicate: true, eventId };
+      }
       const deviceAllowed = allowsZktecoPunch(login?.punch_access);
       const at = new Date(event.timestamp);
       const date = localParts(at).date;
@@ -113,7 +122,8 @@ async function recordDevicePunch(event: DevicePunch) {
           device_branch_id: terminal.branch_id ?? null,
           device_id: event.deviceId,
           device_uid: link.device_uid,
-          device_attendance_uid: event.uid,
+          device_attendance_uid: event.uid ?? null,
+          device_transport: event.source ?? 'pull',
           device_event_id: eventId,
         });
         if (error) {

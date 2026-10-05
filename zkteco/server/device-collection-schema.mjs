@@ -88,9 +88,14 @@ const DEVICE_COLLECTIONS = {
           work_date: { bsonType: 'string', pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' },
           raw: {
             bsonType: 'object',
-            required: ['deviceId', 'uid', 'userId', 'timestamp', 'punch', 'status'],
+            required: ['deviceId', 'userId', 'timestamp', 'punch', 'status'],
+            anyOf: [
+              { required: ['uid'], not: { required: ['source'] } },
+              { required: ['source'], not: { required: ['uid'] } },
+            ],
             properties: {
               deviceId: { bsonType: 'string' },
+              source: { enum: ['adms'] },
               uid: { bsonType: 'string' },
               userId: { bsonType: 'string' },
               timestamp: { bsonType: 'string' },
@@ -111,6 +116,10 @@ const DEVICE_COLLECTIONS = {
         options: { name: 'device_receipts_review' },
       },
       { keys: { employee_id: 1, received_at: -1 }, options: { name: 'device_receipts_employee' } },
+      {
+        keys: { device_id: 1, employee_id: 1, 'raw.timestamp': 1 },
+        options: { name: 'device_receipts_transport_replay' },
+      },
     ],
   },
 };
