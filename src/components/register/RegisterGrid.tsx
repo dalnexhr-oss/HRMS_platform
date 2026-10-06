@@ -850,7 +850,7 @@ function BulkBar({
         Clear
       </button>
       <button type="button" className="button quiet" onClick={onExit} disabled={pending}>
-        Done
+        Close
       </button>
     </div>
   );
