@@ -3,7 +3,7 @@
 // request.
 import 'server-only';
 import { cache } from 'react';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { sessionCookie } from '@/lib/auth/session-shared';
 import { usersCollection } from '@/lib/db/collection-registry';
 import { readPunchAccess } from '@/lib/punch-access';
@@ -23,15 +23,17 @@ interface SessionContext {
 const empty: SessionContext = { userId: null, email: null, profile: null };
 
 // Cookie attributes. Shared by the set and clear paths so they cannot drift.
-function cookieOptions(maxAge: number) {
+async function cookieOptions(maxAge: number) {
+  // Next supplies x-forwarded-proto from the connection when no proxy sets it.
+  // Production builds can also be served over plain HTTP on a LAN IP; a Secure
+  // cookie would be rejected there, while browsers allow it on localhost.
+  const protocol = (await headers()).get('x-forwarded-proto');
   return {
     httpOnly: true,
     // 'lax' still sends the cookie on top-level navigation into the app, so
     // links from email work, while blocking it on cross-site POSTs.
     sameSite: 'lax' as const,
-    // Never require HTTPS in dev or the cookie is silently dropped on
-    // http://localhost and sign-in appears to do nothing.
-    secure: process.env.NODE_ENV === 'production',
+    secure: protocol === 'https',
     path: '/',
     maxAge,
   };
@@ -63,13 +65,13 @@ async function createSession(user: UserDoc): Promise<void> {
     ver: user.token_version,
   };
   const token = await signSession(claims);
-  (await cookies()).set(sessionCookie, token, cookieOptions(sessionMaxAgeSeconds));
+  (await cookies()).set(sessionCookie, token, await cookieOptions(sessionMaxAgeSeconds));
 }
 
 // Clear this browser's cookie. Sign-out must also call revokeAllSessions to invalidate other
 // copies of the token.
 async function destroySession(): Promise<void> {
-  (await cookies()).set(sessionCookie, '', cookieOptions(0));
+  (await cookies()).set(sessionCookie, '', await cookieOptions(0));
 }
 
 // Invalidate every token issued to an account, on every device. Call on sign-out, password change,
