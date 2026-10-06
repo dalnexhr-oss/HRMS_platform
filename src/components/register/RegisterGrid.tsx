@@ -794,13 +794,21 @@ function BulkBar({
   const [status, setStatus] = useState('L');
   const [reason, setReason] = useState('');
 
+  function resetFields() {
+    setStatus('L');
+    setReason('');
+  }
+
   if (!bulkMode) {
     return (
       <div className="register-bulk-toggle">
         <button
           type="button"
           className="button quiet"
-          onClick={onEnter}
+          onClick={() => {
+            resetFields();
+            onEnter();
+          }}
           title="Select attendance cells for bulk correction"
         >
           ☑ Select cells
@@ -849,7 +857,15 @@ function BulkBar({
       >
         Clear
       </button>
-      <button type="button" className="button quiet" onClick={onExit} disabled={pending}>
+      <button
+        type="button"
+        className="button quiet"
+        onClick={() => {
+          resetFields();
+          onExit();
+        }}
+        disabled={pending}
+      >
         Close
       </button>
     </div>
