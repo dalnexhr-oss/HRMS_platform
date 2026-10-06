@@ -5,6 +5,8 @@
 
 # next.js
 /.next/
+/.next-dev/
+/.next-production/
 /out/
 next-env.d.ts
 

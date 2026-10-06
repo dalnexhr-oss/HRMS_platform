@@ -9,11 +9,12 @@ const config = [
   {
     ignores: [
       '.next/**',
+      '.next-dev/**',
+      '.next-production/**',
       '.local/**',
       'node_modules/**',
       'out/**',
       'build/**',
-      'coverage/**',
       'next-env.d.ts',
     ],
   },

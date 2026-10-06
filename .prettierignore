@@ -1,8 +1,9 @@
 /node_modules/
 /.next/
+/.next-dev/
+/.next-production/
 /out/
 /build/
-/coverage/
 /package-lock.json
 /next-env.d.ts
 /*.tsbuildinfo
