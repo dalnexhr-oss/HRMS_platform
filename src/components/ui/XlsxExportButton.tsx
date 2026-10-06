@@ -58,7 +58,27 @@ function XlsxExportButton({
   return (
     <>
       <button type="button" className={className} onClick={onClick} disabled={pending}>
-        {pending ? 'Preparing…' : label}
+        {pending ? (
+          'Preparing…'
+        ) : (
+          <>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M12 3v12m-4-4 4 4 4-4M4 17v3h16v-3" />
+            </svg>
+            {label}
+          </>
+        )}
       </button>
       {error ? (
         <span className="text-muted" style={{ fontSize: 12, color: 'var(--attendance-absent)' }}>
