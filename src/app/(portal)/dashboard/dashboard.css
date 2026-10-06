@@ -112,3 +112,180 @@
   scrollbar-width: thin;
   scrollbar-color: rgba(143, 164, 197, 0.7) transparent;
 }
+
+/* The right cards size the shared row; the two long bodies scroll within it. */
+.today-dashboard,
+.today-dashboard-row,
+.today-rail,
+.today-dashboard-row > .card,
+.today-rail > .card {
+  min-width: 0;
+}
+.today-punch-card,
+.today-activity-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.today-punch-card > .card-header,
+.today-activity-card > .card-header {
+  flex: 0 0 auto;
+}
+
+@media (min-width: 1121px) {
+  .today-dashboard-row.two-column-layout {
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    grid-template-rows: max-content max-content minmax(8rem, 1fr);
+    height: clamp(28rem, calc(100dvh - 22rem), 40rem);
+    min-height: min-content;
+    align-items: stretch;
+    column-gap: 16px;
+    row-gap: 12px;
+  }
+  .today-punch-card {
+    grid-column: 1;
+    grid-row: 1 / 4;
+  }
+  .today-rail {
+    display: contents;
+  }
+  .today-celebrations-card {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .today-marks-card {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .today-activity-card {
+    grid-column: 2;
+    grid-row: 3;
+  }
+}
+
+/* Scrolling stays inside the card bodies, with headers outside those areas. */
+.punch-log-scroll,
+.activity-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(143, 164, 197, 0.7) transparent;
+  padding-bottom: 12px;
+}
+.punch-log-scroll {
+  min-width: 0;
+  overflow: auto;
+}
+.punch-log-scroll table {
+  min-width: 700px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.punch-log-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-card);
+  box-shadow: 0 1px 0 var(--border-strong);
+}
+.activity-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 10px;
+}
+
+/* Activity rows retain their compact time column while messages wrap. */
+.activity-row {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 13px 0;
+  border-bottom: 1px dashed var(--border-subtle);
+}
+.activity-row:last-child {
+  border-bottom: 0;
+}
+.activity-row .activity-time {
+  min-width: 0;
+  padding-top: 4px;
+  white-space: nowrap;
+  font: 500 11px var(--font-monospace);
+  color: var(--text-muted);
+}
+.activity-row > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* At the end of the page, Comp Offs ends level with the sidebar's viewport inset. */
+.page-content:has(.today-dashboard) {
+  padding-bottom: var(--layout-gap);
+}
+.dashboard-comp-offs {
+  margin-top: 16px;
+}
+.dashboard-comp-off-card {
+  min-width: 0;
+  padding-bottom: 10px;
+}
+.dashboard-comp-off-body {
+  max-height: 320px;
+  overflow-y: scroll;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(143, 164, 197, 0.7) transparent;
+}
+
+.punch-log-scroll::-webkit-scrollbar,
+.activity-scroll::-webkit-scrollbar,
+.dashboard-comp-off-body::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+.punch-log-scroll::-webkit-scrollbar-track,
+.activity-scroll::-webkit-scrollbar-track,
+.dashboard-comp-off-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.punch-log-scroll::-webkit-scrollbar-thumb,
+.activity-scroll::-webkit-scrollbar-thumb,
+.dashboard-comp-off-body::-webkit-scrollbar-thumb {
+  background: rgba(143, 164, 197, 0.7);
+  border-radius: 99px;
+}
+.punch-log-scroll::-webkit-scrollbar-thumb:hover,
+.activity-scroll::-webkit-scrollbar-thumb:hover,
+.dashboard-comp-off-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(110, 135, 175, 0.9);
+}
+
+@media (max-width: 1120px) {
+  .today-dashboard-row.two-column-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .punch-log-scroll,
+  .activity-scroll {
+    flex: initial;
+  }
+  .punch-log-scroll {
+    max-height: 28rem;
+  }
+  .activity-scroll {
+    max-height: 24rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .activity-row {
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 8px;
+  }
+  .dashboard-comp-offs {
+    margin-top: 12px;
+  }
+}

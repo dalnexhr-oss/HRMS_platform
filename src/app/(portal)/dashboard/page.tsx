@@ -1,17 +1,17 @@
 import './dashboard.css';
 import { TodayBoard } from '@/components/today/TodayBoard';
-import { CompOffAdminCard } from '@/components/today/CompOffAdminCard';
 import { LiveRefresh } from '@/components/today/LiveRefresh';
-import { currentPeriodMonth } from '@/lib/business-dates';
-import { getActivityFeed, getCelebrationsToday, getPunchLogToday, getTodayBoard } from '@/lib/queries/dashboard';
-import { getCompOffAdmin } from '@/lib/queries/compensatory-off';
-import { getPayrollRun } from '@/lib/queries/payroll';
 import { getRegister } from '@/lib/queries/attendance';
 import { getSettings } from '@/lib/queries/settings';
+import { getPayrollRun } from '@/lib/queries/payroll';
+import { currentPeriodMonth } from '@/lib/business-dates';
+import { getCompOffAdmin } from '@/lib/queries/compensatory-off';
+import { CompOffAdminCard } from '@/components/today/CompOffAdminCard';
+import { getActivityFeed, getCelebrationsToday, getPunchLogToday, getTodayBoard } from '@/lib/queries/dashboard';
+import type { Metadata } from 'next';
 import type { Loaded } from '@/components/today/TodayBoard';
 import type { SettingView } from '@/lib/queries/settings';
 import type { MarkWatch, RegisterEmployee } from '@/types/domain';
-import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Dashboard — Dalnex HRMS',
@@ -112,7 +112,7 @@ async function TodayPage() {
         periodMonthLabel={monthLabelOf(periodMonth)}
       />
 
-      <div className="content-container grid">
+      <div className="content-container grid dashboard-comp-offs">
         <CompOffAdminCard
           rows={compOffs.ok ? compOffs.data : []}
           error={compOffs.ok ? undefined : compOffs.error}

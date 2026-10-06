@@ -121,7 +121,7 @@ function TodayBoard({
   const branchTotal = branches.reduce((a, b) => a + b.count, 0);
 
   return (
-    <div className="content-container grid">
+    <div className="content-container grid today-dashboard">
       {/* KPIs. The band relies on the grid's default stretch for uniform card
           heights — safe because the branch card is hard-capped (.branch-list
           max-height), so no roster size can inflate the row. */}
@@ -217,9 +217,9 @@ function TodayBoard({
         </div>
       </div>
 
-      <div className="two-column-layout">
+      <div className="two-column-layout today-dashboard-row">
         {/* Punch log */}
-        <div className="card">
+        <div className="card today-punch-card">
           <div className="card-header">
             <h3>Punch log — Today</h3>
             <span style={{ flex: 1 }} />
@@ -235,7 +235,7 @@ function TodayBoard({
           {!punchLog.ok ? (
             <LoadError what="the punch log" message={punchLog.error} />
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+            <div className="punch-log-scroll">
               <table>
                 <thead>
                   <tr>
@@ -278,9 +278,9 @@ function TodayBoard({
           )}
         </div>
 
-        <div className="grid">
+        <div className="grid today-rail">
           {/* Celebrations */}
-          <div className="card">
+          <div className="card today-celebrations-card">
             <div className="card-header">
               <h3>Celebrations</h3>
               <span className="card-caption">{todayLabel}</span>
@@ -312,7 +312,7 @@ function TodayBoard({
           </div>
 
           {/* Use actual LM totals and the configured mark_threshold for the meter. */}
-          <div className="card attendance-watch">
+          <div className="card attendance-watch today-marks-card">
             <div className="card-header">
               <h3>Marks watch — {periodMonthLabel}</h3>
               <span className="card-caption">{ordinal(markThreshold)} mark = auto half-day</span>
@@ -353,14 +353,14 @@ function TodayBoard({
           {/* Activity — messages are plain text from activity_log. Rendered as text,
               never as HTML: dangerouslySetInnerHTML here would be stored XSS the moment
               a message contains user-supplied content. */}
-          <div className="card">
+          <div className="card today-activity-card">
             <div className="card-header">
               <h3>Activity</h3>
             </div>
             {!activity.ok ? (
               <LoadError what="the activity feed" message={activity.error} />
             ) : (
-              <div className="card-body" style={{ paddingTop: 4 }}>
+              <div className="card-body activity-scroll" style={{ paddingTop: 4 }}>
                 {activity.data.length === 0 ? (
                   <p className="text-muted" style={{ margin: 0, fontSize: 13 }}>
                     No activity recorded yet.

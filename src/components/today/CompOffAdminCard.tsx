@@ -45,7 +45,7 @@ function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; error?: st
   }
 
   return (
-    <div className="card">
+    <div className="card dashboard-comp-off-card">
       {notificationContainer}
       <div className="card-header">
         <h3>Comp offs</h3>
@@ -55,7 +55,7 @@ function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; error?: st
             : `${totalUsable} usable · ${rows.length} live credit${rows.length === 1 ? '' : 's'}`}
         </span>
       </div>
-      <div className="card-body" style={{ maxHeight: 320, overflowY: 'auto' }}>
+      <div className="card-body dashboard-comp-off-body">
         {error ? (
           <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
             Comp offs could not be loaded: {error}
