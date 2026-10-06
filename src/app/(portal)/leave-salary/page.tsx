@@ -35,7 +35,7 @@ async function LeavePage({ searchParams }: { searchParams: Promise<{ y?: string 
       rows={view.rows}
       pool={pool}
       exportSlot={
-        <XlsxExportButton action={exportLeaveSalaryXlsx.bind(null, year)} label="Export .xlsx" />
+        <XlsxExportButton action={exportLeaveSalaryXlsx.bind(null, year)} label="Excel" />
       }
     />
   );

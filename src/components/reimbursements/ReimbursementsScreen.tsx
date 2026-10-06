@@ -203,7 +203,7 @@ function ReimbursementsScreen({
           >
             All
           </button>
-          <XlsxExportButton action={exportReimbursementsXlsx} label="Export .xlsx" />
+          <XlsxExportButton action={exportReimbursementsXlsx} label="Excel" />
         </div>
 
         {rows.length === 0 ? (

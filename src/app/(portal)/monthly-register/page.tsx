@@ -198,10 +198,7 @@ async function RegisterPage({
         {canCorrect && !loadError && employees.length > 0 && (
           <>
             <span style={{ flex: 1 }} />
-            <XlsxExportButton
-              action={exportRegisterXlsx.bind(null, periodMonth)}
-              label="Export .xlsx"
-            />
+            <XlsxExportButton action={exportRegisterXlsx.bind(null, periodMonth)} label="Excel" />
           </>
         )}
       </div>
