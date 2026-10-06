@@ -92,6 +92,16 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Payroll export / statutory action buttons */
+.payroll-export-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px; /* space between buttons */
+  margin-top: 20px; /* space below payroll banner */
+  margin-bottom: 20px; /* space above totals/table */
+}
+
 /* responsive */
 @media (max-width: 1120px) {
   .payroll-totals {

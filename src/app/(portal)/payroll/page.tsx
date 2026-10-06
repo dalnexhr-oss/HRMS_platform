@@ -234,7 +234,7 @@ async function PayrollPage({
         />
       </div>
 
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div className="payroll-export-actions">
         <XlsxExportButton
           action={exportPayrollXlsx.bind(null, run?.periodMonth ?? periodMonth)}
           label="Export payroll .xlsx"
