@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { getSession } from '@/lib/server-auth';
 import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm';
 import { AvatarMenu } from '@/components/shell/AvatarMenu';
@@ -9,12 +8,6 @@ async function EmployeeAccountPage() {
 
   return (
     <div className="content-container grid">
-      <div>
-        <Link href="/employee" className="button quiet">
-          ← Back to dashboard
-        </Link>
-      </div>
-
       <div className="card">
         <div className="card-header">
           <h3>My account</h3>

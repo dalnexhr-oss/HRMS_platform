@@ -48,11 +48,6 @@ function EmployeeApprovals({
   return (
     <div className="content-container grid employee-approvals">
       {notificationContainer}
-      <div>
-        <Link href="/employee" className="button quiet">
-          ← Back to dashboard
-        </Link>
-      </div>
       <div className="card">
         <div className="card-header">
           <h3>My approvals</h3>

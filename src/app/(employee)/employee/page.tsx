@@ -1,112 +1,59 @@
-import Link from 'next/link';
 import { getSession } from '@/lib/server-auth';
-import { todayIST, inr } from '@/lib/display-formatting';
+import { inr } from '@/lib/display-formatting';
 import { AvatarMenu } from '@/components/shell/AvatarMenu';
 import { currentPeriodMonth } from '@/lib/business-dates';
 import { getEmployeeOverview } from '@/lib/queries/employees';
 import { getEmployeePolicies } from '@/lib/queries/policies';
-import { getLeaveBalances, getOnLeaveToday } from '@/lib/queries/leave';
-import { getMyAttendance } from '@/lib/queries/attendance';
-import { getMyPayslips, getPayrollRun } from '@/lib/queries/payroll';
+import { getOnLeaveToday } from '@/lib/queries/leave';
+import { getPayrollRun } from '@/lib/queries/payroll';
 import { getMyRequests, getRequests } from '@/lib/queries/requests';
-import { getMyTickets, getTicketComments } from '@/lib/queries/helpdesk';
+import { getMyTickets } from '@/lib/queries/helpdesk';
 import { getMyCompOffs } from '@/lib/queries/compensatory-off';
-import { getMyReimbursements, getReimbursementRate } from '@/lib/queries/reimbursements';
-import { getMyAssets } from '@/lib/queries/assets';
-import { getMyItems } from '@/lib/queries/items';
-import { getEmployeeDocuments } from '@/lib/queries/documents';
-import { getMyOnboardingTasks } from '@/lib/queries/onboarding';
-import { getHolidays } from '@/lib/queries/holidays';
 import { getNotices, getReadNoticeIds } from '@/lib/queries/notices';
-import { getWeekOffPolicy } from '@/lib/queries/settings';
-import { isMongoConfigured } from '@/lib/db/mongodb-connection';
-import { PolicyList } from '@/components/policies/PolicyList';
 import { EmployeeNotices } from '@/components/employee/EmployeeNotices';
-import { EmployeeHolidays } from '@/components/employee/EmployeeHolidays';
-import { MyAttendance } from '@/components/employee/MyAttendance';
-import { MyPayslips } from '@/components/employee/MyPayslips';
-import { ApplyLeave } from '@/components/employee/ApplyLeave';
-import { MyTickets } from '@/components/employee/MyTickets';
-import { MyCompOffs } from '@/components/employee/MyCompOffs';
-import { MyReimbursements } from '@/components/employee/MyReimbursements';
-import { MyAssets } from '@/components/employee/MyAssets';
-import { MyItems } from '@/components/employee/MyItems';
-import { MyDocuments } from '@/components/employee/MyDocuments';
-import { MyOnboarding } from '@/components/employee/MyOnboarding';
-import { Punch } from '@/components/employee/Punch';
-import { getRequestRecipients } from '@/lib/requests/routing';
 import { EmployeeApprovalSummary } from '@/components/employee/EmployeeApprovalSummary';
+import { LegacySectionRedirect } from '@/components/employee/LegacySectionRedirect';
+import { UnlinkedEmployeeNotice } from '@/components/employee/UnlinkedEmployeeNotice';
 import type { CompOffRow } from '@/lib/queries/compensatory-off';
-import type { HolidayView } from '@/lib/queries/holidays';
-import type { LeaveBalanceRow, OnLeaveTodayRow } from '@/lib/queries/leave';
+import type { OnLeaveTodayRow } from '@/lib/queries/leave';
 import type { NoticeView } from '@/lib/queries/notices';
 import type { PayrollRunView } from '@/lib/queries/payroll';
-import type { ReimbursementView } from '@/lib/queries/reimbursements';
 import type { RequestView } from '@/lib/queries/requests';
 import type { TicketView } from '@/lib/queries/helpdesk';
-import type { MyAssetRow } from '@/lib/queries/assets';
-import type { MyItemRow } from '@/lib/queries/items';
-import type { EmployeeDocumentRow } from '@/lib/documents/document-summary';
-import type { OnboardingTaskRow } from '@/lib/queries/onboarding';
-import type { DayCell, PayslipRow } from '@/types/domain';
 
-// Employee self-service dashboard. This is the default landing page for employees after login, and the hub for all their self-service needs. It shows a snapshot of their attendance, payslips, requests, tickets, policies, and other relevant information.
+// Employee dashboard: the landing page after login. It shows a snapshot of the month, approvals,
+// who is on leave today, and company notices. Every other section has its own sidebar tab.
 async function MePage() {
-  const { profile, email } = await getSession();
+  const { profile } = await getSession();
   const employeeId = profile?.employee_id ?? null;
   const periodMonth = currentPeriodMonth();
 
-  // Fetch all the data needed for the employee dashboard in parallel. This includes overview, policies, balances, attendance, payslips, requests, tickets, payroll run, comp offs, reimbursements, rate per km, assets, items, holidays, notices, week off policy, read notice ids, documents, onboarding tasks, and employees on leave today.
+  // Fetch the dashboard data in parallel. The summary cards count policies, requests, tickets and
+  // comp offs, so those lists are loaded here as well as on their own tabs.
   const [
     overview,
     policies,
-    balances,
-    attendance,
-    payslips,
     requests,
     tickets,
     run,
     compOffs,
-    reimbursements,
-    ratePerKm,
-    myAssets,
-    myItems,
-    holidays,
     notices,
-    weekOffPolicy,
     readNoticeIds,
-    myDocuments,
-    myOnboarding,
     onLeaveToday,
-    requestPeople,
     inboxRequests,
   ] = await Promise.all([
     getEmployeeOverview(employeeId, profile?.full_name, periodMonth),
     getEmployeePolicies(employeeId),
-    employeeId ? getLeaveBalances(employeeId) : Promise.resolve<LeaveBalanceRow[]>([]),
-    employeeId ? getMyAttendance(employeeId, periodMonth) : Promise.resolve<DayCell[]>([]),
-    employeeId ? getMyPayslips(employeeId) : Promise.resolve<PayslipRow[]>([]),
     employeeId ? getMyRequests(employeeId) : Promise.resolve<RequestView[]>([]),
     employeeId ? getMyTickets(employeeId) : Promise.resolve<TicketView[]>([]),
     getPayrollRun(periodMonth),
     employeeId ? getMyCompOffs(employeeId) : Promise.resolve<CompOffRow[]>([]),
-    employeeId ? getMyReimbursements(employeeId) : Promise.resolve<ReimbursementView[]>([]),
-    getReimbursementRate(),
-    employeeId ? getMyAssets(employeeId) : Promise.resolve<MyAssetRow[]>([]),
-    employeeId ? getMyItems(employeeId) : Promise.resolve<MyItemRow[]>([]),
-    getHolidays(),
     getNotices(),
-    getWeekOffPolicy(),
     employeeId ? getReadNoticeIds(employeeId) : Promise.resolve<string[]>([]),
-    employeeId ? getEmployeeDocuments(employeeId) : Promise.resolve<EmployeeDocumentRow[]>([]),
-    employeeId ? getMyOnboardingTasks(employeeId) : Promise.resolve<OnboardingTaskRow[]>([]),
     getOnLeaveToday().catch(() => [] as OnLeaveTodayRow[]),
-    getRequestRecipients(),
     getRequests(),
   ]);
 
-  // Fetch the comments for all tickets in one go, so the ticket list can show the latest comment and comment count.
-  const ticketComments = await getTicketComments(tickets.map((t) => t.id));
   const noticeCutoffMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const visibleNotices: NoticeView[] = notices.filter(
     (n) =>
@@ -114,10 +61,6 @@ async function MePage() {
   );
   const readNoticeSet = new Set(readNoticeIds);
   const unreadNotices = visibleNotices.filter((n) => !readNoticeSet.has(n.id)).length;
-  const myBranch = overview.branch || null;
-  const visibleHolidays: HolidayView[] = holidays.filter((h) => !h.branch || h.branch === myBranch);
-  const todayStr = todayIST();
-  const upcomingHolidayCount = visibleHolidays.filter((h) => h.date >= todayStr).length;
   const unread = policies.filter((p) => !p.acknowledged).length;
   const pendingRequests = requests.filter((r) => r.status === 'pending').length;
   const openTickets = tickets.filter(
@@ -126,13 +69,11 @@ async function MePage() {
   const compOffBalance = compOffs.filter((c) => c.status === 'available' && c.isApplicable).length;
   const compOffApplied = compOffs.filter((c) => c.status === 'applied').length;
   const displayName = overview.name.trim() || profile?.full_name?.trim() || 'there';
-  const canRaiseTicket = isMongoConfigured() && !!employeeId;
-  const ticketBlockedReason = !isMongoConfigured()
-    ? 'The database is not configured, so a ticket cannot be saved.'
-    : 'Your login is not linked to an employee record, so a ticket could not be traced back to you. Ask HR to link it.';
 
   return (
     <div className="content-container grid">
+      {/* Old links such as /employee#payslips land here; send them on to the tab. */}
+      <LegacySectionRedirect />
       <div className="employee-overview">
         <AvatarMenu name={displayName} avatar={profile?.avatar} align="left" />
         <div>
@@ -145,16 +86,7 @@ async function MePage() {
         </div>
       </div>
 
-      {!employeeId && (
-        <div className="card">
-          <div className="card-body">
-            <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
-              Your login is not linked to an employee record yet, so your attendance, payslips,
-              requests and tickets cannot be shown. Ask HR to link your account.
-            </p>
-          </div>
-        </div>
-      )}
+      <UnlinkedEmployeeNotice employeeId={employeeId} />
 
       {/* personal snapshot */}
       <div className="summary-cards">
@@ -349,103 +281,6 @@ async function MePage() {
             readIds={readNoticeIds}
             canMark={!!employeeId}
           />
-        </div>
-      </div>
-
-      {/* holiday calendar */}
-      <div className="card" id="holidays">
-        <div className="card-header">
-          <h3>Holiday calendar</h3>
-          <span className="card-caption">
-            {upcomingHolidayCount} upcoming · {visibleHolidays.length} total
-          </span>
-        </div>
-        <div className="card-body">
-          <EmployeeHolidays holidays={visibleHolidays} policy={weekOffPolicy} />
-        </div>
-      </div>
-
-      {/* joiner checklist — read-only; ticking a step is a staff action */}
-      <MyOnboarding tasks={myOnboarding} id="onboarding" />
-
-      {/* own document locker — upload what HR asked for, track verification */}
-      <MyDocuments documents={myDocuments} id="documents" />
-
-      {/* live clock — the one thing done every day, so it sits above the strip */}
-      <Punch id="punch" />
-
-      {/* own month strip */}
-      <MyAttendance days={attendance} periodMonth={periodMonth} id="attendance" />
-
-      {/* leave / duty requests + balances */}
-      <ApplyLeave
-        requests={requests}
-        balances={balances}
-        canApply={!!employeeId}
-        compOffBalance={compOffBalance}
-        people={requestPeople}
-        id="leave"
-      />
-
-      {/* comp offs earned by working an off day */}
-      <MyCompOffs
-        compOffs={compOffs}
-        canApply={canRaiseTicket}
-        blockedReason={ticketBlockedReason}
-        people={requestPeople}
-        id="comp-offs"
-      />
-
-      {/* payslips */}
-      <MyPayslips payslips={payslips} id="payslips" />
-
-      {/* expense claims */}
-      <MyReimbursements
-        claims={reimbursements}
-        ratePerKm={ratePerKm}
-        canClaim={canRaiseTicket}
-        blockedReason={ticketBlockedReason}
-        id="reimbursements"
-      />
-
-      {/* equipment assigned to me */}
-      <MyAssets assets={myAssets} id="assets" />
-      <MyItems items={myItems} id="items" />
-
-      {/* helpdesk */}
-      <MyTickets
-        tickets={tickets}
-        comments={ticketComments}
-        selfId={profile?.id ?? null}
-        canRaise={canRaiseTicket}
-        blockedReason={ticketBlockedReason}
-        id="tickets"
-      />
-
-      {/* company policies */}
-      <div className="card" id="policies">
-        <div className="card-header">
-          <h3>Company policies</h3>
-          <span className="card-caption">Please read &amp; acknowledge</span>
-        </div>
-        <div className="card-body">
-          <PolicyList policies={policies} />
-        </div>
-      </div>
-
-      {/* account security lives on its own page now */}
-      <div className="card">
-        <div className="card-header">
-          <h3>My account</h3>
-          <span className="card-caption">{email ?? 'your account'}</span>
-        </div>
-        <div className="card-body">
-          <p className="text-muted" style={{ fontSize: 13, marginTop: 0 }}>
-            Manage your profile picture and password on your account page.
-          </p>
-          <Link href="/employee/account" className="button">
-            Manage your account →
-          </Link>
         </div>
       </div>
     </div>

@@ -38,36 +38,107 @@
   justify-content: center;
 }
 
-/* page foot ----------------------------------------------------------- Sign out ends the session, is wanted once a day at most, and is now the last thing on the page rather than the first thing under the thumb. */
-.employee-footer {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin: 0 0 var(--layout-gap);
-  padding: 14px 20px;
-  background: var(--surface-card);
-  border: 1px solid var(--border-surface);
-  border-radius: var(--border-radius);
+/* sidebar foot -------------------------------------------------------- Sign out ends the session and is wanted once a day at most, so it sits under the signed-in name at the foot of the sidebar rather than beside the punch button. */
+.sidebar-footer-action {
+  margin-top: 10px;
+}
+.sidebar-footer-action .button.quiet {
+  width: 100%;
+  justify-content: center;
+}
+
+/* white sidebar ------------------------------------------------------- The employee area uses a white panel with dark labels; the staff portal keeps the brand gradient. */
+.sidebar.is-light {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.94);
+  border-color: var(--border-surface);
   box-shadow: var(--shadow-card);
 }
-.employee-footer-identity {
+.sidebar.is-light .sidebar-brand {
+  background: transparent;
+  border-bottom-color: var(--border-subtle);
+}
+.sidebar.is-light .sidebar-brand .brand-caption {
+  margin-top: 4px;
+  margin-left: 60px;
+
+  font-style: italic;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.sidebar.is-light .sidebar-navigation {
+  scrollbar-color: var(--border-strong) transparent;
+}
+.sidebar.is-light .sidebar-navigation::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+}
+.sidebar.is-light .sidebar-navigation .navigation-group {
+  color: var(--text-muted);
+}
+.sidebar.is-light .sidebar-navigation a {
+  color: var(--text-secondary);
+}
+.sidebar.is-light .sidebar-navigation a:hover {
+  color: var(--brand);
+  background: var(--brand-soft);
+  border-color: transparent;
+}
+.sidebar.is-light .sidebar-navigation a[aria-current='true'] {
+  color: var(--brand-deep);
+  background: var(--brand-soft);
+  border-color: rgba(14, 122, 143, 0.28);
+  box-shadow: none;
+}
+.sidebar.is-light .sidebar-navigation a[aria-current='true']::before {
+  background: var(--brand);
+  box-shadow: none;
+}
+.sidebar.is-light .sidebar-footer {
+  color: var(--text-muted);
+  border-top-color: var(--border-subtle);
+}
+.sidebar.is-light .sidebar-footer b {
+  color: var(--text-primary);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .sidebar.is-light {
+    background: #fff !important;
+  }
+}
+/* letters HR has sent for signing — the one thing on the documents tab that needs action */
+.letters-to-sign {
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid var(--attendance-late-border);
+  border-radius: 12px;
+  background: var(--attendance-late-background);
+  font-size: 13px;
+}
+.letters-to-sign > p {
+  margin: 4px 0 10px;
+  font-size: 12px;
+}
+.letter-to-sign {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid var(--attendance-late-border);
+}
+.letter-to-sign-name {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1 1 200px;
   min-width: 0;
-  margin-right: auto;
 }
-.employee-footer-identity b {
-  font: 700 13px var(--font-body);
-  color: var(--text-primary);
+.letter-to-sign-name span {
+  font-size: 12px;
 }
-.employee-footer-identity .text-monospace {
-  font: 500 11.5px var(--font-monospace);
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.letter-to-sign label.button {
+  cursor: pointer;
 }
 /* collapsible notice body */
 .policy .entry-body.is-truncated {
@@ -643,9 +714,6 @@
     gap: 9px;
     padding: 7px 10px;
   }
-  .employee-footer {
-    padding: 13px 15px;
-  }
 }
 
 /* Preserve the shared button touch target after the desktop punch-button rule. */
@@ -657,8 +725,7 @@
 
 /* Print */
 @media print {
-  .punch-button,
-  .employee-footer {
+  .punch-button {
     display: none !important;
   }
   /* A printed register has to show the whole trail, not one box of it. */
