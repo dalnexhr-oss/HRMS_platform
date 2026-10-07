@@ -1,6 +1,8 @@
 // Stream the request body directly into GridFS so large uploads can report progress without
 // buffering the entire file in a Server Action. Metadata is sent in the query string.
 import { NextResponse } from 'next/server';
+import { codeForStatus, notSignedInMessage } from '@/lib/api/errors';
+import { apiRoute } from '@/lib/api/route-handler';
 import { getSession } from '@/lib/server-auth';
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { deleteObject, StorageAccessError } from '@/lib/db/gridfs-file-storage';
@@ -13,7 +15,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 function bad(error: string, status = 400) {
-  return NextResponse.json({ ok: false, error }, { status });
+  // `ok` is what the upload forms read; `code` matches every other /api error.
+  return NextResponse.json({ ok: false, error, code: codeForStatus(status) }, { status });
 }
 
 /**
@@ -38,14 +41,14 @@ function capped(body: ReadableStream<Uint8Array>, limit: number): ReadableStream
   );
 }
 
-async function POST(req: Request) {
+async function upload(req: Request) {
   if (!isMongoConfigured()) {
     return bad('The database is not configured, so the document was not filed.', 503);
   }
 
   const { profile } = await getSession();
   if (!profile) {
-    return bad('Your session has expired. Sign in again.', 401);
+    return bad(notSignedInMessage, 401);
   }
 
   const params = new URL(req.url).searchParams;
@@ -140,5 +143,7 @@ async function POST(req: Request) {
 
   return NextResponse.json({ ok: true });
 }
+
+const POST = apiRoute('POST /api/documents/upload', upload);
 
 export { POST };

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getSession, isStaffRole } from '@/lib/server-auth';
+import { ApiError, apiErrorCodes } from '@/lib/api/errors';
+import { apiRoute, requireStaffSession } from '@/lib/api/route-handler';
 import { canAccessTab } from '@/lib/portal-access';
 import { getMyTabAccess } from '@/lib/queries/settings';
 import { readBoard } from '@/lib/tv-dashboard-data';
@@ -7,24 +8,14 @@ import { readBoard } from '@/lib/tv-dashboard-data';
 // Require staff access and fetch fresh attendance data for every board request.
 export const dynamic = 'force-dynamic';
 
-async function GET() {
-  try {
-    const { profile } = await getSession();
-    if (!isStaffRole(profile?.role)) {
-      return NextResponse.json({ error: 'Not authorised.' }, { status: 403 });
-    }
-    // Apply the page's tab-access gate to its data endpoint too.
-    const access = await getMyTabAccess(profile?.id ?? null);
-    if (!canAccessTab(profile?.role, 'tv-dashboard', access)) {
-      return NextResponse.json({ error: 'Not authorised.' }, { status: 403 });
-    }
-    return NextResponse.json(await readBoard());
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unable to load the board.' },
-      { status: 500 },
-    );
+const GET = apiRoute('GET /api/tv-dashboard', async () => {
+  const profile = await requireStaffSession();
+  // Apply the page's tab-access gate to its data endpoint too.
+  const access = await getMyTabAccess(profile.id);
+  if (!canAccessTab(profile.role, 'tv-dashboard', access)) {
+    throw new ApiError(403, apiErrorCodes.forbidden, 'Not authorised.');
   }
-}
+  return NextResponse.json(await readBoard());
+});
 
 export { GET };

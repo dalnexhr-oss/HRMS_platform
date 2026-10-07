@@ -4,6 +4,8 @@
 // Example cron entry:
 // 0 2 * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://your-host/api/cron
 import { NextResponse } from 'next/server';
+import { ApiError, apiErrorCodes } from '@/lib/api/errors';
+import { apiRoute } from '@/lib/api/route-handler';
 import { jobs, runDailyJobs } from '@/lib/db/scheduled-jobs';
 import type { JobName } from '@/lib/db/scheduled-jobs';
 
@@ -35,13 +37,14 @@ function authorised(req: Request): boolean {
 
 async function handle(req: Request) {
   if (!process.env.CRON_SECRET) {
-    return NextResponse.json(
-      { error: 'CRON_SECRET is not set, so scheduled jobs are disabled.' },
-      { status: 503 },
+    throw new ApiError(
+      503,
+      apiErrorCodes.unavailable,
+      'CRON_SECRET is not set, so scheduled jobs are disabled.',
     );
   }
   if (!authorised(req)) {
-    return NextResponse.json({ error: 'Not authorised.' }, { status: 401 });
+    throw new ApiError(401, apiErrorCodes.notSignedIn, 'Not authorised.');
   }
 
   // ?job=<name> runs one job; no parameter runs the daily set.
@@ -50,7 +53,11 @@ async function handle(req: Request) {
     const job = jobs[name];
     if (!job) {
       return NextResponse.json(
-        { error: `Unknown job '${name}'.`, available: Object.keys(jobs) },
+        {
+          error: `Unknown job '${name}'.`,
+          code: apiErrorCodes.badRequest,
+          available: Object.keys(jobs),
+        },
         { status: 400 },
       );
     }
@@ -60,7 +67,7 @@ async function handle(req: Request) {
   return NextResponse.json({ results: await runDailyJobs() });
 }
 
-const GET = handle;
-const POST = handle;
+const GET = apiRoute('GET /api/cron', handle);
+const POST = apiRoute('POST /api/cron', handle);
 
 export { GET, POST };

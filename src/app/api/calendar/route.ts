@@ -5,8 +5,8 @@
 // feed; authenticated downloads still work. Collection policies restrict employee records to the
 // caller.
 import { NextResponse } from 'next/server';
+import { apiRoute, requireSession } from '@/lib/api/route-handler';
 import { createClient } from '@/lib/db/server-client';
-import { getSession } from '@/lib/server-auth';
 import { getHolidays } from '@/lib/queries/holidays';
 import { buildIcs } from '@/lib/calendar-export';
 import type { CalendarEvent } from '@/lib/calendar-export';
@@ -14,11 +14,8 @@ import type { CalendarEvent } from '@/lib/calendar-export';
 // Always evaluated per-request: the feed is per-user and changes as leave is approved.
 export const dynamic = 'force-dynamic';
 
-async function GET(): Promise<Response> {
-  const { profile } = await getSession();
-  if (!profile) {
-    return new NextResponse('Sign in to fetch your calendar.', { status: 401 });
-  }
+async function calendar(): Promise<Response> {
+  const profile = await requireSession();
 
   const employeeId = profile.employee_id;
   const dbc = await createClient();
@@ -88,5 +85,7 @@ async function GET(): Promise<Response> {
     },
   });
 }
+
+const GET = apiRoute('GET /api/calendar', calendar);
 
 export { GET };

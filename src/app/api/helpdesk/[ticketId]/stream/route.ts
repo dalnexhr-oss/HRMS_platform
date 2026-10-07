@@ -1,5 +1,7 @@
 // Stream helpdesk messages over SSE after checking ticket access. Use MongoDB change streams on
 // replica sets and polling on standalone deployments.
+import { ApiError, apiErrorCodes, notSignedInMessage } from '@/lib/api/errors';
+import { apiRoute } from '@/lib/api/route-handler';
 import { collections } from '@/lib/db/collection-registry';
 import { scoped } from '@/lib/db/scoped-repository';
 import { db, supportsTransactions } from '@/lib/db/mongodb-connection';
@@ -13,12 +15,12 @@ const pollMs = 2_000;
 // Keep idle connections open through proxies.
 const heartbeatMs = 25_000;
 
-async function GET(req: Request, { params }: { params: Promise<{ ticketId: string }> }) {
+async function stream(req: Request, { params }: { params: Promise<{ ticketId: string }> }) {
   const { ticketId } = await params;
 
   const scope = await currentScope();
   if (!scope) {
-    return new Response('Not signed in.', { status: 401 });
+    throw new ApiError(401, apiErrorCodes.notSignedIn, notSignedInMessage);
   }
 
   // The ticket must be visible to this caller under the collection's policy.
@@ -27,7 +29,7 @@ async function GET(req: Request, { params }: { params: Promise<{ ticketId: strin
   const tickets = await scoped<{ _id: string; status: string }>(collections.helpdeskTickets);
   const ticket = await tickets.findOne({ _id: ticketId });
   if (!ticket) {
-    return new Response('Not found.', { status: 404 });
+    throw new ApiError(404, apiErrorCodes.notFound, 'Not found.');
   }
 
   const live = await supportsTransactions(); // replica set => change streams
@@ -150,5 +152,7 @@ async function GET(req: Request, { params }: { params: Promise<{ ticketId: strin
     },
   });
 }
+
+const GET = apiRoute('GET /api/helpdesk/stream', stream);
 
 export { GET };

@@ -2,6 +2,7 @@
 // checks enforce revocation; layouts and repository policies enforce authorization.
 import { NextResponse } from 'next/server';
 import { verifySession } from '@/lib/auth/jwt';
+import { apiErrorCodes, notSignedInMessage } from '@/lib/api/errors';
 import { sessionCookie } from '@/lib/auth/session-shared';
 import type { NextRequest } from 'next/server';
 
@@ -57,7 +58,10 @@ async function updateSession(request: NextRequest) {
       return response;
     }
     if (isApi) {
-      return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+      return NextResponse.json(
+        { error: notSignedInMessage, code: apiErrorCodes.notSignedIn },
+        { status: 401 },
+      );
     }
     const target = new URL('/login', request.url);
     // Preserve where they were headed so sign-in can return them to it.

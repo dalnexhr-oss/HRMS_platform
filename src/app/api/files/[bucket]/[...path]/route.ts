@@ -1,5 +1,7 @@
 // Stream files after getObject() checks the session and bucket/path permissions.
 import { NextResponse } from 'next/server';
+import { ApiError, apiErrorCodes } from '@/lib/api/errors';
+import { apiRoute } from '@/lib/api/route-handler';
 import { getObject, StorageAccessError } from '@/lib/db/gridfs-file-storage';
 import type { StorageBucket } from '@/lib/db/gridfs-file-storage';
 
@@ -14,13 +16,13 @@ const buckets: ReadonlySet<string> = new Set([
   'notice-attachments',
 ]);
 
-async function GET(
+async function readFile(
   _req: Request,
   { params }: { params: Promise<{ bucket: string; path: string[] }> },
 ) {
   const { bucket, path } = await params;
   if (!buckets.has(bucket)) {
-    return NextResponse.json({ error: 'Unknown bucket.' }, { status: 404 });
+    throw new ApiError(404, apiErrorCodes.notFound, 'Unknown bucket.');
   }
 
   // Next.js decodes route parameters automatically; avoid redundant decodeURIComponent to handle
@@ -30,7 +32,7 @@ async function GET(
   try {
     const file = await getObject(bucket as StorageBucket, key);
     if (!file) {
-      return NextResponse.json({ error: 'Not found.' }, { status: 404 });
+      throw new ApiError(404, apiErrorCodes.notFound, 'Not found.');
     }
 
     return new NextResponse(new Uint8Array(file.bytes), {
@@ -49,10 +51,13 @@ async function GET(
     });
   } catch (e) {
     if (e instanceof StorageAccessError) {
-      return NextResponse.json({ error: e.message }, { status: 403 });
+      throw new ApiError(403, apiErrorCodes.forbidden, e.message);
     }
-    return NextResponse.json({ error: 'Could not read that file.' }, { status: 500 });
+    // Rethrown as-is: the wrapper reports it without exposing storage details.
+    throw e;
   }
 }
+
+const GET = apiRoute('GET /api/files', readFile);
 
 export { GET };
