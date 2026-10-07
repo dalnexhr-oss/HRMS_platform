@@ -7,6 +7,7 @@ import { Brand } from '@/components/ui/Brand';
 import { EmployeeCard } from './EmployeeCard';
 import { presenceLabel } from '@/types/tv-dashboard';
 import { routes } from '@/lib/application-routes';
+import { apiRequest, isAbort } from '@/lib/api/client';
 import type { BoardData, Presence } from '@/types/tv-dashboard';
 
 const pollMs = 30_000;
@@ -31,31 +32,29 @@ function EmployeeScreen({ initial }: { initial: BoardData }) {
   const [board, setBoard] = useState<BoardData>(initial);
   const [staleSince, setStaleSince] = useState<number | null>(null);
   const now = useNow();
-  const alive = useRef(true);
+  // Cancels a poll still in flight when the board unmounts.
+  const unmount = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    alive.current = true;
-    return () => {
-      alive.current = false;
-    };
+    const controller = new AbortController();
+    unmount.current = controller;
+    return () => controller.abort();
   }, []);
 
   const poll = useCallback(async () => {
     try {
-      const response = await fetch(routes.tvDashboardApi, { cache: 'no-store' });
-      if (!response.ok) {
-        throw new Error('board fetch failed');
-      }
-      const next = (await response.json()) as BoardData;
-      if (!alive.current) {
-        return;
-      }
+      // The client times a hung request out and shares one already in flight, so a slow server
+      // cannot pile up a new poll every interval. No retries: the next tick is the retry.
+      const next = await apiRequest<BoardData>(routes.tvDashboardApi, {
+        signal: unmount.current?.signal,
+        retries: 0,
+      });
       setBoard(next);
       setStaleSince(null);
-    } catch {
+    } catch (reason) {
       // Keep the last good board up. A wall screen showing yesterday's floor is
       // worse than useless, so record when we lost touch and surface it below.
-      if (alive.current) {
+      if (!isAbort(reason)) {
         setStaleSince((since) => since ?? Date.now());
       }
     }
@@ -71,8 +70,10 @@ function EmployeeScreen({ initial }: { initial: BoardData }) {
       }
     };
     document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', onVisible);
     return () => {
       clearInterval(timer);
+      window.removeEventListener('online', onVisible);
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [poll]);

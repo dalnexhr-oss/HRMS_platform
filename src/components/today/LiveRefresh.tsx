@@ -13,18 +13,29 @@ function LiveRefresh({ intervalMs = refreshMs }: { intervalMs?: number }) {
 
   useEffect(() => {
     // Re-read punches and elapsed time on visible tabs; the server repeats its access checks.
+    // Returning to the tab fires both `focus` and `visibilitychange`; one refresh covers both.
+    // Offline, a refresh cannot succeed — `online` runs it as soon as the connection is back.
+    let last = 0;
     const tick = () => {
-      if (document.visibilityState === 'visible') {
-        router.refresh();
+      if (document.visibilityState !== 'visible' || navigator.onLine === false) {
+        return;
       }
+      const now = Date.now();
+      if (now - last < 1000) {
+        return;
+      }
+      last = now;
+      router.refresh();
     };
 
     const timer = setInterval(tick, intervalMs);
     window.addEventListener('focus', tick);
+    window.addEventListener('online', tick);
     document.addEventListener('visibilitychange', tick);
     return () => {
       clearInterval(timer);
       window.removeEventListener('focus', tick);
+      window.removeEventListener('online', tick);
       document.removeEventListener('visibilitychange', tick);
     };
   }, [router, intervalMs]);
