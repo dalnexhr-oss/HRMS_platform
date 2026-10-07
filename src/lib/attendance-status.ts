@@ -33,6 +33,21 @@ const registerLegend: Array<[AttendanceStatus, string]> = [
 
 const dow = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
-export { attendanceStatusMeta, getAttendanceStatusDetails, registerLegend, dow };
+// Statuses that count as time worked. Payroll expects hours against each of these days, so a
+// manual correction to one of them must carry punch timings.
+const workedStatuses: readonly string[] = ['P', 'LM', 'HD', 'S', 'T'];
+
+function isWorkedStatus(status: string): boolean {
+  return workedStatuses.includes(status);
+}
+
+export {
+  attendanceStatusMeta,
+  getAttendanceStatusDetails,
+  registerLegend,
+  dow,
+  workedStatuses,
+  isWorkedStatus,
+};
 
 export type { AttendanceStatus };

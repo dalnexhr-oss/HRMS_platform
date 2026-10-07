@@ -4,7 +4,7 @@ import './register.css';
 import { useActionState, useEffect, useRef, useState, useTransition, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { AttendanceStatusBadge } from '@/components/ui/AttendanceStatusBadge';
-import { dow } from '@/lib/attendance-status';
+import { dow, isWorkedStatus } from '@/lib/attendance-status';
 import { correctAttendance, correctAttendanceBulk } from '@/lib/actions/attendance';
 import { grantCompOff } from '@/lib/actions/comp-off';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -269,7 +269,7 @@ function RegisterGrid({
             onEnter={() => setBulkMode(true)}
             onExit={exitBulk}
             onClear={() => setSelected(new Set())}
-            onApply={async (status, reason) => {
+            onApply={async (status, reason, punchIn, punchOut) => {
               const targets = [...selected].map((k) => {
                 const i = k.indexOf('|');
                 return { employeeId: k.slice(0, i), workDate: k.slice(i + 1) };
@@ -278,7 +278,9 @@ function RegisterGrid({
               // inside the same async transition can leave both waiting indefinitely.
               const ok = await confirm({
                 title: 'Apply bulk correction',
-                message: `Set ${targets.length} day(s) to “${status}”? Each is stamped as a correction against your name and written to the audit log.`,
+                message: `Set ${targets.length} day(s) to “${status}”${
+                  punchIn ? ` with punches ${punchIn}–${punchOut}` : ''
+                }? Each is stamped as a correction against your name and written to the audit log.`,
                 confirmLabel: 'Apply',
                 danger: true,
               });
@@ -286,7 +288,13 @@ function RegisterGrid({
                 return;
               }
               startApply(async () => {
-                const res = await correctAttendanceBulk({ targets, status, reason });
+                const res = await correctAttendanceBulk({
+                  targets,
+                  status,
+                  reason,
+                  punchIn,
+                  punchOut,
+                });
                 if (!res.ok) {
                   showNotification(res.error ?? 'The bulk correction failed.', 'error');
                 } else {
@@ -668,8 +676,10 @@ function CorrectionForm({
         </div>
 
         <div className="hint">
-          Hours are recalculated from the punch times. This change is stamped as a correction
-          against your name and written to the audit log.
+          Hours are recalculated from the punch times, which are required for Present, Late mark,
+          Half day, Site and Travel. To change only the status while the employee is still punched
+          in today, leave punch out blank. This change is stamped as a correction against your name
+          and written to the audit log.
         </div>
 
         {state.error && <div className="error-message">{state.error}</div>}
@@ -789,14 +799,21 @@ function BulkBar({
   onEnter: () => void;
   onExit: () => void;
   onClear: () => void;
-  onApply: (status: string, reason: string) => void;
+  onApply: (status: string, reason: string, punchIn?: string, punchOut?: string) => void;
 }) {
   const [status, setStatus] = useState('L');
   const [reason, setReason] = useState('');
+  const [punchIn, setPunchIn] = useState('');
+  const [punchOut, setPunchOut] = useState('');
+  // Worked statuses need hours; the same timings are applied to every selected day.
+  const needsTimes = isWorkedStatus(status);
+  const timesReady = !needsTimes || (punchIn !== '' && punchOut !== '' && punchOut >= punchIn);
 
   function resetFields() {
     setStatus('L');
     setReason('');
+    setPunchIn('');
+    setPunchOut('');
   }
 
   if (!bulkMode) {
@@ -817,7 +834,7 @@ function BulkBar({
     );
   }
 
-  const canApply = count > 0 && reason.trim().length > 0 && !pending;
+  const canApply = count > 0 && reason.trim().length > 0 && timesReady && !pending;
 
   return (
     <div className="register-bulk-bar">
@@ -831,6 +848,26 @@ function BulkBar({
           </option>
         ))}
       </select>
+      {needsTimes && (
+        <>
+          <input
+            type="time"
+            className="text-monospace"
+            value={punchIn}
+            onChange={(e) => setPunchIn(e.target.value)}
+            aria-label="Bulk punch in"
+            title="Punch in (required for this status)"
+          />
+          <input
+            type="time"
+            className="text-monospace"
+            value={punchOut}
+            onChange={(e) => setPunchOut(e.target.value)}
+            aria-label="Bulk punch out"
+            title="Punch out (required for this status)"
+          />
+        </>
+      )}
       <input
         value={reason}
         onChange={(e) => setReason(e.target.value)}
@@ -843,9 +880,22 @@ function BulkBar({
         className="button primary"
         disabled={!canApply}
         title={
-          count === 0 ? 'Select at least one cell' : !reason.trim() ? 'Enter a reason' : undefined
+          count === 0
+            ? 'Select at least one cell'
+            : !timesReady
+              ? 'Enter punch in and punch out for this status'
+              : !reason.trim()
+                ? 'Enter a reason'
+                : undefined
         }
-        onClick={() => onApply(status, reason.trim())}
+        onClick={() =>
+          onApply(
+            status,
+            reason.trim(),
+            needsTimes ? punchIn : undefined,
+            needsTimes ? punchOut : undefined,
+          )
+        }
       >
         {pending ? 'Applying…' : `Apply to ${count}`}
       </button>

@@ -33,7 +33,8 @@ async function getRegister(
   let employeeQuery = dbc
     .from('employees')
     .select('id, code, full_name, gender, date_of_joining, branches(name)')
-    .eq('status', 'active')
+    // Someone serving notice still punches and is still paid.
+    .in('status', ['active', 'on_notice'])
     .order('code');
   if (branchId) {
     employeeQuery = employeeQuery.eq('branch_id', branchId);
@@ -57,15 +58,15 @@ async function getRegister(
     fail('getRegister: could not load attendance', daysError);
   }
 
-  // The run carries the month's target minutes; without one there is no target.
-  const { data: run, error: runError } = await dbc
-    .from('payroll_runs')
-    .select('target_minutes')
-    .eq('period_month', start)
-    .maybeSingle();
-  if (runError) {
-    fail('getRegister: could not load the payroll run', runError);
-  }
+  // Target hours use the payslip rule: each worked day owes one full day's minutes.
+  const { data: fullDaySetting } = await dbc
+    .from('settings')
+    .select('value')
+    .eq('key', 'full_day_minutes')
+    .maybeSingle<{ value: unknown }>();
+  const configuredFullDay = Number(fullDaySetting?.value);
+  const fullDayMinutes =
+    Number.isFinite(configuredFullDay) && configuredFullDay > 0 ? configuredFullDay : 555;
 
   const byEmployee = new Map<string, any[]>();
   for (const d of days ?? []) {
@@ -110,7 +111,7 @@ async function getRegister(
         payable: working + count('L'),
       },
       workedMinutes,
-      targetMinutes: run?.target_minutes ?? 0,
+      targetMinutes: Math.round(working * fullDayMinutes),
       days: cells,
     };
   });

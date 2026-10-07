@@ -6,7 +6,8 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server-client';
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { getSession } from '@/lib/server-auth';
-import { hhmmToMinutes } from '@/lib/display-formatting';
+import { hhmmToMinutes, todayIST } from '@/lib/display-formatting';
+import { isWorkedStatus } from '@/lib/attendance-status';
 import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/guards';
 import type { AppRole, AttendanceStatus } from '@/types/database';
 
@@ -86,9 +87,12 @@ async function correctAttendance(formData: FormData): Promise<CorrectionState> {
   }
   const punchIn = parsedIn.value;
   const punchOut = parsedOut.value;
-  // One punch without the other would store a punch alongside worked_minutes 0 —
+  // Today's day may still be open: the employee is punched in and will punch out later. A punch-in
+  // with no punch-out on today is then a status-only change, handled below once the row is read.
+  const statusOnlyOnOpenDay = !!punchIn && !punchOut && workDate === todayIST();
+  // Otherwise one punch without the other would store a punch alongside worked_minutes 0 —
   // a row that contradicts itself. Make the user say what they mean.
-  if (!punchIn !== !punchOut) {
+  if (!punchIn !== !punchOut && !statusOnlyOnOpenDay) {
     return {
       ok: false,
       error:
@@ -103,6 +107,14 @@ async function correctAttendance(formData: FormData): Promise<CorrectionState> {
   }
   if (!isAllowedStatus(status)) {
     return { ok: false, error: `Invalid status: ${status || '(missing)'}` };
+  }
+  // A worked day with no timings would be paid for the day and then have the whole day deducted
+  // as an hours shortfall.
+  if (isWorkedStatus(status) && !punchIn) {
+    return {
+      ok: false,
+      error: `Enter the punch in and punch out times — a day marked ${status} needs its hours.`,
+    };
   }
 
   // Worked minutes are derived, never trusted from the client.
@@ -160,6 +172,19 @@ async function correctAttendance(formData: FormData): Promise<CorrectionState> {
   const open = await requireOpenPayrollMonth(dbc, workDate);
   if (!open.ok) {
     return open;
+  }
+
+  if (statusOnlyOnOpenDay) {
+    return changeOpenDayStatus(dbc, {
+      employeeId,
+      employee: { code: String(employee.code), full_name: String(employee.full_name) },
+      workDate,
+      status,
+      punchIn: punchIn as string,
+      reason,
+      actorId: session.profile.id,
+      actorName: session.profile.full_name ?? session.email ?? 'A staff user',
+    });
   }
 
   // write
@@ -261,7 +286,8 @@ async function correctAttendance(formData: FormData): Promise<CorrectionState> {
   revalidatePath('/monthly-register');
   if (status === 'CO') {
     // the employee's balance moved
-    revalidatePath('/employee');
+    // 'layout' is the refresh scope, not a path: /employee and every tab under it.
+    revalidatePath('/employee', 'layout');
   }
   const warnings = [
     compOffWarning,
@@ -273,6 +299,68 @@ async function correctAttendance(formData: FormData): Promise<CorrectionState> {
   return { ok: true };
 }
 
+/**
+ * Change only the status of today's open day. The employee is still punched in, so the punches,
+ * hours and the day's open state are left alone and their later punch-out still closes the day;
+ * marking the row corrected here would refuse that punch-out.
+ */
+async function changeOpenDayStatus(
+  dbc: Awaited<ReturnType<typeof createClient>>,
+  input: {
+    employeeId: string;
+    employee: { code: string; full_name: string };
+    workDate: string;
+    status: AttendanceStatus;
+    punchIn: string;
+    reason: string;
+    actorId: string;
+    actorName: string;
+  },
+): Promise<CorrectionState> {
+  const { employeeId, employee, workDate, status, punchIn, reason } = input;
+  const { data: saved, error } = await dbc
+    .from('attendance_days')
+    .update({ status, correction_reason: reason, corrected_by: input.actorId })
+    .eq('employee_id', employeeId)
+    .eq('work_date', workDate)
+    .eq('punch_in', punchIn)
+    .is('punch_out', null)
+    .select('id');
+  if (error) {
+    return { ok: false, error: `Could not save the correction: ${error.message}` };
+  }
+  if (!saved || saved.length === 0) {
+    return {
+      ok: false,
+      error:
+        'Enter both punch in and punch out. Punch out can be left blank only while the employee is still punched in today, with the punch-in time unchanged.',
+    };
+  }
+
+  const { error: logError } = await dbc.from('activity_log').insert({
+    actor_id: input.actorId,
+    employee_id: employeeId,
+    event_type: 'attendance_correction',
+    message: `${input.actorName} changed ${employee.full_name} (${employee.code}) on ${workDate} to ${status} while the day is still open — ${reason}`,
+    metadata: {
+      work_date: workDate,
+      status,
+      punch_in: punchIn,
+      punch_out: null,
+      reason,
+      employee_code: employee.code,
+      open_day: true,
+    },
+  });
+  revalidatePath('/monthly-register');
+  return logError
+    ? {
+        ok: true,
+        warning: `Attendance was updated, but the audit-log entry failed: ${logError.message}`,
+      }
+    : { ok: true };
+}
+
 interface BulkTarget {
   employeeId: string;
   workDate: string;
@@ -280,13 +368,15 @@ interface BulkTarget {
 
 /**
  * Apply one attendance status to a batch with a required reason and one audit summary. Reject the
- * whole batch if any month is closed. Clear punches and worked minutes because this changes day
- * status, not punch times.
+ * whole batch if any month is closed. A worked status takes one pair of punch timings for every
+ * selected day; any other status clears punches and hours.
  */
 async function correctAttendanceBulk(input: {
   targets: BulkTarget[];
   status: string;
   reason: string;
+  punchIn?: string;
+  punchOut?: string;
 }): Promise<CorrectionState> {
   const reason = String(input.reason ?? '').trim();
   const status = String(input.status ?? '').trim();
@@ -297,6 +387,28 @@ async function correctAttendanceBulk(input: {
   }
   if (!isAllowedStatus(status)) {
     return { ok: false, error: `Invalid status: ${status || '(missing)'}` };
+  }
+  const parsedIn = timeField(input.punchIn ?? null);
+  const parsedOut = timeField(input.punchOut ?? null);
+  if (!parsedIn.ok || !parsedOut.ok) {
+    return { ok: false, error: 'Punch times must be HH:MM on a 24-hour clock.' };
+  }
+  let punchIn: string | null = null;
+  let punchOut: string | null = null;
+  let workedMinutes = 0;
+  if (isWorkedStatus(status)) {
+    if (!parsedIn.value || !parsedOut.value) {
+      return {
+        ok: false,
+        error: `Enter the punch in and punch out times — days marked ${status} need their hours.`,
+      };
+    }
+    workedMinutes = hhmmToMinutes(parsedOut.value) - hhmmToMinutes(parsedIn.value);
+    if (workedMinutes < 0) {
+      return { ok: false, error: 'Punch out is before punch in.' };
+    }
+    punchIn = parsedIn.value;
+    punchOut = parsedOut.value;
   }
   if (targets.length === 0) {
     return { ok: false, error: 'Select at least one day to correct.' };
@@ -331,9 +443,9 @@ async function correctAttendanceBulk(input: {
     employee_id: t.employeeId,
     work_date: t.workDate,
     status,
-    punch_in: null,
-    punch_out: null,
-    worked_minutes: 0,
+    punch_in: punchIn,
+    punch_out: punchOut,
+    worked_minutes: workedMinutes,
     is_corrected: true,
     correction_reason: reason,
     corrected_by: gate.profileId,
@@ -361,8 +473,18 @@ async function correctAttendanceBulk(input: {
     actor_id: gate.profileId,
     employee_id: null,
     event_type: 'attendance_correction',
-    message: `${actor} bulk-set ${saved.length} day(s) to ${status} — ${reason}`,
-    metadata: { status, reason, count: saved.length, bulk: true },
+    message: `${actor} bulk-set ${saved.length} day(s) to ${status}${
+      punchIn ? ` · ${punchIn}–${punchOut}` : ''
+    } — ${reason}`,
+    metadata: {
+      status,
+      reason,
+      count: saved.length,
+      bulk: true,
+      punch_in: punchIn,
+      punch_out: punchOut,
+      worked_minutes: workedMinutes,
+    },
   });
   revalidatePath('/monthly-register');
   if (logError) {
