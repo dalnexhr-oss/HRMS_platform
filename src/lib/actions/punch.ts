@@ -1,34 +1,40 @@
 // Browser-side wrappers for the /api/punch routes.
-// Server work lives in @/lib/punch — this file only speaks HTTP.
+// Server work lives in @/lib/punch — this file only speaks HTTP, through the shared API client.
 
+import { apiRequest, newIdempotencyKey } from '@/lib/api/client';
 import type { PunchStatus as PunchStatusResponse, PunchRecord, PunchResult, PunchCoords } from '@/types/punch';
 
-async function unwrap<T>(response: Response, fallback: string): Promise<T> {
-  if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    throw new Error(body?.error ?? fallback);
-  }
-  return response.json() as Promise<T>;
+interface ReadOptions {
+  signal?: AbortSignal;
 }
 
-function getPunchStatus(): Promise<PunchStatusResponse> {
-  return fetch('/api/punch/status', { cache: 'no-store' }).then((response) =>
-    unwrap<PunchStatusResponse>(response, 'Failed to fetch punch status.'),
-  );
+function getPunchStatus(options: ReadOptions = {}): Promise<PunchStatusResponse> {
+  return apiRequest<PunchStatusResponse>('/api/punch/status', {
+    ...options,
+    fallbackMessage: 'Failed to fetch punch status.',
+  });
 }
 
-function getPunchHistory(): Promise<{ punches: PunchRecord[] }> {
-  return fetch('/api/punch/history', { cache: 'no-store' }).then((response) =>
-    unwrap<{ punches: PunchRecord[] }>(response, 'Failed to fetch punch history.'),
-  );
+function getPunchHistory(options: ReadOptions = {}): Promise<{ punches: PunchRecord[] }> {
+  return apiRequest<{ punches: PunchRecord[] }>('/api/punch/history', {
+    ...options,
+    fallbackMessage: 'Failed to fetch punch history.',
+  });
 }
 
+/**
+ * One press of the button is one punch. The key lets the client retry a lost response safely: the
+ * server answers a repeat with the punch it already stored.
+ */
 function punch(kind: 'in' | 'out', coords: PunchCoords | null): Promise<PunchResult> {
-  return fetch(`/api/punch/${kind}`, {
+  return apiRequest<PunchResult>(`/api/punch/${kind}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(coords ?? {}),
-  }).then((response) => unwrap<PunchResult>(response, `Failed to punch ${kind}.`));
+    body: coords ?? {},
+    idempotencyKey: newIdempotencyKey(),
+    // A punch is a transaction across several collections; give it longer than a read.
+    timeoutMs: 20_000,
+    fallbackMessage: `Failed to punch ${kind}.`,
+  });
 }
 
 function punchIn(coords: PunchCoords | null): Promise<PunchResult> {

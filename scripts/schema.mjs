@@ -133,6 +133,11 @@ const OVERRIDES = {
   },
 
   punch_events: {
+    properties: {
+      // Idempotency-Key of the web request that stored this punch, so a retried request is
+      // answered with this event instead of being refused. Absent on device and older punches.
+      request_key: { bsonType: ['string', 'null'], maxLength: 64 },
+    },
     // Punch history is always "this employee, newest first".
     indexes: [
       { keys: { employee_id: 1, punched_at: -1 }, options: { name: 'punch_events_employee_time' } },
@@ -166,6 +171,11 @@ const OVERRIDES = {
       { keys: { occurred_at: -1 }, options: { name: 'activity_log_time' } },
       { keys: { event_type: 1, occurred_at: -1 }, options: { name: 'activity_log_type_time' } },
     ],
+  },
+
+  // A letter HR issues for signing is 'requested'; the copy the employee returns is 'signed'.
+  employee_documents: {
+    properties: { signature: { enum: ['requested', 'signed', null] } },
   },
 
   // Cache branch names for list queries; updateBranch refreshes them on rename.

@@ -4,6 +4,7 @@
 // Location classifies punches for HR review. Use the employee's branch geofence, falling back to
 // company settings when the branch has no location.
 import { getSession } from '@/lib/server-auth';
+import { ApiError, apiErrorCodes, notSignedInMessage } from '@/lib/api/errors';
 import { createClient } from '@/lib/db/server-client';
 import { toCoordinate } from '@/lib/db/decimal-conversions';
 import { withTransaction } from '@/lib/db/mongodb-connection';
@@ -15,6 +16,7 @@ import type { DayEvent } from '@/lib/punch-day';
 import type { QueryClient } from '@/lib/db/scoped-query-client';
 import type { SweepClosure } from '@/lib/automatic-punch-out-notice';
 import type { PunchKind, PunchCoords, PunchStatus, PunchRecord, PunchResult } from '@/types/punch';
+import type { Profile } from '@/types/database';
 
 // Fallback radius when an office point is set without one. A branch's own
 // geofence_radius_m, or the geofence_radius_m setting, overrides it.
@@ -210,8 +212,15 @@ function classify(coords: PunchCoords | null, office: OfficeGeofence | null): bo
 
 async function employeeContext() {
   const { profile } = await getSession();
-  if (!profile?.employee_id) {
-    throw new Error('Your login is not linked to an employee record.');
+  if (!profile) {
+    throw new ApiError(401, apiErrorCodes.notSignedIn, notSignedInMessage);
+  }
+  if (!profile.employee_id) {
+    throw new ApiError(
+      403,
+      apiErrorCodes.noEmployeeRecord,
+      'Your login is not linked to an employee record.',
+    );
   }
   return { profile, employeeId: profile.employee_id };
 }
@@ -330,10 +339,23 @@ async function readPunchHistory(): Promise<PunchRecord[]> {
 
 // write --
 
-async function recordPunch(kind: PunchKind, coords: PunchCoords | null): Promise<PunchResult> {
-  const { employeeId, profile } = await employeeContext();
+type KeyedDayEvent = DayEvent & { request_key?: string | null };
+
+/**
+ * Record a web punch. requestKey identifies one press of the button: if the same key arrives again
+ * (the browser retried because the first response was lost), the punch already stored for it is
+ * returned instead of being refused as "already punched in".
+ */
+async function recordPunch(
+  kind: PunchKind,
+  coords: PunchCoords | null,
+  requestKey: string | null = null,
+  // Supplied by a caller that has already resolved the session, to avoid a second lookup.
+  context?: { profile: Profile; employeeId: string },
+): Promise<PunchResult> {
+  const { employeeId, profile } = context ?? (await employeeContext());
   if (!allowsWebPunch(profile.punch_access)) {
-    throw new Error(webPunchDisabled);
+    throw new ApiError(403, apiErrorCodes.webPunchDisabled, webPunchDisabled);
   }
 
   return withTransaction(
@@ -342,14 +364,10 @@ async function recordPunch(kind: PunchKind, coords: PunchCoords | null): Promise
       const now = new Date();
       const { date } = localParts(now);
       const dbc = await createClient(session);
-      const blocked = await punchWriteReason(employeeId, date, session);
-      if (blocked) {
-        throw new Error(blocked);
-      }
       // reject only genuine sequence errors, never a location
       const { data: priorRaw, error: priorError } = await dbc
         .from('punch_events')
-        .select<DayEvent[]>('kind, punched_at')
+        .select<KeyedDayEvent[]>('kind, punched_at, within_geofence, request_key')
         .eq('employee_id', employeeId)
         .gte('punched_at', dayFloorUtc(date))
         .order('punched_at', { ascending: true });
@@ -358,13 +376,40 @@ async function recordPunch(kind: PunchKind, coords: PunchCoords | null): Promise
       }
 
       const prior = (priorRaw ?? []).filter((event) => localParts(punchedAt(event)).date === date);
+
+      // The employee lock above serialises punches, so a repeat of this request always finds the
+      // event its first delivery stored.
+      const replayed = requestKey
+        ? (priorRaw ?? []).find((event) => event.request_key === requestKey)
+        : undefined;
+      if (replayed) {
+        if (replayed.kind !== kind) {
+          throw new ApiError(
+            409,
+            apiErrorCodes.idempotencyKeyReused,
+            'This request was already used for a different punch.',
+          );
+        }
+        return {
+          kind,
+          punchedAt: punchedAt(replayed).toISOString(),
+          withinGeofence: replayed.within_geofence ?? null,
+          workedMinutes: sumWorkedMinutes(prior),
+        };
+      }
+
+      const blocked = await punchWriteReason(employeeId, date, session);
+      if (blocked) {
+        throw new ApiError(409, apiErrorCodes.attendanceClosed, blocked);
+      }
+
       const openNow = prior.length > 0 && prior[prior.length - 1].kind === 'in';
 
       if (kind === 'in' && openNow) {
-        throw new Error('You are already punched in.');
+        throw new ApiError(409, apiErrorCodes.punchSequence, 'You are already punched in.');
       }
       if (kind === 'out' && !openNow) {
-        throw new Error('There is no open punch to close.');
+        throw new ApiError(409, apiErrorCodes.punchSequence, 'There is no open punch to close.');
       }
 
       const point = validCoords(coords);
@@ -372,7 +417,7 @@ async function recordPunch(kind: PunchKind, coords: PunchCoords | null): Promise
 
       // A required location must be present; being outside the office does not block a punch.
       if (requireLocation && !point) {
-        throw new Error(locationRequired);
+        throw new ApiError(422, apiErrorCodes.locationRequired, locationRequired);
       }
 
       const withinGeofence = classify(point, office);
@@ -387,6 +432,7 @@ async function recordPunch(kind: PunchKind, coords: PunchCoords | null): Promise
         lng: toCoordinate(point?.longitude ?? null),
         within_geofence: withinGeofence,
         source: 'web_app',
+        ...(requestKey ? { request_key: requestKey } : {}),
       });
       if (eventError) {
         throw new Error(eventError.message);
@@ -430,7 +476,11 @@ async function resolveDay(
     throw new Error(existingError.message);
   }
   if (existing?.is_corrected || existing?.auto_close_source) {
-    throw new Error('This attendance day has been corrected or swept. Ask HR to review it.');
+    throw new ApiError(
+      409,
+      apiErrorCodes.attendanceClosed,
+      'This attendance day has been corrected or swept. Ask HR to review it.',
+    );
   }
 
   const status = !existing?.status || existing.status === 'AB' ? 'P' : existing.status;

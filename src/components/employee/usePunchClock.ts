@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getPunchStatus, locationPermission, punchIn, punchOut, requestCoords } from '@/lib/actions/punch';
+import { apiErrorMessage, isAbort } from '@/lib/api/client';
 import { announcePunch, onPunchChange } from '@/lib/punch-bus';
 import { allowsWebPunch, webPunchDisabled } from '@/lib/punch-access';
 import type { PunchSource } from '@/lib/punch-bus';
@@ -52,6 +53,19 @@ const failureText: Record<LocationFailure, string> = {
     'geolocation support. Try a different browser or device.',
 };
 
+// The topbar toggle and the attendance card are two instances of this hook on one page. A press on
+// either while the other is still saving must not start a second punch.
+let punchInFlight = false;
+
+function offline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
+interface LoadOptions {
+  /** The caller refreshes the page and history itself, so a changed status must not do it again. */
+  quiet?: boolean;
+}
+
 interface PunchClock {
   state: PunchStatusResponse | null;
   loading: boolean;
@@ -84,6 +98,8 @@ function usePunchClock(
   const [blocked, setBlocked] = useState<LocationFailure | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const alive = useRef(true);
+  // Cancels status reads still in flight when the control unmounts.
+  const unmount = useRef<AbortController | null>(null);
   const warnedSweep = useRef<string | null>(null);
   const lastLoadedPunch = useRef<string | undefined>(undefined);
   const loadSequence = useRef(0);
@@ -91,53 +107,62 @@ function usePunchClock(
 
   useEffect(() => {
     alive.current = true;
+    const controller = new AbortController();
+    unmount.current = controller;
     return () => {
       alive.current = false;
+      controller.abort();
     };
   }, []);
 
-  const load = useCallback(async () => {
-    const sequence = ++loadSequence.current;
-    try {
-      const next = await getPunchStatus();
-      if (alive.current && sequence === loadSequence.current) {
-        const key = `${next.lastPunchAt ?? ''}:${next.lastKind ?? ''}:${next.attendanceClosed ?? false}:${next.workedMinutes}`;
-        if (lastLoadedPunch.current !== undefined && lastLoadedPunch.current !== key) {
-          setVersion((n) => n + 1);
-          // The card owns history and month totals; the topbar only needs its own status.
-          if (source === 'card') {
-            router.refresh();
+  const load = useCallback(
+    async ({ quiet = false }: LoadOptions = {}) => {
+      const sequence = ++loadSequence.current;
+      try {
+        const next = await getPunchStatus({ signal: unmount.current?.signal });
+        if (alive.current && sequence === loadSequence.current) {
+          const key = `${next.lastPunchAt ?? ''}:${next.lastKind ?? ''}:${next.attendanceClosed ?? false}:${next.workedMinutes}`;
+          if (!quiet && lastLoadedPunch.current !== undefined && lastLoadedPunch.current !== key) {
+            setVersion((n) => n + 1);
+            // The card owns history and month totals; the topbar only needs its own status.
+            if (source === 'card') {
+              router.refresh();
+            }
           }
+          lastLoadedPunch.current = key;
+          setState(next);
+          setLoadError(null);
         }
-        lastLoadedPunch.current = key;
-        setState(next);
-        setLoadError(null);
+      } catch (reason) {
+        if (!isAbort(reason) && alive.current && sequence === loadSequence.current) {
+          setLoadError(apiErrorMessage(reason, 'Could not load your clock.'));
+        }
+      } finally {
+        if (alive.current && sequence === loadSequence.current) {
+          setLoading(false);
+        }
       }
-    } catch (reason) {
-      if (alive.current && sequence === loadSequence.current) {
-        setLoadError(reason instanceof Error ? reason.message : 'Could not load your clock.');
-      }
-    } finally {
-      if (alive.current && sequence === loadSequence.current) {
-        setLoading(false);
-      }
-    }
-  }, [router, source]);
+    },
+    [router, source],
+  );
 
   useEffect(() => {
     void load();
     // Pick up terminal punches as well as tabs left open overnight or returning from the background.
+    // Skipped while offline: the request cannot succeed, and `online` below catches up.
     const refresh = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'visible' && !offline()) {
         void load();
       }
     };
     const timer = setInterval(refresh, 15_000);
     window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
     document.addEventListener('visibilitychange', refresh);
     return () => {
       clearInterval(timer);
       window.removeEventListener('focus', refresh);
+      window.removeEventListener('online', refresh);
       document.removeEventListener('visibilitychange', refresh);
     };
   }, [load]);
@@ -148,7 +173,8 @@ function usePunchClock(
     () =>
       onPunchChange(source, () => {
         setVersion((n) => n + 1);
-        void load();
+        // Quiet: the control that punched already refreshed the page.
+        void load({ quiet: true });
       }),
     [source, load],
   );
@@ -221,7 +247,11 @@ function usePunchClock(
   const isIn = state?.status === 'in';
 
   const punch = useCallback(async () => {
-    if (!state || pending) {
+    if (!state || pending || punchInFlight) {
+      return;
+    }
+    if (offline()) {
+      showNotification('You are offline. Reconnect, then punch again.', 'error');
       return;
     }
     if (!webPunchAllowed) {
@@ -235,6 +265,7 @@ function usePunchClock(
       );
       return;
     }
+    punchInFlight = true;
     setPending(true);
     try {
       // Refresh access before requesting location in case an admin changed it
@@ -292,7 +323,8 @@ function usePunchClock(
       }
 
       setVersion((n) => n + 1);
-      await load();
+      // Quiet: the history and page refresh for this punch are issued right here.
+      await load({ quiet: true });
       // Wake the other control before the route refresh, so the two buttons
       // never point opposite ways even for a frame.
       announcePunch(source);
@@ -302,12 +334,12 @@ function usePunchClock(
       if (!alive.current) {
         return;
       }
-      const message = reason instanceof Error ? reason.message : 'Could not record the punch.';
-      showNotification(message, 'error');
-      // A 409 means our view of in/out was stale — resync rather than leave the
-      // button pointing the wrong way.
+      showNotification(apiErrorMessage(reason, 'Could not record the punch.'), 'error');
+      // A 409 means our view of in/out was stale, and after a timeout the punch may or may not
+      // have been stored — resync rather than leave the button pointing the wrong way.
       void load();
     } finally {
+      punchInFlight = false;
       if (alive.current) {
         setPending(false);
       }

@@ -1,10 +1,8 @@
+import { apiRoute } from '@/lib/api/route-handler';
 import { handlePunch } from '@/lib/punch-http';
-import type { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-async function POST(request: NextRequest) {
-  return handlePunch(request, 'in');
-}
+const POST = apiRoute('POST /api/punch/in', (request) => handlePunch(request, 'in'));
 
 export { POST };

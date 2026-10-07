@@ -3,6 +3,7 @@
 // Group punches by day, newest first. Keep the last 100 events in a scrollable panel.
 import { useEffect, useState } from 'react';
 import { getPunchHistory } from '@/lib/actions/punch';
+import { apiErrorMessage, isAbort } from '@/lib/api/client';
 import { GeoChip } from './GeoChip';
 import type { PunchRecord } from '@/lib/actions/punch';
 
@@ -44,27 +45,22 @@ function PunchHistory({ refreshKey = 0 }: { refreshKey?: number }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let alive = true;
+    // A newer refresh, or leaving the page, cancels the request this one started.
+    const controller = new AbortController();
     setError(null);
-    getPunchHistory()
+    getPunchHistory({ signal: controller.signal })
       .then(({ punches: next }) => {
-        if (alive) {
-          setPunches(next);
-        }
+        setPunches(next);
+        setLoading(false);
       })
       .catch((reason: unknown) => {
-        if (alive) {
-          setError(reason instanceof Error ? reason.message : 'Unable to load history.');
+        if (isAbort(reason)) {
+          return;
         }
-      })
-      .finally(() => {
-        if (alive) {
-          setLoading(false);
-        }
+        setError(apiErrorMessage(reason, 'Unable to load history.'));
+        setLoading(false);
       });
-    return () => {
-      alive = false;
-    };
+    return () => controller.abort();
   }, [refreshKey]);
 
   const days = groupByDay(punches);

@@ -1,62 +1,72 @@
 // Shared request handling for the punch in / punch out routes.
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { locationRequired, recordPunch } from '@/lib/punch';
-import { webPunchDisabled } from '@/lib/punch-access';
-import type { NextRequest } from 'next/server';
+import { recordPunch } from '@/lib/punch';
+import { ApiError, apiErrorCodes } from '@/lib/api/errors';
+import { readJsonObject, requireEmployeeSession } from '@/lib/api/route-handler';
 import type { PunchCoords, PunchKind } from '@/lib/punch';
 
 // Pages a punch changes: the board and its punch log, the register, /employee.
-const affectedPaths = ['/dashboard', '/monthly-register', '/employee'];
+const affectedPaths = ['/dashboard', '/monthly-register', '/employee', '/employee/attendance'];
 
-// Missing coordinates are allowed here. Store the punch as unclassified if the browser cannot
-// provide a usable location.
-function readCoords(body: unknown): PunchCoords | null {
-  if (!body || typeof body !== 'object') {
-    return null;
-  }
-  const record = body as Record<string, unknown>;
-  const latitude = Number(record.latitude);
-  const longitude = Number(record.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-    return null;
-  }
-  const accuracy = Number(record.accuracy);
-  return {
-    latitude,
-    longitude,
-    accuracy: Number.isFinite(accuracy) ? accuracy : null,
-  };
+const idempotencyKeyPattern = /^[A-Za-z0-9_-]{16,64}$/;
+
+function invalid(message: string): ApiError {
+  return new ApiError(422, apiErrorCodes.validationFailed, message);
 }
 
-async function handlePunch(request: NextRequest, kind: PunchKind) {
-  try {
-    const body = await request.json().catch(() => ({}));
-    const result = await recordPunch(kind, readCoords(body));
-    // Only after the write actually succeeded — a refused or failed punch has
-    // changed nothing, and invalidating on it would just cost everyone a
-    // re-render to redisplay the same numbers.
-    for (const path of affectedPaths) {
-      revalidatePath(path);
-    }
-    return NextResponse.json(result);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : `Unable to punch ${kind}.`;
-
-    if (message === webPunchDisabled) {
-      return NextResponse.json({ error: message, code: 'WEB_PUNCH_DISABLED' }, { status: 403 });
-    }
-
-    // A refusal for missing location gets its own code so the UI can show the
-    // "unblock location" instructions rather than a generic failure.
-    if (message === locationRequired) {
-      return NextResponse.json({ error: message, code: 'LOCATION_REQUIRED' }, { status: 422 });
-    }
-    // A sequence clash ("already punched in") is the caller's problem: 409.
-    // Anything else here is a server or auth failure.
-    const conflict = /already punched|no open punch/i.test(message);
-    return NextResponse.json({ error: message }, { status: conflict ? 409 : 400 });
+/**
+ * Missing coordinates are allowed: the punch is stored unclassified, or refused by the location
+ * policy. Coordinates that are present must be real ones — a malformed pair is a client fault, not
+ * a punch to store without a location.
+ */
+function readCoords(body: Record<string, unknown>): PunchCoords | null {
+  const { latitude, longitude, accuracy } = body;
+  if (latitude == null && longitude == null) {
+    return null;
   }
+  if (typeof latitude !== 'number' || !Number.isFinite(latitude) || Math.abs(latitude) > 90) {
+    throw invalid('The latitude sent with this punch is not valid.');
+  }
+  if (typeof longitude !== 'number' || !Number.isFinite(longitude) || Math.abs(longitude) > 180) {
+    throw invalid('The longitude sent with this punch is not valid.');
+  }
+  if (
+    accuracy != null &&
+    (typeof accuracy !== 'number' || !Number.isFinite(accuracy) || accuracy < 0)
+  ) {
+    throw invalid('The location accuracy sent with this punch is not valid.');
+  }
+  return { latitude, longitude, accuracy: accuracy ?? null };
+}
+
+function readIdempotencyKey(request: Request): string | null {
+  const key = request.headers.get('idempotency-key');
+  if (key === null) {
+    return null;
+  }
+  if (!idempotencyKeyPattern.test(key)) {
+    throw invalid('The Idempotency-Key header is not valid.');
+  }
+  return key;
+}
+
+/**
+ * Who is asking comes first, so an unauthenticated caller learns nothing from validation errors.
+ * Punch access and the attendance rules are enforced inside recordPunch. Failures are thrown.
+ */
+async function handlePunch(request: Request, kind: PunchKind) {
+  const context = await requireEmployeeSession();
+  const requestKey = readIdempotencyKey(request);
+  const coords = readCoords(await readJsonObject(request));
+  const result = await recordPunch(kind, coords, requestKey, context);
+  // Only after the write actually succeeded — a refused or failed punch has
+  // changed nothing, and invalidating on it would just cost everyone a
+  // re-render to redisplay the same numbers.
+  for (const path of affectedPaths) {
+    revalidatePath(path);
+  }
+  return NextResponse.json(result);
 }
 
 export { handlePunch };
