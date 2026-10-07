@@ -1,15 +1,11 @@
 'use client';
 
-import Link from 'next/link';
-import { icons } from '@/components/Icons';
-import { Brand } from '@/components/ui/Brand';
 import { usePathname } from 'next/navigation';
+import { NavigationSidebar } from '@/components/shell/NavigationSidebar';
 import { canAccessTab, slugFromPathname } from '@/lib/portal-access';
-import { useEffect, useState } from 'react';
 import { navItems, groupOrder } from '@/lib/portal-navigation';
 import type { TabAccess } from '@/lib/portal-access';
 import type { NavItem } from '@/lib/portal-navigation';
-import type { Route } from 'next';
 import type { AppRole } from '@/types/database';
 
 // Drop the links this role would only be bounced from — the static gate in portal-navigation.ts AND
@@ -18,15 +14,6 @@ import type { AppRole } from '@/types/database';
 function visibleNav(role: AppRole | null | undefined, access: TabAccess): NavItem[] {
   return navItems.filter((n) => canAccessTab(role, n.slug, access));
 }
-
-// Turn a role slug into a human label for the sidebar footer.
-const roleLabel: Record<string, string> = {
-  admin: 'Administrator',
-  super_admin: 'Super Admin',
-  hr: 'HR',
-  employee: 'Employee',
-  intern: 'Intern',
-};
 
 function Sidebar({
   name,
@@ -40,111 +27,23 @@ function Sidebar({
 }) {
   const pathname = usePathname();
   const active = slugFromPathname(pathname) || 'dashboard';
-  // Off-canvas on phones. On desktop the sidebar is always in flow and this
-  // flag does nothing — the CSS only honours .is-open below the rail breakpoint.
-  const [open, setOpen] = useState(false);
-
-  // Navigating is the end of the menu's job. Without this the drawer stays over
-  // the page the user just asked for.
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
-
-  // Escape closes it, matching every other overlay in the app.
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open]);
-
   const items = visibleNav(role, access);
+  // Walk groupOrder, not the items: it fixes header order.
+  const sections = groupOrder.map((group) => ({
+    label: group,
+    links: items
+      .filter((n) => n.group === group)
+      .map((n) => ({ key: n.slug, href: `/${n.slug}`, label: n.label, icon: n.slug })),
+  }));
 
   return (
-    <>
-      {/* Sits over the topbar's reserved left gutter on mobile, so it reads as part of the bar rather than as a floating button. */}
-      <button
-        type="button"
-        className="navigation-toggle"
-        aria-label={open ? 'Close menu' : 'Open menu'}
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          aria-hidden="true"
-        >
-          {open ? (
-            <>
-              <path d="M6 6l12 12" />
-              <path d="M18 6L6 18" />
-            </>
-          ) : (
-            <>
-              <path d="M3.5 7h17" />
-              <path d="M3.5 12h17" />
-              <path d="M3.5 17h17" />
-            </>
-          )}
-        </svg>
-      </button>
-      <div
-        className={`navigation-backdrop${open ? ' is-active' : ''}`}
-        onClick={() => setOpen(false)}
-        aria-hidden="true"
-      />
-      <aside className={`sidebar${open ? ' is-open' : ''}`}>
-        <div className="sidebar-brand">
-          <Brand href="/dashboard" priority onClick={() => setOpen(false)} />
-        </div>
-        <nav className="sidebar-navigation" aria-label="Primary">
-          {/* Walk groupOrder, not the items: it fixes header order, and a group
-            whose rows are all role-gated away renders nothing at all rather
-            than a bare heading. */}
-          {groupOrder.map((group) => {
-            const rows = items.filter((n) => n.group === group);
-            if (rows.length === 0) {
-              return null;
-            }
-
-            return (
-              <div key={group}>
-                <div className="navigation-group">{group}</div>
-                {/*
-                 * Disable prefetch for dynamic, authenticated routes to avoid loading every
-                 * sidebar destination at once. staleTimes caches revisits.
-                 */}
-                {rows.map((item) => (
-                  <Link
-                    key={item.slug}
-                    href={`/${item.slug}` as Route}
-                    prefetch={false}
-                    aria-current={active === item.slug}
-                  >
-                    {icons[item.slug]}
-                    <span className="txt">{item.label}</span>
-                  </Link>
-                ))}
-              </div>
-            );
-          })}
-        </nav>
-        <div className="sidebar-footer">
-          <b>{name || 'Signed in'}</b>
-          <br />
-          {role ? (roleLabel[role] ?? role) : 'Dalnex HRMS'}
-        </div>
-      </aside>
-    </>
+    <NavigationSidebar
+      homeHref="/dashboard"
+      sections={sections}
+      activeKey={active}
+      name={name}
+      role={role}
+    />
   );
 }
 

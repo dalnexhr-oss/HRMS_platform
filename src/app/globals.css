@@ -342,7 +342,7 @@ a {
   font-weight: 600;
 }
 
-/* .app-main is also the root of the employee portal, which has no sidebar — so the gutter lives here rather than on .app-layout, and both layouts inset identically. */
+/* The gutter lives on .app-main rather than on .app-layout, so the staff portal and the employee area inset identically. */
 .app-main {
   min-width: 0;
   padding: var(--layout-top-gap) var(--layout-gap) 0;
@@ -1255,17 +1255,22 @@ tbody tr:hover {
     rgba(255, 255, 255, 0.94) 100%
   );
   border-left: 1px solid var(--border-surface);
-  box-shadow:
-    -28px 0 64px rgba(23, 60, 102, 0.22),
-    inset 1px 0 0 rgba(255, 255, 255, 0.65);
   z-index: 61;
   transform: translateX(102%);
-  transition: transform 0.3s var(--easing-out);
+  transition:
+    transform 0.3s var(--easing-out),
+    box-shadow 0.3s var(--easing-out);
   display: flex;
   flex-direction: column;
 }
+/* The shadow belongs to the open panel only. A closed panel sits just off the right edge, and its
+   shadow would still reach onto the page; with several panels on one screen those shadows stack
+   into a dark band down the right side. */
 .drawer.is-active {
   transform: none;
+  box-shadow:
+    -28px 0 64px rgba(23, 60, 102, 0.22),
+    inset 1px 0 0 rgba(255, 255, 255, 0.65);
 }
 .drawer .drawer-header {
   display: flex;
@@ -1299,7 +1304,8 @@ tbody tr:hover {
 }
 /* inputs are pressed INTO the surface — the counterpart to raised buttons */
 .form-field input,
-.form-field select {
+.form-field select,
+.form-field textarea {
   width: 100%;
   padding: 11px 13px;
   border: 1px solid var(--border-surface);
@@ -1313,14 +1319,84 @@ tbody tr:hover {
     box-shadow var(--transition-fast) var(--easing-standard);
 }
 .form-field input:hover,
-.form-field select:hover {
+.form-field select:hover,
+.form-field textarea:hover {
   border-color: rgba(14, 122, 143, 0.22);
 }
 .form-field input:focus,
-.form-field select:focus {
+.form-field select:focus,
+.form-field textarea:focus {
   border-color: rgba(14, 122, 143, 0.45);
   outline: none;
   box-shadow: var(--shadow-inset), var(--focus-ring);
+}
+/* In the solid editors a tick box keeps its own size; only text controls fill the row. */
+.drawer.is-solid input[type='checkbox'],
+.drawer.is-solid input[type='radio'] {
+  width: auto;
+  padding: 0;
+  box-shadow: none;
+}
+.form-field textarea {
+  resize: vertical;
+  line-height: 1.55;
+}
+/* Editors with a lot of text sit on a solid white panel, so the page does not show through. */
+.drawer.is-solid,
+.drawer.is-solid .drawer-footer {
+  background: #fff;
+}
+/* One item in a list editor (a document, a checklist step): a soft panel holding its fields. */
+.editor-row {
+  padding: 14px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--surface-inset);
+}
+.editor-row .form-field {
+  margin-bottom: 10px;
+}
+.editor-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+.editor-check input {
+  margin-top: 2px;
+  flex: none;
+}
+.editor-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.editor-row-actions .button {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+/* Choosing who a document goes to: three options in a row, then a scrolling tick list. */
+.recipient-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+.recipient-list {
+  max-height: 220px;
+  margin-top: 8px;
+  padding: 4px 12px 10px;
+  overflow-y: auto;
+  border: 1px solid var(--border-surface);
+  border-radius: 12px;
+  background: var(--surface-inset);
+}
+.recipient-list p {
+  margin: 8px 0 0;
+  font-size: 12px;
 }
 /* RBAC read-only fields look locked, not broken */
 .form-field input:disabled,
@@ -2121,5 +2197,33 @@ html {
   body {
     font-size: 12px;
     color: #000;
+  }
+}
+
+/* connection status ---------------------------------------------------- Shown only while the browser is offline, and for a moment after it reconnects. Top-centre so it never covers the bottom-right notifications. */
+.network-status {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 80;
+  max-width: min(520px, 92vw);
+  padding: 9px 16px;
+  border-radius: 12px;
+  font: 600 13px/1.4 var(--font-body);
+  border: 1px solid var(--attendance-late-border);
+  background: var(--attendance-late-background);
+  color: var(--attendance-late);
+  box-shadow: var(--shadow-popover);
+}
+.network-status.is-restored {
+  border-color: var(--attendance-present-border);
+  background: var(--attendance-present-background);
+  color: var(--attendance-present);
+}
+
+@media print {
+  .network-status {
+    display: none !important;
   }
 }

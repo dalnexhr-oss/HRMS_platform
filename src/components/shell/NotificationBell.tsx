@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { markNotificationRead, markAllNotificationsRead } from '@/lib/actions/notifications';
 import { safeRedirectPath } from '@/lib/auth/redirect';
+import { resolveEmployeeLink } from '@/lib/employee-navigation';
 import type { Route } from 'next';
 import type { NotificationRow } from '@/lib/queries/notifications';
 
@@ -25,7 +26,8 @@ const kindIcon: Record<string, string> = {
 };
 
 // Split a stored link into path + hash, rejecting anything that isn't a relative in-app path so a
-// stored value can never become an external redirect.
+// stored value can never become an external redirect. Notifications saved while employee sections
+// were dashboard anchors are pointed at the tab that now holds the section.
 function splitLink(link: string | null): { path: string; hash: string | null } | null {
   const safePath = safeRedirectPath(link);
   if (!safePath) {
@@ -35,7 +37,7 @@ function splitLink(link: string | null): { path: string; hash: string | null } |
   if (i === -1) {
     return { path: safePath, hash: null };
   }
-  return { path: safePath.slice(0, i) || '/', hash: safePath.slice(i + 1) || null };
+  return resolveEmployeeLink(safePath.slice(0, i) || '/', safePath.slice(i + 1) || null);
 }
 
 // Scroll to and highlight the target section when present. Conditional dashboard cards may be

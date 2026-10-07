@@ -2,6 +2,7 @@
  * The root layout for the application.
  */
 import './globals.css';
+import { NetworkStatus } from '@/components/shell/NetworkStatus';
 import type { Metadata, Viewport } from 'next';
 
 const metadata: Metadata = {
@@ -30,7 +31,10 @@ function RootLayout({ children }: { children: React.ReactNode }) {
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <NetworkStatus />
+      </body>
     </html>
   );
 }

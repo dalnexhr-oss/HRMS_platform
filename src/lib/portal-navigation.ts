@@ -45,6 +45,7 @@ const navItems: NavItem[] = [
   { slug: 'leave-management', label: 'Leave Management', group: groups.HR },
   { slug: 'leave-salary', label: 'Leave salary', group: groups.HR },
   { slug: 'payroll', label: 'Payroll', group: groups.HR },
+  { slug: 'professional-tax', label: 'Professional tax', group: groups.HR },
   { slug: 'reimbursements', label: 'Reimbursements', group: groups.HR },
 
   { slug: 'asset-management', label: 'Asset management', group: groups.RESOURCES },
@@ -68,6 +69,7 @@ const tabRoleAccess: Record<string, readonly string[]> = {
   exits: ['super_admin', 'admin', 'hr'],
   'leave-management': ['super_admin', 'admin', 'hr'],
   'leave-salary': ['super_admin', 'admin', 'hr'],
+  'professional-tax': ['super_admin', 'admin', 'hr'],
   'asset-management': ['super_admin', 'admin', 'hr'],
   'inventory-management': ['super_admin', 'admin', 'hr'],
   users: ['super_admin', 'admin', 'hr'],
@@ -89,6 +91,7 @@ const tabTitles: Record<string, [string, string]> = {
   onboarding: ['Onboarding', 'Joiner checklist & documents'],
   documents: ['Documents', 'Employee document register'],
   payroll: ['Payroll', 'Salary runs & payslips'],
+  'professional-tax': ['Professional tax', 'Slabs by state'],
   reimbursements: ['Reimbursements', 'Employee claims & approvals'],
   employees: ['Employees', 'Staff directory'],
   'asset-management': ['Asset management', 'IT assets'],
