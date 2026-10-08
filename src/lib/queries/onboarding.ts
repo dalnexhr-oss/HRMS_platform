@@ -20,6 +20,8 @@ interface OnboardingTemplateRow {
   active: boolean;
   /** How many steps the template fans out into. */
   steps: number;
+  /** The steps in order, for the template editor. */
+  items: Array<{ title: string; assigneeRole: string | null }>;
 }
 
 const onboardingTaskFields =
@@ -72,17 +74,28 @@ async function getOnboardingTemplates(): Promise<OnboardingTemplateRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
     .from('onboarding_templates')
-    .select('id, name, active, onboarding_template_items(count)')
+    .select('id, name, active')
     .order('name');
   if (error) {
     fail('getOnboardingTemplates: could not load onboarding templates', error);
   }
-  return (data ?? []).map((r: any) => ({
-    id: r.id,
-    name: r.name,
-    active: Boolean(r.active),
-    steps: Number(r.onboarding_template_items?.[0]?.count ?? 0),
-  }));
+  const { data: items, error: itemsError } = await dbc
+    .from('onboarding_template_items')
+    .select('template_id, title, assignee_role, seq')
+    .order('seq');
+  if (itemsError) {
+    fail('getOnboardingTemplates: could not load template steps', itemsError);
+  }
+  const byTemplate = new Map<string, Array<{ title: string; assigneeRole: string | null }>>();
+  for (const item of (items ?? []) as any[]) {
+    const list = byTemplate.get(item.template_id) ?? [];
+    list.push({ title: item.title, assigneeRole: item.assignee_role ?? null });
+    byTemplate.set(item.template_id, list);
+  }
+  return (data ?? []).map((r: any) => {
+    const steps = byTemplate.get(r.id) ?? [];
+    return { id: r.id, name: r.name, active: Boolean(r.active), steps: steps.length, items: steps };
+  });
 }
 
 export { getOnboardingBoard, getMyOnboardingTasks, getOnboardingTemplates };

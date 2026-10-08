@@ -3,6 +3,7 @@
 // Create onboarding tasks from a template snapshot so later template edits do not change active
 // checklists.
 import { revalidatePath } from 'next/cache';
+import { queryErrorCodes } from '@/lib/db/query-errors';
 import { createClient } from '@/lib/db/server-client';
 import { requireRoles, wroteNothing } from '@/lib/actions/guards';
 import { notifyEmployee } from '@/lib/notification-delivery';
@@ -103,11 +104,12 @@ async function startOnboarding(
     kind: 'system',
     title: 'Your onboarding checklist is ready',
     body: `${made!.length} step(s) to complete with HR and IT.`,
-    link: '/employee#onboarding',
+    link: '/employee/onboarding',
   });
 
   revalidatePath('/onboarding');
-  revalidatePath('/employee');
+  // 'layout' is the refresh scope, not a path: /employee and every tab under it.
+  revalidatePath('/employee', 'layout');
   return { ok: true, created: made!.length };
 }
 
@@ -151,7 +153,7 @@ async function setOnboardingTaskStatus(
   }
 
   revalidatePath('/onboarding');
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   return { ok: true };
 }
 
@@ -198,7 +200,7 @@ async function addOnboardingTask(input: {
   }
 
   revalidatePath('/onboarding');
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   return { ok: true };
 }
 
@@ -222,10 +224,161 @@ async function deleteOnboardingTask(id: string): Promise<ActionResult> {
   }
 
   revalidatePath('/onboarding');
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   return { ok: true };
 }
 
-export { startOnboarding, setOnboardingTaskStatus, addOnboardingTask, deleteOnboardingTask };
+// Owners a step can be given. A display label for who does the step, not a permission.
+const stepOwners: readonly string[] = ['hr', 'it', 'admin', 'employee'];
+
+/**
+ * Create a checklist template, or replace the name, status and steps of the one named by `id`.
+ * Checklists already started are snapshots, so editing a template never changes them.
+ */
+async function saveOnboardingTemplate(input: {
+  id?: string;
+  name: string;
+  active: boolean;
+  items: Array<{ title: string; assigneeRole: string | null }>;
+}): Promise<ActionResult> {
+  const gate = await requireRoles(onboardingRoles, 'Changing an onboarding template');
+  if (!gate.ok) {
+    return gate;
+  }
+  const name = String(input.name ?? '').trim();
+  if (!name) {
+    return { ok: false, error: 'Give the template a name.' };
+  }
+  if (name.length > 80) {
+    return { ok: false, error: 'Keep the template name under 80 characters.' };
+  }
+  const items = (Array.isArray(input.items) ? input.items : []).map((item) => ({
+    title: String(item.title ?? '').trim(),
+    assigneeRole:
+      item.assigneeRole && stepOwners.includes(item.assigneeRole) ? item.assigneeRole : null,
+  }));
+  if (items.length === 0) {
+    return { ok: false, error: 'Add at least one step.' };
+  }
+  if (items.length > 100) {
+    return { ok: false, error: 'That is too many steps for one template.' };
+  }
+  const titles = new Set<string>();
+  for (const item of items) {
+    if (!item.title) {
+      return { ok: false, error: 'Every step needs a description.' };
+    }
+    if (item.title.length > 200) {
+      return { ok: false, error: 'Keep each step under 200 characters.' };
+    }
+    if (titles.has(item.title.toLowerCase())) {
+      return { ok: false, error: `“${item.title}” is listed twice.` };
+    }
+    titles.add(item.title.toLowerCase());
+  }
+  if (input.id !== undefined && !uuidRe.test(String(input.id))) {
+    return { ok: false, error: 'Unknown onboarding template.' };
+  }
+
+  const dbc = await createClient();
+  let templateId = input.id ?? '';
+  if (templateId) {
+    const { data, error } = await dbc
+      .from('onboarding_templates')
+      .update({ name, active: input.active === true })
+      .eq('id', templateId)
+      .select('id');
+    if (error) {
+      return { ok: false, error: templateSaveError(error, name) };
+    }
+    if (wroteNothing(data)) {
+      return { ok: false, error: 'That template no longer exists.' };
+    }
+  } else {
+    const { data, error } = await dbc
+      .from('onboarding_templates')
+      .insert({ name, active: input.active === true })
+      .select('id');
+    if (error) {
+      return { ok: false, error: templateSaveError(error, name) };
+    }
+    templateId = (data?.[0] as { id: string } | undefined)?.id ?? '';
+    if (!templateId) {
+      return { ok: false, error: 'The template was not created — your role may lack permission.' };
+    }
+  }
+
+  // Replace the steps as a whole, so order and removals are saved together.
+  const { error: clearError } = await dbc
+    .from('onboarding_template_items')
+    .delete()
+    .eq('template_id', templateId);
+  if (clearError) {
+    return {
+      ok: false,
+      error: `The template was saved, but its steps were not: ${clearError.message}`,
+    };
+  }
+  const { error: itemsError } = await dbc.from('onboarding_template_items').insert(
+    items.map((item, index) => ({
+      template_id: templateId,
+      seq: index + 1,
+      title: item.title,
+      assignee_role: item.assigneeRole,
+    })),
+  );
+  if (itemsError) {
+    return {
+      ok: false,
+      error: `The template was saved, but its steps were not: ${itemsError.message}. Open it and save the steps again.`,
+    };
+  }
+
+  revalidatePath('/onboarding');
+  return { ok: true };
+}
+
+function templateSaveError(error: { code?: string; message: string }, name: string): string {
+  return error.code === queryErrorCodes.duplicateKey
+    ? `A template called “${name}” already exists.`
+    : error.message;
+}
+
+/** Delete a template and its steps. Checklists already started from it are unaffected. */
+async function deleteOnboardingTemplate(id: string): Promise<ActionResult> {
+  const gate = await requireRoles(onboardingRoles, 'Deleting an onboarding template');
+  if (!gate.ok) {
+    return gate;
+  }
+  if (!uuidRe.test(String(id ?? ''))) {
+    return { ok: false, error: 'Unknown onboarding template.' };
+  }
+  const dbc = await createClient();
+  const { error: itemsError } = await dbc
+    .from('onboarding_template_items')
+    .delete()
+    .eq('template_id', id);
+  if (itemsError) {
+    return { ok: false, error: itemsError.message };
+  }
+  const { data, error } = await dbc.from('onboarding_templates').delete().eq('id', id).select('id');
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  if (wroteNothing(data)) {
+    return { ok: false, error: 'That template no longer exists.' };
+  }
+  revalidatePath('/onboarding');
+  return { ok: true };
+}
+
+export {
+  startOnboarding,
+  setOnboardingTaskStatus,
+  addOnboardingTask,
+  deleteOnboardingTask,
+  saveOnboardingTemplate,
+  deleteOnboardingTemplate,
+};
 
 export type { ActionResult };

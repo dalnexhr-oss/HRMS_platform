@@ -5,7 +5,8 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/display-formatting';
-import { startOnboarding, setOnboardingTaskStatus, addOnboardingTask, deleteOnboardingTask } from '@/lib/actions/onboarding';
+import { startOnboarding, setOnboardingTaskStatus, addOnboardingTask, deleteOnboardingTask, deleteOnboardingTemplate } from '@/lib/actions/onboarding';
+import { OnboardingTemplateDrawer } from './OnboardingTemplateDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
@@ -46,6 +47,10 @@ function OnboardingScreen({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [showDone, setShowDone] = useState(false);
+  // 'new' for a blank template, a template to edit it, or null when the editor is closed.
+  const [editingTemplate, setEditingTemplate] = useState<OnboardingTemplateRow | 'new' | null>(
+    null,
+  );
   const { confirm, confirmDialog } = useConfirm();
   const { showNotification, notificationContainer } = useNotifications();
 
@@ -97,10 +102,101 @@ function OnboardingScreen({
     run(() => deleteOnboardingTask(t.id), 'Task removed.');
   }
 
+  async function onDeleteTemplate(template: OnboardingTemplateRow) {
+    const ok = await confirm({
+      title: 'Delete template',
+      message: `Delete the “${template.name}” template? Checklists already started from it are kept.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) {
+      return;
+    }
+    run(() => deleteOnboardingTemplate(template.id), 'Template deleted.');
+  }
+
   return (
     <div className="content-container grid">
       {confirmDialog}
       {notificationContainer}
+
+      <div className="card">
+        <div className="card-header">
+          <h3>Checklist templates</h3>
+          <span className="card-caption">
+            {templates.length === 0
+              ? 'none yet'
+              : `${templates.filter((t) => t.active).length} in use`}
+          </span>
+          <span style={{ flex: 1 }} />
+          <button className="button primary" onClick={() => setEditingTemplate('new')}>
+            + New template
+          </button>
+        </div>
+        <div className="card-body">
+          {templates.length === 0 ? (
+            <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
+              A template is the list of steps every new joiner goes through. Create one to start
+              onboarding employees.
+            </p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Template</th>
+                    <th>Steps</th>
+                    <th>Status</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {templates.map((template) => (
+                    <tr key={template.id}>
+                      <td>
+                        <b>{template.name}</b>
+                      </td>
+                      <td>{template.steps}</td>
+                      <td>{template.active ? 'In use' : 'Not in use'}</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                          <button
+                            className="button quiet"
+                            onClick={() => setEditingTemplate(template)}
+                            disabled={pending}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="button quiet"
+                            onClick={() => onDeleteTemplate(template)}
+                            disabled={pending}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="text-muted" style={{ fontSize: 12, margin: '10px 0 0' }}>
+            Editing a template changes checklists started from now on. Checklists already running
+            keep the steps they were created with.
+          </p>
+        </div>
+      </div>
+
+      <OnboardingTemplateDrawer
+        target={editingTemplate}
+        onClose={() => setEditingTemplate(null)}
+        onSaved={(message) => {
+          showNotification(message, 'success');
+          router.refresh();
+        }}
+      />
 
       <div className="card">
         <div className="card-header">
