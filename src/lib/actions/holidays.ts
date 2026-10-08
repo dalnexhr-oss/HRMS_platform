@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server-client';
 import { requireStaff, wroteNothing } from '@/lib/actions/guards';
+import { currentYearIST, yearPickerSpan } from '@/lib/display-formatting';
 import { fetchPublicHolidays } from '@/lib/holidays/google-calendar';
 import { allBranches, resolveBranchScope } from '@/lib/actions/branch-helpers';
 
@@ -56,7 +57,8 @@ async function importHolidaysFromGoogle(year: number): Promise<ImportHolidaysRes
     return gate;
   }
 
-  if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+  // Same range the year picker offers.
+  if (!Number.isInteger(year) || Math.abs(year - currentYearIST()) > yearPickerSpan) {
     return { ok: false, error: 'Choose a valid year.' };
   }
 

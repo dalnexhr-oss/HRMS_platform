@@ -1,9 +1,13 @@
+'use client';
+
+import { useState } from 'react';
 import { describePolicy } from '@/lib/weekly-off-policy';
-import { todayIST } from '@/lib/display-formatting';
+import { todayIST, yearOptionsAround } from '@/lib/display-formatting';
 import type { WeekOffPolicy } from '@/lib/weekly-off-policy';
 import type { HolidayView } from '@/lib/queries/holidays';
 
-// Show the employee's weekly off schedule and upcoming and past holidays.
+// Show the employee's weekly off schedule and one year of holidays at a time. The year can be
+// moved fifty years either way; the current year splits into upcoming and earlier holidays.
 function EmployeeHolidays({
   holidays,
   policy,
@@ -12,8 +16,13 @@ function EmployeeHolidays({
   policy?: WeekOffPolicy;
 }) {
   const today = todayIST();
-  const upcoming = holidays.filter((h) => h.date >= today);
-  const past = holidays.filter((h) => h.date < today).reverse(); // most recent first
+  const currentYear = Number(today.slice(0, 4));
+  const [year, setYear] = useState(currentYear);
+  const years = yearOptionsAround(currentYear);
+  const inYear = holidays.filter((h) => h.date.startsWith(`${year}-`));
+  // Other years are a plain calendar; only this year has a "next up".
+  const upcoming = year === currentYear ? inYear.filter((h) => h.date >= today) : inYear;
+  const past = year === currentYear ? inYear.filter((h) => h.date < today).reverse() : [];
 
   return (
     <div>
@@ -43,16 +52,56 @@ function EmployeeHolidays({
         </a>
       </div>
 
-      {holidays.length === 0 ? (
+      <div className="period-toolbar">
+        <button
+          type="button"
+          className="button quiet"
+          onClick={() => setYear(year - 1)}
+          disabled={year <= years[0]}
+          aria-label="Previous year"
+        >
+          ←
+        </button>
+        <select
+          value={year}
+          onChange={(e) => setYear(Number(e.target.value))}
+          aria-label="Holiday year"
+        >
+          {years.map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className="button quiet"
+          onClick={() => setYear(year + 1)}
+          disabled={year >= years[years.length - 1]}
+          aria-label="Next year"
+        >
+          →
+        </button>
+        {year !== currentYear && (
+          <button type="button" className="button quiet" onClick={() => setYear(currentYear)}>
+            This year
+          </button>
+        )}
+        <span className="text-muted" style={{ fontSize: 12 }}>
+          {inYear.length} holiday{inYear.length === 1 ? '' : 's'} in {year}
+        </span>
+      </div>
+
+      {inYear.length === 0 ? (
         <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
-          No public holidays published yet.
+          No holidays are published for {year}.
         </p>
       ) : (
         <>
           {upcoming.length > 0 && (
             <div>
               {upcoming.map((h, i) => (
-                <HolidayRow key={h.id} holiday={h} next={i === 0} />
+                <HolidayRow key={h.id} holiday={h} next={year === currentYear && i === 0} />
               ))}
             </div>
           )}

@@ -3,7 +3,7 @@
 import { useActionState, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { addHoliday, deleteHoliday, importHolidaysFromGoogle } from '@/lib/actions/holidays';
-import { formatDate } from '@/lib/display-formatting';
+import { formatDate, yearOptionsAround } from '@/lib/display-formatting';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import type { NotificationKind } from '@/components/ui/Notifications';
@@ -105,7 +105,7 @@ function ImportHolidays({
   const [tentative, setTentative] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const years = [year - 1, year, year + 1];
+  const years = yearOptionsAround(year);
 
   const onImport = () =>
     start(async () => {

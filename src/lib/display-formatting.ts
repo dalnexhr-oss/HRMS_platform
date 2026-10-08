@@ -11,9 +11,20 @@ function currentYearIST(): number {
   return Number(todayIST().slice(0, 4));
 }
 
-// ₹1,23,456 — Indian-grouped rupees, rounded.
+// Years offered by a year picker: the given year and a span of years either side of it.
+const yearPickerSpan = 50;
+function yearOptionsAround(year: number, span = yearPickerSpan): number[] {
+  return Array.from({ length: span * 2 + 1 }, (_, i) => year - span + i);
+}
+
+// ₹1,23,456 or ₹1,250.50 — Indian-grouped rupees. Paise are shown whenever the amount has any,
+// so a figure on screen always equals the figure that is paid.
 function inr(n: number): string {
-  return `₹${Math.round(n).toLocaleString('en-IN')}`;
+  const amount = Math.round(n * 100) / 100;
+  return `₹${amount.toLocaleString('en-IN', {
+    minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 // minutes -> 'HH:MM' (e.g. 560 -> '09:20').
@@ -76,6 +87,8 @@ function monthOptionsAround(currentMonth: string, back = 12, ahead = 1): string[
 export {
   todayIST,
   currentYearIST,
+  yearOptionsAround,
+  yearPickerSpan,
   inr,
   minutesToHHMM,
   hhmmToMinutes,
