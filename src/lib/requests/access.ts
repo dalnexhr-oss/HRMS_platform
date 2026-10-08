@@ -8,7 +8,10 @@ interface RequestActor {
   role: AppRole;
 }
 
-/** CC grants visibility, never approval authority. Old unassigned requests retain staff review. */
+/**
+ * CC grants visibility, never approval authority. Old unassigned requests retain staff review, and
+ * staff may also decide a request whose assigned approver can no longer sign in.
+ */
 function canReviewRequest(
   request: { employeeId: string; status: string; routing: RequestRouting | null },
   actor: RequestActor,
@@ -16,9 +19,13 @@ function canReviewRequest(
   if (request.status !== 'pending' || request.employeeId === actor.employeeId) {
     return false;
   }
-  return request.routing
-    ? request.routing.currentApprover.id === actor.id
-    : isStaffRole(actor.role);
+  if (!request.routing) {
+    return isStaffRole(actor.role);
+  }
+  return (
+    request.routing.currentApprover.id === actor.id ||
+    (request.routing.approverUnavailable && isStaffRole(actor.role))
+  );
 }
 
 export { canReviewRequest };

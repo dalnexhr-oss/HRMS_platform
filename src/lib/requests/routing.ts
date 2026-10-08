@@ -147,6 +147,23 @@ async function prepareRequestRouting(formData: FormData, employeeId: string) {
 }
 
 /** Commit a decision and optional handoff together; stale tabs cannot approve the next stage. */
+/**
+ * Of these approver ids, the ones whose login is disabled or no longer exists. A request assigned
+ * to one of them would otherwise wait forever, so staff may decide it instead.
+ */
+async function unavailableApprovers(ids: string[]): Promise<Set<string>> {
+  const wanted = [...new Set(ids)];
+  if (wanted.length === 0) {
+    return new Set();
+  }
+  const users = await usersCollection();
+  const active = await users
+    .find({ _id: { $in: wanted }, disabled: { $ne: true } }, { projection: { _id: 1 } })
+    .toArray();
+  const activeIds = new Set(active.map((user) => user._id));
+  return new Set(wanted.filter((id) => !activeIds.has(id)));
+}
+
 async function reviewRoutedRequest(
   id: string,
   decision: 'approved' | 'rejected',
@@ -222,11 +239,20 @@ async function reviewRoutedRequest(
     }
     return { kind: 'legacy' };
   }
-  if (route.current_approver.id !== profile.id) {
-    throw new Error(
-      'Only the person currently assigned this request can approve, reject, or forward it.',
-    );
+  // Staff step in only when the assigned approver can no longer sign in.
+  const steppingIn = route.current_approver.id !== profile.id;
+  if (steppingIn) {
+    const unavailable = await unavailableApprovers([route.current_approver.id]);
+    if (!isStaffRole(profile.role) || !unavailable.has(route.current_approver.id)) {
+      throw new Error(
+        'Only the person currently assigned this request can approve, reject, or forward it.',
+      );
+    }
   }
+  // The history records who actually decided.
+  const decidedBy = steppingIn
+    ? { id: profile.id, name: profile.full_name ?? email ?? 'Staff', email: email ?? '' }
+    : route.current_approver;
   if (revision !== route.revision) {
     throw new Error('This request changed. Refresh before reviewing it.');
   }
@@ -249,7 +275,7 @@ async function reviewRoutedRequest(
       _id: id,
       employee_id: request.employee_id,
       status: 'pending',
-      'approval_route.current_approver.id': profile.id,
+      'approval_route.current_approver.id': route.current_approver.id,
       'approval_route.revision': revision,
     },
     {
@@ -261,7 +287,7 @@ async function reviewRoutedRequest(
       $inc: { 'approval_route.revision': 1 },
       $push: {
         'approval_route.history': {
-          approver: route.current_approver,
+          approver: decidedBy,
           decision,
           decided_at: now,
           remark,
@@ -303,6 +329,7 @@ async function notifyRequestParticipants(
 }
 
 export {
+  unavailableApprovers,
   getRequestRecipients,
   prepareRequestRouting,
   reviewRoutedRequest,

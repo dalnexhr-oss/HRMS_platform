@@ -22,7 +22,12 @@ function RequestRoutingSummary({
         </p>
       )}
       {status === 'pending' && (
-        <p className="request-awaiting">Awaiting {routing.currentApprover.name}&apos;s approval</p>
+        <p className="request-awaiting">
+          Awaiting {routing.currentApprover.name}&apos;s approval
+          {routing.approverUnavailable
+            ? ' — their login is disabled or removed, so admin or HR can decide this request'
+            : ''}
+        </p>
       )}
       {routing.history.length > 0 && (
         <details>

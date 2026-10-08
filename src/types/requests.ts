@@ -24,6 +24,11 @@ interface RequestRouting {
   cc: RequestPerson[];
   history: RequestApproval[];
   revision: number;
+  /**
+   * True when the current approver's login has been disabled or deleted. Admin and HR may then
+   * decide the request, so it is not left waiting on someone who cannot sign in.
+   */
+  approverUnavailable: boolean;
 }
 
 type EmployeeApprovalView = 'all' | 'pending' | 'reviewed' | 'cc';

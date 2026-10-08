@@ -2,6 +2,7 @@ import 'server-only';
 import { createClient } from '@/lib/db/server-client';
 import { fail, iso, isoOrNull } from '@/lib/queries/shared';
 import { routingView } from '@/lib/requests/routing-view';
+import { unavailableApprovers } from '@/lib/requests/routing';
 import type { RequestType } from '@/types/database';
 import type { RequestRouting } from '@/types/requests';
 
@@ -17,7 +18,7 @@ async function getMyRequests(employeeId: string): Promise<RequestView[]> {
   if (res.error) {
     fail('getMyRequests: could not load requests', res.error);
   }
-  return (res.data ?? []).map(mapRequest);
+  return mapRequests(res.data ?? []);
 }
 
 // requests
@@ -44,7 +45,17 @@ interface RequestView {
   routing: RequestRouting | null;
 }
 
-function mapRequest(r: any): RequestView {
+/** Map rows, marking pending requests whose approver can no longer sign in. */
+async function mapRequests(rows: any[]): Promise<RequestView[]> {
+  const unavailable = await unavailableApprovers(
+    rows
+      .filter((r) => r.status === 'pending' && r.approval_route)
+      .map((r) => r.approval_route.current_approver.id),
+  );
+  return rows.map((r) => mapRequest(r, unavailable));
+}
+
+function mapRequest(r: any, unavailable: ReadonlySet<string>): RequestView {
   return {
     id: r.id,
     employeeId: r.employee_id,
@@ -62,7 +73,7 @@ function mapRequest(r: any): RequestView {
     reviewRemark: r.review_remark ?? null,
     createdAt: iso(r.created_at),
     reviewedAt: isoOrNull(r.reviewed_at),
-    routing: routingView(r.approval_route),
+    routing: routingView(r.approval_route, unavailable),
   };
 }
 
@@ -80,9 +91,9 @@ async function getRequests(): Promise<RequestView[]> {
     fail('getRequests: could not load requests', res.error);
   }
   // Pending first, otherwise preserve newest-first ordering.
-  return (res.data ?? [])
-    .map(mapRequest)
-    .sort((a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1));
+  return (await mapRequests(res.data ?? [])).sort(
+    (a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1),
+  );
 }
 
 /** The same policy-scoped request view is available to staff, the applicant, and tagged people. */
@@ -96,7 +107,7 @@ async function getRequest(id: string): Promise<RequestView | null> {
   if (error) {
     fail('getRequest: could not load the request', error);
   }
-  return data ? mapRequest(data) : null;
+  return data ? (await mapRequests([data]))[0] : null;
 }
 
 export { getMyRequests, getRequests, getRequest };

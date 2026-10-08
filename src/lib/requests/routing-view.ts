@@ -1,7 +1,11 @@
 import type { RequestRouteDoc } from '@/lib/db/collection-registry';
 import type { RequestRouting } from '@/types/requests';
 
-function routingView(route: RequestRouteDoc | null | undefined): RequestRouting | null {
+function routingView(
+  route: RequestRouteDoc | null | undefined,
+  // Ids of approvers whose login is disabled or deleted.
+  unavailableApprovers: ReadonlySet<string> = new Set(),
+): RequestRouting | null {
   if (!route) {
     return null;
   }
@@ -10,6 +14,7 @@ function routingView(route: RequestRouteDoc | null | undefined): RequestRouting 
     currentApprover: route.current_approver,
     cc: route.cc,
     revision: route.revision,
+    approverUnavailable: unavailableApprovers.has(route.current_approver.id),
     history: route.history.map((step) => ({
       approver: step.approver,
       decision: step.decision,
