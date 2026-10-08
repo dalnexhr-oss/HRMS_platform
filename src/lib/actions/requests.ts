@@ -66,13 +66,13 @@ type ChainOutcome =
  * or final for the overall decision. A conditional update prevents concurrent decisions.
  */
 async function decideApprovalStep(
-  dbc: Awaited<ReturnType<typeof createClient>>,
+  queryClient: Awaited<ReturnType<typeof createClient>>,
   requestId: string,
   decision: 'approved' | 'rejected',
   profileId: string,
   remark: string | null,
 ): Promise<ChainOutcome> {
-  const { data: steps, error } = await dbc
+  const { data: steps, error } = await queryClient
     .from('approval_steps')
     .select('id, step_no, status')
     .eq('request_id', requestId)
@@ -92,7 +92,7 @@ async function decideApprovalStep(
     return { ok: true, stage: 'final' };
   }
 
-  const { data: claimed, error: claimErr } = await dbc
+  const { data: claimed, error: claimErr } = await queryClient
     .from('approval_steps')
     .update({
       status: decision,
@@ -176,7 +176,7 @@ async function reviewRequest(
 
   // The selected colleague may be an employee. Use service access for narrowly scoped follow-up
   // writes only after the guarded request transition succeeds.
-  const dbc = routed.kind === 'final' ? createServiceClient() : await createClient();
+  const queryClient = routed.kind === 'final' ? createServiceClient() : await createClient();
   let reviewed: {
     type: string;
     leave_kind?: string | null;
@@ -194,7 +194,7 @@ async function reviewRequest(
     }
 
     // Multi-tier approval chain handling: resolve next pending step or final decision.
-    const chain = await decideApprovalStep(dbc, id, decision, gate.profileId, cleanRemark);
+    const chain = await decideApprovalStep(queryClient, id, decision, gate.profileId, cleanRemark);
     if (!chain.ok) {
       return { ok: false, error: chain.error };
     }
@@ -213,7 +213,7 @@ async function reviewRequest(
       return { ok: true };
     }
 
-    const res = await dbc
+    const res = await queryClient
       .from('requests')
       .update({
         status: decision,
@@ -256,9 +256,9 @@ async function reviewRequest(
   // releases it back to the employee.
   if (reviewed.type === 'comp_off') {
     if (decision === 'approved') {
-      warning = await settleApprovedCompOff(id, dbc);
+      warning = await settleApprovedCompOff(id, queryClient);
     } else {
-      await releaseCompOff(id, dbc);
+      await releaseCompOff(id, queryClient);
     }
   }
 
@@ -276,7 +276,7 @@ async function reviewRequest(
     // preserve each deduction.
     let deducted = false;
     for (let attempt = 0; attempt < 3 && !deducted; attempt++) {
-      const { data: bal, error: balReadErr } = await dbc
+      const { data: bal, error: balReadErr } = await queryClient
         .from('leave_balances')
         .select('id, balance')
         .eq('employee_id', reviewed.employee_id)
@@ -296,7 +296,7 @@ async function reviewRequest(
         break;
       }
       const next = Number(bal.balance) - Number(reviewed.days ?? 0);
-      const { data: casRows, error: balErr } = await dbc
+      const { data: casRows, error: balErr } = await queryClient
         .from('leave_balances')
         .update({ balance: toDecimal(next) })
         .eq('id', bal.id)
@@ -326,7 +326,7 @@ async function reviewRequest(
   // Update attendance after approval so the register reflects the leave.
   if (reviewed.type === 'leave' && decision === 'approved') {
     const stampWarning = await stampLeaveOnRegister(
-      dbc,
+      queryClient,
       reviewed.employee_id,
       reviewed.start_date,
       reviewed.end_date ?? reviewed.start_date,
@@ -340,7 +340,7 @@ async function reviewRequest(
   // payroll count them without HR re-entering each one.
   if (decision === 'approved' && reviewed.type !== 'leave' && reviewed.type !== 'comp_off') {
     const stampWarning = await stampDutyOnRegister(
-      dbc,
+      queryClient,
       reviewed.employee_id,
       reviewed.type,
       reviewed.start_date,
@@ -353,7 +353,7 @@ async function reviewRequest(
 
   // Tell the employee the outcome. Look the owner up rather than trusting the
   // caller — the reviewer is not the recipient.
-  const { data: owner } = await dbc
+  const { data: owner } = await queryClient
     .from('requests')
     .select('employee_id, type, start_date, end_date')
     .eq('id', id)
@@ -473,7 +473,7 @@ async function createRequest(formData: FormData): Promise<ActionResult> {
     };
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
   let routing: Awaited<ReturnType<typeof prepareRequestRouting>>;
   try {
     routing = await prepareRequestRouting(formData, employeeId);
@@ -484,11 +484,11 @@ async function createRequest(formData: FormData): Promise<ActionResult> {
     };
   }
   // One day cannot carry two requests, such as leave filed twice or leave over a WFH day.
-  const overlapProblem = await requestOverlapProblem(dbc, employeeId, startRaw, endRaw);
+  const overlapProblem = await requestOverlapProblem(queryClient, employeeId, startRaw, endRaw);
   if (overlapProblem) {
     return { ok: false, error: overlapProblem };
   }
-  const { data: inserted, error } = await dbc
+  const { data: inserted, error } = await queryClient
     .from('requests')
     .insert({
       employee_id: employeeId,
@@ -538,8 +538,8 @@ async function cancelApprovedRequest(
 ): Promise<ActionResult | null> {
   // The scoped client only lets an employee change a pending request, so this runs with the
   // service client and names the owner and status in every predicate.
-  const dbc = createServiceClient();
-  const { data: request } = await dbc
+  const queryClient = createServiceClient();
+  const { data: request } = await queryClient
     .from('requests')
     .select('id, type, leave_kind, days, start_date, end_date, status')
     .eq('id', id)
@@ -565,7 +565,7 @@ async function cancelApprovedRequest(
     };
   }
 
-  const { data: cancelled, error } = await dbc
+  const { data: cancelled, error } = await queryClient
     .from('requests')
     .update({ status: 'cancelled' })
     .eq('id', id)
@@ -582,12 +582,12 @@ async function cancelApprovedRequest(
   const warnings: string[] = [];
   if (request.type === 'comp_off') {
     // Approval spent the credit and stamped the day CO; give both back.
-    await dbc
+    await queryClient
       .from('comp_offs')
       .update({ status: 'available', used_date: null, request_id: null })
       .eq('request_id', id)
       .in('status', ['applied', 'used']);
-    const { error: dayError } = await dbc
+    const { error: dayError } = await queryClient
       .from('attendance_days')
       .delete()
       .eq('employee_id', employeeId)
@@ -601,7 +601,7 @@ async function cancelApprovedRequest(
     }
   } else {
     const unstampWarning = await unstampApprovedDays(
-      dbc,
+      queryClient,
       employeeId,
       request.type,
       startDate,
@@ -617,7 +617,7 @@ async function cancelApprovedRequest(
     const year = Number(startDate.slice(0, 4));
     let refunded = false;
     for (let attempt = 0; attempt < 3 && !refunded; attempt++) {
-      const { data: balance } = await dbc
+      const { data: balance } = await queryClient
         .from('leave_balances')
         .select('id, balance')
         .eq('employee_id', employeeId)
@@ -627,7 +627,7 @@ async function cancelApprovedRequest(
       if (!balance) {
         break;
       }
-      const { data: rows } = await dbc
+      const { data: rows } = await queryClient
         .from('leave_balances')
         .update({ balance: toDecimal(Number(balance.balance) + Number(request.days ?? 0)) })
         .eq('id', balance.id)
@@ -679,8 +679,8 @@ async function cancelRequest(id: string): Promise<ActionResult> {
     return { ok: false, error: 'Your login is not linked to an employee record.' };
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('requests')
     .update({ status: 'cancelled' })
     .eq('id', id)

@@ -97,11 +97,11 @@ async function readBranchGeofence(
   client?: QueryClient,
 ): Promise<OfficeGeofence | null> {
   try {
-    const dbc = client ?? (await createClient());
+    const queryClient = client ?? (await createClient());
     // `id` is selected only so the projection is narrowed to it plus the embed
     // — an empty field list means "no $project", i.e. the whole employee
     // document, which this has no use for.
-    const { data, error } = await dbc
+    const { data, error } = await queryClient
       .from('employees')
       .select('id, branches(geofence_lat, geofence_lng, geofence_radius_m)')
       .eq('id', employeeId)
@@ -143,13 +143,13 @@ async function readPunchPolicy(
   employeeId?: string | null,
   client?: QueryClient,
 ): Promise<PunchPolicy> {
-  const dbc = client ?? (await createClient());
+  const queryClient = client ?? (await createClient());
   // Sequential queries also work inside a MongoDB transaction (parallel operations do not).
-  const settings = await dbc
+  const settings = await queryClient
     .from('settings')
     .select('key, value')
     .in('key', ['office_lat', 'office_lng', 'geofence_radius_m', 'punch_require_location']);
-  const branchOffice = employeeId ? await readBranchGeofence(employeeId, dbc) : null;
+  const branchOffice = employeeId ? await readBranchGeofence(employeeId, queryClient) : null;
   const { data, error } = settings;
   // Fail CLOSED on a settings read error: defaulting to "location optional"
   // would quietly turn the requirement off the moment the table hiccups.
@@ -253,25 +253,25 @@ function validCoords(coords: PunchCoords | null): PunchCoords | null {
 
 async function readPunchStatus(): Promise<PunchStatus> {
   const { employeeId, profile } = await employeeContext();
-  const dbc = await createClient();
+  const queryClient = await createClient();
   const now = new Date();
   const today = localParts(now).date;
 
   const [events, policy, previousDay, currentDay] = await Promise.all([
-    dbc
+    queryClient
       .from('punch_events')
       .select<DayEvent[]>('kind, punched_at, within_geofence, lat, lng')
       .eq('employee_id', employeeId)
       .gte('punched_at', dayFloorUtc(today))
       .order('punched_at', { ascending: true }),
     readPunchPolicy(employeeId),
-    dbc
+    queryClient
       .from('attendance_days')
       .select('work_date, punch_in, punch_out, auto_close_source, auto_closed_at')
       .eq('employee_id', employeeId)
       .eq('work_date', previousWorkDate(today))
       .maybeSingle<SweepClosure>(),
-    dbc
+    queryClient
       .from('attendance_days')
       .select('is_corrected, auto_close_source, worked_minutes, punch_out')
       .eq('employee_id', employeeId)
@@ -316,8 +316,8 @@ async function readPunchStatus(): Promise<PunchStatus> {
 
 async function readPunchHistory(): Promise<PunchRecord[]> {
   const { employeeId } = await employeeContext();
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('punch_events')
     .select<DayEvent[]>('kind, punched_at, within_geofence, lat, lng')
     .eq('employee_id', employeeId)
@@ -363,9 +363,9 @@ async function recordPunch(
       await lockEmployeePunches(employeeId, session);
       const now = new Date();
       const { date } = localParts(now);
-      const dbc = await createClient(session);
+      const queryClient = await createClient(session);
       // reject only genuine sequence errors, never a location
-      const { data: priorRaw, error: priorError } = await dbc
+      const { data: priorRaw, error: priorError } = await queryClient
         .from('punch_events')
         .select<KeyedDayEvent[]>('kind, punched_at, within_geofence, request_key')
         .eq('employee_id', employeeId)
@@ -413,7 +413,7 @@ async function recordPunch(
       }
 
       const point = validCoords(coords);
-      const { office, requireLocation } = await readPunchPolicy(employeeId, dbc);
+      const { office, requireLocation } = await readPunchPolicy(employeeId, queryClient);
 
       // A required location must be present; being outside the office does not block a punch.
       if (requireLocation && !point) {
@@ -422,7 +422,7 @@ async function recordPunch(
 
       const withinGeofence = classify(point, office);
 
-      const { error: eventError } = await dbc.from('punch_events').insert({
+      const { error: eventError } = await queryClient.from('punch_events').insert({
         employee_id: employeeId,
         // Stored as BSON Date matching collection schema validation.
         punched_at: now,
@@ -442,7 +442,7 @@ async function recordPunch(
         employeeId,
         date,
         [...prior, { kind, punched_at: now }],
-        dbc,
+        queryClient,
       );
 
       return { kind, punchedAt: now.toISOString(), withinGeofence, workedMinutes };
@@ -459,13 +459,13 @@ async function resolveDay(
   employeeId: string,
   workDate: string,
   events: DayEvent[],
-  dbc: Awaited<ReturnType<typeof createClient>>,
+  queryClient: Awaited<ReturnType<typeof createClient>>,
 ): Promise<number> {
   // Store punch times as HH:MM to match the attendance validator. Worked-minute calculations
   // already ignore seconds.
   const { firstIn, lastOut, workedMinutes } = summarizePunches(events);
 
-  const { data: existing, error: existingError } = await dbc
+  const { data: existing, error: existingError } = await queryClient
     .from('attendance_days')
     .select('status, is_corrected, auto_close_source')
     .eq('employee_id', employeeId)
@@ -485,7 +485,7 @@ async function resolveDay(
 
   const status = !existing?.status || existing.status === 'AB' ? 'P' : existing.status;
 
-  const { error } = await dbc.from('attendance_days').upsert(
+  const { error } = await queryClient.from('attendance_days').upsert(
     {
       employee_id: employeeId,
       work_date: workDate,

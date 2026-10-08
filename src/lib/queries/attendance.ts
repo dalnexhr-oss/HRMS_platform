@@ -14,14 +14,14 @@ async function getRegister(
   branch?: string | null,
 ): Promise<RegisterEmployee[]> {
   const { start, end } = monthRange(periodMonth);
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
   // Branch scoping: resolve the branch name to its id and filter on the FK, so
   // employees are actually excluded (filtering on an embedded column would only
   // null the join, not drop the parent row). Blank/absent branch = all branches.
   let branchId: string | null = null;
   if (branch) {
-    const { data: b } = await dbc
+    const { data: b } = await queryClient
       .from('branches')
       .select('id')
       .eq('name', branch)
@@ -30,7 +30,7 @@ async function getRegister(
     branchId = b?.id ?? '__none__';
   }
 
-  let employeeQuery = dbc
+  let employeeQuery = queryClient
     .from('employees')
     .select('id, code, full_name, gender, date_of_joining, branches(name)')
     // Someone serving notice still punches and is still paid.
@@ -48,7 +48,7 @@ async function getRegister(
     return [];
   }
 
-  const { data: days, error: daysError } = await dbc
+  const { data: days, error: daysError } = await queryClient
     .from('attendance_days')
     .select('employee_id, work_date, status, punch_in, punch_out, worked_minutes')
     .gte('work_date', start)
@@ -59,7 +59,7 @@ async function getRegister(
   }
 
   // Target hours use the payslip rule: each worked day owes one full day's minutes.
-  const { data: fullDaySetting } = await dbc
+  const { data: fullDaySetting } = await queryClient
     .from('settings')
     .select('value')
     .eq('key', 'full_day_minutes')
@@ -157,10 +157,10 @@ async function getLeaveRegisterMismatches(
   branch?: string | null,
 ): Promise<LeaveRegisterMismatch[]> {
   const { start, end } = monthRange(periodMonth);
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
   // Approved leave requests overlapping the month.
-  const { data: reqs, error: reqErr } = await dbc
+  const { data: reqs, error: reqErr } = await queryClient
     .from('requests')
     .select(
       'employee_id, leave_kind, start_date, end_date, employees(code, full_name, branch_id, branches(name))',
@@ -177,7 +177,7 @@ async function getLeaveRegisterMismatches(
   }
 
   // Register rows for the month, keyed employee|date.
-  const { data: days, error: dayErr } = await dbc
+  const { data: days, error: dayErr } = await queryClient
     .from('attendance_days')
     .select('employee_id, work_date, status')
     .gte('work_date', start)
@@ -291,8 +291,8 @@ async function getMyAttendance(
   periodMonth: string = currentPeriodMonth(),
 ): Promise<DayCell[]> {
   const { start, end } = monthRange(periodMonth);
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('attendance_days')
     .select('work_date, status, punch_in, punch_out, worked_minutes')
     .eq('employee_id', employeeId)

@@ -37,10 +37,10 @@ async function grantCompOff(employeeId: string, earnedDate: string): Promise<Act
     return { ok: false, error: 'Invalid date for the comp off.' };
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
   // The day must actually be a worked off-day — never take the client's word.
-  const { data: day, error: dayErr } = await dbc
+  const { data: day, error: dayErr } = await queryClient
     .from('attendance_days')
     .select('status, punch_in, worked_minutes')
     .eq('employee_id', employeeId)
@@ -68,7 +68,7 @@ async function grantCompOff(employeeId: string, earnedDate: string): Promise<Act
     };
   }
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('comp_offs')
     .insert({ employee_id: employeeId, earned_date: earnedDate, granted_by: gate.profileId })
     .select('id');
@@ -84,7 +84,7 @@ async function grantCompOff(employeeId: string, earnedDate: string): Promise<Act
     return { ok: false, error: 'The comp off was not granted — your role may lack permission.' };
   }
 
-  await dbc.from('activity_log').insert({
+  await queryClient.from('activity_log').insert({
     actor_id: gate.profileId,
     employee_id: employeeId,
     event_type: 'comp_off_granted',
@@ -139,7 +139,7 @@ async function applyCompOff(formData: FormData): Promise<ActionResult> {
     };
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
   let routing: Awaited<ReturnType<typeof prepareRequestRouting>>;
   try {
     routing = await prepareRequestRouting(formData, employeeId);
@@ -151,7 +151,7 @@ async function applyCompOff(formData: FormData): Promise<ActionResult> {
   }
 
   // Checked before the credit is claimed, so a refused application leaves it available.
-  const overlapProblem = await requestOverlapProblem(dbc, employeeId, takeDate, takeDate);
+  const overlapProblem = await requestOverlapProblem(queryClient, employeeId, takeDate, takeDate);
   if (overlapProblem) {
     return { ok: false, error: overlapProblem };
   }
@@ -159,7 +159,7 @@ async function applyCompOff(formData: FormData): Promise<ActionResult> {
   // Default to FIFO allocation (earliest expiration, then earliest earned date).
   let compOffId = requestedId;
   if (!compOffId) {
-    const { data: oldest, error: fifoErr } = await dbc
+    const { data: oldest, error: fifoErr } = await queryClient
       .from('comp_offs')
       .select('id')
       .eq('employee_id', employeeId)
@@ -184,7 +184,7 @@ async function applyCompOff(formData: FormData): Promise<ActionResult> {
   // Claim the credit first: the status predicate means two concurrent
   // applications for the same credit cannot both succeed, and the
   // is_applicable predicate refuses a credit staff put on hold.
-  const claim = await dbc
+  const claim = await queryClient
     .from('comp_offs')
     .update({ status: 'applied' })
     .eq('id', compOffId)
@@ -204,7 +204,7 @@ async function applyCompOff(formData: FormData): Promise<ActionResult> {
     };
   }
 
-  const { data: req, error: reqErr } = await dbc
+  const { data: req, error: reqErr } = await queryClient
     .from('requests')
     .insert({
       employee_id: employeeId,
@@ -222,12 +222,12 @@ async function applyCompOff(formData: FormData): Promise<ActionResult> {
 
   if (reqErr || wroteNothing(req)) {
     // Release the credit so a failed application doesn't strand it.
-    await dbc.from('comp_offs').update({ status: 'available' }).eq('id', compOffId);
+    await queryClient.from('comp_offs').update({ status: 'available' }).eq('id', compOffId);
     return { ok: false, error: reqErr?.message ?? 'The comp-off request was not filed.' };
   }
 
   // Link the credit to the request so approval can close the loop.
-  await dbc
+  await queryClient
     .from('comp_offs')
     .update({ request_id: req![0].id, used_date: takeDate })
     .eq('id', compOffId);
@@ -258,10 +258,10 @@ async function setCompOffApplicability(id: string, applicable: boolean): Promise
     return { ok: false, error: 'Unknown comp off.' };
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
   // Only an available credit can be toggled: an applied one is already in the
   // approvals queue, and used/expired credits are history.
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('comp_offs')
     .update({ is_applicable: applicable })
     .eq('id', id)
@@ -279,7 +279,7 @@ async function setCompOffApplicability(id: string, applicable: boolean): Promise
   }
 
   const row = data![0] as { employee_id: string; earned_date: string };
-  await dbc.from('activity_log').insert({
+  await queryClient.from('activity_log').insert({
     actor_id: gate.profileId,
     employee_id: row.employee_id,
     event_type: 'comp_off_applicability',

@@ -132,8 +132,8 @@ function buildResolver(codeMap: Record<string, string>) {
 
 /** code -> full_name, for a human-readable preview. */
 async function fetchNames(): Promise<Record<string, string>> {
-  const dbc = await createClient();
-  const { data, error } = await dbc.from('employees').select('code, full_name');
+  const queryClient = await createClient();
+  const { data, error } = await queryClient.from('employees').select('code, full_name');
   if (error) {
     throw new Error(
       `Could not load employee names: ${error.message}${error.code ? ` (${error.code})` : ''}`,
@@ -266,7 +266,7 @@ async function previewImport(formData: FormData): Promise<PreviewResult> {
 
 /** Existing (employee_id, work_date) keys for the month, so we can report insert vs update. */
 async function fetchExistingKeys(
-  dbc: Awaited<ReturnType<typeof createClient>>,
+  queryClient: Awaited<ReturnType<typeof createClient>>,
   periodMonth: string,
   daysInMonth: number,
 ): Promise<Set<string>> {
@@ -277,7 +277,7 @@ async function fetchExistingKeys(
   for (let offset = 0; ; offset += selectPage) {
     // Page in unique-key order so rows are neither repeated nor skipped when calculating inserted
     // and updated counts.
-    const { data, error } = await dbc
+    const { data, error } = await queryClient
       .from('attendance_days')
       .select('employee_id, work_date')
       .gte('work_date', from)
@@ -355,16 +355,16 @@ async function commitImport(formData: FormData): Promise<CommitResult> {
       };
     }
 
-    const dbc = await createClient();
+    const queryClient = await createClient();
 
     // 3b. Prohibit import for months whose payroll is finalized (locked or paid).
-    const monthOpen = await requireOpenPayrollMonth(dbc, reg.periodMonth);
+    const monthOpen = await requireOpenPayrollMonth(queryClient, reg.periodMonth);
     if (!monthOpen.ok) {
       return { ok: false, error: monthOpen.error };
     }
 
     // 4. Snapshot existing keys so inserted/updated are real, not guessed.
-    const existing = await fetchExistingKeys(dbc, reg.periodMonth, reg.daysInMonth);
+    const existing = await fetchExistingKeys(queryClient, reg.periodMonth, reg.daysInMonth);
 
     // 5. Chunked upsert. Only count rows whose chunk actually committed.
     let inserted = 0;
@@ -373,7 +373,7 @@ async function commitImport(formData: FormData): Promise<CommitResult> {
 
     for (let i = 0; i < rows.length; i += upsertChunk) {
       const chunk = rows.slice(i, i + upsertChunk);
-      const { error } = await dbc.from('attendance_days').upsert(chunk, { onConflict });
+      const { error } = await queryClient.from('attendance_days').upsert(chunk, { onConflict });
 
       if (error) {
         failedRows += chunk.length;
@@ -403,7 +403,7 @@ async function commitImport(formData: FormData): Promise<CommitResult> {
       `${inserted} inserted, ${updated} updated${skipped ? `, ${skipped} skipped` : ''}` +
       `${failedRows ? `, ${failedRows} failed` : ''}.`;
 
-    const { error: logError } = await dbc.from('activity_log').insert({
+    const { error: logError } = await queryClient.from('activity_log').insert({
       actor_id: profile?.id ?? userId,
       event_type: 'register_import',
       message: summary,

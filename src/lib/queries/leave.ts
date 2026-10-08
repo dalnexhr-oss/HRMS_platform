@@ -42,8 +42,8 @@ interface OnLeaveTodayRow {
  * Report query failures through the shared error handler.
  */
 async function getOnLeaveToday(): Promise<OnLeaveTodayRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc.rpc('fn_on_leave_today');
+  const queryClient = await createClient();
+  const { data, error } = await queryClient.callFunction('fn_on_leave_today');
   // The database client registers this handler during initialization.
   if (error) {
     fail('getOnLeaveToday: could not load who is on leave', error);

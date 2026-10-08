@@ -72,8 +72,8 @@ interface ReimbursementEvent {
 
 /** A claim's timeline, oldest first (reads as a story). */
 async function getReimbursementEvents(claimId: string): Promise<ReimbursementEvent[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('reimbursement_events')
     .select('id, action, from_status, to_status, remark, actor_name, occurred_at')
     .eq('claim_id', claimId)
@@ -94,8 +94,8 @@ async function getReimbursementEvents(claimId: string): Promise<ReimbursementEve
 
 /** Every claim, newest first — the staff review queue. */
 async function getReimbursements(): Promise<ReimbursementView[]> {
-  const dbc = await createClient();
-  const res = await dbc
+  const queryClient = await createClient();
+  const res = await queryClient
     .from('reimbursement_claims')
     .select(reimbursementFields)
     .order('created_at', { ascending: false });
@@ -107,8 +107,8 @@ async function getReimbursements(): Promise<ReimbursementView[]> {
 
 /** One employee's own claims, newest first. */
 async function getMyReimbursements(employeeId: string): Promise<ReimbursementView[]> {
-  const dbc = await createClient();
-  const res = await dbc
+  const queryClient = await createClient();
+  const res = await queryClient
     .from('reimbursement_claims')
     .select(reimbursementFields)
     .eq('employee_id', employeeId)
@@ -122,8 +122,8 @@ async function getMyReimbursements(employeeId: string): Promise<ReimbursementVie
 /** The ₹/km rate used to auto-calculate travel claims (settings-driven). */
 async function getReimbursementRate(): Promise<number> {
   const fallback = 3.5;
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('settings')
     .select('value')
     .eq('key', 'reimbursement_rate_per_km')

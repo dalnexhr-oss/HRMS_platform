@@ -76,8 +76,8 @@ async function deleteEmployee(code: string): Promise<DeleteResult> {
 
     // Keep the employee row for historical joins. Record deletion separately from deactivation.
     try {
-      const dbc = await createClient();
-      const { error: auditError } = await dbc.from('activity_log').insert({
+      const queryClient = await createClient();
+      const { error: auditError } = await queryClient.from('activity_log').insert({
         actor_id: gate.profileId,
         employee_id: employee._id,
         employee_code: employee.code,

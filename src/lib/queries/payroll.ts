@@ -51,9 +51,9 @@ function mapPayslip(p: any): PayslipRow {
 // payroll
 async function getPayslips(periodMonth: string = currentPeriodMonth()): Promise<PayslipRow[]> {
   const { start } = monthRange(periodMonth);
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
-  const { data: run, error: runError } = await dbc
+  const { data: run, error: runError } = await queryClient
     .from('payroll_runs')
     .select('id')
     .eq('period_month', start)
@@ -66,7 +66,7 @@ async function getPayslips(periodMonth: string = currentPeriodMonth()): Promise<
     return [];
   }
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('payslips')
     .select(`${payslipFields}, employees(code, full_name, branches(name, state))`)
     .eq('payroll_run_id', run.id);
@@ -131,8 +131,8 @@ async function getPayrollRun(periodMonth: string): Promise<PayrollRunView | null
  * change until the run is locked, and a downloaded draft looks like a final payslip.
  */
 async function getMyPayslips(employeeId: string): Promise<PayslipRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('payslips')
     .select(
       `${payslipFields}, payroll_runs(period_month),

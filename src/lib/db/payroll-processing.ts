@@ -16,7 +16,7 @@ import { systemScope } from '@/lib/db/access-scope';
 import { withTransaction } from '@/lib/db/mongodb-connection';
 import { fromPaise, toPaise } from '@/lib/db/decimal-conversions';
 import { calculatePayslip } from '@/lib/payroll/payslip-calculation';
-import { registerRpc } from '@/lib/db/scoped-query-client';
+import { registerFunction } from '@/lib/db/scoped-query-client';
 import type { PayslipComputation, PayrollAttendanceDay } from '@/lib/payroll/payslip-calculation';
 import type { WeekOffPolicy } from '@/lib/weekly-off-policy';
 import type { ClientSession, Document } from 'mongodb';
@@ -563,20 +563,20 @@ function registerPayrollFunctions(): void {
     return;
   }
   registered = true;
-  registerRpc('fn_compute_payslip', async (a) => {
+  registerFunction('fn_compute_payslip', async (a) => {
     const { p_employee_id, p_run_id } = a as { p_employee_id: string; p_run_id: string };
     await computePayslip(p_employee_id, p_run_id);
     return null;
   });
-  registerRpc('fn_compute_run', async (a) => {
+  registerFunction('fn_compute_run', async (a) => {
     await computeRun((a as { p_run_id: string }).p_run_id);
     return null;
   });
-  registerRpc('fn_lock_run', async (a) => {
+  registerFunction('fn_lock_run', async (a) => {
     await lockRun((a as { p_run_id: string }).p_run_id);
     return null;
   });
-  registerRpc('fn_mark_run_paid', async (a) => {
+  registerFunction('fn_mark_run_paid', async (a) => {
     await markRunPaid((a as { p_run_id: string }).p_run_id);
     return null;
   });

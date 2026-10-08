@@ -17,8 +17,8 @@ interface AcknowledgementRow {
  * read receipts are stored separately.
  */
 async function getMyAcknowledgements(employeeId: string): Promise<AcknowledgementRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('acknowledgements')
     .select('id, document_kind, document_id, signed_name, signed_at')
     .eq('employee_id', employeeId)
@@ -81,8 +81,8 @@ function mapDocument(r: any): EmployeeDocumentRow {
  * superseded versions through getEmployeeDocumentHistory.
  */
 async function getEmployeeDocuments(employeeId: string): Promise<EmployeeDocumentRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('employee_documents')
     .select(documentFields)
     .eq('employee_id', employeeId)
@@ -100,8 +100,8 @@ async function getEmployeeDocuments(employeeId: string): Promise<EmployeeDocumen
  * the panel groups on.
  */
 async function getEmployeeDocumentHistory(employeeId: string): Promise<EmployeeDocumentRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('employee_documents')
     .select(documentFields)
     .eq('employee_id', employeeId)
@@ -117,8 +117,8 @@ async function getEmployeeDocumentHistory(employeeId: string): Promise<EmployeeD
  * history.
  */
 async function getDocumentRegister(): Promise<EmployeeDocumentRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('employee_documents')
     .select(documentFields)
     .is('superseded_at', null)
@@ -134,8 +134,8 @@ async function getDocumentRegister(): Promise<EmployeeDocumentRow[]> {
  * review queue.
  */
 async function getUnverifiedDocuments(): Promise<EmployeeDocumentRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('employee_documents')
     .select(documentFields)
     .is('verified_at', null)

@@ -32,8 +32,8 @@ function clockTime(ts: string): string {
 // today board
 /** Today's headcount / attendance KPIs, aggregated from v_today_board. */
 async function getTodayBoard(): Promise<TodayKpis> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('v_today_board')
     .select('branch, headcount, present, field, absent')
     .order('branch');
@@ -60,17 +60,17 @@ async function getTodayBoard(): Promise<TodayKpis> {
 // punch log
 /** Today's punch log, earliest punch first. */
 async function getPunchLogToday(): Promise<PunchLogRow[]> {
-  const dbc = await createClient();
+  const queryClient = await createClient();
   const now = new Date();
   const { date, time } = localParts(now);
   const [days, punches] = await Promise.all([
-    dbc
+    queryClient
       .from('attendance_days')
       .select(
         'employee_id, status, punch_in, punch_out, worked_minutes, is_corrected, auto_close_source, employees(code, full_name, branches(name))',
       )
       .eq('work_date', date),
-    dbc
+    queryClient
       .from('punch_events')
       .select<Array<DayEvent & { employee_id: string }>>('employee_id, kind, punched_at')
       .gte('punched_at', new Date(`${date}T00:00:00+05:30`))
@@ -131,8 +131,8 @@ async function getPunchLogToday(): Promise<PunchLogRow[]> {
 // celebrations
 /** Today's birthdays and work anniversaries, from v_celebrations. */
 async function getCelebrationsToday(): Promise<Celebration[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('v_celebrations')
     .select('id, full_name, branch, department, kind, years');
   if (error) {
@@ -216,21 +216,24 @@ async function getTopbarStats(): Promise<TopbarStats> {
   }
 
   try {
-    const dbc = await createClient();
+    const queryClient = await createClient();
     const periodMonth = `${todayISO().slice(0, 7)}-01`;
     const [employees, branches, approvals, run, sweep] = await Promise.all([
-      dbc
+      queryClient
         .from('employees')
         .select('code', { count: 'exact', head: true })
         .in('status', ['active', 'on_notice']),
-      dbc.from('branches').select('name').order('name'),
-      dbc.from('requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-      dbc
+      queryClient.from('branches').select('name').order('name'),
+      queryClient
+        .from('requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending'),
+      queryClient
         .from('payroll_runs')
         .select('status')
         .eq('period_month', periodMonth)
         .maybeSingle<{ status: string }>(),
-      dbc
+      queryClient
         .from('settings')
         .select('value')
         .eq('key', 'night_sweep_time')

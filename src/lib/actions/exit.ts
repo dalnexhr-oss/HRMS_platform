@@ -62,11 +62,11 @@ async function initiateExit(input: {
     return { ok: false, error: 'The last working day cannot be before the resignation date.' };
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
   // On-notice employees appear in the employee picker, so an exit already under way has to be
   // refused here rather than by leaving them out of the list.
-  const { data: openCases, error: openError } = await dbc
+  const { data: openCases, error: openError } = await queryClient
     .from('exit_cases')
     .select('id')
     .eq('employee_id', input.employeeId)
@@ -79,7 +79,7 @@ async function initiateExit(input: {
     return { ok: false, error: 'This employee already has an exit in progress.' };
   }
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('exit_cases')
     .insert({
       employee_id: input.employeeId,
@@ -109,7 +109,7 @@ async function initiateExit(input: {
       Date.parse(`${input.resignationDate}T00:00:00Z`)) /
       86_400_000,
   );
-  const { data: mirrored, error: mirrorErr } = await dbc
+  const { data: mirrored, error: mirrorErr } = await queryClient
     .from('employees')
     .update({
       status: 'on_notice',
@@ -127,7 +127,7 @@ async function initiateExit(input: {
       : null;
 
   const caseId = (data![0] as { id: string }).id;
-  const seedProblem = await seedClearance(dbc, caseId, input.employeeId);
+  const seedProblem = await seedClearance(queryClient, caseId, input.employeeId);
 
   revalidatePath('/exits');
   revalidatePath('/employees');
@@ -144,14 +144,14 @@ async function initiateExit(input: {
  * means a second call after a return does not duplicate rows.
  */
 async function seedClearance(
-  dbc: Awaited<ReturnType<typeof createClient>>,
+  queryClient: Awaited<ReturnType<typeof createClient>>,
   exitCaseId: string,
   employeeId: string,
 ): Promise<string | null> {
   const rows: Array<Record<string, unknown>> = [];
 
   // Propagate read failures so missing checklist data cannot be mistaken for completed clearance.
-  const { data: assets, error: assetErr } = await dbc
+  const { data: assets, error: assetErr } = await queryClient
     .from('assets')
     .select('id, desktop_name')
     .eq('assigned_employee_id', employeeId);
@@ -167,7 +167,7 @@ async function seedClearance(
     });
   }
 
-  const { data: items, error: itemErr } = await dbc
+  const { data: items, error: itemErr } = await queryClient
     .from('item_assignments')
     .select('id, quantity, items(item_name)')
     .eq('employee_id', employeeId)
@@ -188,7 +188,7 @@ async function seedClearance(
     return null;
   }
   // Ignore duplicate-key noise: re-seeding is the expected workflow.
-  const { error: seedErr } = await dbc.from('exit_clearance_items').upsert(rows, {
+  const { error: seedErr } = await queryClient.from('exit_clearance_items').upsert(rows, {
     onConflict: 'exit_case_id,area,reference_id',
     ignoreDuplicates: true,
   });
@@ -230,8 +230,8 @@ async function ensureExitInterview(exitCaseId: string): Promise<ActionResult> {
     return gate;
   }
 
-  const dbc = await createClient();
-  const { count, error: countErr } = await dbc
+  const queryClient = await createClient();
+  const { count, error: countErr } = await queryClient
     .from('exit_interviews')
     .select('id', { count: 'exact', head: true })
     .eq('exit_case_id', exitCaseId);
@@ -248,7 +248,7 @@ async function ensureExitInterview(exitCaseId: string): Promise<ActionResult> {
     question,
     interviewer_id: gate.profileId,
   }));
-  const { error } = await dbc.from('exit_interviews').insert(rows);
+  const { error } = await queryClient.from('exit_interviews').insert(rows);
   if (error) {
     return { ok: false, error: error.message };
   }
@@ -277,13 +277,13 @@ async function saveExitInterview(
     return { ok: false, error: 'Nothing to save.' };
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
   const now = new Date();
   // Per-row updates: an upsert would need the full row and could overwrite the
   // question text, which is exactly what must stay immutable here.
   for (const a of clean) {
     const answer = String(a.answer ?? '').trim();
-    const { error } = await dbc
+    const { error } = await queryClient
       .from('exit_interviews')
       .update({
         answer: answer || null,
@@ -329,8 +329,8 @@ async function addKtItem(input: {
 
   const handoverTo = input.handoverTo && uuidRe.test(input.handoverTo) ? input.handoverTo : null;
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('knowledge_transfer_items')
     .insert({
       exit_case_id: input.exitCaseId,
@@ -360,8 +360,8 @@ async function setKtStatus(id: string, status: string): Promise<ActionResult> {
     return { ok: false, error: `Invalid status: ${status || '(missing)'}` };
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('knowledge_transfer_items')
     .update({ status })
     .eq('id', id)
@@ -384,8 +384,8 @@ async function deleteKtItem(id: string): Promise<ActionResult> {
     return gate;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('knowledge_transfer_items')
     .delete()
     .eq('id', id)
@@ -413,8 +413,8 @@ async function refreshExitClearance(exitCaseId: string): Promise<ActionResult> {
     return gate;
   }
 
-  const dbc = await createClient();
-  const { data: kase } = await dbc
+  const queryClient = await createClient();
+  const { data: kase } = await queryClient
     .from('exit_cases')
     .select('id, employee_id')
     .eq('id', exitCaseId)
@@ -423,7 +423,7 @@ async function refreshExitClearance(exitCaseId: string): Promise<ActionResult> {
     return { ok: false, error: 'That exit case no longer exists.' };
   }
 
-  const seedProblem = await seedClearance(dbc, kase.id, kase.employee_id);
+  const seedProblem = await seedClearance(queryClient, kase.id, kase.employee_id);
   if (seedProblem) {
     return { ok: false, error: `Clearance could not be refreshed — ${seedProblem}.` };
   }
@@ -438,8 +438,8 @@ async function setClearanceItemCleared(id: string, cleared: boolean): Promise<Ac
     return gate;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('exit_clearance_items')
     .update({
       cleared,
@@ -469,12 +469,12 @@ async function setExitStage(
     return gate;
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
   // Fail-closed verification: transition to settlement/completed requires clearance_complete to be
   // explicitly true.
   if (stage === 'settlement' || stage === 'completed') {
-    const { data: pending, error: pendingErr } = await dbc
+    const { data: pending, error: pendingErr } = await queryClient
       .from('v_exit_clearance_pending')
       .select('assets_outstanding, items_outstanding, clearance_items_open, clearance_complete')
       .eq('exit_case_id', exitCaseId)
@@ -506,7 +506,7 @@ async function setExitStage(
   }
 
   if (stage === 'completed') {
-    const { data: fnf } = await dbc
+    const { data: fnf } = await queryClient
       .from('full_and_final')
       .select('status')
       .eq('exit_case_id', exitCaseId)
@@ -519,7 +519,7 @@ async function setExitStage(
     }
   }
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('exit_cases')
     .update({ stage, completed_at: stage === 'completed' ? new Date() : null })
     .eq('id', exitCaseId)
@@ -534,7 +534,7 @@ async function setExitStage(
   // Deactivate login upon exit completion unless explicitly disabled by settings.
   let warning: string | undefined;
   if (stage === 'completed') {
-    const { data: autoSetting } = await dbc
+    const { data: autoSetting } = await queryClient
       .from('settings')
       .select('value')
       .eq('key', 'exit_auto_deactivate')
@@ -543,7 +543,7 @@ async function setExitStage(
 
     if (autoDeactivate) {
       const { employee_id } = data![0] as { employee_id: string };
-      const { data: emp } = await dbc
+      const { data: emp } = await queryClient
         .from('employees')
         .select('code')
         .eq('id', employee_id)
@@ -576,8 +576,8 @@ async function prepareFullAndFinal(exitCaseId: string): Promise<ActionResult> {
     return gate;
   }
 
-  const dbc = await createClient();
-  const { data: kase } = await dbc
+  const queryClient = await createClient();
+  const { data: kase } = await queryClient
     .from('exit_cases')
     .select('id, employee_id')
     .eq('id', exitCaseId)
@@ -587,7 +587,7 @@ async function prepareFullAndFinal(exitCaseId: string): Promise<ActionResult> {
   }
 
   // Approved but not yet paid reimbursements follow the employee out.
-  const { data: claims } = await dbc
+  const { data: claims } = await queryClient
     .from('reimbursement_claims')
     .select('amount, status')
     .eq('employee_id', kase.employee_id)
@@ -597,7 +597,7 @@ async function prepareFullAndFinal(exitCaseId: string): Promise<ActionResult> {
     0,
   );
 
-  const { data: enc } = await dbc
+  const { data: enc } = await queryClient
     .from('leave_encashment')
     .select('amount, status')
     .eq('employee_id', kase.employee_id)
@@ -610,7 +610,7 @@ async function prepareFullAndFinal(exitCaseId: string): Promise<ActionResult> {
   const round2 = (n: number) => Math.round(n * 100) / 100;
   const netPayable = round2(pendingReimbursements + leaveEncashment);
 
-  const { error } = await dbc.from('full_and_final').upsert(
+  const { error } = await queryClient.from('full_and_final').upsert(
     {
       exit_case_id: exitCaseId,
       // Every figure here is a `decimal` column, so each goes in as
@@ -662,8 +662,8 @@ async function updateFullAndFinal(
   const deductions = n(fields.otherDeductions);
   const net = Math.round((salary + leave + reimb - recovery - deductions) * 100) / 100;
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('full_and_final')
     .update({
       salary_payable: toMoney(salary),
@@ -699,14 +699,14 @@ async function setFullAndFinalStatus(
   }
 
   const from = status === 'approved' ? 'draft' : 'approved';
-  const dbc = await createClient();
+  const queryClient = await createClient();
   const patch: Record<string, unknown> = { status, updated_at: new Date() };
   if (status === 'approved') {
     patch.approved_by = gate.profileId;
     patch.approved_at = new Date();
   }
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('full_and_final')
     .update(patch)
     .eq('exit_case_id', exitCaseId)

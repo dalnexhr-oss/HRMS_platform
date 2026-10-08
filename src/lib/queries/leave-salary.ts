@@ -19,8 +19,8 @@ interface LeaveBalanceAdminRow {
 
 /** Every employee's PAID-LEAVE pool for a year — the pool card on /leave-salary. */
 async function getLeaveBalancesForYear(year: number): Promise<LeaveBalanceAdminRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('leave_balances')
     .select('employee_id, year, type, balance, employees(code, full_name)')
     .eq('year', year)
@@ -70,8 +70,8 @@ interface LeaveSalaryWorkingRow {
  * means no workings have been saved.
  */
 async function getLeaveSalaryWorkings(year: number): Promise<LeaveSalaryWorkingRow[] | null> {
-  const dbc = await createClient();
-  const res = await dbc
+  const queryClient = await createClient();
+  const res = await queryClient
     .from('leave_salary_workings')
     .select(
       `id, employee_id, year, salary_before, salary_after, increment_effective,
@@ -123,9 +123,9 @@ interface LeaveSalaryEmployee {
  * leaver's payout row must not vanish the day HR marks them inactive.
  */
 async function getLeaveSalaryRoster(year: number): Promise<LeaveSalaryEmployee[]> {
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('employees')
     .select('id, code, full_name, gross_monthly, date_of_joining, status')
     .in('status', ['active', 'on_notice'])
@@ -137,7 +137,7 @@ async function getLeaveSalaryRoster(year: number): Promise<LeaveSalaryEmployee[]
   const rows = new Map<string, any>((data ?? []).map((e: any) => [e.id, e]));
 
   // Inactive employees with a saved working for this year still belong.
-  const { data: saved, error: savedError } = await dbc
+  const { data: saved, error: savedError } = await queryClient
     .from('leave_salary_workings')
     .select('employee_id, employees(id, code, full_name, gross_monthly, date_of_joining, status)')
     .eq('year', year);
@@ -167,12 +167,12 @@ async function getLeaveSalaryRoster(year: number): Promise<LeaveSalaryEmployee[]
  * boundaries cannot repeat or omit attendance.
  */
 async function getLeaveSalaryPresence(year: number): Promise<Record<string, number[]>> {
-  const dbc = await createClient();
+  const queryClient = await createClient();
   const pageSize = 1000;
   const byEmployee: Record<string, number[]> = {};
 
   for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await dbc
+    const { data, error } = await queryClient
       .from('attendance_days')
       .select('employee_id, work_date, status')
       .gte('work_date', `${year}-01-01`)

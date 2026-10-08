@@ -18,8 +18,8 @@ interface PtSlabView {
 
 /** Every slab, grouped by state and ordered by the gross it starts at. */
 async function getPtSlabs(): Promise<PtSlabView[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('pt_slabs')
     .select('id, state, gender, min_gross, max_gross, amount, month');
   if (error) {

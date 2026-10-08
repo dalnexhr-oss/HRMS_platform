@@ -1120,7 +1120,7 @@ function operatorClause(field: string, op: string, value: unknown): Document {
 
 interface QueryClient {
   from<T = Document[]>(table: string): QueryBuilder<T>;
-  rpc<T = unknown>(name: string, args?: Document): Promise<QueryResult<T>>;
+  callFunction<T = unknown>(name: string, args?: Document): Promise<QueryResult<T>>;
 }
 
 /**
@@ -1131,8 +1131,8 @@ function createQueryClient(asSystem = false, session?: ClientSession): QueryClie
     from<T = Document[]>(table: string) {
       return new QueryBuilder<T>(table, asSystem, session);
     },
-    async rpc<T = unknown>(name: string, args: Document = {}): Promise<QueryResult<T>> {
-      const fn = rpc.get(name);
+    async callFunction<T = unknown>(name: string, args: Document = {}): Promise<QueryResult<T>> {
+      const fn = registeredFunctions.get(name);
       if (!fn) {
         return {
           data: null as T,
@@ -1159,12 +1159,12 @@ function createSystemQueryClient(): QueryClient {
 }
 
 /**
- * Server-side function registry invoked through `.rpc()`.
+ * Server-side function registry invoked through `.callFunction()`.
  */
-const rpc = new Map<string, (args: Document) => Promise<unknown>>();
+const registeredFunctions = new Map<string, (args: Document) => Promise<unknown>>();
 
-function registerRpc(name: string, fn: (args: Document) => Promise<unknown>): void {
-  rpc.set(name, fn);
+function registerFunction(name: string, fn: (args: Document) => Promise<unknown>): void {
+  registeredFunctions.set(name, fn);
 }
 
 /** Unscoped handle, for the few jobs that legitimately run as the system. */
@@ -1172,7 +1172,7 @@ async function rawDb() {
   return db();
 }
 
-export { createQueryClient, createSystemQueryClient, registerRpc, rawDb };
+export { createQueryClient, createSystemQueryClient, registerFunction, rawDb };
 
 export type {
   QueryBuilder,

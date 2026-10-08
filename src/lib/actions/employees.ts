@@ -294,7 +294,7 @@ const newBranch = '__new__';
  * explicit choice and state; cache the resolved name on the employee.
  */
 async function resolveBranch(
-  dbc: DbClient,
+  queryClient: DbClient,
   formData: FormData,
 ): Promise<{ ok: true; id: string; name: string } | { ok: false; error: string }> {
   const selected = String(formData.get('branch') ?? '').trim();
@@ -305,7 +305,7 @@ async function resolveBranch(
     }
     // Match branch names case-insensitively and use the stored canonical name in the employee
     // record.
-    const { data, error } = await dbc
+    const { data, error } = await queryClient
       .from('branches')
       .select('id, name')
       .ilike('name', selected)
@@ -332,7 +332,7 @@ async function resolveBranch(
 
   // Case-insensitive match first so 'pune'/'Pune' can't spawn duplicates
   // (branches.name is unique, but only case-sensitively).
-  const { data: found, error: findError } = await dbc
+  const { data: found, error: findError } = await queryClient
     .from('branches')
     .select('id, name')
     .ilike('name', name)
@@ -344,7 +344,7 @@ async function resolveBranch(
     return { ok: true, id: found.id, name: found.name };
   }
 
-  const { data: created, error } = await dbc
+  const { data: created, error } = await queryClient
     .from('branches')
     .insert({ name, state })
     .select('id, name')
@@ -352,7 +352,7 @@ async function resolveBranch(
   if (error) {
     // Concurrent creation race: adopt existing branch if created simultaneously.
     if (error.code === queryErrorCodes.duplicateKey) {
-      const { data: raced } = await dbc
+      const { data: raced } = await queryClient
         .from('branches')
         .select('id, name')
         .ilike('name', name)
@@ -367,7 +367,7 @@ async function resolveBranch(
 }
 
 async function resolveDepartment(
-  dbc: DbClient,
+  queryClient: DbClient,
   name: string,
   branchId: string,
 ): Promise<{ id: string; name: string } | null> {
@@ -375,7 +375,7 @@ async function resolveDepartment(
   if (!dept) {
     return null;
   }
-  const { data: found } = await dbc
+  const { data: found } = await queryClient
     .from('departments')
     .select('id, name')
     .eq('branch_id', branchId)
@@ -384,7 +384,7 @@ async function resolveDepartment(
   if (found) {
     return { id: found.id, name: found.name };
   }
-  const { data: created, error } = await dbc
+  const { data: created, error } = await queryClient
     .from('departments')
     .insert({ name: dept, branch_id: branchId })
     .select('id, name')
@@ -396,12 +396,12 @@ async function resolveDepartment(
 }
 
 /**
- * Provision a new or rehired employee's current-year leave balance. The RPC only creates missing
+ * Provision a new or rehired employee's current-year leave balance. The function only creates missing
  * rows and skips later-year joiners. Log failures without undoing the employee save; staff can
  * provision missing balances from /leave-salary.
  */
 async function provisionCurrentLeaveYear(
-  dbc: Awaited<ReturnType<typeof createClient>>,
+  queryClient: Awaited<ReturnType<typeof createClient>>,
 ): Promise<void> {
   // Business year in IST, matching the provisioning cron — not the server TZ.
   const year = Number(
@@ -409,7 +409,7 @@ async function provisionCurrentLeaveYear(
       new Date(),
     ),
   );
-  await dbc.rpc('fn_provision_leave_balances', { p_year: year });
+  await queryClient.callFunction('fn_provision_leave_balances', { p_year: year });
 }
 
 async function createEmployee(formData: FormData) {
@@ -456,23 +456,27 @@ async function createEmployee(formData: FormData) {
     return extra;
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
   // The branch arrives as a NAME (or the add-new sentinel); resolve to an id,
   // creating the branch when that was explicitly requested.
-  const branch = await resolveBranch(dbc, formData);
+  const branch = await resolveBranch(queryClient, formData);
   if (!branch.ok) {
     return branch;
   }
 
   let department: { id: string; name: string } | null;
   try {
-    department = await resolveDepartment(dbc, String(formData.get('department') ?? ''), branch.id);
+    department = await resolveDepartment(
+      queryClient,
+      String(formData.get('department') ?? ''),
+      branch.id,
+    );
   } catch (e: any) {
     return { ok: false, error: e?.message ?? 'Could not save the department.' };
   }
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('employees')
     .insert({
       code,
@@ -532,7 +536,7 @@ async function createEmployee(formData: FormData) {
 
   // Their 15-day paid-leave pool, so approving their first leave deducts from a
   // real balance instead of warning "no balance on record".
-  await provisionCurrentLeaveYear(dbc).catch(() => undefined);
+  await provisionCurrentLeaveYear(queryClient).catch(() => undefined);
 
   // Send the welcome email after saving. Missing SMTP configuration or delivery failure must not
   // undo the employee record.
@@ -607,21 +611,25 @@ async function updateEmployee(formData: FormData) {
     return extra;
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
-  const branch = await resolveBranch(dbc, formData);
+  const branch = await resolveBranch(queryClient, formData);
   if (!branch.ok) {
     return branch;
   }
 
   let department: { id: string; name: string } | null;
   try {
-    department = await resolveDepartment(dbc, String(formData.get('department') ?? ''), branch.id);
+    department = await resolveDepartment(
+      queryClient,
+      String(formData.get('department') ?? ''),
+      branch.id,
+    );
   } catch (e: any) {
     return { ok: false, error: e?.message ?? 'Could not save the department.' };
   }
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('employees')
     .update({
       full_name: fullName,
@@ -686,8 +694,8 @@ async function deactivateEmployee(code: string) {
     return gate;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('employees')
     .update({ status: 'inactive' })
     .eq('code', code)
@@ -728,8 +736,8 @@ async function reactivateEmployee(code: string) {
     return gate;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('employees')
     .update({ status: 'active' })
     .eq('code', code)
@@ -761,7 +769,7 @@ async function reactivateEmployee(code: string) {
 
   // A rehire was invisible to provisioning while inactive — fill the missing
   // paid-leave row for the current year. Idempotent and best-effort (above).
-  await provisionCurrentLeaveYear(dbc).catch(() => undefined);
+  await provisionCurrentLeaveYear(queryClient).catch(() => undefined);
 
   revalidatePath('/employees');
   revalidatePath('/leave-salary');

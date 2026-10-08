@@ -85,11 +85,11 @@ function requireDb(action = 'This action'): { ok: true } | { ok: false; error: s
  * write. The shared rule lives in payroll-month.ts; workDate uses YYYY-MM-DD.
  */
 async function requireOpenPayrollMonth(
-  dbc: DbClient,
+  queryClient: DbClient,
   workDate: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const periodMonth = periodMonthFor(workDate);
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('payroll_runs')
     .select('status, month_closed_at')
     .eq('period_month', periodMonth)

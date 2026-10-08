@@ -26,11 +26,11 @@ function validYear(y: number): boolean {
 // One employee-year of attendance, credit-weighted per month. ≤366 rows, so no paging is needed
 // here (the page-wide sweep in queries/leave-salary.ts is the paged one).
 async function loadPresence(
-  dbc: Awaited<ReturnType<typeof createClient>>,
+  queryClient: Awaited<ReturnType<typeof createClient>>,
   employeeId: string,
   year: number,
 ): Promise<number[]> {
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('attendance_days')
     .select('work_date, status')
     .eq('employee_id', employeeId)
@@ -108,11 +108,11 @@ async function saveLeaveSalaryWorking(input: {
     return { ok: false, error: 'Pick the month the increment takes effect.' };
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
   // The lock check. A separate read rather than a predicated upsert because the
   // caller deserves "reopen it first", not a silent no-op.
-  const { data: existing, error: readErr } = await dbc
+  const { data: existing, error: readErr } = await queryClient
     .from('leave_salary_workings')
     .select('id, status')
     .eq('employee_id', input.employeeId)
@@ -127,7 +127,7 @@ async function saveLeaveSalaryWorking(input: {
 
   let monthlyPresence: number[];
   try {
-    monthlyPresence = await loadPresence(dbc, input.employeeId, year);
+    monthlyPresence = await loadPresence(queryClient, input.employeeId, year);
   } catch (e) {
     return { ok: false, error: `Saving a leave-salary working: ${(e as Error).message}` };
   }
@@ -162,7 +162,7 @@ async function saveLeaveSalaryWorking(input: {
     updated_by: gate.profileId,
   };
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('leave_salary_workings')
     .upsert(snapshot, { onConflict: 'employee_id,year' })
     .select('id');
@@ -193,7 +193,7 @@ async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
     return { ok: false, error: 'Unknown working.' };
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
   interface WorkingRead {
     employee_id: string;
     year: number;
@@ -204,7 +204,7 @@ async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
     calendar_days_p1_override?: number | string | null;
     calendar_days_p2_override?: number | string | null;
   }
-  const read = await dbc
+  const read = await queryClient
     .from('leave_salary_workings')
     .select(
       'id, employee_id, year, salary_before, salary_after, increment_effective, status, calendar_days_p1_override, calendar_days_p2_override',
@@ -225,7 +225,7 @@ async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
   const year = Number(row.year);
   let monthlyPresence: number[];
   try {
-    monthlyPresence = await loadPresence(dbc, row.employee_id, year);
+    monthlyPresence = await loadPresence(queryClient, row.employee_id, year);
   } catch (e) {
     return { ok: false, error: `Finalizing a leave-salary working: ${(e as Error).message}` };
   }
@@ -243,7 +243,7 @@ async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
       row.calendar_days_p2_override != null ? Number(row.calendar_days_p2_override) : null,
   });
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('leave_salary_workings')
     .update({
       present_p1: result.p1.presentDays,
@@ -266,7 +266,7 @@ async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
     return { ok: false, error: 'Only a draft working can be finalized.' };
   }
 
-  await dbc.from('activity_log').insert({
+  await queryClient.from('activity_log').insert({
     actor_id: gate.profileId,
     employee_id: row.employee_id,
     event_type: 'leave_salary',
@@ -291,8 +291,8 @@ async function reopenLeaveSalary(id: string): Promise<ActionResult> {
     return { ok: false, error: 'Unknown working.' };
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('leave_salary_workings')
     .update({ status: 'draft', updated_by: gate.profileId })
     .eq('id', id)
@@ -322,8 +322,8 @@ async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
     return { ok: false, error: 'Unknown working.' };
   }
 
-  const dbc = await createClient();
-  const { data: row, error: readErr } = await dbc
+  const queryClient = await createClient();
+  const { data: row, error: readErr } = await queryClient
     .from('leave_salary_workings')
     .select('id, employee_id, year, total_amount, status')
     .eq('id', id)
@@ -349,7 +349,7 @@ async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
     };
   }
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('leave_salary_workings')
     .update({
       status: 'paid',
@@ -376,7 +376,7 @@ async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
     // truthful destination for a payout notification.
     link: '/employee/payslips',
   });
-  await dbc.from('activity_log').insert({
+  await queryClient.from('activity_log').insert({
     actor_id: gate.profileId,
     employee_id: row.employee_id,
     event_type: 'leave_salary',

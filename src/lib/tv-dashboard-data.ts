@@ -22,22 +22,22 @@ const leaveStauses = new Set(['L', 'CO']);
 const offStauses = new Set(['WO', 'OH']);
 
 async function readBoard(): Promise<BoardData> {
-  const dbc = await createClient();
+  const queryClient = await createClient();
   const date = todayIST();
 
   const [employees, days, events] = await Promise.all([
-    dbc
+    queryClient
       .from('employees')
       .select('id, code, full_name, designation, branches(name), departments(name)')
       .in('status', ['active', 'on_notice'])
       .order('full_name'),
-    dbc
+    queryClient
       .from('attendance_days')
       .select<Array<{ employee_id: string; status: string; worked_minutes: number }>>(
         'employee_id, status, worked_minutes',
       )
       .eq('work_date', date),
-    dbc
+    queryClient
       .from('punch_events')
       .select<
         Array<{

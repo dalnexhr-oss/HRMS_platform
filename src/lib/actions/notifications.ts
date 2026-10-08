@@ -21,8 +21,8 @@ async function markNotificationRead(id: string): Promise<ActionResult> {
     return { ok: false, error: 'No notification selected.' };
   }
 
-  const dbc = await createClient();
-  const { error } = await dbc
+  const queryClient = await createClient();
+  const { error } = await queryClient
     .from('notifications')
     .update({ read_at: new Date() })
     .eq('id', id)
@@ -42,8 +42,8 @@ async function markAllNotificationsRead(): Promise<ActionResult> {
     return db;
   }
 
-  const dbc = await createClient();
-  const { error } = await dbc
+  const queryClient = await createClient();
+  const { error } = await queryClient
     .from('notifications')
     .update({ read_at: new Date() })
     .is('read_at', null);

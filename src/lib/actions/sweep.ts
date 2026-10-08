@@ -33,17 +33,17 @@ async function runNightSweep(dateISO?: string): Promise<SweepResult> {
   try {
     const date = dateISO ?? todayIST();
 
-    const dbc = await createClient();
+    const queryClient = await createClient();
 
     // Caller-supplied dates must respect the same payroll seal as attendance corrections.
-    const monthOpen = await requireOpenPayrollMonth(dbc, date);
+    const monthOpen = await requireOpenPayrollMonth(queryClient, date);
     if (!monthOpen.ok) {
       return { ok: false, error: monthOpen.error };
     }
 
     const autoOutMin = await getAutoPunchOutMinutes();
 
-    const { data, error } = await dbc
+    const { data, error } = await queryClient
       .from('attendance_days')
       .select('id, employee_id, work_date, punch_in')
       .eq('work_date', date)
@@ -76,7 +76,7 @@ async function runNightSweep(dateISO?: string): Promise<SweepResult> {
     }
 
     if (closed > 0) {
-      await dbc.from('activity_log').insert({
+      await queryClient.from('activity_log').insert({
         actor_id: gate.profileId,
         event_type: 'night_sweep',
         message: `Night sweep closed ${closed} open session${closed === 1 ? '' : 's'} for ${date} — auto punched-out at ${minutesToClock(autoOutMin)}.`,

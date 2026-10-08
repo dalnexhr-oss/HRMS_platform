@@ -32,12 +32,12 @@ function requestStartProblem(startDate: string): string | null {
 // The reason these days cannot be requested because the employee already has a pending or
 // approved request covering some of them, or null when the days are free.
 async function requestOverlapProblem(
-  dbc: Awaited<ReturnType<typeof createClient>>,
+  queryClient: Awaited<ReturnType<typeof createClient>>,
   employeeId: string,
   startDate: string,
   endDate: string,
 ): Promise<string | null> {
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('requests')
     .select('type, start_date, end_date, status')
     .eq('employee_id', employeeId)

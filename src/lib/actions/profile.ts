@@ -49,8 +49,8 @@ async function updateAvatar(value: string | null): Promise<ActionResult> {
     return { ok: false, error: 'You must be signed in to change your picture.' };
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('profiles')
     .update({ avatar: value })
     .eq('id', userId)

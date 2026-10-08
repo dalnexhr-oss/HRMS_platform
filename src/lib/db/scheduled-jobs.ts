@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { collections } from '@/lib/db/collection-registry';
 import { scopedFor } from '@/lib/db/scoped-repository';
 import { systemScope } from '@/lib/db/access-scope';
-import { provisionLeaveBalances, scheduled } from '@/lib/db/domain-rpc-handlers';
+import { provisionLeaveBalances, scheduled } from '@/lib/db/domain-function-handlers';
 import { autoPunchOutMinutesFrom } from '@/lib/attendance-rules';
 import { closePunchDay } from '@/lib/punch-storage';
 import { monthSealReason, periodMonthFor } from '@/lib/payroll-month';

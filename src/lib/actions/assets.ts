@@ -111,8 +111,8 @@ async function createAsset(formData: FormData) {
     return link;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('assets')
     .insert({ ...fields, qr_url: link.url })
     .select('id');
@@ -150,8 +150,8 @@ async function updateAsset(formData: FormData) {
     return link;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('assets')
     .update({ ...fields, qr_url: link.url })
     .eq('id', id)
@@ -185,8 +185,8 @@ async function updateAssetQrLink(
     return link;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('assets')
     .update({ qr_url: link.url })
     .eq('id', assetId)
@@ -217,10 +217,10 @@ async function assignAsset(formData: FormData) {
     return { ok: false, error: 'Choose an employee to assign to.' };
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
   // Snapshot the employee's name + code so the record survives their removal.
-  const { data: emp, error: empErr } = await dbc
+  const { data: emp, error: empErr } = await queryClient
     .from('employees')
     .select('code, full_name')
     .eq('id', employeeId)
@@ -235,7 +235,7 @@ async function assignAsset(formData: FormData) {
   const { profile } = await getSession();
 
   const assignedDate = todayIST();
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('assets')
     .update({
       assigned_employee_id: employeeId,
@@ -259,7 +259,7 @@ async function assignAsset(formData: FormData) {
   // The asset row is the current-holder record. Log a history failure without undoing the saved
   // assignment.
   const remarks = String(formData.get('remarks') ?? '').trim() || null;
-  const { error: histErr } = await dbc.from('asset_assignments').insert({
+  const { error: histErr } = await queryClient.from('asset_assignments').insert({
     asset_id: assetId,
     employee_id: employeeId,
     person_name: emp.full_name,
@@ -291,10 +291,10 @@ async function unassignAsset(id: string) {
     return gate;
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
   // Read the current holder before clearing the assignment.
-  const { data: before, error: readErr } = await dbc
+  const { data: before, error: readErr } = await queryClient
     .from('assets')
     .select('assigned_employee_id, desktop_name, brand')
     .eq('id', id)
@@ -313,7 +313,7 @@ async function unassignAsset(id: string) {
     return { ok: false, error: 'Nothing to unassign — the asset is not assigned.' };
   }
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('assets')
     .update({
       assigned_employee_id: null,
@@ -332,7 +332,7 @@ async function unassignAsset(id: string) {
   }
 
   // Close the open history row for this holder (best-effort).
-  const { error: histErr } = await dbc
+  const { error: histErr } = await queryClient
     .from('asset_assignments')
     .update({ returned: true, returned_date: todayIST() })
     .eq('asset_id', id)
@@ -395,8 +395,8 @@ async function createAssetMaintenance(formData: FormData) {
   }
 
   const { profile } = await getSession();
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('asset_maintenance')
     .insert({
       asset_id: assetId,
@@ -428,8 +428,8 @@ async function deleteAsset(id: string) {
     return gate;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc.from('assets').delete().eq('id', id).select('id');
+  const queryClient = await createClient();
+  const { data, error } = await queryClient.from('assets').delete().eq('id', id).select('id');
   if (error) {
     return { ok: false, error: error.message };
   }

@@ -1,6 +1,6 @@
 'use server';
 
-// Payroll run and adjustment actions. The payroll RPC handlers enforce state transitions; pass
+// Payroll run and adjustment actions. The payroll function handlers enforce state transitions; pass
 // their failures back to the caller.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server-client';
@@ -62,9 +62,9 @@ async function openRun(periodMonth: string): Promise<{ ok: boolean; error?: stri
     }
 
     const start = `${periodMonth.slice(0, 7)}-01`;
-    const dbc = await createClient();
+    const queryClient = await createClient();
 
-    const { data: existing, error: existErr } = await dbc
+    const { data: existing, error: existErr } = await queryClient
       .from('payroll_runs')
       .select('id')
       .eq('period_month', start)
@@ -76,7 +76,7 @@ async function openRun(periodMonth: string): Promise<{ ok: boolean; error?: stri
       return { ok: false, error: `A payroll run for ${start} already exists.` };
     }
 
-    const { data, error } = await dbc
+    const { data, error } = await queryClient
       .from('payroll_runs')
       .insert({ period_month: start, status: 'draft' })
       .select('id');
@@ -97,11 +97,11 @@ async function openRun(periodMonth: string): Promise<{ ok: boolean; error?: stri
   }
 }
 
-type RunRpc = 'fn_compute_run' | 'fn_lock_run' | 'fn_mark_run_paid';
+type RunFunction = 'fn_compute_run' | 'fn_lock_run' | 'fn_mark_run_paid';
 
-/** Shared body for the three run-level RPCs — they differ only by name. */
-async function callRunRpc(
-  fn: RunRpc,
+/** Shared body for the three run-level functions — they differ only by name. */
+async function callRunFunction(
+  fn: RunFunction,
   runId: string,
   context: string,
 ): Promise<{ ok: boolean; error?: string }> {
@@ -115,8 +115,8 @@ async function callRunRpc(
       return { ok: false, error: g.error };
     }
 
-    const dbc = await createClient();
-    const { error } = await dbc.rpc(fn, { p_run_id: runId });
+    const queryClient = await createClient();
+    const { error } = await queryClient.callFunction(fn, { p_run_id: runId });
     if (error) {
       return { ok: false, error: queryErrorMessage(error) };
     }
@@ -133,12 +133,12 @@ async function callRunRpc(
  * drafts_computed_at. Raises (and therefore returns ok:false) on a locked run.
  */
 async function computeRun(runId: string): Promise<{ ok: boolean; error?: string }> {
-  return callRunRpc('fn_compute_run', runId, 'Recompute drafts');
+  return callRunFunction('fn_compute_run', runId, 'Recompute drafts');
 }
 
 /** Freeze the run and mark its payslips generated. Irreversible. */
 async function lockRun(runId: string): Promise<{ ok: boolean; error?: string }> {
-  const res = await callRunRpc('fn_lock_run', runId, 'Lock run');
+  const res = await callRunFunction('fn_lock_run', runId, 'Lock run');
   // Locking is the moment payslips become final, so tell each employee theirs
   // is ready. Best-effort: a notification failure never un-locks the run.
   if (res.ok) {
@@ -150,13 +150,13 @@ async function lockRun(runId: string): Promise<{ ok: boolean; error?: string }> 
 /** Notify every employee who has a payslip in this run. */
 async function notifyPayslipsReady(runId: string): Promise<void> {
   try {
-    const dbc = await createClient();
-    const { data: run } = await dbc
+    const queryClient = await createClient();
+    const { data: run } = await queryClient
       .from('payroll_runs')
       .select('period_month')
       .eq('id', runId)
       .maybeSingle<{ period_month: string }>();
-    const { data: slips } = await dbc
+    const { data: slips } = await queryClient
       .from('payslips')
       .select('employee_id')
       .eq('payroll_run_id', runId);
@@ -183,7 +183,7 @@ async function notifyPayslipsReady(runId: string): Promise<void> {
 
 /** Mark a locked run (and its payslips) paid. */
 async function markRunPaid(runId: string): Promise<{ ok: boolean; error?: string }> {
-  return callRunRpc('fn_mark_run_paid', runId, 'Mark run paid');
+  return callRunFunction('fn_mark_run_paid', runId, 'Mark run paid');
 }
 
 // adjustments

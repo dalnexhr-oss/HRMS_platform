@@ -34,9 +34,9 @@ async function startOnboarding(
     return { ok: false, error: 'Pick an employee.' };
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
-  const { count, error: countErr } = await dbc
+  const { count, error: countErr } = await queryClient
     .from('onboarding_tasks')
     .select('id', { count: 'exact', head: true })
     .eq('employee_id', employeeId);
@@ -50,7 +50,7 @@ async function startOnboarding(
   // Resolve the template: the one asked for, else the newest active one.
   let tpl = templateId ?? null;
   if (!tpl) {
-    const { data: newest } = await dbc
+    const { data: newest } = await queryClient
       .from('onboarding_templates')
       .select('id')
       .eq('active', true)
@@ -63,7 +63,7 @@ async function startOnboarding(
     return { ok: false, error: 'No active onboarding template — create one first.' };
   }
 
-  const { data: items, error: itemsErr } = await dbc
+  const { data: items, error: itemsErr } = await queryClient
     .from('onboarding_template_items')
     .select('title, assignee_role, seq')
     .eq('template_id', tpl)
@@ -76,7 +76,7 @@ async function startOnboarding(
   }
 
   // Set task due date to employee joining date for deadline tracking and automated reminder sweeps.
-  const { data: emp } = await dbc
+  const { data: emp } = await queryClient
     .from('employees')
     .select('date_of_joining, full_name')
     .eq('id', employeeId)
@@ -91,7 +91,10 @@ async function startOnboarding(
     due_date: dueDate,
   }));
 
-  const { data: made, error } = await dbc.from('onboarding_tasks').insert(rows).select('id');
+  const { data: made, error } = await queryClient
+    .from('onboarding_tasks')
+    .insert(rows)
+    .select('id');
   if (error) {
     return { ok: false, error: error.message };
   }
@@ -134,8 +137,8 @@ async function setOnboardingTaskStatus(
   }
 
   const done = status === 'done';
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('onboarding_tasks')
     .update({
       status,
@@ -181,8 +184,8 @@ async function addOnboardingTask(input: {
   const dueDate = String(input.dueDate ?? '').trim() || null;
   const assigneeRole = String(input.assigneeRole ?? '').trim() || null;
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('onboarding_tasks')
     .insert({
       employee_id: input.employeeId,
@@ -214,8 +217,12 @@ async function deleteOnboardingTask(id: string): Promise<ActionResult> {
     return { ok: false, error: 'Unknown onboarding step.' };
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc.from('onboarding_tasks').delete().eq('id', id).select('id');
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
+    .from('onboarding_tasks')
+    .delete()
+    .eq('id', id)
+    .select('id');
   if (error) {
     return { ok: false, error: error.message };
   }
@@ -280,10 +287,10 @@ async function saveOnboardingTemplate(input: {
     return { ok: false, error: 'Unknown onboarding template.' };
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
   let templateId = input.id ?? '';
   if (templateId) {
-    const { data, error } = await dbc
+    const { data, error } = await queryClient
       .from('onboarding_templates')
       .update({ name, active: input.active === true })
       .eq('id', templateId)
@@ -295,7 +302,7 @@ async function saveOnboardingTemplate(input: {
       return { ok: false, error: 'That template no longer exists.' };
     }
   } else {
-    const { data, error } = await dbc
+    const { data, error } = await queryClient
       .from('onboarding_templates')
       .insert({ name, active: input.active === true })
       .select('id');
@@ -309,7 +316,7 @@ async function saveOnboardingTemplate(input: {
   }
 
   // Replace the steps as a whole, so order and removals are saved together.
-  const { error: clearError } = await dbc
+  const { error: clearError } = await queryClient
     .from('onboarding_template_items')
     .delete()
     .eq('template_id', templateId);
@@ -319,7 +326,7 @@ async function saveOnboardingTemplate(input: {
       error: `The template was saved, but its steps were not: ${clearError.message}`,
     };
   }
-  const { error: itemsError } = await dbc.from('onboarding_template_items').insert(
+  const { error: itemsError } = await queryClient.from('onboarding_template_items').insert(
     items.map((item, index) => ({
       template_id: templateId,
       seq: index + 1,
@@ -353,15 +360,19 @@ async function deleteOnboardingTemplate(id: string): Promise<ActionResult> {
   if (!uuidRe.test(String(id ?? ''))) {
     return { ok: false, error: 'Unknown onboarding template.' };
   }
-  const dbc = await createClient();
-  const { error: itemsError } = await dbc
+  const queryClient = await createClient();
+  const { error: itemsError } = await queryClient
     .from('onboarding_template_items')
     .delete()
     .eq('template_id', id);
   if (itemsError) {
     return { ok: false, error: itemsError.message };
   }
-  const { data, error } = await dbc.from('onboarding_templates').delete().eq('id', id).select('id');
+  const { data, error } = await queryClient
+    .from('onboarding_templates')
+    .delete()
+    .eq('id', id)
+    .select('id');
   if (error) {
     return { ok: false, error: error.message };
   }

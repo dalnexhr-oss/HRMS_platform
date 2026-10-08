@@ -40,8 +40,8 @@ async function getReadNoticeIds(employeeId: string | null): Promise<string[]> {
   if (!employeeId) {
     return [];
   }
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('notice_reads')
     .select<Array<{ notice_id: string }>>('notice_id')
     .eq('employee_id', employeeId);

@@ -18,7 +18,7 @@ async function calendar(): Promise<Response> {
   const profile = await requireSession();
 
   const employeeId = profile.employee_id;
-  const dbc = await createClient();
+  const queryClient = await createClient();
   const events: CalendarEvent[] = [];
 
   // company holidays (everyone sees these)
@@ -39,7 +39,7 @@ async function calendar(): Promise<Response> {
 
   if (employeeId) {
     // approved leave / duty
-    const { data: reqs } = await dbc
+    const { data: reqs } = await queryClient
       .from('requests')
       .select('id, type, leave_kind, start_date, end_date, status')
       .eq('employee_id', employeeId)
@@ -58,7 +58,7 @@ async function calendar(): Promise<Response> {
     }
 
     // comp-off credits still available
-    const { data: credits } = await dbc
+    const { data: credits } = await queryClient
       .from('comp_offs')
       .select('id, earned_date, status')
       .eq('employee_id', employeeId)

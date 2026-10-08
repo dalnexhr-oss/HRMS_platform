@@ -16,8 +16,8 @@ const hrRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 // Active-roster headcount; null when it cannot be counted (shown as —).
 async function getHeadcount(): Promise<number | null> {
   try {
-    const dbc = await createClient();
-    const { count, error } = await dbc
+    const queryClient = await createClient();
+    const { count, error } = await queryClient
       .from('employees')
       .select('id', { count: 'exact', head: true })
       .in('status', ['active', 'on_notice']);

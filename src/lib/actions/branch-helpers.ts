@@ -18,12 +18,16 @@ const allBranches: BranchScope = { branch_id: null, branch_name: null };
 
 // Resolve the canonical name from the branch record. Blank or unknown names retain the existing
 // all-branches behavior.
-async function resolveBranchScope(dbc: DbClient, branch: string): Promise<BranchScope> {
+async function resolveBranchScope(queryClient: DbClient, branch: string): Promise<BranchScope> {
   const name = branch.trim();
   if (!name) {
     return allBranches;
   }
-  const { data } = await dbc.from('branches').select('id, name').eq('name', name).maybeSingle();
+  const { data } = await queryClient
+    .from('branches')
+    .select('id, name')
+    .eq('name', name)
+    .maybeSingle();
   if (!data) {
     return allBranches;
   }

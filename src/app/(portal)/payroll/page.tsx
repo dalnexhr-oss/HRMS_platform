@@ -87,8 +87,8 @@ async function loadAdjustmentWindow(
     return { open: null, close: null };
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('payroll_runs')
     .select('adjustments_open, adjustments_close')
     .eq('id', runId)
@@ -124,9 +124,12 @@ async function loadAdjustments(payslipIds: string[]): Promise<Record<string, Pay
     return {};
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
   // Select all adjustment fields; missing values default to 0 during normalization below.
-  const { data, error } = await dbc.from('payslip_adjustments').select('*').in('id', payslipIds);
+  const { data, error } = await queryClient
+    .from('payslip_adjustments')
+    .select('*')
+    .in('id', payslipIds);
 
   if (error) {
     throw new Error(

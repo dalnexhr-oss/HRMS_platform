@@ -25,9 +25,9 @@ async function addHoliday(formData: FormData) {
     return gate;
   }
 
-  const dbc = await createClient();
-  const scope = await resolveBranchScope(dbc, branch);
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const scope = await resolveBranchScope(queryClient, branch);
+  const { data, error } = await queryClient
     .from('holidays')
     .insert({ holiday_date: holidayDate, name, ...scope })
     .select('id');
@@ -68,11 +68,11 @@ async function importHolidaysFromGoogle(year: number): Promise<ImportHolidaysRes
       return { ok: false, error: `Google's calendar lists no public holidays for ${year}.` };
     }
 
-    const dbc = await createClient();
+    const queryClient = await createClient();
 
     // Skip dates already present (any branch) so the import never duplicates or
     // overwrites a hand-entered holiday.
-    const { data: existing, error: readErr } = await dbc
+    const { data: existing, error: readErr } = await queryClient
       .from('holidays')
       .select<Array<{ holiday_date: string }>>('holiday_date')
       .gte('holiday_date', `${year}-01-01`)
@@ -95,7 +95,7 @@ async function importHolidaysFromGoogle(year: number): Promise<ImportHolidaysRes
       return { ok: true, imported: 0, skipped, tentative: [], year };
     }
 
-    const { data, error } = await dbc.from('holidays').insert(rows).select('id');
+    const { data, error } = await queryClient.from('holidays').insert(rows).select('id');
     if (error) {
       return { ok: false, error: error.message };
     }
@@ -121,8 +121,8 @@ async function deleteHoliday(id: string) {
     return gate;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc.from('holidays').delete().eq('id', id).select('id');
+  const queryClient = await createClient();
+  const { data, error } = await queryClient.from('holidays').delete().eq('id', id).select('id');
   if (error) {
     return { ok: false, error: error.message };
   }

@@ -13,9 +13,9 @@ async function settleApprovedCompOff(
   client?: Awaited<ReturnType<typeof createClient>>,
 ): Promise<string | null> {
   try {
-    const dbc = client ?? (await createClient());
+    const queryClient = client ?? (await createClient());
 
-    const { data: credit, error } = await dbc
+    const { data: credit, error } = await queryClient
       .from('comp_offs')
       .select('id, employee_id, used_date')
       .eq('request_id', requestId)
@@ -34,13 +34,13 @@ async function settleApprovedCompOff(
     }
 
     // Never stamp a day inside a locked/paid month — the payslips are final.
-    const monthOpen = await requireOpenPayrollMonth(dbc, takeDate);
+    const monthOpen = await requireOpenPayrollMonth(queryClient, takeDate);
     if (!monthOpen.ok) {
       return `Approved, but the day was not stamped: ${monthOpen.error}`;
     }
 
     // Preserve recorded punches and worked minutes when applying a comp off to an existing day.
-    const { data: existing, error: readErr } = await dbc
+    const { data: existing, error: readErr } = await queryClient
       .from('attendance_days')
       .select('punch_in, punch_out, worked_minutes')
       .eq('employee_id', credit.employee_id)
@@ -50,7 +50,7 @@ async function settleApprovedCompOff(
       return `Approved, but the existing day could not be read: ${readErr.message}`;
     }
 
-    const { error: dayErr } = await dbc.from('attendance_days').upsert(
+    const { error: dayErr } = await queryClient.from('attendance_days').upsert(
       {
         employee_id: credit.employee_id,
         work_date: takeDate,
@@ -67,7 +67,7 @@ async function settleApprovedCompOff(
 
     // Only an 'applied' credit may become 'used' — a credit that is already
     // 'used' must not be re-consumed.
-    const { error: useErr } = await dbc
+    const { error: useErr } = await queryClient
       .from('comp_offs')
       .update({ status: 'used' })
       .eq('id', credit.id)
@@ -96,8 +96,8 @@ async function releaseCompOff(
   client?: Awaited<ReturnType<typeof createClient>>,
 ): Promise<void> {
   try {
-    const dbc = client ?? (await createClient());
-    await dbc
+    const queryClient = client ?? (await createClient());
+    await queryClient
       .from('comp_offs')
       .update({ status: 'available', used_date: null, request_id: null })
       .eq('request_id', requestId)

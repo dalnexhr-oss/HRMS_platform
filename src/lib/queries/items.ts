@@ -21,8 +21,8 @@ interface ItemRow {
 }
 
 async function getItems(): Promise<ItemRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('v_items')
     .select(
       `id, item_code, item_name, category, brand, size_spec, total_quantity, unit,
@@ -50,8 +50,8 @@ interface ItemAssignmentRow {
 }
 
 async function getItemAssignments(itemId: string): Promise<ItemAssignmentRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('item_assignments')
     .select(
       `id, item_id, person_name, employee_code, quantity, assigned_date, assigned_by,
@@ -78,8 +78,8 @@ interface MyItemRow {
 }
 
 async function getMyItems(employeeId: string): Promise<MyItemRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('item_assignments')
     .select(
       'id, quantity, assigned_date, returned, returned_date, items(item_name, category, unit)',

@@ -1,10 +1,10 @@
-// RPC handlers for privileged domain operations. Each handler checks authorization before using
+// Handlers for privileged domain operations, called by name through callFunction(). Each handler checks authorization before using
 // system scope.
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { collections } from '@/lib/db/collection-registry';
 import { scopedFor } from '@/lib/db/scoped-repository';
-import { registerRpc } from '@/lib/db/scoped-query-client';
+import { registerFunction } from '@/lib/db/scoped-query-client';
 import { toDecimal } from '@/lib/db/decimal-conversions';
 import { todayIST } from '@/lib/display-formatting';
 import { currentScope, systemScope } from '@/lib/db/access-scope';
@@ -12,7 +12,7 @@ import type { AppRole } from '@/types/database';
 import type { Scope } from '@/lib/db/access-scope';
 import type { BaseDoc } from '@/lib/db/collection-registry';
 
-// Only internal jobs may set this context; RPC dispatch never accepts it from clients.
+// Only internal jobs may set this context; function dispatch never accepts it from clients.
 interface Invocation {
   readonly isScheduler: boolean;
 }
@@ -179,7 +179,7 @@ async function provisionLeaveBalances(
   const year = Number(args.p_year);
 
   // `invocation` is a SEPARATE parameter, not a field of `args`, precisely so
-  // that a caller who controls the rpc payload cannot set it.
+  // that a caller who controls the function arguments cannot set it.
   if (!invocation.isScheduler) {
     const scope = await requireCaller('fn_provision_leave_balances');
     if (!scope.isStaff) {
@@ -254,17 +254,19 @@ async function provisionLeaveBalances(
 
 let registered = false;
 
-/** Wire the TypeScript implementations into the `.rpc()` surface. Idempotent. */
+/** Wire the TypeScript implementations into the `.callFunction()` surface. Idempotent. */
 function registerDbFunctions(): void {
   if (registered) {
     return;
   }
   registered = true;
-  registerRpc('fn_on_leave_today', () => onLeaveToday());
-  registerRpc('fn_init_approval_steps', (a) => initApprovalSteps(a as { p_request_id?: string }));
-  // RPC registration exposes only single-argument handlers to prevent caller tampering with
+  registerFunction('fn_on_leave_today', () => onLeaveToday());
+  registerFunction('fn_init_approval_steps', (a) =>
+    initApprovalSteps(a as { p_request_id?: string }),
+  );
+  // Registration exposes only single-argument handlers to prevent caller tampering with
   // invocation context.
-  registerRpc('fn_provision_leave_balances', (a) =>
+  registerFunction('fn_provision_leave_balances', (a) =>
     provisionLeaveBalances(a as { p_year?: number }),
   );
 }

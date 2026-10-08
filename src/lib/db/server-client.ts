@@ -2,12 +2,12 @@
 import 'server-only';
 import { createQueryClient, createSystemQueryClient } from '@/lib/db/scoped-query-client';
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
-import { registerDbFunctions } from '@/lib/db/domain-rpc-handlers';
+import { registerDbFunctions } from '@/lib/db/domain-function-handlers';
 import { registerPayrollFunctions } from '@/lib/db/payroll-processing';
 import type { QueryClient } from '@/lib/db/scoped-query-client';
 import type { ClientSession } from 'mongodb';
 
-// Register RPC handlers once at client initialization boundary.
+// Register function handlers once at client initialization boundary.
 registerDbFunctions();
 registerPayrollFunctions();
 

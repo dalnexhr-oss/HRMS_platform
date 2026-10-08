@@ -66,8 +66,8 @@ async function acknowledgeDocument(input: {
   const ip = h.get('x-forwarded-for') ?? h.get('x-real-ip') ?? null;
   const userAgent = h.get('user-agent') ?? null;
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('acknowledgements')
     .insert({
       employee_id: employeeId,

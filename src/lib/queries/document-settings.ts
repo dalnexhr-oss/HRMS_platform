@@ -9,8 +9,8 @@ const documentTypesKey = 'document_types';
 const documentSettingKeys: readonly string[] = [documentTypesKey];
 
 async function readSetting(key: string): Promise<unknown> {
-  const dbc = await createClient();
-  const { data } = await dbc
+  const queryClient = await createClient();
+  const { data } = await queryClient
     .from('settings')
     .select('value')
     .eq('key', key)

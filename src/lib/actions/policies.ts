@@ -24,8 +24,8 @@ async function acknowledgePolicy(policyId: string) {
     };
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('policy_acknowledgements')
     .insert({ policy_id: policyId, employee_id: profile.employee_id })
     .select('id');
@@ -55,7 +55,7 @@ async function acknowledgePolicy(policyId: string) {
     };
   }
 
-  await clearPolicyNag(dbc, policyId);
+  await clearPolicyNag(queryClient, policyId);
 
   revalidatePath('/', 'layout');
   revalidatePath('/employee', 'layout');
@@ -65,10 +65,10 @@ async function acknowledgePolicy(policyId: string) {
 
 // Marks associated policy notifications as read once acknowledged (best-effort).
 async function clearPolicyNag(
-  dbc: Awaited<ReturnType<typeof createClient>>,
+  queryClient: Awaited<ReturnType<typeof createClient>>,
   policyId: string,
 ): Promise<void> {
-  const { data: policy } = await dbc
+  const { data: policy } = await queryClient
     .from('policies')
     .select('title')
     .eq('id', policyId)
@@ -77,7 +77,7 @@ async function clearPolicyNag(
     return;
   }
 
-  await dbc
+  await queryClient
     .from('notifications')
     .update({ read_at: new Date() })
     .eq('kind', 'policy')
@@ -101,8 +101,8 @@ async function createPolicy(formData: FormData) {
     return { ok: false, error: 'Please enter the policy body.' };
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('policies')
     .insert({
       title,
@@ -148,8 +148,8 @@ async function setPolicyPublished(policyId: string, published: boolean) {
     return gate;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('policies')
     .update({ published })
     .eq('id', policyId)
@@ -167,7 +167,7 @@ async function setPolicyPublished(policyId: string, published: boolean) {
   // Publishing an existing draft is the moment it becomes readable, so it
   // notifies then too — un-publishing deliberately does not.
   if (published) {
-    const { data: policy } = await dbc
+    const { data: policy } = await queryClient
       .from('policies')
       .select('title')
       .eq('id', policyId)
@@ -204,8 +204,8 @@ async function updatePolicy(id: string, formData: FormData) {
     return { ok: false, error: 'Please enter the policy body.' };
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('policies')
     .update({
       title,
@@ -238,8 +238,8 @@ async function deletePolicy(id: string) {
     return gate;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc.from('policies').delete().eq('id', id).select('id');
+  const queryClient = await createClient();
+  const { data, error } = await queryClient.from('policies').delete().eq('id', id).select('id');
   if (error) {
     return { ok: false, error: error.message };
   }

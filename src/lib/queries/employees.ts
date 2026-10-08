@@ -119,7 +119,7 @@ interface EmployeeEditRow {
 }
 
 async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow | null> {
-  const dbc = await createClient();
+  const queryClient = await createClient();
   const fullCols = `code, full_name, employment_type, designation, gender, date_of_joining, date_of_birth, whatsapp,
      mobile_official, mobile_personal, email_official, email_personal, aadhaar,
      pan, pf_uan, esic_number,
@@ -127,7 +127,7 @@ async function getEmployeeForEdit(code: string): Promise<EmployeeEditRow | null>
      emergency_contact_name, emergency_contact_relation, emergency_contact_phone,
      gross_monthly, basic_da, hra, special_allowance, branches(name), departments(name)`;
 
-  const res = await dbc
+  const res = await queryClient
     .from('employees')
     .select(fullCols)
     .eq('code', code)
@@ -232,9 +232,9 @@ async function getEmployeeOverview(
   }
 
   const { start, end } = monthRange(periodMonth);
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
-  const { data: emp, error: empError } = await dbc
+  const { data: emp, error: empError } = await queryClient
     .from('employees')
     .select('code, full_name, branches(name)')
     .eq('id', employeeId)
@@ -246,7 +246,7 @@ async function getEmployeeOverview(
     throw new Error(`getEmployeeOverview: no employee with id ${employeeId}`);
   }
 
-  const { data: days, error: daysError } = await dbc
+  const { data: days, error: daysError } = await queryClient
     .from('attendance_days')
     .select('work_date, status, worked_minutes')
     .eq('employee_id', employeeId)
@@ -283,7 +283,7 @@ async function getEmployeeOverview(
     workedToDate += d.worked_minutes ?? 0;
   }
   let fullDayMin = 555;
-  const { data: fdm } = await dbc
+  const { data: fdm } = await queryClient
     .from('settings')
     .select('value')
     .eq('key', 'full_day_minutes')
@@ -295,7 +295,7 @@ async function getEmployeeOverview(
   const targetMin = Math.round(workingCredit * fullDayMin);
   const pendingMin = Math.max(0, targetMin - workedToDate);
 
-  const { data: slip, error: slipError } = await dbc
+  const { data: slip, error: slipError } = await queryClient
     .from('payslips')
     .select('net_payable, payroll_runs!inner(period_month)')
     .eq('employee_id', employeeId)

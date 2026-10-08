@@ -33,15 +33,17 @@ async function provisionLeaveYear(year: number): Promise<ActionResult & { create
     return { ok: false, error: 'Enter a valid year.' };
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc.rpc('fn_provision_leave_balances', { p_year: year });
+  const queryClient = await createClient();
+  const { data, error } = await queryClient.callFunction('fn_provision_leave_balances', {
+    p_year: year,
+  });
   if (error) {
     return { ok: false, error: error.message };
   }
 
   const created = Number(data ?? 0);
   const { profile } = await getSession();
-  await dbc.from('activity_log').insert({
+  await queryClient.from('activity_log').insert({
     actor_id: gate.profileId,
     event_type: 'leave_provision',
     message: `${profile?.full_name ?? 'A staff user'} provisioned ${created} paid-leave balance row(s) for ${year}`,
@@ -88,11 +90,11 @@ async function adjustLeaveBalance(input: {
     return { ok: false, error: 'A reason is required for a manual adjustment.' };
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
   const year = Number(input.year);
 
   // Record audit adjustment entry before balance mutation; written as Decimal128.
-  const { data: adj, error: adjErr } = await dbc
+  const { data: adj, error: adjErr } = await queryClient
     .from('leave_balance_adjustments')
     .insert({
       employee_id: input.employeeId,
@@ -110,7 +112,7 @@ async function adjustLeaveBalance(input: {
     return { ok: false, error: 'The adjustment was not recorded — your role may lack permission.' };
   }
 
-  const { data: existing } = await dbc
+  const { data: existing } = await queryClient
     .from('leave_balances')
     .select('id, balance')
     .eq('employee_id', input.employeeId)
@@ -120,11 +122,11 @@ async function adjustLeaveBalance(input: {
 
   const next = Math.round(((Number(existing?.balance ?? 0) || 0) + delta) * 10) / 10;
   const { error: balErr } = existing
-    ? await dbc
+    ? await queryClient
         .from('leave_balances')
         .update({ balance: toDecimal(next) })
         .eq('id', existing.id)
-    : await dbc
+    : await queryClient
         .from('leave_balances')
         .insert({ employee_id: input.employeeId, year, type: 'PL', balance: toDecimal(next) });
 

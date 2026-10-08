@@ -39,7 +39,7 @@ function claimDateProblem(claimDate: string): string | null {
 // Timeline writes are best-effort after the claim is saved. Log failures without reporting the
 // committed decision as failed.
 async function logClaimEvent(
-  dbc: Awaited<ReturnType<typeof createClient>>,
+  queryClient: Awaited<ReturnType<typeof createClient>>,
   claimId: string,
   input: {
     action: string;
@@ -51,7 +51,7 @@ async function logClaimEvent(
     actorName?: string | null;
   },
 ): Promise<void> {
-  const { error } = await dbc.from('reimbursement_events').insert({
+  const { error } = await queryClient.from('reimbursement_events').insert({
     claim_id: claimId,
     actor_id: input.actorId ?? null,
     actor_name: input.actorName ?? null,
@@ -69,9 +69,9 @@ async function logClaimEvent(
 
 /** Indicates whether the optional second-stage Finance approval is enabled. */
 async function financeStageEnabled(
-  dbc: Awaited<ReturnType<typeof createClient>>,
+  queryClient: Awaited<ReturnType<typeof createClient>>,
 ): Promise<boolean> {
-  const { data } = await dbc
+  const { data } = await queryClient
     .from('settings')
     .select('value')
     .eq('key', 'reimbursement_finance_stage')
@@ -146,8 +146,8 @@ async function createReimbursement(formData: FormData): Promise<ActionResult> {
     };
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('reimbursement_claims')
     .insert({
       employee_id: employeeId,
@@ -171,7 +171,7 @@ async function createReimbursement(formData: FormData): Promise<ActionResult> {
     return { ok: false, error: 'The claim was not filed — your account may not have permission.' };
   }
 
-  await logClaimEvent(dbc, (data![0] as { id: string }).id, {
+  await logClaimEvent(queryClient, (data![0] as { id: string }).id, {
     action: 'submitted',
     toStatus: 'pending',
     actorId: profile?.id ?? null,
@@ -201,7 +201,7 @@ async function createReimbursement(formData: FormData): Promise<ActionResult> {
  * applied (no run yet, run locked, …) — the approval itself still stands.
  */
 async function addToPayroll(
-  dbc: Awaited<ReturnType<typeof createClient>>,
+  queryClient: Awaited<ReturnType<typeof createClient>>,
   claimId: string,
   employeeId: string,
   claimDate: string,
@@ -209,7 +209,7 @@ async function addToPayroll(
 ): Promise<string | null> {
   const periodStart = `${claimDate.slice(0, 7)}-01`;
 
-  const { data: run, error: runErr } = await dbc
+  const { data: run, error: runErr } = await queryClient
     .from('payroll_runs')
     .select('id, status')
     .eq('period_month', periodStart)
@@ -224,7 +224,7 @@ async function addToPayroll(
     return `Approved, but the ${periodStart.slice(0, 7)} payroll run is ${run.status}, so it could not be added to that payslip. Pay it separately.`;
   }
 
-  const { data: payslip, error: psErr } = await dbc
+  const { data: payslip, error: psErr } = await queryClient
     .from('payslips')
     .select('id')
     .eq('payroll_run_id', run.id)
@@ -241,7 +241,7 @@ async function addToPayroll(
   // approvals cannot lose each other's amounts.
   let applied = false;
   for (let attempt = 0; attempt < 3 && !applied; attempt++) {
-    const { data: existing, error: adjErr } = await dbc
+    const { data: existing, error: adjErr } = await queryClient
       .from('payslip_adjustments')
       .select('id, reimbursement_bonus')
       .eq('id', payslip.id)
@@ -255,7 +255,7 @@ async function addToPayroll(
 
     if (!existing) {
       // Insert initial adjustments; on duplicate key conflict (concurrent insert), retry update.
-      const { error: insErr } = await dbc
+      const { error: insErr } = await queryClient
         .from('payslip_adjustments')
         .insert({ id: payslip.id, reimbursement_bonus: toMoney(next), updated_at: new Date() });
       if (insErr && insErr.code !== queryErrorCodes.duplicateKey) {
@@ -265,7 +265,7 @@ async function addToPayroll(
       continue;
     }
 
-    const casQuery = dbc
+    const casQuery = queryClient
       .from('payslip_adjustments')
       .update({ reimbursement_bonus: toMoney(next), updated_at: new Date() })
       .eq('id', payslip.id);
@@ -286,9 +286,12 @@ async function addToPayroll(
 
   // Record which run carries the claim. Paying that run closes the claim, and it cannot be marked
   // paid separately in the meantime.
-  await dbc.from('reimbursement_claims').update({ payroll_run_id: run.id }).eq('id', claimId);
+  await queryClient
+    .from('reimbursement_claims')
+    .update({ payroll_run_id: run.id })
+    .eq('id', claimId);
 
-  const { error: recomputeErr } = await dbc.rpc('fn_compute_payslip', {
+  const { error: recomputeErr } = await queryClient.callFunction('fn_compute_payslip', {
     p_employee_id: employeeId,
     p_run_id: run.id,
   });
@@ -316,10 +319,10 @@ async function reviewReimbursement(
     return { ok: false, error: 'Enter a reason for rejecting this claim.' };
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
   // With two-stage review enabled, staff approval routes claim to Finance review.
-  const twoStage = decision === 'approved' && (await financeStageEnabled(dbc));
+  const twoStage = decision === 'approved' && (await financeStageEnabled(queryClient));
   const nextStatus =
     decision === 'approved' ? (twoStage ? 'finance_review' : 'approved') : 'rejected';
 
@@ -332,7 +335,7 @@ async function reviewReimbursement(
     patch.review_remark = cleanRemark;
   }
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('reimbursement_claims')
     .update(patch)
     .eq('id', id)
@@ -367,7 +370,7 @@ async function reviewReimbursement(
     if (corrected !== finalAmount) {
       finalAmount = corrected;
       // amount is a `decimal` column — Decimal128, never a JS number.
-      await dbc
+      await queryClient
         .from('reimbursement_claims')
         .update({ amount: toMoney(corrected) })
         .eq('id', id);
@@ -375,7 +378,7 @@ async function reviewReimbursement(
   }
 
   const { profile } = await getSession();
-  await logClaimEvent(dbc, id, {
+  await logClaimEvent(queryClient, id, {
     action: decision === 'approved' ? (twoStage ? 'sent_to_finance' : 'approved') : 'rejected',
     fromStatus: 'pending',
     toStatus: nextStatus,
@@ -410,7 +413,7 @@ async function reviewReimbursement(
   // a success — the claim IS approved either way.
   if (decision === 'approved' && !twoStage) {
     const warning = await addToPayroll(
-      dbc,
+      queryClient,
       id,
       row.employee_id,
       String(row.claim_date).slice(0, 10),
@@ -458,7 +461,7 @@ async function financeReviewReimbursement(
     return { ok: false, error: 'Enter a reason for rejecting this claim.' };
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
   const patch: Record<string, unknown> = {
     status: decision === 'approved' ? 'approved' : 'rejected',
     finance_reviewed_by: gate.profileId,
@@ -468,7 +471,7 @@ async function financeReviewReimbursement(
     patch.review_remark = cleanRemark;
   }
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('reimbursement_claims')
     .update(patch)
     .eq('id', id)
@@ -485,7 +488,7 @@ async function financeReviewReimbursement(
   const amount = Number(row.amount);
   const { profile } = await getSession();
 
-  await logClaimEvent(dbc, id, {
+  await logClaimEvent(queryClient, id, {
     action: decision === 'approved' ? 'finance_approved' : 'finance_rejected',
     fromStatus: 'finance_review',
     toStatus: String(patch.status),
@@ -510,7 +513,7 @@ async function financeReviewReimbursement(
 
   if (decision === 'approved') {
     const warning = await addToPayroll(
-      dbc,
+      queryClient,
       id,
       row.employee_id,
       String(row.claim_date).slice(0, 10),
@@ -571,10 +574,10 @@ async function updateReimbursement(id: string, formData: FormData): Promise<Acti
     return db;
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
   // Resubmitting a rejected claim resets status to pending and clears review timestamps.
-  const { data: before } = await dbc
+  const { data: before } = await queryClient
     .from('reimbursement_claims')
     .select('status')
     .eq('id', id)
@@ -600,7 +603,7 @@ async function updateReimbursement(id: string, formData: FormData): Promise<Acti
     patch.finance_reviewed_at = null;
   }
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('reimbursement_claims')
     .update(patch)
     .eq('id', id)
@@ -618,7 +621,7 @@ async function updateReimbursement(id: string, formData: FormData): Promise<Acti
   }
 
   const { profile } = await getSession();
-  await logClaimEvent(dbc, id, {
+  await logClaimEvent(queryClient, id, {
     action: wasRejected ? 'resubmitted' : 'edited',
     fromStatus: before?.status ?? null,
     toStatus: wasRejected ? 'pending' : (before?.status ?? null),
@@ -651,8 +654,8 @@ async function deleteReimbursement(id: string): Promise<ActionResult> {
     return db;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('reimbursement_claims')
     .delete()
     .eq('id', id)
@@ -685,8 +688,8 @@ async function markReimbursementPaid(id: string, paymentRef?: string): Promise<A
     return gate;
   }
 
-  const dbc = await createClient();
-  const { data: claim } = await dbc
+  const queryClient = await createClient();
+  const { data: claim } = await queryClient
     .from('reimbursement_claims')
     .select('payroll_run_id')
     .eq('id', id)
@@ -706,7 +709,7 @@ async function markReimbursementPaid(id: string, paymentRef?: string): Promise<A
     payment_ref: ref,
   };
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('reimbursement_claims')
     .update(patch)
     .eq('id', id)
@@ -722,7 +725,7 @@ async function markReimbursementPaid(id: string, paymentRef?: string): Promise<A
 
   const row = data![0] as { employee_id: string; amount: number | string };
   const { profile } = await getSession();
-  await logClaimEvent(dbc, id, {
+  await logClaimEvent(queryClient, id, {
     action: 'paid',
     fromStatus: 'approved',
     toStatus: 'paid',
@@ -771,8 +774,8 @@ async function uploadReimbursementReceipt(id: string, formData: FormData): Promi
 
   // Check ownership and pending status before uploading to avoid orphaned receipts. Rejected
   // claims must be edited back to pending first.
-  const dbc = await createClient();
-  const { data: claim, error: claimError } = await dbc
+  const queryClient = await createClient();
+  const { data: claim, error: claimError } = await queryClient
     .from('reimbursement_claims')
     .select('id, status')
     .eq('id', id)
@@ -803,7 +806,7 @@ async function uploadReimbursementReceipt(id: string, formData: FormData): Promi
     return { ok: false, error: up.error ?? 'The receipt could not be uploaded.' };
   }
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('reimbursement_claims')
     .update({ receipt_path: up.path })
     .eq('id', id)
@@ -819,7 +822,7 @@ async function uploadReimbursementReceipt(id: string, formData: FormData): Promi
     };
   }
 
-  await logClaimEvent(dbc, id, {
+  await logClaimEvent(queryClient, id, {
     action: 'receipt_attached',
     actorId: profile?.id ?? null,
     actorName: profile?.full_name ?? null,
@@ -840,8 +843,8 @@ async function getReceiptUrl(
     return db;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('reimbursement_claims')
     .select('receipt_path')
     .eq('id', claimId)

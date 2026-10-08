@@ -153,10 +153,10 @@ async function correctAttendance(formData: FormData): Promise<CorrectionState> {
     };
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
   // Name the employee in the audit message, and prove the id is real.
-  const { data: employee, error: employeeError } = await dbc
+  const { data: employee, error: employeeError } = await queryClient
     .from('employees')
     .select('id, code, full_name')
     .eq('id', employeeId)
@@ -169,13 +169,13 @@ async function correctAttendance(formData: FormData): Promise<CorrectionState> {
   }
 
   // Prevent corrections to months with locked/paid payroll runs or sealed attendance periods.
-  const open = await requireOpenPayrollMonth(dbc, workDate);
+  const open = await requireOpenPayrollMonth(queryClient, workDate);
   if (!open.ok) {
     return open;
   }
 
   if (statusOnlyOnOpenDay) {
-    return changeOpenDayStatus(dbc, {
+    return changeOpenDayStatus(queryClient, {
       employeeId,
       employee: { code: String(employee.code), full_name: String(employee.full_name) },
       workDate,
@@ -188,7 +188,7 @@ async function correctAttendance(formData: FormData): Promise<CorrectionState> {
   }
 
   // write
-  const { data: saved, error: saveError } = await dbc
+  const { data: saved, error: saveError } = await queryClient
     .from('attendance_days')
     .upsert(
       {
@@ -227,7 +227,7 @@ async function correctAttendance(formData: FormData): Promise<CorrectionState> {
   let compOffWarning: string | null = null;
   if (status === 'CO') {
     // Idempotence: re-saving the same day must not spend a second credit.
-    const { data: already } = await dbc
+    const { data: already } = await queryClient
       .from('comp_offs')
       .select('id')
       .eq('employee_id', employeeId)
@@ -235,7 +235,7 @@ async function correctAttendance(formData: FormData): Promise<CorrectionState> {
       .in('status', ['applied', 'used'])
       .limit(1);
     if (!already || already.length === 0) {
-      const fifo = await dbc
+      const fifo = await queryClient
         .from('comp_offs')
         .select('id')
         .eq('employee_id', employeeId)
@@ -246,7 +246,7 @@ async function correctAttendance(formData: FormData): Promise<CorrectionState> {
         .limit(1)
         .maybeSingle<{ id: string }>();
       if (fifo.data?.id) {
-        const { error: spendErr } = await dbc
+        const { error: spendErr } = await queryClient
           .from('comp_offs')
           .update({ status: 'used', used_date: workDate })
           .eq('id', fifo.data.id)
@@ -264,7 +264,7 @@ async function correctAttendance(formData: FormData): Promise<CorrectionState> {
   // audit log
   const punchText = punchIn && punchOut ? `${punchIn}–${punchOut}` : 'no punches';
   const actor = session.profile.full_name ?? session.email ?? 'A staff user';
-  const { error: logError } = await dbc.from('activity_log').insert({
+  const { error: logError } = await queryClient.from('activity_log').insert({
     actor_id: session.profile.id,
     employee_id: employeeId,
     event_type: 'attendance_correction',
@@ -305,7 +305,7 @@ async function correctAttendance(formData: FormData): Promise<CorrectionState> {
  * marking the row corrected here would refuse that punch-out.
  */
 async function changeOpenDayStatus(
-  dbc: Awaited<ReturnType<typeof createClient>>,
+  queryClient: Awaited<ReturnType<typeof createClient>>,
   input: {
     employeeId: string;
     employee: { code: string; full_name: string };
@@ -318,7 +318,7 @@ async function changeOpenDayStatus(
   },
 ): Promise<CorrectionState> {
   const { employeeId, employee, workDate, status, punchIn, reason } = input;
-  const { data: saved, error } = await dbc
+  const { data: saved, error } = await queryClient
     .from('attendance_days')
     .update({ status, correction_reason: reason, corrected_by: input.actorId })
     .eq('employee_id', employeeId)
@@ -337,7 +337,7 @@ async function changeOpenDayStatus(
     };
   }
 
-  const { error: logError } = await dbc.from('activity_log').insert({
+  const { error: logError } = await queryClient.from('activity_log').insert({
     actor_id: input.actorId,
     employee_id: employeeId,
     event_type: 'attendance_correction',
@@ -428,12 +428,12 @@ async function correctAttendanceBulk(input: {
     return gate;
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
   // Reject the batch if any affected month is closed. Query each month once.
   const months = [...new Set(targets.map((t) => t.workDate.slice(0, 7)))];
   for (const month of months) {
-    const open = await requireOpenPayrollMonth(dbc, `${month}-01`);
+    const open = await requireOpenPayrollMonth(queryClient, `${month}-01`);
     if (!open.ok) {
       return open;
     }
@@ -453,7 +453,7 @@ async function correctAttendanceBulk(input: {
     auto_closed_at: null,
   }));
 
-  const { data: saved, error: saveError } = await dbc
+  const { data: saved, error: saveError } = await queryClient
     .from('attendance_days')
     .upsert(rows, { onConflict: 'employee_id,work_date' })
     .select('id');
@@ -469,7 +469,7 @@ async function correctAttendanceBulk(input: {
 
   const { profile } = await getSession();
   const actor = profile?.full_name ?? 'A staff user';
-  const { error: logError } = await dbc.from('activity_log').insert({
+  const { error: logError } = await queryClient.from('activity_log').insert({
     actor_id: gate.profileId,
     employee_id: null,
     event_type: 'attendance_correction',

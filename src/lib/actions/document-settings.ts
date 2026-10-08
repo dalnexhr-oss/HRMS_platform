@@ -17,8 +17,8 @@ interface ActionResult {
 const documentRoles: readonly AppRole[] = ['super_admin', 'admin', 'hr'];
 
 async function saveSetting(key: string, label: string, value: unknown): Promise<ActionResult> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('settings')
     .upsert({ key, value, label }, { onConflict: 'key' })
     .select('key');

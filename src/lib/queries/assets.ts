@@ -34,8 +34,8 @@ const assetCols = `id, purchase_date, purchase_cost, desktop_name, asset_categor
    antivirus, qr_url, assigned_employee_id, assigned_person_name, assigned_employee_code, assigned_date`;
 
 async function getAssets(): Promise<AssetRow[]> {
-  const dbc = await createClient();
-  const res = await dbc.from('assets').select(assetCols).order('desktop_name');
+  const queryClient = await createClient();
+  const res = await queryClient.from('assets').select(assetCols).order('desktop_name');
   if (res.error) {
     fail('getAssets: could not load assets', res.error);
   }
@@ -64,8 +64,8 @@ interface AssetSummaryRow {
 }
 
 async function getAssetSummary(): Promise<AssetSummaryRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('v_asset_summary')
     .select('category, total, assigned, available, warranty_expiring');
   if (error) {
@@ -94,8 +94,8 @@ interface AssetAssignmentRow {
 }
 
 async function getAssetAssignments(assetId: string): Promise<AssetAssignmentRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('asset_assignments')
     .select(
       'id, asset_id, person_name, employee_code, assigned_date, assigned_by, returned, returned_date, remarks',
@@ -122,8 +122,8 @@ interface AssetMaintenanceRow {
 }
 
 async function getAssetMaintenance(assetId: string): Promise<AssetMaintenanceRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('asset_maintenance')
     .select('id, asset_id, maint_date, maint_type, cost, vendor, notes, next_due, created_by')
     .eq('asset_id', assetId)
@@ -149,8 +149,8 @@ interface MyAssetRow {
 }
 
 async function getMyAssets(employeeId: string): Promise<MyAssetRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('assets')
     .select('id, desktop_name, brand, serial_no, model_no, assigned_date')
     .eq('assigned_employee_id', employeeId)

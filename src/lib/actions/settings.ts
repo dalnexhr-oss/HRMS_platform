@@ -12,8 +12,8 @@ async function updateSetting(key: string, value: unknown) {
     return gate;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('settings')
     .upsert({ key, value }, { onConflict: 'key' })
     .select('key');

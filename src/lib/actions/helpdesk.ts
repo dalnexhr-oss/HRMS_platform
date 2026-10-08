@@ -22,8 +22,8 @@ async function createTicket(formData: FormData) {
   }
 
   const { profile } = await getSession();
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('helpdesk_tickets')
     .insert({
       subject,
@@ -74,7 +74,7 @@ async function setTicketStatus(id: string, status: TicketStatus, note?: string) 
   }
 
   const reply = (note ?? '').trim();
-  const dbc = await createClient();
+  const queryClient = await createClient();
   const resolvedAt = status === 'resolved' || status === 'closed' ? new Date() : null;
 
   // Only touch resolution_note when a reply is actually written, so a plain
@@ -84,7 +84,7 @@ async function setTicketStatus(id: string, status: TicketStatus, note?: string) 
     patch.resolution_note = reply;
   }
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('helpdesk_tickets')
     .update(patch)
     .eq('id', id)
@@ -134,11 +134,11 @@ async function addTicketComment(ticketId: string, body: string) {
   }
   const isStaff = isStaffRole(profile.role);
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
   // Check access to the parent ticket through the caller's scope before accepting a reply. The
   // comment insert policy verifies authorship, but cannot establish access to the ticket.
-  const { data: ticket, error: ticketError } = await dbc
+  const { data: ticket, error: ticketError } = await queryClient
     .from('helpdesk_tickets')
     .select('id, status, subject, employee_id')
     .eq('id', ticketId)
@@ -152,7 +152,7 @@ async function addTicketComment(ticketId: string, body: string) {
     return { ok: false, error: 'That ticket could not be found.' };
   }
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('helpdesk_ticket_comments')
     .insert({
       ticket_id: ticketId,
@@ -204,7 +204,7 @@ async function addTicketComment(ticketId: string, body: string) {
   // Reuse the authorized parent ticket for notifications and reopening. Check the reopen result so
   // a posted follow-up does not leave a closed ticket unnoticed.
   if (!isStaff && (ticket.status === 'resolved' || ticket.status === 'closed')) {
-    const reopened = await dbc
+    const reopened = await queryClient
       .from('helpdesk_tickets')
       .update({ status: 'open', resolved_at: null })
       .eq('id', ticketId)

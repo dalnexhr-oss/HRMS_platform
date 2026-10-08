@@ -276,9 +276,9 @@ async function replaceEmployeeDocument(
   }
 
   const note = String(formData.get('note') ?? '').trim();
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
-  const { data: previous, error: readErr } = await dbc
+  const { data: previous, error: readErr } = await queryClient
     .from('employee_documents')
     .select(
       'id, employee_id, category, title, bucket, doc_group, version, superseded_at, signature',
@@ -336,7 +336,7 @@ async function replaceEmployeeDocument(
   }
 
   const nextId = randomUUID();
-  const { data: inserted, error: insErr } = await dbc
+  const { data: inserted, error: insErr } = await queryClient
     .from('employee_documents')
     .insert({
       id: nextId,
@@ -370,7 +370,7 @@ async function replaceEmployeeDocument(
     };
   }
 
-  const { error: supErr } = await dbc
+  const { error: supErr } = await queryClient
     .from('employee_documents')
     .update({ superseded_at: new Date(), replaced_by_id: nextId })
     .eq('id', previous.id)
@@ -417,9 +417,9 @@ async function verifyEmployeeDocument(
     return { ok: false, error: 'Enter what is wrong with the document.' };
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
   // HR's own unsigned letter is not something to verify or send back: it is waiting on the employee.
-  const { data: waiting } = await dbc
+  const { data: waiting } = await queryClient
     .from('employee_documents')
     .select('signature, superseded_at')
     .eq('id', id)
@@ -430,7 +430,7 @@ async function verifyEmployeeDocument(
       error: 'This letter is waiting for the employee to sign and return it.',
     };
   }
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('employee_documents')
     .update({
       verified_by: verified ? gate.profileId : null,
@@ -472,8 +472,8 @@ async function deleteEmployeeDocument(id: string): Promise<ActionResult> {
     return gate;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('employee_documents')
     .delete()
     .eq('id', id)
@@ -490,7 +490,7 @@ async function deleteEmployeeDocument(id: string): Promise<ActionResult> {
     // Best-effort: the delete already succeeded, and reporting failure now
     // would suggest the row is still there. A predecessor left superseded is
     // visible in the employee's history and can be replaced again.
-    await dbc
+    await queryClient
       .from('employee_documents')
       .update({ superseded_at: null, replaced_by_id: null })
       .eq('id', removed.replaces_id);
@@ -521,10 +521,10 @@ async function getDocumentUrl(id: string): Promise<{ ok: boolean; url?: string; 
     return db;
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
   // The SELECT is policy-scoped (staff, or the owning employee), so a caller
   // who cannot see the row gets nothing to open.
-  const res = await dbc
+  const res = await queryClient
     .from('employee_documents')
     .select('storage_path, bucket')
     .eq('id', id)

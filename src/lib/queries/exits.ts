@@ -24,8 +24,8 @@ interface ExitCaseRow {
 
 /** Every exit case with its clearance and settlement state — the HR exits board. */
 async function getExitCases(): Promise<ExitCaseRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('exit_cases')
     .select(
       'id, employee_id, stage, resignation_date, last_working_day, reason, employees(code, full_name)',
@@ -41,12 +41,12 @@ async function getExitCases(): Promise<ExitCaseRow[]> {
 
   // Query clearance view and settlement records in parallel with graceful fallbacks.
   const [{ data: pending }, { data: fnfs }] = await Promise.all([
-    dbc
+    queryClient
       .from('v_exit_clearance_pending')
       .select(
         'exit_case_id, assets_outstanding, items_outstanding, clearance_items_open, clearance_complete',
       ),
-    dbc.from('full_and_final').select('exit_case_id, status, net_payable'),
+    queryClient.from('full_and_final').select('exit_case_id, status, net_payable'),
   ]);
   const byCase = new Map((pending ?? []).map((p: any) => [p.exit_case_id, p]));
   const fnfByCase = new Map((fnfs ?? []).map((f: any) => [f.exit_case_id, f]));
@@ -82,8 +82,8 @@ interface ExitInterviewRow {
 
 /** Read interview answers in insertion order. Each exit stores its own questionnaire snapshot. */
 async function getExitInterview(exitCaseId: string): Promise<ExitInterviewRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('exit_interviews')
     .select('id, question, answer, submitted_at, created_at')
     .eq('exit_case_id', exitCaseId)
@@ -110,8 +110,8 @@ interface KtItemRow {
 
 /** One exit case's knowledge-transfer items. */
 async function getKtItems(exitCaseId: string): Promise<KtItemRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('knowledge_transfer_items')
     .select('id, task, handover_to, status, notes, created_at, employees(full_name)')
     .eq('exit_case_id', exitCaseId)
@@ -138,8 +138,8 @@ interface ClearanceItemRow {
 
 /** The clearance checklist for one exit case. */
 async function getClearanceItems(exitCaseId: string): Promise<ClearanceItemRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('exit_clearance_items')
     .select('id, area, description, cleared')
     .eq('exit_case_id', exitCaseId)

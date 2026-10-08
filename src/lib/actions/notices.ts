@@ -61,8 +61,8 @@ async function markNoticeRead(noticeId: string) {
     return { ok: false, error: 'No employee linked to this account.' };
   }
 
-  const dbc = await createClient();
-  const { error } = await dbc
+  const queryClient = await createClient();
+  const { error } = await queryClient
     .from('notice_reads')
     .insert({ notice_id: noticeId, employee_id: profile.employee_id });
 
@@ -104,7 +104,7 @@ async function createNotice(formData: FormData) {
     return gate;
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
   // Upload before the insert so a failed upload never leaves a notice whose
   // promised attachment does not exist.
@@ -117,8 +117,8 @@ async function createNotice(formData: FormData) {
     pdfPath = up.path;
   }
 
-  const branchScope = await resolveBranchScope(dbc, branch);
-  const { data, error } = await dbc
+  const branchScope = await resolveBranchScope(queryClient, branch);
+  const { data, error } = await queryClient
     .from('notices')
     .insert({
       title,
@@ -185,7 +185,7 @@ async function updateNotice(id: string, formData: FormData) {
     return gate;
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
   // Change pdf_url only for a replacement or explicit removal. Keep the previous private storage
   // object, matching document retention behavior.
@@ -200,8 +200,8 @@ async function updateNotice(id: string, formData: FormData) {
     patch.pdf_url = null;
   }
 
-  Object.assign(patch, await resolveBranchScope(dbc, branch));
-  const { data, error } = await dbc.from('notices').update(patch).eq('id', id).select('id');
+  Object.assign(patch, await resolveBranchScope(queryClient, branch));
+  const { data, error } = await queryClient.from('notices').update(patch).eq('id', id).select('id');
   if (error) {
     return { ok: false, error: error.message };
   }
@@ -227,12 +227,12 @@ async function setNoticePublished(id: string, published: boolean) {
     return gate;
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
   if (published) {
     // Only an unpublished notice can acquire published_at and notify recipients. Repeated Publish
     // clicks must not reset retention or send duplicates.
-    const { data, error } = await dbc
+    const { data, error } = await queryClient
       .from('notices')
       .update({ published_at: new Date() })
       .eq('id', id)
@@ -249,7 +249,7 @@ async function setNoticePublished(id: string, published: boolean) {
       );
     }
   } else {
-    const { data, error } = await dbc
+    const { data, error } = await queryClient
       .from('notices')
       .update({ published_at: null })
       .eq('id', id)
@@ -280,8 +280,8 @@ async function getNoticePdfUrl(id: string): Promise<{ ok: boolean; url?: string;
     return db;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('notices')
     .select('pdf_url')
     .eq('id', id)
@@ -304,8 +304,8 @@ async function deleteNotice(id: string) {
     return gate;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc.from('notices').delete().eq('id', id).select('id');
+  const queryClient = await createClient();
+  const { data, error } = await queryClient.from('notices').delete().eq('id', id).select('id');
   if (error) {
     return { ok: false, error: error.message };
   }

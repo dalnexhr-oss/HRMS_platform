@@ -45,8 +45,8 @@ async function getAutoPunchOutMinutes(): Promise<number> {
     return defaultPunchOutMin;
   }
   try {
-    const dbc = await createClient();
-    const { data, error } = await dbc
+    const queryClient = await createClient();
+    const { data, error } = await queryClient
       .from('settings')
       .select('value')
       .eq('key', 'auto_punch_out_time')

@@ -49,8 +49,8 @@ async function createItem(formData: FormData) {
     return { ok: false, error: 'Item name is required.' };
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc.from('items').insert(fields).select('id');
+  const queryClient = await createClient();
+  const { data, error } = await queryClient.from('items').insert(fields).select('id');
   if (error) {
     return { ok: false, error: error.message };
   }
@@ -77,8 +77,8 @@ async function updateItem(formData: FormData) {
     return { ok: false, error: 'Item name is required.' };
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc.from('items').update(fields).eq('id', id).select('id');
+  const queryClient = await createClient();
+  const { data, error } = await queryClient.from('items').update(fields).eq('id', id).select('id');
   if (error) {
     return { ok: false, error: error.message };
   }
@@ -98,8 +98,8 @@ async function deleteItem(id: string) {
     return gate;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc.from('items').delete().eq('id', id).select('id');
+  const queryClient = await createClient();
+  const { data, error } = await queryClient.from('items').delete().eq('id', id).select('id');
   if (error) {
     return { ok: false, error: error.message };
   }
@@ -147,10 +147,10 @@ async function assignItem(formData: FormData) {
     }
   }
 
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
   // How much is still available? Read the derived remaining from v_items.
-  const { data: item, error: itemErr } = await dbc
+  const { data: item, error: itemErr } = await queryClient
     .from('v_items')
     .select('item_name, quantity_remaining')
     .eq('id', itemId)
@@ -169,7 +169,7 @@ async function assignItem(formData: FormData) {
   }
 
   // Snapshot the employee's name + code so the log survives if they are removed.
-  const { data: emp, error: empErr } = await dbc
+  const { data: emp, error: empErr } = await queryClient
     .from('employees')
     .select('code, full_name')
     .eq('id', employeeId)
@@ -197,7 +197,7 @@ async function assignItem(formData: FormData) {
     row.assigned_date = assignedDate;
   }
 
-  const { data, error } = await dbc.from('item_assignments').insert(row).select('id');
+  const { data, error } = await queryClient.from('item_assignments').insert(row).select('id');
   if (error) {
     return { ok: false, error: error.message };
   }
@@ -222,8 +222,8 @@ async function returnAssignment(id: string) {
     return gate;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('item_assignments')
     .update({ returned: true, returned_date: todayIST() })
     .eq('id', id)
@@ -258,8 +258,8 @@ async function deleteAssignment(id: string) {
     return gate;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('item_assignments')
     .delete()
     .eq('id', id)

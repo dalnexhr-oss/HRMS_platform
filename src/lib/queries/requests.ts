@@ -8,8 +8,8 @@ import type { RequestRouting } from '@/types/requests';
 
 /** One employee's leave / duty requests, newest first. */
 async function getMyRequests(employeeId: string): Promise<RequestView[]> {
-  const dbc = await createClient();
-  const res = await dbc
+  const queryClient = await createClient();
+  const res = await queryClient
     .from('requests')
     .select(requestFields)
     .eq('employee_id', employeeId)
@@ -82,8 +82,8 @@ const requestFields = `id, employee_id, employee_name, employee_code, employee_b
 
 /** Leave / duty requests, pending first then reviewed. */
 async function getRequests(): Promise<RequestView[]> {
-  const dbc = await createClient();
-  const res = await dbc
+  const queryClient = await createClient();
+  const res = await queryClient
     .from('requests')
     .select(requestFields)
     .order('created_at', { ascending: false });
@@ -98,8 +98,8 @@ async function getRequests(): Promise<RequestView[]> {
 
 /** The same policy-scoped request view is available to staff, the applicant, and tagged people. */
 async function getRequest(id: string): Promise<RequestView | null> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('requests')
     .select(requestFields)
     .eq('id', id)

@@ -21,10 +21,10 @@ const accessAdminRoles: readonly AppRole[] = ['super_admin'];
 
 // The target's role, so both the caller and the rules can be checked against it.
 async function targetRole(
-  dbc: Awaited<ReturnType<typeof createClient>>,
+  queryClient: Awaited<ReturnType<typeof createClient>>,
   userId: string,
 ): Promise<{ ok: true; role: AppRole } | { ok: false; error: string }> {
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('profiles')
     .select('role')
     .eq('id', userId)
@@ -77,8 +77,8 @@ async function setUserTabAccess(
     return { ok: false, error: 'That is not a tab.' };
   }
 
-  const dbc = await createClient();
-  const target = await targetRole(dbc, userId);
+  const queryClient = await createClient();
+  const target = await targetRole(queryClient, userId);
   if (!target.ok) {
     return target;
   }

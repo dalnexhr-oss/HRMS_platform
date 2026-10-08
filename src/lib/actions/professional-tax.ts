@@ -72,10 +72,10 @@ async function savePtSlab(formData: FormData): Promise<ActionResult> {
     amount: toMoney(amount),
     month,
   };
-  const dbc = await createClient();
+  const queryClient = await createClient();
   const { data, error } = id
-    ? await dbc.from('pt_slabs').update(slab).eq('id', id).select('id')
-    : await dbc.from('pt_slabs').insert(slab).select('id');
+    ? await queryClient.from('pt_slabs').update(slab).eq('id', id).select('id')
+    : await queryClient.from('pt_slabs').insert(slab).select('id');
   if (error) {
     return { ok: false, error: error.message };
   }
@@ -99,8 +99,8 @@ async function deletePtSlab(id: string): Promise<ActionResult> {
     return gate;
   }
 
-  const dbc = await createClient();
-  const { data, error } = await dbc.from('pt_slabs').delete().eq('id', id).select('id');
+  const queryClient = await createClient();
+  const { data, error } = await queryClient.from('pt_slabs').delete().eq('id', id).select('id');
   if (error) {
     return { ok: false, error: error.message };
   }

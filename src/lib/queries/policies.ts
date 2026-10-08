@@ -19,8 +19,8 @@ interface PolicyView {
 
 /** Published policies for an employee, flagged with whether they've acknowledged. */
 async function getEmployeePolicies(employeeId: string | null): Promise<PolicyView[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('policies')
     .select('id, title, category, version, effective_date, body, published')
     .eq('published', true)
@@ -31,7 +31,7 @@ async function getEmployeePolicies(employeeId: string | null): Promise<PolicyVie
 
   let acked = new Set<string>();
   if (employeeId) {
-    const { data: acks, error: acksError } = await dbc
+    const { data: acks, error: acksError } = await queryClient
       .from('policy_acknowledgements')
       .select('policy_id')
       .eq('employee_id', employeeId);

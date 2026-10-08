@@ -48,8 +48,8 @@ async function recordDevicePunch(event: DevicePunch) {
       const at = new Date(event.timestamp);
       const date = localParts(at).date;
       const prior = await readDayEvents(employee._id, date, session);
-      const dbc = createQueryClient(true, session);
-      const { office, requireLocation } = await readPunchPolicy(employee._id, dbc);
+      const queryClient = createQueryClient(true, session);
+      const { office, requireLocation } = await readPunchPolicy(employee._id, queryClient);
       const latitude = terminal.latitude;
       const longitude = terminal.longitude;
       const point =
@@ -109,7 +109,7 @@ async function recordDevicePunch(event: DevicePunch) {
         }
       }
       if (status === 'recorded' && kind) {
-        const { error } = await dbc.from('punch_events').insert({
+        const { error } = await queryClient.from('punch_events').insert({
           _id: `zkteco-${eventId}`,
           employee_id: employee._id,
           punched_at: at,
@@ -129,7 +129,7 @@ async function recordDevicePunch(event: DevicePunch) {
         if (error) {
           throw new Error(error.message);
         }
-        await resolveDay(employee._id, date, [...prior, { kind, punched_at: at }], dbc);
+        await resolveDay(employee._id, date, [...prior, { kind, punched_at: at }], queryClient);
       }
       await receipts.insertOne(
         {

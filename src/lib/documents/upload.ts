@@ -70,7 +70,7 @@ async function recordUploadedDocument(input: {
   const needsSignature = input.needsSignature === true && isStaff;
   let registered = false;
   try {
-    const dbc = await createClient();
+    const queryClient = await createClient();
     const offered = (await getDocumentTypes()).filter((type) => type.active);
     if (!offered.some((type) => type.key === category)) {
       return {
@@ -81,7 +81,7 @@ async function recordUploadedDocument(input: {
 
     // Initialize document chain (version 1, doc_group = id).
     const id = randomUUID();
-    const { data, error } = await dbc
+    const { data, error } = await queryClient
       .from('employee_documents')
       .insert({
         id,

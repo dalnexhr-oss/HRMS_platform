@@ -9,8 +9,8 @@ const ticketCols =
   'id, subject, body, category, status, created_at, resolution_note, employees(code, full_name)';
 
 async function getMyTickets(employeeId: string): Promise<TicketView[]> {
-  const dbc = await createClient();
-  const res = await dbc
+  const queryClient = await createClient();
+  const res = await queryClient
     .from('helpdesk_tickets')
     .select(ticketCols)
     .eq('employee_id', employeeId)
@@ -50,8 +50,8 @@ function mapTicket(t: any): TicketView {
 
 /** Helpdesk tickets, open first then newest. */
 async function getTickets(): Promise<TicketView[]> {
-  const dbc = await createClient();
-  const res = await dbc
+  const queryClient = await createClient();
+  const res = await queryClient
     .from('helpdesk_tickets')
     .select(ticketCols)
     .order('created_at', { ascending: false });

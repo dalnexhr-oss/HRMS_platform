@@ -36,9 +36,9 @@ function daysInMonth(periodMonth: string): number {
  */
 async function getStatutoryRows(periodMonth: string): Promise<StatutoryRow[]> {
   const start = `${periodMonth.slice(0, 7)}-01`;
-  const dbc = await createClient();
+  const queryClient = await createClient();
 
-  const { data: run, error: runErr } = await dbc
+  const { data: run, error: runErr } = await queryClient
     .from('payroll_runs')
     .select('id')
     .eq('period_month', start)
@@ -50,7 +50,7 @@ async function getStatutoryRows(periodMonth: string): Promise<StatutoryRow[]> {
     return [];
   }
 
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('payslips')
     .select(
       `payable_days, basic_earned, earned_gross, pf_employee, pf_employer,

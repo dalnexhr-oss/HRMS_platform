@@ -14,8 +14,8 @@ import type { UserDoc } from '@/lib/db/collection-registry';
  * Saturdays other than the second and fourth.
  */
 async function getWeekOffPolicy(): Promise<WeekOffPolicy> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('settings')
     .select('key, value')
     .in('key', ['week_off_weekdays', 'working_saturdays']);
@@ -36,8 +36,8 @@ interface SettingView {
 }
 
 async function getSettings(): Promise<SettingView[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('settings')
     .select('key, value, label, description')
     .order('key');

@@ -43,8 +43,8 @@ async function leaveDayCount(
 /** The configurable sandwich-leave toggle, from the settings collection. */
 async function getSandwichPolicy(): Promise<boolean> {
   try {
-    const dbc = await createClient();
-    const { data } = await dbc
+    const queryClient = await createClient();
+    const { data } = await queryClient
       .from('settings')
       .select('value')
       .eq('key', 'leave_sandwich_policy')
@@ -76,12 +76,12 @@ const dutyStamps: Record<string, 'S' | 'T'> = { site_visit: 'S', outdoor_duty: '
 
 /** Stamp approved leave as L. See stampApprovedDays for which days are written. */
 function stampLeaveOnRegister(
-  dbc: Awaited<ReturnType<typeof createClient>>,
+  queryClient: Awaited<ReturnType<typeof createClient>>,
   employeeId: string,
   startISO: string,
   endISO: string,
 ): Promise<string | null> {
-  return stampApprovedDays(dbc, employeeId, startISO, endISO, { status: 'L' });
+  return stampApprovedDays(queryClient, employeeId, startISO, endISO, { status: 'L' });
 }
 
 /**
@@ -90,7 +90,7 @@ function stampLeaveOnRegister(
  * punches replace the credit.
  */
 async function stampDutyOnRegister(
-  dbc: Awaited<ReturnType<typeof createClient>>,
+  queryClient: Awaited<ReturnType<typeof createClient>>,
   employeeId: string,
   requestType: string,
   startISO: string,
@@ -101,7 +101,7 @@ async function stampDutyOnRegister(
     return null;
   }
   let fullDayMinutes = 555;
-  const { data } = await dbc
+  const { data } = await queryClient
     .from('settings')
     .select('value')
     .eq('key', 'full_day_minutes')
@@ -110,7 +110,7 @@ async function stampDutyOnRegister(
   if (Number.isFinite(configured) && configured > 0) {
     fullDayMinutes = configured;
   }
-  return stampApprovedDays(dbc, employeeId, startISO, endISO, {
+  return stampApprovedDays(queryClient, employeeId, startISO, endISO, {
     status,
     worked_minutes: fullDayMinutes,
   });
@@ -122,7 +122,7 @@ async function stampDutyOnRegister(
  * corrected is left as it is. Returns a note for the caller when a closed month was skipped.
  */
 async function unstampApprovedDays(
-  dbc: Awaited<ReturnType<typeof createClient>>,
+  queryClient: Awaited<ReturnType<typeof createClient>>,
   employeeId: string,
   requestType: string,
   startISO: string,
@@ -134,12 +134,12 @@ async function unstampApprovedDays(
   }
   const skipped: string[] = [];
   for (const month of new Set(enumerateDays(startISO, endISO).map((day) => day.slice(0, 7)))) {
-    const gate = await requireOpenPayrollMonthShim(dbc, `${month}-01`);
+    const gate = await requireOpenPayrollMonthShim(queryClient, `${month}-01`);
     if (!gate.ok) {
       skipped.push(month);
       continue;
     }
-    const { error } = await dbc
+    const { error } = await queryClient
       .from('attendance_days')
       .delete()
       .eq('employee_id', employeeId)
@@ -163,7 +163,7 @@ async function unstampApprovedDays(
  * warnings because the approval has already saved.
  */
 async function stampApprovedDays(
-  dbc: Awaited<ReturnType<typeof createClient>>,
+  queryClient: Awaited<ReturnType<typeof createClient>>,
   employeeId: string,
   startISO: string,
   endISO: string,
@@ -186,7 +186,7 @@ async function stampApprovedDays(
     }). Mark the day(s) ${stamp.status} from the register.`;
   }
 
-  const { data: existing, error: readErr } = await dbc
+  const { data: existing, error: readErr } = await queryClient
     .from('attendance_days')
     .select('work_date, status')
     .eq('employee_id', employeeId)
@@ -203,7 +203,7 @@ async function stampApprovedDays(
   // Check each involved month's payroll state once, not per day.
   const lockedMonths = new Set<string>();
   for (const month of new Set(days.map((d) => d.slice(0, 7)))) {
-    const gate = await requireOpenPayrollMonthShim(dbc, `${month}-01`);
+    const gate = await requireOpenPayrollMonthShim(queryClient, `${month}-01`);
     if (!gate.ok) {
       lockedMonths.add(month);
     }
@@ -227,7 +227,7 @@ async function stampApprovedDays(
 
   const problems: string[] = [];
   if (toUpdate.length > 0) {
-    const { error } = await dbc
+    const { error } = await queryClient
       .from('attendance_days')
       .update(stamp)
       .eq('employee_id', employeeId)
@@ -238,7 +238,7 @@ async function stampApprovedDays(
     }
   }
   if (toInsert.length > 0) {
-    const { error } = await dbc
+    const { error } = await queryClient
       .from('attendance_days')
       .insert(
         toInsert.map((workDate) => ({ employee_id: employeeId, work_date: workDate, ...stamp })),
@@ -260,10 +260,10 @@ async function stampApprovedDays(
 
 /** Local month gate — mirrors requireOpenPayrollMonth but never throws. */
 async function requireOpenPayrollMonthShim(
-  dbc: Awaited<ReturnType<typeof createClient>>,
+  queryClient: Awaited<ReturnType<typeof createClient>>,
   periodMonth: string,
 ): Promise<{ ok: boolean }> {
-  const { data, error } = await dbc
+  const { data, error } = await queryClient
     .from('payroll_runs')
     .select('status, month_closed_at')
     .eq('period_month', periodMonth)

@@ -42,8 +42,8 @@ function mapOnboardingTask(r: any): OnboardingTaskRow {
 
 /** Return onboarding tasks by due date, with undated tasks last so overdue work appears first. */
 async function getOnboardingBoard(): Promise<OnboardingTaskRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('onboarding_tasks')
     .select(onboardingTaskFields)
     .order('due_date', { ascending: true, nullsFirst: false })
@@ -56,8 +56,8 @@ async function getOnboardingBoard(): Promise<OnboardingTaskRow[]> {
 
 /** One employee's own checklist — the read-only card on /employee. */
 async function getMyOnboardingTasks(employeeId: string): Promise<OnboardingTaskRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('onboarding_tasks')
     .select(onboardingTaskFields)
     .eq('employee_id', employeeId)
@@ -71,15 +71,15 @@ async function getMyOnboardingTasks(employeeId: string): Promise<OnboardingTaskR
 
 /** Load reusable checklists with an embedded step count. Templates without items have zero steps. */
 async function getOnboardingTemplates(): Promise<OnboardingTemplateRow[]> {
-  const dbc = await createClient();
-  const { data, error } = await dbc
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
     .from('onboarding_templates')
     .select('id, name, active')
     .order('name');
   if (error) {
     fail('getOnboardingTemplates: could not load onboarding templates', error);
   }
-  const { data: items, error: itemsError } = await dbc
+  const { data: items, error: itemsError } = await queryClient
     .from('onboarding_template_items')
     .select('template_id, title, assignee_role, seq')
     .order('seq');

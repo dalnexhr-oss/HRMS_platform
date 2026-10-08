@@ -40,8 +40,8 @@ async function getCompOffsForMonth(
   periodMonth: string = currentPeriodMonth(),
 ): Promise<CompOffRow[]> {
   const { start, end } = monthRange(periodMonth);
-  const dbc = await createClient();
-  const res = await dbc
+  const queryClient = await createClient();
+  const res = await queryClient
     .from('comp_offs')
     .select(compOffFields)
     .gte('earned_date', start)
@@ -54,8 +54,8 @@ async function getCompOffsForMonth(
 
 /** One employee's comp-off credits, newest earned first. */
 async function getMyCompOffs(employeeId: string): Promise<CompOffRow[]> {
-  const dbc = await createClient();
-  const res = await dbc
+  const queryClient = await createClient();
+  const res = await queryClient
     .from('comp_offs')
     .select(compOffFields)
     .eq('employee_id', employeeId)
@@ -78,9 +78,9 @@ interface CompOffAdminRow extends CompOffRow {
  * applicable/not-applicable switch per credit.
  */
 async function getCompOffAdmin(): Promise<CompOffAdminRow[]> {
-  const dbc = await createClient();
+  const queryClient = await createClient();
   const fields = (cols: string) => `${cols}, employees(code, full_name)`;
-  const res = await dbc
+  const res = await queryClient
     .from('comp_offs')
     .select(fields(compOffFields))
     .in('status', ['available', 'applied'])
