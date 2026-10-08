@@ -679,6 +679,12 @@ async function payrollWorkbook(
     { header: 'ESIC (emp)', key: 'esicEmployee', width: 11 },
     { header: 'ESIC (er)', key: 'esicEmployer', width: 10 },
     { header: 'Prof. tax', key: 'professionalTax', width: 10 },
+    { header: 'Advance recovery', key: 'advanceRecovery', width: 14 },
+    { header: 'Loss & damage', key: 'lossDamage', width: 13 },
+    { header: 'Other deductions', key: 'otherDeductions', width: 14 },
+    { header: 'Last month balance', key: 'lastMonthBalance', width: 15 },
+    { header: 'Reimbursement', key: 'reimbursementBonus', width: 13 },
+    { header: 'Bonus', key: 'bonus', width: 10 },
     { header: 'Net payable', key: 'netPayable', width: 13 },
   ];
   ws.columns = columns.map(({ key, width }) => ({ key, width }));
@@ -707,6 +713,12 @@ async function payrollWorkbook(
       esicEmployee: p.esicEmployee,
       esicEmployer: p.esicEmployer,
       professionalTax: p.professionalTax,
+      advanceRecovery: p.advanceRecovery,
+      lossDamage: p.lossDamage,
+      otherDeductions: p.otherDeductions,
+      lastMonthBalance: p.lastMonthBalance,
+      reimbursementBonus: p.reimbursementBonus,
+      bonus: p.bonus,
       netPayable: p.netPayable,
     });
   }
@@ -724,11 +736,18 @@ async function payrollWorkbook(
     esicEmployee: sum('esicEmployee'),
     esicEmployer: sum('esicEmployer'),
     professionalTax: sum('professionalTax'),
+    advanceRecovery: sum('advanceRecovery'),
+    lossDamage: sum('lossDamage'),
+    otherDeductions: sum('otherDeductions'),
+    lastMonthBalance: sum('lastMonthBalance'),
+    reimbursementBonus: sum('reimbursementBonus'),
+    bonus: sum('bonus'),
     netPayable: sum('netPayable'),
   });
   totals.font = { bold: true };
-  for (let c = 6; c <= 16; c++) {
-    ws.getColumn(c).numFmt = '#,##0';
+  // Every money column, earned gross through net payable, to the paisa.
+  for (let c = 6; c <= columns.length; c++) {
+    ws.getColumn(c).numFmt = '#,##0.00';
   }
 
   // Each day's login/logout alongside the payroll figures, for verification.
