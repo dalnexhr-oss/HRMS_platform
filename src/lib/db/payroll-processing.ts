@@ -3,9 +3,13 @@
 // whole rupees.
 //
 // Working days = P + T + S + LM + 0.5 × HD.
-// Payable days also include CO, OH, and WO without requiring punch hours.
+// Payable days also include CO, OH, and WO without requiring punch hours. A scheduled week-off or
+// a holiday with no attendance row is counted as WO / OH for an employee who worked that month.
 import 'server-only';
 import { randomUUID } from 'node:crypto';
+import { isScheduledWeekOff, policyFromSettings } from '@/lib/weekly-off-policy';
+import { isWorkedStatus } from '@/lib/attendance-status';
+import { todayIST } from '@/lib/display-formatting';
 import { collections } from '@/lib/db/collection-registry';
 import { scopedFor } from '@/lib/db/scoped-repository';
 import { systemScope } from '@/lib/db/access-scope';
@@ -13,9 +17,95 @@ import { withTransaction } from '@/lib/db/mongodb-connection';
 import { fromPaise, toPaise } from '@/lib/db/decimal-conversions';
 import { calculatePayslip } from '@/lib/payroll/payslip-calculation';
 import { registerRpc } from '@/lib/db/scoped-query-client';
-import type { PayslipComputation } from '@/lib/payroll/payslip-calculation';
+import type { PayslipComputation, PayrollAttendanceDay } from '@/lib/payroll/payslip-calculation';
+import type { WeekOffPolicy } from '@/lib/weekly-off-policy';
 import type { ClientSession, Document } from 'mongodb';
 import type { BaseDoc } from '@/lib/db/collection-registry';
+
+// Month-wide inputs that are the same for every employee in a run.
+interface PayrollCalendar {
+  policy: WeekOffPolicy;
+  // Holiday date -> branch ids it applies to; null means every branch.
+  holidays: Array<{ date: string; branchId: string | null }>;
+}
+
+async function loadPayrollCalendar(
+  periodMonth: string,
+  session?: ClientSession,
+): Promise<PayrollCalendar> {
+  const settings = scopedFor<BaseDoc & { key: string; value: unknown }>(
+    collections.settings,
+    systemScope,
+    session,
+  );
+  const rows = await settings.find({ key: { $in: ['week_off_weekdays', 'working_saturdays'] } });
+  const byKey = new Map(rows.map((row) => [row.key, row.value]));
+  const holidays = await scopedFor<BaseDoc>(collections.holidays, systemScope, session).find({
+    holiday_date: { $regex: `^${periodMonth.slice(0, 7)}-` },
+  });
+  return {
+    policy: policyFromSettings(byKey.get('week_off_weekdays'), byKey.get('working_saturdays')),
+    holidays: holidays.map((holiday) => ({
+      date: String(holiday.holiday_date).slice(0, 10),
+      branchId: (holiday.branch_id as string | null) ?? null,
+    })),
+  };
+}
+
+/**
+ * Paid days off that have no attendance row. Week-offs and holidays are only stamped by hand or by
+ * the Excel import, so a month built from punches has none; without these an employee present on
+ * every working day would be paid for the working days alone.
+ *
+ * Counted only for an employee who worked at least one day that month, only between their joining
+ * date and last working day, and never for a day that has not happened yet.
+ */
+function unrecordedPaidDaysOff(
+  periodMonth: string,
+  recorded: Array<{ work_date: string; status: string }>,
+  employee: {
+    branchId: string | null;
+    dateOfJoining: string | null;
+    lastWorkingDay: string | null;
+  },
+  calendar: PayrollCalendar,
+): PayrollAttendanceDay[] {
+  if (!recorded.some((day) => isWorkedStatus(day.status))) {
+    return [];
+  }
+  const recordedDates = new Set(recorded.map((day) => day.work_date));
+  const holidayDates = new Set(
+    calendar.holidays
+      .filter((holiday) => holiday.branchId === null || holiday.branchId === employee.branchId)
+      .map((holiday) => holiday.date),
+  );
+  const [year, month] = periodMonth.split('-').map(Number);
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const today = todayIST();
+  const out: PayrollAttendanceDay[] = [];
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = `${periodMonth.slice(0, 8)}${String(day).padStart(2, '0')}`;
+    if (
+      recordedDates.has(date) ||
+      date > today ||
+      (employee.dateOfJoining !== null && date < employee.dateOfJoining) ||
+      (employee.lastWorkingDay !== null && date > employee.lastWorkingDay)
+    ) {
+      continue;
+    }
+    if (holidayDates.has(date)) {
+      out.push({ status: 'OH', workedMinutes: 0 });
+    } else if (isScheduledWeekOff(date, calendar.policy)) {
+      out.push({ status: 'WO', workedMinutes: 0 });
+    }
+  }
+  return out;
+}
+
+// 'YYYY-MM-DD' from a stored date-only value, or null when it is unset.
+function dateOnly(value: unknown): string | null {
+  return value ? String(value).slice(0, 10) : null;
+}
 
 // Retrieves a numeric configuration setting with a fallback default.
 async function settingNumeric(
@@ -49,7 +139,7 @@ async function professionalTax(
   const rows = await slabs.find({ state });
 
   const matching = rows.filter((s) => {
-    if (s.gender != null && s.gender !== gender) {
+    if (s.gender != null && String(s.gender).toLowerCase() !== String(gender ?? '').toLowerCase()) {
       return false;
     }
     if (grossPaise < toPaise(s.min_gross as never)) {
@@ -97,6 +187,8 @@ async function computePayslipInTransaction(
   employeeId: string,
   runId: string,
   session?: ClientSession,
+  // Supplied when a whole run is computed, so the calendar is read once.
+  sharedCalendar?: PayrollCalendar,
 ): Promise<PayslipComputation> {
   const employees = scopedFor<BaseDoc>(collections.employees, systemScope, session);
   const runs = scopedFor<BaseDoc>(collections.payrollRuns, systemScope, session);
@@ -133,6 +225,20 @@ async function computePayslipInTransaction(
     employee_id: employeeId,
     work_date: { $regex: `^${prefix}-` },
   });
+  const calendar = sharedCalendar ?? (await loadPayrollCalendar(periodMonth, session));
+  const paidDaysOff = unrecordedPaidDaysOff(
+    periodMonth,
+    days.map((day) => ({
+      work_date: String(day.work_date).slice(0, 10),
+      status: day.status as string,
+    })),
+    {
+      branchId: (e.branch_id as string | null) ?? null,
+      dateOfJoining: dateOnly(e.date_of_joining),
+      lastWorkingDay: dateOnly(e.last_working_day),
+    },
+    calendar,
+  );
 
   const grossPaise = toPaise(e.gross_monthly as never);
   const pt = await professionalTax(state, grossPaise, e.gender as string, month, session);
@@ -150,10 +256,13 @@ async function computePayslipInTransaction(
     fullDayMinutes: fullDayMin,
     esicCapPaise,
     professionalTaxPaise: pt,
-    attendance: days.map((day) => ({
-      status: day.status as string,
-      workedMinutes: Number(day.worked_minutes ?? 0),
-    })),
+    attendance: [
+      ...days.map((day) => ({
+        status: day.status as string,
+        workedMinutes: Number(day.worked_minutes ?? 0),
+      })),
+      ...paidDaysOff,
+    ],
     advancePaise: toPaise((adj?.advance_recovery as never) ?? 0),
     lossPaise: toPaise((adj?.loss_damage as never) ?? 0),
     lastMonthBalancePaise: toPaise((adj?.last_month_balance as never) ?? 0),
@@ -263,19 +372,73 @@ async function reserveOpenRun(runId: string, session?: ClientSession): Promise<v
   }
 }
 
+/**
+ * Recompute every payslip in the run from current attendance, inside the caller's reservation.
+ *
+ * A payslip is due to anyone who had joined by the end of the month and is either still employed
+ * or has attendance in it, so someone deactivated mid-month is still paid for the days they worked.
+ * Payslips left over for anyone else, such as a joiner whose first day is after the month, are
+ * removed.
+ */
+async function recomputeRunInTransaction(runId: string, session?: ClientSession): Promise<void> {
+  const run = await scopedFor<BaseDoc>(collections.payrollRuns, systemScope, session).findOne({
+    _id: runId,
+  });
+  if (!run) {
+    throw new Error(`computeRun: no payroll run ${runId}`);
+  }
+  const periodMonth = run.period_month as string;
+  const prefix = periodMonth.slice(0, 7);
+  const [year, month] = periodMonth.split('-').map(Number);
+  const monthEnd = `${prefix}-${String(new Date(Date.UTC(year, month, 0)).getUTCDate()).padStart(2, '0')}`;
+
+  const attended = new Set(
+    (
+      await scopedFor<BaseDoc>(collections.attendanceDays, systemScope, session).find(
+        { work_date: { $regex: `^${prefix}-` } },
+        { projection: { employee_id: 1 } },
+      )
+    ).map((day) => String(day.employee_id)),
+  );
+  const employees = await scopedFor<BaseDoc>(collections.employees, systemScope, session).find(
+    { deleted_at: null },
+    { projection: { _id: 1, status: 1, date_of_joining: 1 } },
+  );
+  const due = employees.filter((employee) => {
+    const joined = dateOnly(employee.date_of_joining);
+    if (joined !== null && joined > monthEnd) {
+      return false;
+    }
+    return (
+      ['active', 'on_notice'].includes(employee.status as string) ||
+      attended.has(String(employee._id))
+    );
+  });
+
+  const calendar = await loadPayrollCalendar(periodMonth, session);
+  for (const employee of due) {
+    await computePayslipInTransaction(String(employee._id), runId, session, calendar);
+  }
+
+  const payslips = scopedFor<BaseDoc>(collections.payslips, systemScope, session);
+  const dueIds = new Set(due.map((employee) => String(employee._id)));
+  const stale = (await payslips.find({ payroll_run_id: runId }, { projection: { employee_id: 1 } }))
+    .filter((slip) => !dueIds.has(String(slip.employee_id)))
+    .map((slip) => String(slip._id));
+  if (stale.length > 0) {
+    await scopedFor<BaseDoc>(collections.payslipAdjustments, systemScope, session).deleteMany({
+      _id: { $in: stale },
+    });
+    await payslips.deleteMany({ _id: { $in: stale } });
+  }
+}
+
 /** Recompute the complete run atomically so locking cannot freeze a partially updated batch. */
 async function computeRun(runId: string): Promise<void> {
   await withTransaction(
     async (session) => {
       await reserveOpenRun(runId, session);
-      const employees = scopedFor<BaseDoc>(collections.employees, systemScope, session);
-      const active = await employees.find(
-        { status: { $in: ['active', 'on_notice'] } },
-        { projection: { _id: 1 } },
-      );
-      for (const employee of active) {
-        await computePayslipInTransaction(String(employee._id), runId, session);
-      }
+      await recomputeRunInTransaction(runId, session);
       await runs(session).updateOne(
         { _id: runId },
         { $set: { drafts_computed_at: new Date(), status: 'in_review' } },
@@ -285,8 +448,18 @@ async function computeRun(runId: string): Promise<void> {
   );
 }
 
-/** Save adjustments and their calculated amounts under the same run reservation. */
-async function savePayslipAdjustments(payslipId: string, values: Document): Promise<void> {
+/**
+ * Save adjustments and their calculated amounts under the same run reservation.
+ *
+ * `reimbursementSeenPaise` is the reimbursement credit the form was showing. Approving a claim adds
+ * to that credit from another screen, so a form opened earlier would otherwise write the old figure
+ * back and erase the claim.
+ */
+async function savePayslipAdjustments(
+  payslipId: string,
+  values: Document,
+  reimbursementSeenPaise: number | null = null,
+): Promise<void> {
   await withTransaction(
     async (session) => {
       const payslips = scopedFor<BaseDoc>(collections.payslips, systemScope, session);
@@ -297,6 +470,14 @@ async function savePayslipAdjustments(payslipId: string, values: Document): Prom
       const runId = String(slip.payroll_run_id);
       await reserveOpenRun(runId, session);
       const adjustments = scopedFor<BaseDoc>(collections.payslipAdjustments, systemScope, session);
+      if (reimbursementSeenPaise !== null) {
+        const current = await adjustments.findOne({ _id: payslipId });
+        if (toPaise((current?.reimbursement_bonus as never) ?? 0) !== reimbursementSeenPaise) {
+          throw new Error(
+            'The reimbursement on this payslip changed after you opened it, most likely because a claim was approved. Reload the page and enter your adjustments again.',
+          );
+        }
+      }
       const now = new Date();
       const doc = { ...values, updated_at: now };
       await adjustments.upsertOne(
@@ -304,7 +485,13 @@ async function savePayslipAdjustments(payslipId: string, values: Document): Prom
         { $set: doc, $setOnInsert: { created_at: now } },
         { _id: payslipId, created_at: now, ...doc },
       );
-      await computePayslipInTransaction(String(slip.employee_id), runId, session);
+      const result = await computePayslipInTransaction(String(slip.employee_id), runId, session);
+      // Throwing rolls the adjustments back with the payslip.
+      if (result.net_payable < 0) {
+        throw new Error(
+          'These deductions are more than the employee earned this month, which would make the net pay negative. Reduce them and carry the remainder to next month.',
+        );
+      }
     },
     { required: true },
   );
@@ -313,13 +500,15 @@ async function savePayslipAdjustments(payslipId: string, values: Document): Prom
 /**
  * Freezes a payroll run and marks all associated payslips as 'generated'.
  *
- * Executed inside an atomic transaction to ensure payslip states and run lock
- * status transition synchronously.
+ * Payslips are recomputed first, so attendance corrected since the last "Recompute drafts" is in
+ * the figures that get frozen. Executed inside an atomic transaction to ensure payslip states and
+ * run lock status transition synchronously.
  */
 async function lockRun(runId: string): Promise<void> {
   await withTransaction(
     async (session) => {
       await reserveOpenRun(runId, session);
+      await recomputeRunInTransaction(runId, session);
 
       const now = new Date();
       const payslips = scopedFor<BaseDoc>(collections.payslips, systemScope, session);
@@ -354,6 +543,14 @@ async function markRunPaid(runId: string): Promise<void> {
         { $set: { status: 'paid', updated_at: now } },
       );
       await runs(session).updateOne({ _id: runId }, { $set: { status: 'paid', paid_at: now } });
+      // Claims credited to these payslips were paid with them. Closing them here stops the same
+      // claim being marked paid a second time from the Reimbursements screen.
+      await scopedFor<BaseDoc>(collections.reimbursementClaims, systemScope, session).updateMany(
+        { payroll_run_id: runId, status: 'approved' },
+        {
+          $set: { status: 'paid', paid_at: now, payment_ref: 'Paid with payroll', updated_at: now },
+        },
+      );
     },
     { required: true },
   );

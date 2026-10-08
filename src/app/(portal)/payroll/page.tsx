@@ -259,8 +259,8 @@ async function PayrollPage({
 
       <p className="text-muted" style={{ fontSize: 12, marginTop: 10 }}>
         Statutory lines follow the confirmed rules: PF 12% at actual Basic+DA, ESIC 0.75% below the
-        ₹21,000 gross cap, PT by branch state (Gujarat: nil ≤ ₹12,000, ₹200 above). Click a row for
-        the full breakdown and manual adjustments.
+        ₹21,000 gross cap, PT from the slabs on the Professional tax tab for the branch’s state.
+        Click a row for the full breakdown and manual adjustments.
       </p>
     </div>
   );

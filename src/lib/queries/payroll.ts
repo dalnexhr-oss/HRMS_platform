@@ -126,7 +126,10 @@ async function getPayrollRun(periodMonth: string): Promise<PayrollRunView | null
   return row ? mapRun(row) : null;
 }
 
-/** One employee's payslips, newest month first. */
+/**
+ * One employee's final payslips, newest month first. Drafts are left out: their figures still
+ * change until the run is locked, and a downloaded draft looks like a final payslip.
+ */
 async function getMyPayslips(employeeId: string): Promise<PayslipRow[]> {
   const dbc = await createClient();
   const { data, error } = await dbc
@@ -135,7 +138,8 @@ async function getMyPayslips(employeeId: string): Promise<PayslipRow[]> {
       `${payslipFields}, payroll_runs(period_month),
        employees(code, full_name, branches(name, state))`,
     )
-    .eq('employee_id', employeeId);
+    .eq('employee_id', employeeId)
+    .in('status', ['generated', 'paid']);
   if (error) {
     fail('getMyPayslips: could not load payslips', error);
   }

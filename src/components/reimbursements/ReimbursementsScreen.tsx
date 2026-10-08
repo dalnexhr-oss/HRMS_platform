@@ -177,7 +177,7 @@ function ReimbursementsScreen({
           <div className="metric-value" style={{ color: 'var(--attendance-present)' }}>
             {claims.filter((c) => c.status === 'approved').length}
           </div>
-          <div className="metric-note">{inr(approvedTotal)} added to payroll</div>
+          <div className="metric-note">{inr(approvedTotal)} approved, not yet paid</div>
         </div>
         <div className="card summary-card">
           <div className="metric-label">Total claims</div>
@@ -322,7 +322,16 @@ function ReimbursementsScreen({
                               Awaiting Finance
                             </span>
                           ))}
-                        {c.status === 'approved' && (
+                        {c.status === 'approved' && c.inPayroll && (
+                          <span
+                            className="text-muted"
+                            style={{ fontSize: 12 }}
+                            title="Credited to the employee's payslip. It is marked paid when that payroll run is paid."
+                          >
+                            In payroll
+                          </span>
+                        )}
+                        {c.status === 'approved' && !c.inPayroll && (
                           <button
                             className="button quiet"
                             disabled={pending && busy === c.id}

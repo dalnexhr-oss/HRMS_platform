@@ -173,7 +173,7 @@ async function notifyPayslipsReady(runId: string): Promise<void> {
         kind: 'payroll',
         title: `Your ${month} payslip is ready`,
         body: 'Open your dashboard to view or download it.',
-        link: '/employee#payslips',
+        link: '/employee/payslips',
       });
     }
   } catch {
@@ -224,6 +224,11 @@ function money(formData: FormData, key: MoneyField): number | string {
   if (!Number.isFinite(n)) {
     return `${moneyLabel[key]} must be a number (got "${raw}").`;
   }
+  // A negative deduction would raise net pay, and a negative credit would lower it. Only the
+  // carried-over balance can go either way.
+  if (n < 0 && key !== 'last_month_balance') {
+    return `${moneyLabel[key]} cannot be negative.`;
+  }
   // Round to paise (2 decimal places).
   return Math.round(n * 100) / 100;
 }
@@ -257,15 +262,21 @@ async function saveAdjustments(formData: FormData): Promise<{ ok: boolean; error
       values[field] = parsed;
     }
     const remarksRaw = String(formData.get('remarks') ?? '').trim();
+    // The reimbursement credit the form was opened with; see savePayslipAdjustments.
+    const seenRaw = String(formData.get('reimbursement_seen') ?? '').trim();
+    const seen = seenRaw === '' ? null : Number(seenRaw);
 
-    await savePayslipAdjustments(payslipId, {
-      ...(Object.fromEntries(moneyFields.map((field) => [field, toMoney(values[field])])) as Record<
-        MoneyField,
-        Decimal128
-      >),
-      remarks: remarksRaw || null,
-      updated_by: g.profileId,
-    });
+    await savePayslipAdjustments(
+      payslipId,
+      {
+        ...(Object.fromEntries(
+          moneyFields.map((field) => [field, toMoney(values[field])]),
+        ) as Record<MoneyField, Decimal128>),
+        remarks: remarksRaw || null,
+        updated_by: g.profileId,
+      },
+      seen !== null && Number.isFinite(seen) ? Math.round(seen * 100) : null,
+    );
 
     revalidatePath('/payroll');
     return { ok: true };

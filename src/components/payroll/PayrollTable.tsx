@@ -385,7 +385,15 @@ function PayExpand({
           </div>
           <div className="payslip-breakdown-column payroll-adjustments">
             {/* key: re-seed the controlled inputs when a different payslip opens */}
-            <AdjForm key={p.id} p={p} adj={adj} frozen={frozen} runStatus={runStatus} />
+            {/* The reimbursement credit is part of the key so the form re-seeds when a claim
+                approved elsewhere changes it. */}
+            <AdjForm
+              key={`${p.id}:${adj.reimbursementBonus}`}
+              p={p}
+              adj={adj}
+              frozen={frozen}
+              runStatus={runStatus}
+            />
           </div>
         </div>
       </td>
@@ -432,6 +440,7 @@ function AdjForm({
         {frozen ? ` — frozen (run ${runStatus ?? 'unavailable'})` : ''}
       </h4>
       <input type="hidden" name="payslipId" value={p.id} />
+      <input type="hidden" name="reimbursement_seen" value={adj.reimbursementBonus} />
 
       <AdjRow
         label="Advance recovery"

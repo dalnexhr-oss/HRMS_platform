@@ -4,7 +4,7 @@
 // on submission and approval.
 import { useActionState, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { inr, formatDate } from '@/lib/display-formatting';
+import { inr, formatDate, todayIST } from '@/lib/display-formatting';
 import { createReimbursement, updateReimbursement, deleteReimbursement, uploadReimbursementReceipt, getReceiptUrl } from '@/lib/actions/reimbursements';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
@@ -316,7 +316,13 @@ function ClaimForm({
         </div>
         <div className="form-field">
           <label>Date</label>
-          <input name="claim_date" type="date" defaultValue={claim?.claimDate} required />
+          <input
+            name="claim_date"
+            type="date"
+            max={todayIST()}
+            defaultValue={claim?.claimDate}
+            required
+          />
         </div>
       </div>
 

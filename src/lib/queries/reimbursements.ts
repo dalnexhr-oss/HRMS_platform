@@ -25,11 +25,13 @@ interface ReimbursementView {
   paidAt: string | null;
   paymentRef: string | null;
   financeReviewedAt: string | null;
+  /** True when the claim is credited to a payslip and will be paid with that payroll run. */
+  inPayroll: boolean;
 }
 
 const reimbursementFields = `id, employee_id, claim_date, description, purpose, source_medium,
   kms, mode_of_payment, amount, remarks, review_remark, status, created_at,
-  receipt_path, paid_at, payment_ref, finance_reviewed_at,
+  receipt_path, paid_at, payment_ref, finance_reviewed_at, payroll_run_id,
   employees(code, full_name)`;
 
 function mapReimbursement(r: any): ReimbursementView {
@@ -53,6 +55,7 @@ function mapReimbursement(r: any): ReimbursementView {
     paidAt: isoOrNull(r.paid_at),
     paymentRef: r.payment_ref ?? null,
     financeReviewedAt: isoOrNull(r.finance_reviewed_at),
+    inPayroll: !!r.payroll_run_id,
   };
 }
 

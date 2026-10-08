@@ -11,6 +11,8 @@ import { uploadFile, signedUrl, resolveUploadType } from '@/lib/file-storage';
 import { requireDb, requireRoles, requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { toDecimal, toMoney } from '@/lib/db/decimal-conversions';
 import { notifyApprovers, notifyEmployee } from '@/lib/notification-delivery';
+import { isCalendarDate } from '@/lib/calendar-dates';
+import { todayIST } from '@/lib/display-formatting';
 import type { ReimbursementPurpose } from '@/types/database';
 
 interface ActionResult {
@@ -22,7 +24,17 @@ interface ActionResult {
 }
 
 const purposes: readonly ReimbursementPurpose[] = ['travel', 'material_purchase', 'other'];
-const isoDate = /^\d{4}-\d{2}-\d{2}$/;
+
+// A claim is for money already spent, so its date cannot be later than today in IST.
+function claimDateProblem(claimDate: string): string | null {
+  if (!isCalendarDate(claimDate)) {
+    return 'Choose a valid date.';
+  }
+  if (claimDate > todayIST()) {
+    return 'The expense date is in the future — claim it once the money has been spent.';
+  }
+  return null;
+}
 
 // Timeline writes are best-effort after the claim is saved. Log failures without reporting the
 // committed decision as failed.
@@ -94,8 +106,9 @@ async function createReimbursement(formData: FormData): Promise<ActionResult> {
   if (!purposes.includes(purpose)) {
     return { ok: false, error: 'Choose a purpose.' };
   }
-  if (!isoDate.test(claimDate)) {
-    return { ok: false, error: 'Choose a valid date.' };
+  const dateProblem = claimDateProblem(claimDate);
+  if (dateProblem) {
+    return { ok: false, error: dateProblem };
   }
 
   const kmsRaw = money(formData.get('kms'));
@@ -176,7 +189,8 @@ async function createReimbursement(formData: FormData): Promise<ActionResult> {
     profile?.id,
   );
 
-  revalidatePath('/employee');
+  // 'layout' is the refresh scope, not a path: /employee and every tab under it.
+  revalidatePath('/employee', 'layout');
   revalidatePath('/reimbursements');
   return { ok: true };
 }
@@ -188,6 +202,7 @@ async function createReimbursement(formData: FormData): Promise<ActionResult> {
  */
 async function addToPayroll(
   dbc: Awaited<ReturnType<typeof createClient>>,
+  claimId: string,
   employeeId: string,
   claimDate: string,
   amount: number,
@@ -268,6 +283,10 @@ async function addToPayroll(
   if (!applied) {
     return 'Approved, but the payslip adjustment was contended and could not be applied. Add it manually from the payroll page.';
   }
+
+  // Record which run carries the claim. Paying that run closes the claim, and it cannot be marked
+  // paid separately in the meantime.
+  await dbc.from('reimbursement_claims').update({ payroll_run_id: run.id }).eq('id', claimId);
 
   const { error: recomputeErr } = await dbc.rpc('fn_compute_payslip', {
     p_employee_id: employeeId,
@@ -367,7 +386,7 @@ async function reviewReimbursement(
   });
 
   revalidatePath('/reimbursements');
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
 
   await notifyEmployee(row.employee_id, {
     kind: 'reimbursement',
@@ -383,7 +402,7 @@ async function reviewReimbursement(
           ? `₹${finalAmount.toFixed(2)} — approved by HR, awaiting the Finance check.`
           : `₹${finalAmount.toFixed(2)} — it will be paid with your salary.`
         : `₹${finalAmount.toFixed(2)} — ${cleanRemark}`,
-    link: '/employee#reimbursements',
+    link: '/employee/reimbursements',
   });
 
   // Payroll is credited only on FINAL approval. With the Finance stage on, that
@@ -392,6 +411,7 @@ async function reviewReimbursement(
   if (decision === 'approved' && !twoStage) {
     const warning = await addToPayroll(
       dbc,
+      id,
       row.employee_id,
       String(row.claim_date).slice(0, 10),
       finalAmount,
@@ -476,7 +496,7 @@ async function financeReviewReimbursement(
   });
 
   revalidatePath('/reimbursements');
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
 
   await notifyEmployee(row.employee_id, {
     kind: 'reimbursement',
@@ -485,12 +505,13 @@ async function financeReviewReimbursement(
       decision === 'approved'
         ? `₹${amount.toFixed(2)} — it will be paid with your salary.`
         : `₹${amount.toFixed(2)} — ${cleanRemark}`,
-    link: '/employee#reimbursements',
+    link: '/employee/reimbursements',
   });
 
   if (decision === 'approved') {
     const warning = await addToPayroll(
       dbc,
+      id,
       row.employee_id,
       String(row.claim_date).slice(0, 10),
       amount,
@@ -522,8 +543,9 @@ async function updateReimbursement(id: string, formData: FormData): Promise<Acti
   if (!purposes.includes(purpose)) {
     return { ok: false, error: 'Choose a purpose.' };
   }
-  if (!isoDate.test(claimDate)) {
-    return { ok: false, error: 'Choose a valid date.' };
+  const dateProblem = claimDateProblem(claimDate);
+  if (dateProblem) {
+    return { ok: false, error: dateProblem };
   }
 
   const kmsRaw = money(formData.get('kms'));
@@ -617,7 +639,7 @@ async function updateReimbursement(id: string, formData: FormData): Promise<Acti
     );
   }
 
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   revalidatePath('/reimbursements');
   return { ok: true };
 }
@@ -647,7 +669,7 @@ async function deleteReimbursement(id: string): Promise<ActionResult> {
     };
   }
 
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   revalidatePath('/reimbursements');
   return { ok: true };
 }
@@ -664,6 +686,18 @@ async function markReimbursementPaid(id: string, paymentRef?: string): Promise<A
   }
 
   const dbc = await createClient();
+  const { data: claim } = await dbc
+    .from('reimbursement_claims')
+    .select('payroll_run_id')
+    .eq('id', id)
+    .maybeSingle<{ payroll_run_id: string | null }>();
+  if (claim?.payroll_run_id) {
+    return {
+      ok: false,
+      error:
+        'This claim is already included in a payslip, so it will be paid with that payroll run and marked paid automatically. Marking it paid here would pay it twice.',
+    };
+  }
   const ref = (paymentRef ?? '').trim() || null;
   const patch: Record<string, unknown> = {
     status: 'paid',
@@ -702,11 +736,11 @@ async function markReimbursementPaid(id: string, paymentRef?: string): Promise<A
     kind: 'reimbursement',
     title: 'Your reimbursement was paid',
     body: `₹${Number(row.amount).toFixed(2)}${ref ? ` · ref ${ref}` : ''}`,
-    link: '/employee#reimbursements',
+    link: '/employee/reimbursements',
   });
 
   revalidatePath('/reimbursements');
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   return { ok: true };
 }
 
@@ -792,7 +826,7 @@ async function uploadReimbursementReceipt(id: string, formData: FormData): Promi
     metadata: { filename: file.name },
   });
 
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   revalidatePath('/reimbursements');
   return { ok: true };
 }
