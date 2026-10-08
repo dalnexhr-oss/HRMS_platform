@@ -1,4 +1,5 @@
-import { requiredDocumentCategories } from '@/lib/document-categories';
+import { requiredDocumentKeys } from '@/lib/document-categories';
+import type { DocumentType } from '@/lib/document-categories';
 
 // documents
 
@@ -10,10 +11,16 @@ import { requiredDocumentCategories } from '@/lib/document-categories';
 type DocumentSource = 'uploaded' | 'issued';
 
 /**
- * Document status: awaiting review, returned with an HR remark, verified, or superseded by a newer
- * version.
+ * Document status: waiting for the employee to sign and return it, awaiting review, returned with
+ * an HR remark, verified, or superseded by a newer version.
  */
-type DocumentStatus = 'awaiting' | 'returned' | 'verified' | 'superseded';
+type DocumentStatus = 'to_sign' | 'awaiting' | 'returned' | 'verified' | 'superseded';
+
+/**
+ * Where a letter HR issued for signing stands. 'requested' is HR's unsigned letter, waiting for the
+ * employee; 'signed' is the copy the employee sent back. Null for ordinary documents.
+ */
+type DocumentSignature = 'requested' | 'signed' | null;
 
 interface EmployeeDocumentRow {
   id: string;
@@ -27,6 +34,7 @@ interface EmployeeDocumentRow {
   verifyRemark: string | null;
   source: DocumentSource;
   status: DocumentStatus;
+  signature: DocumentSignature;
   version: number;
   /** The first version's id — every version of one document shares it. */
   docGroup: string;
@@ -40,8 +48,8 @@ interface DocumentStats {
   total: number;
   awaiting: number;
   returned: number;
-  /** HR-generated letters (relieving / experience / F&F). */
-  issued: number;
+  /** Letters sent to employees that have not come back signed yet. */
+  toSign: number;
   /**
    * Required categories not on file, summed over ACTIVE employees.
    *
@@ -55,16 +63,18 @@ interface DocumentStats {
 /** Derive document KPIs from the same register data used by the table. */
 function documentStats(
   register: EmployeeDocumentRow[],
-  activeEmployeeIds: string[],
+  // People on the roll; exit documents are required only from those who are leaving.
+  employees: Array<{ id: string; leaving: boolean }>,
+  types: readonly DocumentType[],
 ): DocumentStats {
   let awaiting = 0;
   let returned = 0;
-  let issued = 0;
+  let toSign = 0;
   const heldByEmployee = new Map<string, Set<string>>();
 
   for (const d of register) {
-    if (d.source === 'issued') {
-      issued++;
+    if (d.status === 'to_sign') {
+      toSign++;
     }
     if (d.status === 'awaiting') {
       awaiting++;
@@ -85,18 +95,24 @@ function documentStats(
 
   let missing = 0;
   let employeesMissing = 0;
-  for (const id of activeEmployeeIds) {
-    const held = heldByEmployee.get(id);
-    const gaps = requiredDocumentCategories.filter((c) => !held?.has(c)).length;
+  for (const employee of employees) {
+    const held = heldByEmployee.get(employee.id);
+    const gaps = requiredDocumentKeys(types, employee.leaving).filter((c) => !held?.has(c)).length;
     if (gaps > 0) {
       employeesMissing++;
     }
     missing += gaps;
   }
 
-  return { total: register.length, awaiting, returned, issued, missing, employeesMissing };
+  return { total: register.length, awaiting, returned, toSign, missing, employeesMissing };
 }
 
 export { documentStats };
 
-export type { DocumentSource, DocumentStatus, EmployeeDocumentRow, DocumentStats };
+export type {
+  DocumentSource,
+  DocumentStatus,
+  DocumentSignature,
+  EmployeeDocumentRow,
+  DocumentStats,
+};

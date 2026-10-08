@@ -37,11 +37,16 @@ async function getMyAcknowledgements(employeeId: string): Promise<Acknowledgemen
 
 const documentFields =
   'id, employee_id, category, title, uploaded_at, verified_at, verify_remark, bucket, ' +
-  'doc_group, version, replaces_id, replaced_by_id, superseded_at, employees(code, full_name)';
+  'doc_group, version, replaces_id, replaced_by_id, superseded_at, signature, ' +
+  'employees(code, full_name)';
 
 function documentStatus(r: any): DocumentStatus {
   if (r.superseded_at) {
     return 'superseded';
+  }
+  // A letter HR issued for signing has nothing to verify until the signed copy comes back.
+  if (r.signature === 'requested') {
+    return 'to_sign';
   }
   if (r.verified_at) {
     return 'verified';
@@ -62,6 +67,7 @@ function mapDocument(r: any): EmployeeDocumentRow {
     verifyRemark: r.verify_remark,
     source: r.bucket === 'generated-documents' ? 'issued' : 'uploaded',
     status: documentStatus(r),
+    signature: r.signature === 'requested' || r.signature === 'signed' ? r.signature : null,
     // Unversioned legacy records default to version 1 and active (non-superseded) state.
     version: Number(r.version ?? 1),
     docGroup: r.doc_group ?? r.id,

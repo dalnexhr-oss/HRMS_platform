@@ -5,9 +5,10 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/display-formatting';
-import { getDocumentUrl } from '@/lib/actions/documents';
-import { documentCategories } from '@/lib/document-categories';
+import { getDocumentUrl, uploadSignedDocument } from '@/lib/actions/documents';
+import { documentCategoryLabel, requiredDocumentKeys } from '@/lib/document-categories';
 import { useNotifications } from '@/components/ui/Notifications';
+import type { DocumentType } from '@/lib/document-categories';
 import type { EmployeeDocumentRow } from '@/lib/documents/document-summary';
 
 // Match the server upload limit and reject oversized files before sending them.
@@ -52,23 +53,27 @@ function uploadWithProgress(
   });
 }
 
-const categoryLabel: Record<string, string> = {
-  offer_letter: 'Offer letter',
-  id_proof: 'ID proof (Aadhaar / PAN)',
-  education: 'Education certificate',
-  experience: 'Experience letter',
-  bank: 'Bank details',
-  other: 'Other',
-  // Issued BY HR (generateExitDocument) — display only. These are deliberately
-  // absent from documentCategories so they never appear in the upload dropdown:
-  // an employee must not be able to file their own relieving letter.
-  relieving: 'Relieving letter',
-  settlement: 'Full & final statement',
-};
-
-function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?: string }) {
+function MyDocuments({
+  documents,
+  documentTypes,
+  leaving = false,
+  id,
+}: {
+  documents: EmployeeDocumentRow[];
+  // The document types HR has set up.
+  documentTypes: DocumentType[];
+  // True when the employee is serving notice, so required exit documents apply to them.
+  leaving?: boolean;
+  id?: string;
+}) {
   const router = useRouter();
-  const [category, setCategory] = useState<string>('id_proof');
+  const activeTypes = documentTypes.filter((type) => type.active);
+  // Required documents the employee has not filed yet, whatever their verification status.
+  const filed = new Set(documents.map((d) => d.category));
+  const stillNeeded = requiredDocumentKeys(documentTypes, leaving).filter((key) => !filed.has(key));
+  const [category, setCategory] = useState<string>(
+    stillNeeded[0] ?? activeTypes[0]?.key ?? 'other',
+  );
   const [busy, setBusy] = useState(false);
   // null when idle; 0-100 while a file is in flight.
   const [progress, setProgress] = useState<number | null>(null);
@@ -97,6 +102,31 @@ function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?:
   }
 
   const verified = documents.filter((d) => d.verifiedAt).length;
+  // Letters HR has sent for signing and that have not been returned yet.
+  const toSign = documents.filter((d) => d.status === 'to_sign');
+  const [signingId, setSigningId] = useState<string | null>(null);
+
+  async function returnSigned(letter: EmployeeDocumentRow, file: File) {
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      showNotification('The signed letter must be a PDF file.', 'error');
+      return;
+    }
+    if (file.size > maxBytes) {
+      showNotification('Documents must be 10 MB or smaller.', 'error');
+      return;
+    }
+    setSigningId(letter.id);
+    const formData = new FormData();
+    formData.set('file', file);
+    const res = await uploadSignedDocument(letter.id, formData);
+    setSigningId(null);
+    if (!res.ok) {
+      showNotification(res.error ?? 'The signed letter could not be uploaded.', 'error');
+      return;
+    }
+    showNotification('Signed letter sent to HR.', 'success');
+    startTransition(() => router.refresh());
+  }
 
   return (
     <div className="card" id={id}>
@@ -108,6 +138,60 @@ function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?:
         </span>
       </div>
       <div className="card-body">
+        {toSign.length > 0 && (
+          <div className="letters-to-sign">
+            <b>
+              {toSign.length === 1
+                ? 'HR has sent you a letter to sign'
+                : `HR has sent you ${toSign.length} letters to sign`}
+            </b>
+            <p className="text-muted">
+              Download the letter, sign it, scan or save it as a PDF, and upload the signed copy
+              here.
+            </p>
+            {toSign.map((letter) => (
+              <div key={letter.id} className="letter-to-sign">
+                <div className="letter-to-sign-name">
+                  <b>
+                    {letter.title ?? documentCategoryLabel(letter.category, false, documentTypes)}
+                  </b>
+                  <span className="text-muted">
+                    {documentCategoryLabel(letter.category, false, documentTypes)} · sent{' '}
+                    {formatDate(letter.uploadedAt.slice(0, 10))}
+                  </span>
+                </div>
+                <button type="button" className="button" onClick={() => open(letter.id)}>
+                  ⬇ Download
+                </button>
+                <label className={`button primary${signingId === letter.id ? ' is-busy' : ''}`}>
+                  {signingId === letter.id ? 'Uploading…' : 'Upload signed copy'}
+                  <input
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    hidden
+                    disabled={signingId !== null}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (file) {
+                        void returnSigned(letter, file);
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+            ))}
+          </div>
+        )}
+        {stillNeeded.length > 0 && (
+          <div className="hint" style={{ marginBottom: 12 }}>
+            <b>
+              {stillNeeded.length} required document{stillNeeded.length === 1 ? '' : 's'} still to
+              upload:
+            </b>{' '}
+            {stillNeeded.map((key) => documentCategoryLabel(key, false, documentTypes)).join(' · ')}
+          </div>
+        )}
         <div
           style={{
             display: 'flex',
@@ -120,9 +204,10 @@ function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?:
           <div className="form-field" style={{ marginBottom: 0 }}>
             <label>Type</label>
             <select value={category} onChange={(e) => setCategory(e.target.value)}>
-              {documentCategories.map((c) => (
-                <option key={c} value={c}>
-                  {categoryLabel[c] ?? c}
+              {activeTypes.map((type) => (
+                <option key={type.key} value={type.key}>
+                  {type.label}
+                  {type.required ? ' (required)' : ''}
                 </option>
               ))}
             </select>
@@ -217,10 +302,22 @@ function MyDocuments({ documents, id }: { documents: EmployeeDocumentRow[]; id?:
                 {documents.map((d) => (
                   <tr key={d.id}>
                     <td>{d.title ?? '—'}</td>
-                    <td>{d.category ? (categoryLabel[d.category] ?? d.category) : '—'}</td>
+                    <td>
+                      {documentCategoryLabel(d.category, d.source === 'issued', documentTypes)}
+                    </td>
                     <td className="text-monospace">{formatDate(d.uploadedAt.slice(0, 10))}</td>
                     <td>
-                      {d.verifiedAt ? (
+                      {d.status === 'to_sign' ? (
+                        <span
+                          className="status-badge"
+                          style={{
+                            borderColor: 'var(--border-strong)',
+                            color: 'var(--attendance-half-day)',
+                          }}
+                        >
+                          Sign and return
+                        </span>
+                      ) : d.verifiedAt ? (
                         <span
                           className="status-badge"
                           style={{

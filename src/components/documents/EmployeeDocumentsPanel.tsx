@@ -6,7 +6,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/display-formatting';
 import { fetchEmployeeDocumentHistory, verifyEmployeeDocument, deleteEmployeeDocument } from '@/lib/actions/documents';
-import { documentCategoryLabel, requiredDocumentCategories } from '@/lib/document-categories';
+import { useDocumentTypes } from './DocumentTypesContext';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { usePrompt } from '@/components/ui/PromptDialog';
 import { useNotifications } from '@/components/ui/Notifications';
@@ -43,16 +43,20 @@ function toChains(rows: EmployeeDocumentRow[]): DocumentChain[] {
 
 function EmployeeDocumentsPanel({
   employee,
+  leaving = false,
   onClose,
   onReplace,
   onUpload,
 }: {
   employee: { id: string; code: string; name: string } | null;
+  // True when the employee is serving notice, so required exit documents apply to them.
+  leaving?: boolean;
   onClose: () => void;
   onReplace: (document: EmployeeDocumentRow) => void;
   onUpload: (employeeId: string) => void;
 }) {
   const router = useRouter();
+  const { label: documentCategoryLabel, requiredFor } = useDocumentTypes();
   const [rows, setRows] = useState<EmployeeDocumentRow[] | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -84,7 +88,7 @@ function EmployeeDocumentsPanel({
       .filter((c) => c.current.status === 'verified' && c.current.category)
       .map((c) => c.current.category!),
   );
-  const missing = requiredDocumentCategories.filter((c) => !heldVerified.has(c));
+  const missing = requiredFor(leaving).filter((c) => !heldVerified.has(c));
 
   function reload() {
     if (!employee) {
@@ -110,10 +114,10 @@ function EmployeeDocumentsPanel({
 
   async function onReturn(d: EmployeeDocumentRow) {
     const reason = await prompt({
-      title: 'Return document',
-      message: 'What is wrong with it? (shown to the employee)',
+      title: 'Send back to the employee',
+      message: 'What needs fixing? The employee will see this note.',
       placeholder: 'e.g. The PAN scan is cut off at the edge',
-      confirmLabel: 'Return',
+      confirmLabel: 'Send back',
       danger: true,
       validate: (v) => (v.trim() ? null : 'Enter what needs fixing.'),
     });
@@ -123,7 +127,7 @@ function EmployeeDocumentsPanel({
     run(
       d.id,
       () => verifyEmployeeDocument(d.id, false, reason.trim()),
-      'Returned to the employee.',
+      'Sent back to the employee.',
     );
   }
 
@@ -250,7 +254,7 @@ function EmployeeDocumentsPanel({
                       >
                         📎 Open
                       </button>
-                      {current.status !== 'verified' && (
+                      {current.status !== 'verified' && current.status !== 'to_sign' && (
                         <button
                           className="button primary"
                           disabled={pending && busy === current.id}
@@ -275,7 +279,7 @@ function EmployeeDocumentsPanel({
                             disabled={pending && busy === current.id}
                             onClick={() => onReturn(current)}
                           >
-                            Return
+                            Send back
                           </button>
                         </>
                       )}

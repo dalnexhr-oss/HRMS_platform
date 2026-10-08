@@ -3,66 +3,87 @@
 // Current employee documents and their verification queue. Header menus share the table filtering
 // and sorting pattern.
 import { useMemo, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { formatDate } from '@/lib/display-formatting';
-import { TableColumnMenu, getDistinctColumnValues, sortTableRows, isWithinDateRange, isDateRangeActive } from '@/components/ui/TableColumnMenu';
-import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { usePrompt } from '@/components/ui/PromptDialog';
+import { useRouter } from 'next/navigation';
+import { StatusPill } from './StatusPill';
+import { formatDate } from '@/lib/display-formatting';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { openDocument } from './open-document';
+import { DocumentActions } from './DocumentActions';
 import { useNotifications } from '@/components/ui/Notifications';
-import { verifyEmployeeDocument, deleteEmployeeDocument } from '@/lib/actions/documents';
-import { documentCategoryLabel } from '@/lib/document-categories';
+import { DocumentTypesDrawer } from './DocumentTypesDrawer';
 import { UploadDocumentDrawer } from './UploadDocumentDrawer';
 import { EmployeeDocumentsPanel } from './EmployeeDocumentsPanel';
-import { openDocument } from './open-document';
-import { StatusPill } from './StatusPill';
-import { DocumentActions } from './DocumentActions';
+import { DocumentTypesProvider, useDocumentTypes } from './DocumentTypesContext';
+import { verifyEmployeeDocument, deleteEmployeeDocument } from '@/lib/actions/documents';
+import { TableColumnMenu, getDistinctColumnValues, sortTableRows, isWithinDateRange, isDateRangeActive } from '@/components/ui/TableColumnMenu';
 import type { DrawerTarget } from './UploadDocumentDrawer';
-import type { SortDirection, ColumnDataType, DateRange } from '@/components/ui/TableColumnMenu';
-import type { DocumentStats, EmployeeDocumentRow } from '@/lib/documents/document-summary';
+import type { DocumentType } from '@/lib/document-categories';
 import type { EmployeeOption } from '@/lib/queries/employees';
+import type { DocumentStats, EmployeeDocumentRow } from '@/lib/documents/document-summary';
+import type { SortDirection, ColumnDataType, DateRange } from '@/components/ui/TableColumnMenu';
 
 type ColumnKey = 'employee' | 'category' | 'title' | 'source' | 'status' | 'filed';
 
 const statusText: Record<string, string> = {
+  to_sign: 'Waiting for signature',
   verified: 'Verified',
-  awaiting: 'Awaiting verification',
-  returned: 'Returned',
-  superseded: 'Superseded',
+  awaiting: 'Waiting to be checked',
+  returned: 'Sent back to fix',
+  superseded: 'Older version',
 };
 
-/** Combine column filters with AND; selected values within a column use OR. */
-const columns: Array<{
+/**
+ * Combine column filters with AND; selected values within a column use OR. The category column is
+ * labelled from HR's list of document types, so the columns are built once that list is known.
+ */
+function buildColumns(categoryLabel: (category: string | null, issued?: boolean) => string): Array<{
   key: ColumnKey;
   label: string;
   kind?: ColumnDataType;
   get: (d: EmployeeDocumentRow) => string;
-}> = [
-  { key: 'employee', label: 'Employee', get: (d) => d.name || '—' },
-  {
-    key: 'category',
-    label: 'Category',
-    get: (d) => documentCategoryLabel(d.category, d.source === 'issued'),
-  },
-  { key: 'title', label: 'Document', get: (d) => d.title ?? '—' },
-  {
-    key: 'source',
-    label: 'Source',
-    get: (d) => (d.source === 'issued' ? 'HR issued' : 'Uploaded'),
-  },
-  { key: 'status', label: 'Status', get: (d) => statusText[d.status] ?? d.status },
-  { key: 'filed', label: 'Filed', kind: 'date', get: (d) => d.uploadedAt.slice(0, 10) },
-];
+}> {
+  return [
+    { key: 'employee', label: 'Employee', get: (d) => d.name || '—' },
+    {
+      key: 'category',
+      label: 'Type',
+      get: (d) => categoryLabel(d.category, d.source === 'issued'),
+    },
+    { key: 'title', label: 'Document', get: (d) => d.title ?? '—' },
+    {
+      key: 'source',
+      label: 'Source',
+      get: (d) => (d.source === 'issued' ? 'System letter' : 'Uploaded'),
+    },
+    { key: 'status', label: 'Status', get: (d) => statusText[d.status] ?? d.status },
+    { key: 'filed', label: 'Uploaded on', kind: 'date', get: (d) => d.uploadedAt.slice(0, 10) },
+  ];
+}
 
-function DocumentsScreen({
-  register,
-  stats,
-  employees,
-}: {
+interface DocumentsScreenProps {
   register: EmployeeDocumentRow[];
   stats: DocumentStats;
   employees: EmployeeOption[];
-}) {
+}
+
+// The register, wrapped so every documents component reads HR's list of document types.
+function DocumentsScreen({
+  documentTypes,
+  ...props
+}: DocumentsScreenProps & { documentTypes: DocumentType[] }) {
+  return (
+    <DocumentTypesProvider types={documentTypes}>
+      <DocumentsRegister {...props} />
+    </DocumentTypesProvider>
+  );
+}
+
+function DocumentsRegister({ register, stats, employees }: DocumentsScreenProps) {
   const router = useRouter();
+  const { label: documentCategoryLabel } = useDocumentTypes();
+  const columns = useMemo(() => buildColumns(documentCategoryLabel), [documentCategoryLabel]);
+  const [typesOpen, setTypesOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [drawer, setDrawer] = useState<DrawerTarget | null>(null);
   const [panelFor, setPanelFor] = useState<{ id: string; code: string; name: string } | null>(null);
@@ -84,7 +105,7 @@ function DocumentsScreen({
       out[c.key] = getDistinctColumnValues(register.map(c.get), c.kind);
     }
     return out;
-  }, [register]);
+  }, [register, columns]);
 
   const rows = useMemo(() => {
     const term = searchQuery.trim().toLowerCase();
@@ -114,7 +135,7 @@ function DocumentsScreen({
       }
     }
     return out;
-  }, [searchQuery, register, filters, ranges, sort]);
+  }, [searchQuery, register, filters, ranges, sort, columns]);
 
   const queue = useMemo(
     () => register.filter((d) => d.status === 'awaiting' || d.status === 'returned'),
@@ -147,10 +168,10 @@ function DocumentsScreen({
 
   async function onReturn(d: EmployeeDocumentRow) {
     const reason = await prompt({
-      title: 'Return document',
-      message: 'What is wrong with it? (shown to the employee)',
+      title: 'Send back to the employee',
+      message: 'What needs fixing? The employee will see this note.',
       placeholder: 'e.g. The PAN scan is cut off at the edge',
-      confirmLabel: 'Return',
+      confirmLabel: 'Send back',
       danger: true,
       validate: (v) => (v.trim() ? null : 'Enter what needs fixing.'),
     });
@@ -160,7 +181,7 @@ function DocumentsScreen({
     run(
       d.id,
       () => verifyEmployeeDocument(d.id, false, reason.trim()),
-      'Returned to the employee.',
+      'Sent back to the employee.',
     );
   }
 
@@ -199,52 +220,60 @@ function DocumentsScreen({
           <input
             type="search"
             aria-label="Search employee documents"
-            placeholder="Search employee, code, document…"
+            placeholder="Search by employee, code or document…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <span
-          className="status-badge"
-          style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}
-        >
-          {rows.length} of {register.length}
-        </span>
-        <button className="button primary" onClick={() => setDrawer({ mode: 'upload' })}>
-          + Upload document
-        </button>
+        <div className="documents-toolbar-actions">
+          <button
+            className="button"
+            onClick={() => setTypesOpen(true)}
+            title="Add or change the documents employees can be asked for"
+          >
+            Document list
+          </button>
+          <button className="button primary" onClick={() => setDrawer({ mode: 'upload' })}>
+            + Upload document
+          </button>
+        </div>
       </div>
 
       <div className="summary-cards has-five-columns documents-summary-cards">
         <div className="card summary-card">
           <div className="metric-label">On file</div>
           <div className="metric-value">{stats.total}</div>
-          <div className="metric-note">current versions, all employees</div>
+          <div className="metric-note">documents held for all employees</div>
         </div>
         <div className="card summary-card">
-          <div className="metric-label">Awaiting verification</div>
+          <div className="metric-label">To check</div>
           <div
             className="metric-value"
             style={{ color: stats.awaiting ? 'var(--attendance-late)' : undefined }}
           >
             {stats.awaiting}
           </div>
-          <div className="metric-note">filed, not yet checked</div>
+          <div className="metric-note">uploaded, waiting for HR to verify</div>
         </div>
         <div className="card summary-card">
-          <div className="metric-label">Returned</div>
+          <div className="metric-label">Sent back</div>
           <div
             className="metric-value"
             style={{ color: stats.returned ? 'var(--attendance-half-day)' : undefined }}
           >
             {stats.returned}
           </div>
-          <div className="metric-note">sent back, awaiting a replacement</div>
+          <div className="metric-note">sent back to the employee to fix</div>
         </div>
         <div className="card summary-card">
-          <div className="metric-label">HR issued</div>
-          <div className="metric-value">{stats.issued}</div>
-          <div className="metric-note">relieving · experience · F&amp;F</div>
+          <div className="metric-label">To sign</div>
+          <div
+            className="metric-value"
+            style={{ color: stats.toSign ? 'var(--attendance-half-day)' : undefined }}
+          >
+            {stats.toSign}
+          </div>
+          <div className="metric-note">letters waiting for the employee’s signature</div>
         </div>
         <div className="card summary-card">
           <div className="metric-label">Missing</div>
@@ -255,7 +284,7 @@ function DocumentsScreen({
             {stats.missing}
           </div>
           <div className="metric-note">
-            required docs across {stats.employeesMissing} employee
+            compulsory documents, across {stats.employeesMissing} employee
             {stats.employeesMissing === 1 ? '' : 's'}
           </div>
         </div>
@@ -285,7 +314,7 @@ function DocumentsScreen({
                   <th>Employee</th>
                   <th>Document</th>
                   <th>Status</th>
-                  <th>Filed</th>
+                  <th>Uploaded on</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -336,11 +365,11 @@ function DocumentsScreen({
       <div className="card documents-card">
         <div className="card-header">
           <h3>
-            Document register (<span style={{ color: 'var(--brand)' }}>{rows.length}</span>)
+            All documents (<span style={{ color: 'var(--brand)' }}>{rows.length}</span>)
           </h3>
         </div>
         <div className="documents-table-wrap">
-          <table className="documents-table" aria-label="Document register">
+          <table className="documents-table" aria-label="All documents">
             <colgroup>
               <col className="documents-column-employee" />
               <col className="documents-column-category" />
@@ -376,8 +405,8 @@ function DocumentsScreen({
                 <tr>
                   <td colSpan={columns.length + 1} className="text-muted documents-empty">
                     {register.length === 0
-                      ? 'No documents on file yet. Upload one to start the register.'
-                      : 'No documents match the current search or filters.'}
+                      ? 'No documents yet. Use “Upload document” to add the first one.'
+                      : 'No documents match your search or filters.'}
                   </td>
                 </tr>
               ) : (
@@ -396,7 +425,9 @@ function DocumentsScreen({
                       {d.title ?? '—'}
                       {d.version > 1 && <span className="text-muted"> · v{d.version}</span>}
                     </td>
-                    <td data-label="Source">{d.source === 'issued' ? 'HR issued' : 'Uploaded'}</td>
+                    <td data-label="Source">
+                      {d.source === 'issued' ? 'System letter' : 'Uploaded'}
+                    </td>
                     <td data-label="Status">
                       <StatusPill row={d} />
                     </td>
@@ -409,7 +440,8 @@ function DocumentsScreen({
                         busy={pending && busy === d.id}
                         onOpen={() => openDocument(d.id, (m) => showNotification(m, 'error'))}
                         onVerify={
-                          d.status !== 'verified'
+                          // Nothing to verify while a letter is still out for signature.
+                          d.status !== 'verified' && d.status !== 'to_sign'
                             ? () =>
                                 run(
                                   d.id,
@@ -418,7 +450,7 @@ function DocumentsScreen({
                                 )
                             : undefined
                         }
-                        // HR-issued letters are regenerated from the exit case, never replaced by upload.
+                        // Letters the system generated in the past are kept as they were issued.
                         onReplace={
                           d.source === 'uploaded'
                             ? () => setDrawer({ mode: 'replace', document: d })
@@ -437,8 +469,16 @@ function DocumentsScreen({
 
       <UploadDocumentDrawer target={drawer} employees={employees} onClose={() => setDrawer(null)} />
 
+      <DocumentTypesDrawer
+        open={typesOpen}
+        onClose={() => setTypesOpen(false)}
+        onSaved={(message) => showNotification(message, 'success')}
+      />
+
       <EmployeeDocumentsPanel
         employee={panelFor}
+        // Exit documents are required only from someone serving notice.
+        leaving={employees.find((e) => e.id === panelFor?.id)?.status === 'on_notice'}
         onClose={() => setPanelFor(null)}
         onReplace={(doc) => setDrawer({ mode: 'replace', document: doc })}
         onUpload={(employeeId) => setDrawer({ mode: 'upload', employeeId })}

@@ -7,11 +7,11 @@
 
 import { revalidatePath } from 'next/cache';
 import { randomUUID } from 'node:crypto';
-import { createClient } from '@/lib/db/server-client';
+import { createClient, createServiceClient } from '@/lib/db/server-client';
 import { getSession } from '@/lib/server-auth';
 import { requireDb, requireRoles, wroteNothing } from '@/lib/actions/guards';
 import { uploadFile, signedUrl, resolveUploadType } from '@/lib/file-storage';
-import { notifyEmployee } from '@/lib/notification-delivery';
+import { notifyApprovers, notifyEmployee } from '@/lib/notification-delivery';
 import { maxBytes, recordUploadedDocument, resolveTargetEmployee, uploadBucket, verifyRoles } from '@/lib/documents/upload';
 import { getEmployeeDocuments as readEmployeeDocuments, getEmployeeDocumentHistory as readEmployeeDocumentHistory } from '@/lib/queries/documents';
 import type { StorageBucket } from '@/lib/file-storage';
@@ -45,6 +45,11 @@ async function uploadEmployeeDocument(formData: FormData): Promise<ActionResult>
 
   const category = String(formData.get('category') ?? '').trim() || 'other';
   const title = String(formData.get('title') ?? '').trim() || file.name;
+  // A letter sent for signing has to be a PDF, so the employee signs the same pages HR wrote.
+  const needsSignature = formData.get('needs_signature') === 'on';
+  if (needsSignature && !isPdf(file)) {
+    return { ok: false, error: 'A letter sent for signing must be a PDF file.' };
+  }
 
   const { profile } = await getSession();
   if (!profile) {
@@ -57,33 +62,192 @@ async function uploadEmployeeDocument(formData: FormData): Promise<ActionResult>
     fullName: profile.full_name ?? null,
     employeeId: profile.employee_id ?? null,
   };
-  const target = resolveTargetEmployee(filer, String(formData.get('employee_id') ?? '').trim());
-  if (!target.ok) {
-    return target;
+  // Staff can send the same document to several employees, or to everyone. Each employee gets
+  // their own copy on their own record, so signing and verifying stay per person.
+  const audience = String(formData.get('audience') ?? 'one');
+  const isStaff = verifyRoles.includes(profile.role);
+  let employeeIds: string[];
+  if (isStaff && audience === 'all') {
+    // The list is read here rather than taken from the form.
+    const { data: everyone, error: rosterError } = await (
+      await createClient()
+    )
+      .from('employees')
+      .select('id')
+      .in('status', ['active', 'on_notice'])
+      .is('deleted_at', null);
+    if (rosterError) {
+      return { ok: false, error: rosterError.message };
+    }
+    employeeIds = (everyone ?? []).map((row: any) => String(row.id));
+  } else if (isStaff && audience === 'some') {
+    employeeIds = [
+      ...new Set(formData.getAll('employee_ids').map((id) => String(id).trim())),
+    ].filter(Boolean);
+  } else {
+    const target = resolveTargetEmployee(filer, String(formData.get('employee_id') ?? '').trim());
+    if (!target.ok) {
+      return target;
+    }
+    employeeIds = [target.employeeId];
+  }
+  if (employeeIds.length === 0) {
+    return { ok: false, error: 'Choose at least one employee.' };
   }
 
-  // The File is handed over whole rather than buffered here: putObject pipes a
-  // Blob, so the bytes go to mongod a chunk at a time instead of being copied
-  // twice on the way.
-  const up = await uploadFile(
-    uploadBucket,
-    target.employeeId,
-    file.name,
-    file,
-    fileType.contentType,
-  );
+  let filed = 0;
+  const failures: string[] = [];
+  for (const employeeId of employeeIds) {
+    // The File is handed over whole rather than buffered here: putObject pipes a
+    // Blob, so the bytes go to mongod a chunk at a time instead of being copied
+    // twice on the way. Each employee's copy is stored in their own folder.
+    const up = await uploadFile(uploadBucket, employeeId, file.name, file, fileType.contentType);
+    const result =
+      up.ok && up.path
+        ? await recordUploadedDocument({
+            filer,
+            employeeId,
+            isStaff,
+            category,
+            title,
+            storagePath: up.path,
+            needsSignature,
+          })
+        : { ok: false, error: up.error ?? 'The document could not be uploaded.' };
+    if (result.ok) {
+      filed++;
+    } else {
+      failures.push(result.error ?? 'The document could not be uploaded.');
+    }
+  }
+
+  if (failures.length === 0) {
+    return { ok: true };
+  }
+  if (employeeIds.length === 1) {
+    return { ok: false, error: failures[0] };
+  }
+  return {
+    ok: false,
+    error: `Filed for ${filed} of ${employeeIds.length} employees. ${failures.length} could not be filed: ${failures[0]}`,
+  };
+}
+
+function isPdf(file: File): boolean {
+  return file.name.toLowerCase().endsWith('.pdf');
+}
+
+/**
+ * The employee returns the signed copy of a letter HR issued for signing. The signed PDF becomes
+ * the new version and waits for HR to check it; HR's unsigned letter is kept as the earlier version.
+ */
+async function uploadSignedDocument(documentId: string, formData: FormData): Promise<ActionResult> {
+  const db = requireDb('Uploading a signed letter');
+  if (!db.ok) {
+    return db;
+  }
+  const file = formData.get('file');
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, error: 'Choose the signed PDF to upload.' };
+  }
+  if (!isPdf(file)) {
+    return { ok: false, error: 'The signed letter must be a PDF file.' };
+  }
+  if (file.size > maxBytes) {
+    return { ok: false, error: 'Documents must be 10 MB or smaller.' };
+  }
+
+  const { profile } = await getSession();
+  const employeeId = profile?.employee_id ?? null;
+  if (!profile || !employeeId) {
+    return { ok: false, error: 'Your login is not linked to an employee record.' };
+  }
+
+  // Read through the employee's own access, so only their own letter can be answered. The writes
+  // below use the service client because employees may not replace a document directly; every
+  // predicate names this employee and this letter.
+  const { data: letter } = await (
+    await createClient()
+  )
+    .from('employee_documents')
+    .select('id, employee_id, category, title, doc_group, version, superseded_at, signature')
+    .eq('id', documentId)
+    .eq('employee_id', employeeId)
+    .maybeSingle<{
+      id: string;
+      employee_id: string;
+      category: string | null;
+      title: string | null;
+      doc_group: string | null;
+      version: number | null;
+      superseded_at: Date | null;
+      signature: string | null;
+    }>();
+  if (!letter) {
+    return { ok: false, error: 'That letter is no longer available.' };
+  }
+  if (letter.superseded_at || letter.signature !== 'requested') {
+    return { ok: false, error: 'A signed copy of this letter has already been uploaded.' };
+  }
+
+  const up = await uploadFile(uploadBucket, employeeId, file.name, file, 'application/pdf');
   if (!up.ok || !up.path) {
-    return { ok: false, error: up.error ?? 'The document could not be uploaded.' };
+    return { ok: false, error: up.error ?? 'The signed letter could not be uploaded.' };
   }
 
-  return recordUploadedDocument({
-    filer,
-    employeeId: target.employeeId,
-    isStaff: target.isStaff,
-    category,
-    title,
-    storagePath: up.path,
-  });
+  const service = createServiceClient();
+  const signedId = randomUUID();
+  const { data: inserted, error: insertError } = await service
+    .from('employee_documents')
+    .insert({
+      id: signedId,
+      employee_id: employeeId,
+      category: letter.category ?? 'other',
+      title: letter.title ?? file.name,
+      storage_path: up.path,
+      uploaded_by: profile.id,
+      bucket: uploadBucket,
+      doc_group: letter.doc_group ?? letter.id,
+      version: Number(letter.version ?? 1) + 1,
+      replaces_id: letter.id,
+      superseded_at: null,
+      signature: 'signed',
+      verified_by: null,
+      verified_at: null,
+    })
+    .select('id');
+  if (insertError || wroteNothing(inserted)) {
+    return { ok: false, error: insertError?.message ?? 'The signed letter was not filed.' };
+  }
+
+  const { data: closed, error: closeError } = await service
+    .from('employee_documents')
+    .update({ superseded_at: new Date(), replaced_by_id: signedId })
+    .eq('id', letter.id)
+    .eq('employee_id', employeeId)
+    .eq('signature', 'requested')
+    .is('superseded_at', null)
+    .select('id');
+  if (closeError || wroteNothing(closed)) {
+    // Someone else answered first; withdraw this copy so the letter has one signed version.
+    await service.from('employee_documents').delete().eq('id', signedId);
+    return { ok: false, error: 'A signed copy of this letter has already been uploaded.' };
+  }
+
+  await notifyApprovers(
+    {
+      kind: 'system',
+      title: `${profile.full_name ?? 'An employee'} returned a signed letter`,
+      body: `${letter.title ?? 'Letter'} — check the signed copy and verify it.`,
+      link: '/documents',
+    },
+    profile.id,
+  );
+
+  // 'layout' is the refresh scope, not a path: /employee and every tab under it.
+  revalidatePath('/employee', 'layout');
+  revalidatePath('/documents');
+  return { ok: true };
 }
 
 /**
@@ -116,7 +280,9 @@ async function replaceEmployeeDocument(
 
   const { data: previous, error: readErr } = await dbc
     .from('employee_documents')
-    .select('id, employee_id, category, title, bucket, doc_group, version, superseded_at')
+    .select(
+      'id, employee_id, category, title, bucket, doc_group, version, superseded_at, signature',
+    )
     .eq('id', previousId)
     .maybeSingle<{
       id: string;
@@ -127,6 +293,7 @@ async function replaceEmployeeDocument(
       doc_group: string | null;
       version: number | null;
       superseded_at: Date | null;
+      signature: string | null;
     }>();
   if (readErr) {
     return { ok: false, error: readErr.message };
@@ -143,13 +310,13 @@ async function replaceEmployeeDocument(
       error: 'That version has already been replaced. Replace the current one instead.',
     };
   }
-  // An issued letter is authoritative and is reproduced from /exits, not
-  // swapped for an upload here.
+  // Letters the system generated in the past are kept as issued; a corrected letter is uploaded
+  // as a new document.
   if (previous.bucket === 'generated-documents') {
     return {
       ok: false,
       error:
-        'An HR-issued letter cannot be replaced by an upload — generate it again from the exit case.',
+        'This letter was generated by the system and cannot be replaced. Upload the new letter as a new document.',
     };
   }
 
@@ -189,6 +356,8 @@ async function replaceEmployeeDocument(
       verified_by: null,
       verified_at: null,
       verify_remark: note || null,
+      // HR correcting a letter before it is signed: the new version is what the employee signs.
+      signature: previous.signature === 'requested' ? 'requested' : null,
     })
     .select('id');
   if (insErr) {
@@ -219,10 +388,11 @@ async function replaceEmployeeDocument(
     kind: 'system',
     title: 'A document was updated',
     body: `${title} — a new version is on file and awaiting verification.`,
-    link: '/employee#documents',
+    link: '/employee/documents',
   });
 
-  revalidatePath('/employee');
+  // 'layout' is the refresh scope, not a path: /employee and every tab under it.
+  revalidatePath('/employee', 'layout');
   revalidatePath('/documents');
   revalidatePath('/onboarding');
   return { ok: true };
@@ -248,6 +418,18 @@ async function verifyEmployeeDocument(
   }
 
   const dbc = await createClient();
+  // HR's own unsigned letter is not something to verify or send back: it is waiting on the employee.
+  const { data: waiting } = await dbc
+    .from('employee_documents')
+    .select('signature, superseded_at')
+    .eq('id', id)
+    .maybeSingle<{ signature: string | null; superseded_at: Date | null }>();
+  if (waiting?.signature === 'requested' && !waiting.superseded_at) {
+    return {
+      ok: false,
+      error: 'This letter is waiting for the employee to sign and return it.',
+    };
+  }
   const { data, error } = await dbc
     .from('employee_documents')
     .update({
@@ -271,10 +453,10 @@ async function verifyEmployeeDocument(
     body: verified
       ? `${row.title ?? 'Your document'} has been verified by HR.`
       : `${row.title ?? 'Your document'} — ${cleanRemark}`,
-    link: '/employee#documents',
+    link: '/employee/documents',
   });
 
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   revalidatePath('/documents');
   revalidatePath('/onboarding');
   return { ok: true };
@@ -317,7 +499,7 @@ async function deleteEmployeeDocument(id: string): Promise<ActionResult> {
   // The storage object is deliberately left in place: the bucket is private and
   // orphaned objects are harmless, whereas deleting the file before the row is
   // confirmed gone risks a row pointing at nothing.
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   revalidatePath('/documents');
   revalidatePath('/onboarding');
   return { ok: true };
@@ -368,6 +550,7 @@ async function fetchEmployeeDocuments(employeeId: string) {
 
 export {
   uploadEmployeeDocument,
+  uploadSignedDocument,
   replaceEmployeeDocument,
   verifyEmployeeDocument,
   deleteEmployeeDocument,

@@ -53,7 +53,7 @@ function DocumentActions({
       ),
     },
     {
-      label: 'Verify document',
+      label: 'Mark as checked and correct',
       onClick: onVerify,
       kind: 'primary',
       icon: (
@@ -63,7 +63,7 @@ function DocumentActions({
       ),
     },
     {
-      label: 'Replace document',
+      label: 'Replace with a new file',
       onClick: onReplace,
       kind: 'quiet',
       icon: (
@@ -73,7 +73,7 @@ function DocumentActions({
       ),
     },
     {
-      label: 'Return to employee',
+      label: 'Send back to the employee to fix',
       onClick: onReturn,
       kind: 'quiet',
       icon: (

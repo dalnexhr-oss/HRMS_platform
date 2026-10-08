@@ -10,7 +10,8 @@ import { createClient } from '@/lib/db/server-client';
 import { db } from '@/lib/db/mongodb-connection';
 import { deleteObject } from '@/lib/db/gridfs-file-storage';
 import { wroteNothing } from '@/lib/actions/guards';
-import { notifyApprovers } from '@/lib/notification-delivery';
+import { notifyApprovers, notifyEmployee } from '@/lib/notification-delivery';
+import { getDocumentTypes } from '@/lib/queries/document-settings';
 import type { StorageBucket } from '@/lib/file-storage';
 import type { AppRole } from '@/types/database';
 
@@ -62,11 +63,21 @@ async function recordUploadedDocument(input: {
   category: string;
   title: string;
   storagePath: string;
+  // True when HR is issuing a letter the employee has to sign and send back.
+  needsSignature?: boolean;
 }): Promise<{ ok: boolean; error?: string }> {
   const { filer, employeeId, isStaff, category, title, storagePath } = input;
+  const needsSignature = input.needsSignature === true && isStaff;
   let registered = false;
   try {
     const dbc = await createClient();
+    const offered = (await getDocumentTypes()).filter((type) => type.active);
+    if (!offered.some((type) => type.key === category)) {
+      return {
+        ok: false,
+        error: 'That document type is no longer in use. Reload the page and choose another.',
+      };
+    }
 
     // Initialize document chain (version 1, doc_group = id).
     const id = randomUUID();
@@ -83,6 +94,7 @@ async function recordUploadedDocument(input: {
         doc_group: id,
         version: 1,
         superseded_at: null,
+        signature: needsSignature ? 'requested' : null,
         // Unverified by default on creation; verification requires staff review.
         verified_by: null,
         verified_at: null,
@@ -117,6 +129,15 @@ async function recordUploadedDocument(input: {
     }
   }
 
+  if (needsSignature) {
+    await notifyEmployee(employeeId, {
+      kind: 'system',
+      title: 'A letter needs your signature',
+      body: `${title} — download it, sign it and upload the signed copy.`,
+      link: '/employee/documents',
+    });
+  }
+
   // Notify approvers only on self-service uploads by employees.
   if (!isStaff) {
     await notifyApprovers(
@@ -130,7 +151,8 @@ async function recordUploadedDocument(input: {
     );
   }
 
-  revalidatePath('/employee');
+  // 'layout' is the refresh scope, not a path: /employee and every tab under it.
+  revalidatePath('/employee', 'layout');
   revalidatePath('/documents');
   revalidatePath('/onboarding');
   return { ok: true };

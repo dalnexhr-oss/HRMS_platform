@@ -2,11 +2,13 @@
 
 // Upload a new document or replace an existing version. Replacements keep the same employee and
 // category to preserve the version chain.
-import { useActionState, useEffect, useRef } from 'react';
+import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { uploadEmployeeDocument, replaceEmployeeDocument } from '@/lib/actions/documents';
-import { documentCategories, documentCategoryLabel } from '@/lib/document-categories';
+import { documentStageLabels, documentStages } from '@/lib/document-categories';
+import { useDocumentTypes } from './DocumentTypesContext';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
+import type { DocumentStage } from '@/lib/document-categories';
 import type { EmployeeDocumentRow } from '@/lib/documents/document-summary';
 import type { EmployeeOption } from '@/lib/queries/employees';
 
@@ -16,7 +18,8 @@ interface State {
 }
 
 type DrawerTarget =
-  { mode: 'upload'; employeeId?: string } | { mode: 'replace'; document: EmployeeDocumentRow };
+  | { mode: 'upload'; employeeId?: string; stage?: DocumentStage }
+  | { mode: 'replace'; document: EmployeeDocumentRow };
 
 function UploadDocumentDrawer({
   target,
@@ -28,7 +31,12 @@ function UploadDocumentDrawer({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const { activeTypes, label: documentCategoryLabel } = useDocumentTypes();
   const open = target !== null;
+  // Start on a type from the stage the caller asked for, when it has one.
+  const preferredStage = target?.mode === 'upload' ? target.stage : undefined;
+  const defaultType =
+    activeTypes.find((type) => type.stage === preferredStage)?.key ?? activeTypes[0]?.key;
   const replacing = target?.mode === 'replace' ? target.document : null;
 
   const [state, formAction, pending] = useActionState<State, FormData>(
@@ -54,7 +62,7 @@ function UploadDocumentDrawer({
     <>
       <div className={`dialog-backdrop${open ? ' is-active' : ''}`} onClick={onClose} />
       <aside
-        className={`drawer${open ? ' is-active' : ''}`}
+        className={`drawer is-solid${open ? ' is-active' : ''}`}
         aria-label={replacing ? 'Replace document' : 'Upload document'}
       >
         {/* Remounts per target, so switching from one row's Replace to
@@ -98,22 +106,28 @@ function UploadDocumentDrawer({
               </>
             ) : (
               <>
-                <EmployeePicker
-                  name="employee_id"
+                <RecipientsField
                   employees={employees}
-                  required
                   disabled={pending}
-                  defaultValue={target?.mode === 'upload' ? (target.employeeId ?? '') : ''}
+                  defaultEmployeeId={target?.mode === 'upload' ? (target.employeeId ?? '') : ''}
                 />
 
                 <div className="form-field">
                   <label htmlFor="doc-category">Category</label>
-                  <select id="doc-category" name="category" defaultValue="offer_letter">
-                    {documentCategories.map((c) => (
-                      <option key={c} value={c}>
-                        {documentCategoryLabel(c)}
-                      </option>
-                    ))}
+                  <select id="doc-category" name="category" defaultValue={defaultType}>
+                    {documentStages.map((stage) => {
+                      const inStage = activeTypes.filter((type) => type.stage === stage);
+                      return inStage.length === 0 ? null : (
+                        <optgroup key={stage} label={documentStageLabels[stage]}>
+                          {inStage.map((type) => (
+                            <option key={type.key} value={type.key}>
+                              {type.label}
+                              {type.required ? ' (required)' : ''}
+                            </option>
+                          ))}
+                        </optgroup>
+                      );
+                    })}
                   </select>
                 </div>
               </>
@@ -136,6 +150,16 @@ function UploadDocumentDrawer({
                 PDF or image, up to 10 MB.
               </span>
             </div>
+
+            {!replacing && (
+              <label className="editor-check" style={{ marginBottom: 15 }}>
+                <input type="checkbox" name="needs_signature" />
+                <span>
+                  <b>The employee has to sign this and send it back</b> — they will be asked to
+                  download it, sign it and upload the signed copy. The file must be a PDF.
+                </span>
+              </label>
+            )}
 
             {replacing && (
               <div className="form-field">
@@ -160,6 +184,123 @@ function UploadDocumentDrawer({
           </div>
         </form>
       </aside>
+    </>
+  );
+}
+
+type Audience = 'one' | 'some' | 'all';
+
+const audienceLabels: Array<[Audience, string]> = [
+  ['one', 'One employee'],
+  ['some', 'Several employees'],
+  ['all', 'All employees'],
+];
+
+// Who the document is for. The same file can go to one person, a chosen group, or everyone; each
+// employee gets their own copy on their own record.
+function RecipientsField({
+  employees,
+  disabled,
+  defaultEmployeeId,
+}: {
+  employees: EmployeeOption[];
+  disabled: boolean;
+  defaultEmployeeId: string;
+}) {
+  const [audience, setAudience] = useState<Audience>('one');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const matches = useMemo(() => {
+    const term = searchQuery.trim().toLowerCase();
+    return term
+      ? employees.filter((e) => `${e.name} ${e.code}`.toLowerCase().includes(term))
+      : employees;
+  }, [employees, searchQuery]);
+
+  function toggle(id: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  return (
+    <>
+      <div className="form-field">
+        <label>Who is this document for?</label>
+        <div className="recipient-choices">
+          {audienceLabels.map(([value, label]) => (
+            <label key={value} className="editor-check" style={{ marginTop: 0 }}>
+              <input
+                type="radio"
+                name="audience"
+                value={value}
+                checked={audience === value}
+                disabled={disabled}
+                onChange={() => setAudience(value)}
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {audience === 'one' && (
+        <EmployeePicker
+          name="employee_id"
+          employees={employees}
+          required
+          disabled={disabled}
+          defaultValue={defaultEmployeeId}
+        />
+      )}
+
+      {audience === 'some' && (
+        <div className="form-field">
+          <label htmlFor="recipient-search">Tick the employees — {selected.size} chosen</label>
+          <input
+            id="recipient-search"
+            type="search"
+            placeholder="Search by name or code…"
+            value={searchQuery}
+            disabled={disabled}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <div className="recipient-list">
+            {matches.length === 0 && <p className="text-muted">No employee matches that search.</p>}
+            {matches.map((employee) => (
+              <label key={employee.id} className="editor-check">
+                <input
+                  type="checkbox"
+                  checked={selected.has(employee.id)}
+                  disabled={disabled}
+                  onChange={() => toggle(employee.id)}
+                />
+                <span>
+                  {employee.name} <span className="text-monospace text-muted">{employee.code}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          {/* Sent from the chosen set, so people hidden by the search are still included. */}
+          {[...selected].map((id) => (
+            <input key={id} type="hidden" name="employee_ids" value={id} />
+          ))}
+        </div>
+      )}
+
+      {audience === 'all' && (
+        <p className="text-muted" style={{ fontSize: 13, marginTop: 0 }}>
+          Every current employee ({employees.length}) will get their own copy of this document on
+          their record.
+        </p>
+      )}
     </>
   );
 }
