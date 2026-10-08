@@ -200,6 +200,8 @@ function RequestItem({ request }: { request: RequestView }) {
       if (!res.ok) {
         setError(res.error ?? 'Could not cancel the request.');
       } else {
+        // Cancelled, but something could not be undone; keep the note on screen.
+        setError(res.warning ?? null);
         router.refresh();
       }
     });
@@ -219,8 +221,19 @@ function RequestItem({ request }: { request: RequestView }) {
         <span className="status-badge" style={statusPillStyle(request.status)}>
           {statusLabel[request.status]}
         </span>
-        {request.status === 'pending' && (
-          <button className="button" onClick={onCancel} disabled={pending}>
+        {/* An approved request can still be withdrawn until the day it starts. */}
+        {(request.status === 'pending' ||
+          (request.status === 'approved' && request.startDate >= todayIST())) && (
+          <button
+            className="button"
+            onClick={onCancel}
+            disabled={pending}
+            title={
+              request.status === 'approved'
+                ? 'Cancel this approved request and free its dates'
+                : undefined
+            }
+          >
             {pending ? '…' : 'Cancel'}
           </button>
         )}

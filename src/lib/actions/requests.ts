@@ -1,7 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { inclusiveDays, leaveDayCount, stampLeaveOnRegister } from '@/lib/requests/leave-attendance';
+import { inclusiveDays, leaveDayCount, stampDutyOnRegister, stampLeaveOnRegister, unstampApprovedDays } from '@/lib/requests/leave-attendance';
+import { todayIST } from '@/lib/display-formatting';
 import { createClient, createServiceClient } from '@/lib/db/server-client';
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { getSession } from '@/lib/server-auth';
@@ -9,7 +10,7 @@ import { requireStaff } from '@/lib/actions/guards';
 import { releaseCompOff, settleApprovedCompOff } from '@/lib/compensatory-off-settlement';
 import { toDecimal } from '@/lib/db/decimal-conversions';
 import { notifyApprovers, notifyEmployee } from '@/lib/notification-delivery';
-import { todayIST } from '@/lib/display-formatting';
+import { requestOverlapProblem, requestStartProblem } from '@/lib/requests/date-rules';
 import { notifyRequestParticipants, prepareRequestRouting, reviewRoutedRequest } from '@/lib/requests/routing';
 import type { LeaveType, RequestType } from '@/types/database';
 import type { RequestRouteDoc } from '@/lib/db/collection-registry';
@@ -48,8 +49,8 @@ function parseISODate(value: string): Date | null {
 /** Revalidate every surface a request appears on: the employee's own dashboard,
  *  the staff approvals queue, and the HR dashboard's leave history. */
 function revalidateRequestViews(): void {
-  revalidatePath('/employee');
-  revalidatePath('/employee/approvals');
+  // 'layout' is the refresh scope, not a path: /employee and every tab under it.
+  revalidatePath('/employee', 'layout');
   revalidatePath('/approvals');
   revalidatePath('/leave-management');
 }
@@ -335,6 +336,21 @@ async function reviewRequest(
     }
   }
 
+  // Site visits, outdoor duty and work from home are worked days: stamp them so the register and
+  // payroll count them without HR re-entering each one.
+  if (decision === 'approved' && reviewed.type !== 'leave' && reviewed.type !== 'comp_off') {
+    const stampWarning = await stampDutyOnRegister(
+      dbc,
+      reviewed.employee_id,
+      reviewed.type,
+      reviewed.start_date,
+      reviewed.end_date ?? reviewed.start_date,
+    );
+    if (stampWarning) {
+      warning = warning ? `${warning} ${stampWarning}` : stampWarning;
+    }
+  }
+
   // Tell the employee the outcome. Look the owner up rather than trusting the
   // caller — the reviewer is not the recipient.
   const { data: owner } = await dbc
@@ -351,7 +367,7 @@ async function reviewRequest(
       kind: 'approval',
       title: `Your ${owner.type.replace('_', ' ')} request was ${decision}`,
       body: cleanRemark ? `${span} — “${cleanRemark}”` : span,
-      link: '/employee#leave',
+      link: '/employee/leave',
     });
   }
 
@@ -408,10 +424,9 @@ async function createRequest(formData: FormData): Promise<ActionResult> {
   if (!end) {
     return { ok: false, error: 'Enter a valid end date.' };
   }
-  // Requests must start today or later in IST. HR handles retrospective changes through the
-  // attendance register.
-  if (startRaw < todayIST()) {
-    return { ok: false, error: 'The start date has already passed — pick today or a later day.' };
+  const startProblem = requestStartProblem(startRaw);
+  if (startProblem) {
+    return { ok: false, error: startProblem };
   }
   // Allow equal dates for a single-day request.
   if (end.getTime() < start.getTime()) {
@@ -468,6 +483,11 @@ async function createRequest(formData: FormData): Promise<ActionResult> {
       error: error instanceof Error ? error.message : 'Choose valid request recipients.',
     };
   }
+  // One day cannot carry two requests, such as leave filed twice or leave over a WFH day.
+  const overlapProblem = await requestOverlapProblem(dbc, employeeId, startRaw, endRaw);
+  if (overlapProblem) {
+    return { ok: false, error: overlapProblem };
+  }
   const { data: inserted, error } = await dbc
     .from('requests')
     .insert({
@@ -507,8 +527,143 @@ async function createRequest(formData: FormData): Promise<ActionResult> {
 }
 
 /**
- * Withdraw an owned, pending request. Check the returned row so wrong-owner, reviewed, and
- * policy-blocked updates cannot report success.
+ * Cancel the caller's own approved request before it starts, and undo what the approval did: the
+ * register stamps, the paid-leave deduction, and the comp-off credit. A request that has already
+ * started is history on the register and is left to HR.
+ */
+async function cancelApprovedRequest(
+  id: string,
+  employeeId: string,
+  profileId: string | undefined,
+): Promise<ActionResult | null> {
+  // The scoped client only lets an employee change a pending request, so this runs with the
+  // service client and names the owner and status in every predicate.
+  const dbc = createServiceClient();
+  const { data: request } = await dbc
+    .from('requests')
+    .select('id, type, leave_kind, days, start_date, end_date, status')
+    .eq('id', id)
+    .eq('employee_id', employeeId)
+    .maybeSingle<{
+      type: string;
+      leave_kind: string | null;
+      days: unknown;
+      start_date: string;
+      end_date: string;
+      status: string;
+    }>();
+  if (!request || request.status !== 'approved') {
+    return null;
+  }
+  const startDate = String(request.start_date).slice(0, 10);
+  const endDate = String(request.end_date ?? request.start_date).slice(0, 10);
+  if (startDate < todayIST()) {
+    return {
+      ok: false,
+      error:
+        'This request has already started, so it can no longer be cancelled here. Ask HR to correct the register.',
+    };
+  }
+
+  const { data: cancelled, error } = await dbc
+    .from('requests')
+    .update({ status: 'cancelled' })
+    .eq('id', id)
+    .eq('employee_id', employeeId)
+    .eq('status', 'approved')
+    .select('id, approval_route, employee_name');
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  if (!cancelled || cancelled.length === 0) {
+    return { ok: false, error: 'The request changed. Refresh and try again.' };
+  }
+
+  const warnings: string[] = [];
+  if (request.type === 'comp_off') {
+    // Approval spent the credit and stamped the day CO; give both back.
+    await dbc
+      .from('comp_offs')
+      .update({ status: 'available', used_date: null, request_id: null })
+      .eq('request_id', id)
+      .in('status', ['applied', 'used']);
+    const { error: dayError } = await dbc
+      .from('attendance_days')
+      .delete()
+      .eq('employee_id', employeeId)
+      .eq('work_date', startDate)
+      .eq('status', 'CO')
+      .is('punch_in', null);
+    if (dayError) {
+      warnings.push(
+        `The comp-off day could not be cleared from the register: ${dayError.message}.`,
+      );
+    }
+  } else {
+    const unstampWarning = await unstampApprovedDays(
+      dbc,
+      employeeId,
+      request.type,
+      startDate,
+      endDate,
+    );
+    if (unstampWarning) {
+      warnings.push(unstampWarning);
+    }
+  }
+
+  // Paid leave was drawn down on approval; put the days back.
+  if (request.type === 'leave' && request.leave_kind && request.leave_kind !== 'LWP') {
+    const year = Number(startDate.slice(0, 4));
+    let refunded = false;
+    for (let attempt = 0; attempt < 3 && !refunded; attempt++) {
+      const { data: balance } = await dbc
+        .from('leave_balances')
+        .select('id, balance')
+        .eq('employee_id', employeeId)
+        .eq('year', year)
+        .eq('type', request.leave_kind)
+        .maybeSingle<{ id: string; balance: number }>();
+      if (!balance) {
+        break;
+      }
+      const { data: rows } = await dbc
+        .from('leave_balances')
+        .update({ balance: toDecimal(Number(balance.balance) + Number(request.days ?? 0)) })
+        .eq('id', balance.id)
+        .eq('balance', balance.balance)
+        .select('id');
+      refunded = !!rows && rows.length > 0;
+    }
+    if (!refunded) {
+      warnings.push(
+        `The ${request.leave_kind} balance could not be restored. Ask HR to add the days back.`,
+      );
+    }
+  }
+
+  const row = cancelled[0] as { approval_route?: RequestRouteDoc; employee_name?: string };
+  if (row.approval_route) {
+    await notifyRequestParticipants(
+      id,
+      row.approval_route,
+      `${row.employee_name ?? 'Employee'} cancelled an approved request`,
+      `${startDate === endDate ? startDate : `${startDate} – ${endDate}`} · the approval no longer applies.`,
+      profileId,
+    );
+  }
+
+  revalidateRequestViews();
+  revalidatePath(`/requests/${id}`);
+  revalidatePath('/monthly-register');
+  return warnings.length > 0
+    ? { ok: true, warning: `Cancelled. ${warnings.join(' ')}` }
+    : { ok: true };
+}
+
+/**
+ * Withdraw an owned request: a pending one at any time, or an approved one that has not started.
+ * Check the returned row so wrong-owner, reviewed, and policy-blocked updates cannot report success.
  */
 async function cancelRequest(id: string): Promise<ActionResult> {
   if (!isMongoConfigured()) {
@@ -537,10 +692,14 @@ async function cancelRequest(id: string): Promise<ActionResult> {
   }
 
   if (!data || data.length === 0) {
+    const approved = await cancelApprovedRequest(id, employeeId, profile?.id);
+    if (approved) {
+      return approved;
+    }
     return {
       ok: false,
       error:
-        'The request was not cancelled — it may already have been reviewed, or your account may not have permission to withdraw it.',
+        'The request was not cancelled — it may already have been rejected or cancelled, or your account may not have permission to withdraw it.',
     };
   }
 

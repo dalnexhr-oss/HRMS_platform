@@ -70,16 +70,104 @@ function enumerateDays(startISO: string, endISO: string): string[] {
   return out;
 }
 
-/**
- * Stamp approved leave only where attendance is missing or AB. Preserve recorded presence and
- * existing off-day stamps, and skip unrecorded holidays and week-offs. Return locked-month skips as
- * warnings because the approval has already saved.
- */
-async function stampLeaveOnRegister(
+// Register stamps for approved off-site work. A site visit is Site; outdoor duty and work from
+// home are Travel, matching the labels on the approvals screen.
+const dutyStamps: Record<string, 'S' | 'T'> = { site_visit: 'S', outdoor_duty: 'T', wfh: 'T' };
+
+/** Stamp approved leave as L. See stampApprovedDays for which days are written. */
+function stampLeaveOnRegister(
   dbc: Awaited<ReturnType<typeof createClient>>,
   employeeId: string,
   startISO: string,
   endISO: string,
+): Promise<string | null> {
+  return stampApprovedDays(dbc, employeeId, startISO, endISO, { status: 'L' });
+}
+
+/**
+ * Stamp an approved site visit, outdoor duty or work-from-home request as a worked day. The day is
+ * credited a full day's minutes because no punch is expected; if the employee does punch, their
+ * punches replace the credit.
+ */
+async function stampDutyOnRegister(
+  dbc: Awaited<ReturnType<typeof createClient>>,
+  employeeId: string,
+  requestType: string,
+  startISO: string,
+  endISO: string,
+): Promise<string | null> {
+  const status = dutyStamps[requestType];
+  if (!status) {
+    return null;
+  }
+  let fullDayMinutes = 555;
+  const { data } = await dbc
+    .from('settings')
+    .select('value')
+    .eq('key', 'full_day_minutes')
+    .maybeSingle<{ value: unknown }>();
+  const configured = Number(data?.value);
+  if (Number.isFinite(configured) && configured > 0) {
+    fullDayMinutes = configured;
+  }
+  return stampApprovedDays(dbc, employeeId, startISO, endISO, {
+    status,
+    worked_minutes: fullDayMinutes,
+  });
+}
+
+/**
+ * Undo the stamps an approval made, when the request is cancelled afterwards. Only days that still
+ * carry the approval's stamp and have no punches are removed, so a day the employee worked or HR
+ * corrected is left as it is. Returns a note for the caller when a closed month was skipped.
+ */
+async function unstampApprovedDays(
+  dbc: Awaited<ReturnType<typeof createClient>>,
+  employeeId: string,
+  requestType: string,
+  startISO: string,
+  endISO: string,
+): Promise<string | null> {
+  const status = requestType === 'leave' ? 'L' : dutyStamps[requestType];
+  if (!status) {
+    return null;
+  }
+  const skipped: string[] = [];
+  for (const month of new Set(enumerateDays(startISO, endISO).map((day) => day.slice(0, 7)))) {
+    const gate = await requireOpenPayrollMonthShim(dbc, `${month}-01`);
+    if (!gate.ok) {
+      skipped.push(month);
+      continue;
+    }
+    const { error } = await dbc
+      .from('attendance_days')
+      .delete()
+      .eq('employee_id', employeeId)
+      .eq('status', status)
+      .is('punch_in', null)
+      .neq('is_corrected', true)
+      .gte('work_date', startISO > `${month}-01` ? startISO : `${month}-01`)
+      .lte('work_date', endISO < `${month}-31` ? endISO : `${month}-31`);
+    if (error) {
+      return `Cancelled, but the register could not be cleared: ${error.message}. Remove the ${status} day(s) from the register.`;
+    }
+  }
+  return skipped.length > 0
+    ? `Cancelled, but payroll for ${skipped.join(', ')} is closed, so those days stay on the register.`
+    : null;
+}
+
+/**
+ * Stamp approved days only where attendance is missing or AB. Preserve recorded presence and
+ * existing off-day stamps, and skip unrecorded holidays and week-offs. Return locked-month skips as
+ * warnings because the approval has already saved.
+ */
+async function stampApprovedDays(
+  dbc: Awaited<ReturnType<typeof createClient>>,
+  employeeId: string,
+  startISO: string,
+  endISO: string,
+  stamp: { status: 'L' | 'S' | 'T'; worked_minutes?: number },
 ): Promise<string | null> {
   const days = enumerateDays(startISO, endISO);
   if (days.length === 0) {
@@ -95,7 +183,7 @@ async function stampLeaveOnRegister(
   } catch (e) {
     return `Approved, but the register could not be stamped (week-off policy unreadable: ${
       e instanceof Error ? e.message : String(e)
-    }). Mark the day(s) L from the register.`;
+    }). Mark the day(s) ${stamp.status} from the register.`;
   }
 
   const { data: existing, error: readErr } = await dbc
@@ -105,7 +193,7 @@ async function stampLeaveOnRegister(
     .gte('work_date', days[0])
     .lte('work_date', days[days.length - 1]);
   if (readErr) {
-    return `Approved, but the register could not be read to stamp the leave: ${readErr.message}. Mark the day(s) L from the register.`;
+    return `Approved, but the register could not be read to stamp the days: ${readErr.message}. Mark the day(s) ${stamp.status} from the register.`;
   }
   const statusByDate = new Map<string, string>();
   for (const row of (existing ?? []) as Array<{ work_date: string; status: string }>) {
@@ -141,7 +229,7 @@ async function stampLeaveOnRegister(
   if (toUpdate.length > 0) {
     const { error } = await dbc
       .from('attendance_days')
-      .update({ status: 'L' })
+      .update(stamp)
       .eq('employee_id', employeeId)
       .eq('status', 'AB')
       .in('work_date', toUpdate);
@@ -153,11 +241,11 @@ async function stampLeaveOnRegister(
     const { error } = await dbc
       .from('attendance_days')
       .insert(
-        toInsert.map((workDate) => ({ employee_id: employeeId, work_date: workDate, status: 'L' })),
+        toInsert.map((workDate) => ({ employee_id: employeeId, work_date: workDate, ...stamp })),
       );
     // Ignore duplicate key conflicts if stamped concurrently.
     if (error && error.code !== queryErrorCodes.duplicateKey) {
-      problems.push(`could not add L day(s): ${error.message}`);
+      problems.push(`could not add ${stamp.status} day(s): ${error.message}`);
     }
   }
   if (skippedLocked.length > 0) {
@@ -194,4 +282,10 @@ async function requireOpenPayrollMonthShim(
   return { ok: true };
 }
 
-export { inclusiveDays, leaveDayCount, stampLeaveOnRegister };
+export {
+  inclusiveDays,
+  leaveDayCount,
+  stampLeaveOnRegister,
+  stampDutyOnRegister,
+  unstampApprovedDays,
+};

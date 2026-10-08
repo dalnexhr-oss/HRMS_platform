@@ -12,7 +12,8 @@ import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { toDecimal } from '@/lib/db/decimal-conversions';
 import { notifyEmployee } from '@/lib/notification-delivery';
 import { notifyRequestParticipants, prepareRequestRouting } from '@/lib/requests/routing';
-import { todayIST } from '@/lib/display-formatting';
+import { isCalendarDate } from '@/lib/calendar-dates';
+import { requestOverlapProblem, requestStartProblem } from '@/lib/requests/date-rules';
 
 interface ActionResult {
   ok: boolean;
@@ -95,11 +96,12 @@ async function grantCompOff(employeeId: string, earnedDate: string): Promise<Act
     kind: 'comp_off',
     title: 'You earned a comp off',
     body: `For working on ${earnedDate}. Apply for a day off from your dashboard.`,
-    link: '/employee#comp-offs',
+    link: '/employee/comp-offs',
   });
 
   revalidatePath('/monthly-register');
-  revalidatePath('/employee');
+  // 'layout' is the refresh scope, not a path: /employee and every tab under it.
+  revalidatePath('/employee', 'layout');
   return { ok: true };
 }
 
@@ -113,13 +115,14 @@ async function applyCompOff(formData: FormData): Promise<ActionResult> {
   const takeDate = String(formData.get('take_date') ?? '').trim();
   const reason = String(formData.get('reason') ?? '').trim() || null;
 
-  if (!isoDate.test(takeDate)) {
+  if (!isCalendarDate(takeDate)) {
     return { ok: false, error: 'Choose a valid date to take off.' };
   }
   // Comp-off must be today or later in IST. Approval stamps CO, so retrospective attendance
   // corrections belong in the HR register.
-  if (takeDate < todayIST()) {
-    return { ok: false, error: 'That day has already passed — pick today or a later day.' };
+  const startProblem = requestStartProblem(takeDate);
+  if (startProblem) {
+    return { ok: false, error: startProblem };
   }
 
   const db = requireDb('Applying for a comp off');
@@ -145,6 +148,12 @@ async function applyCompOff(formData: FormData): Promise<ActionResult> {
       ok: false,
       error: error instanceof Error ? error.message : 'Choose valid request recipients.',
     };
+  }
+
+  // Checked before the credit is claimed, so a refused application leaves it available.
+  const overlapProblem = await requestOverlapProblem(dbc, employeeId, takeDate, takeDate);
+  if (overlapProblem) {
+    return { ok: false, error: overlapProblem };
   }
 
   // Default to FIFO allocation (earliest expiration, then earliest earned date).
@@ -231,9 +240,8 @@ async function applyCompOff(formData: FormData): Promise<ActionResult> {
     profile?.id,
   );
 
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   revalidatePath('/approvals');
-  revalidatePath('/employee/approvals');
   return { ok: true };
 }
 
@@ -284,11 +292,11 @@ async function setCompOffApplicability(id: string, applicable: boolean): Promise
     body: applicable
       ? `Your comp off earned on ${row.earned_date} can be applied for again.`
       : `Your comp off earned on ${row.earned_date} was marked not applicable by HR.`,
-    link: '/employee#comp-offs',
+    link: '/employee/comp-offs',
   });
 
   revalidatePath('/dashboard');
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   return { ok: true };
 }
 
