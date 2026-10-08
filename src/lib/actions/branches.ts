@@ -109,7 +109,8 @@ async function updateBranchLocation(id: string, formData: FormData): Promise<Act
     // decided against this point from the next punch onward.
     revalidatePath('/settings');
     revalidatePath('/dashboard');
-    revalidatePath('/employee');
+    // 'layout' is the refresh scope, not a path: /employee and every tab under it.
+    revalidatePath('/employee', 'layout');
     return { ok: true };
   } catch (e) {
     return {

@@ -71,7 +71,8 @@ async function markNoticeRead(noticeId: string) {
   if (error && error.code !== queryErrorCodes.duplicateKey) {
     return { ok: false, error: error.message };
   }
-  revalidatePath('/employee');
+  // 'layout' is the refresh scope, not a path: /employee and every tab under it.
+  revalidatePath('/employee', 'layout');
   return { ok: true };
 }
 
@@ -154,7 +155,7 @@ async function createNotice(formData: FormData) {
   await purgeExpiredNotices();
 
   revalidatePath('/notices');
-  revalidatePath('/employee'); // employees see published notices on their dashboard
+  revalidatePath('/employee', 'layout'); // employees see published notices on their dashboard
   return { ok: true };
 }
 
@@ -212,7 +213,7 @@ async function updateNotice(id: string, formData: FormData) {
   }
 
   revalidatePath('/notices');
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   return { ok: true };
 }
 
@@ -265,7 +266,7 @@ async function setNoticePublished(id: string, published: boolean) {
   }
 
   revalidatePath('/notices');
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   return { ok: true };
 }
 
@@ -316,7 +317,7 @@ async function deleteNotice(id: string) {
   }
 
   revalidatePath('/notices');
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   return { ok: true };
 }
 

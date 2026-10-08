@@ -49,7 +49,8 @@ async function provisionLeaveYear(year: number): Promise<ActionResult & { create
   });
 
   revalidatePath('/leave-salary');
-  revalidatePath('/employee');
+  // 'layout' is the refresh scope, not a path: /employee and every tab under it.
+  revalidatePath('/employee', 'layout');
   return { ok: true, created };
 }
 
@@ -138,11 +139,11 @@ async function adjustLeaveBalance(input: {
     kind: 'request',
     title: `Your paid-leave balance was ${delta > 0 ? 'credited' : 'debited'}`,
     body: `${delta > 0 ? '+' : ''}${delta} day(s) for ${year} — ${reason}`,
-    link: '/employee#leave',
+    link: '/employee/leave',
   });
 
   revalidatePath('/leave-salary');
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   return { ok: true };
 }
 

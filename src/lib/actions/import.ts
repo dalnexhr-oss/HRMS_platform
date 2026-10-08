@@ -425,7 +425,8 @@ async function commitImport(formData: FormData): Promise<CommitResult> {
     revalidatePath('/monthly-register');
     revalidatePath('/dashboard');
     revalidatePath('/payroll');
-    revalidatePath('/employee');
+    // 'layout' is the refresh scope, not a path: /employee and every tab under it.
+    revalidatePath('/employee', 'layout');
 
     return { ok: true, inserted, updated, skipped, errors };
   } catch (e) {

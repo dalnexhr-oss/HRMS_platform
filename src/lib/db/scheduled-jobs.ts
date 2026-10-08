@@ -255,7 +255,7 @@ async function autoPunchOut(targetDate?: string): Promise<JobResult> {
             kind: 'system',
             title: 'Missed punch-out closed by night sweep',
             body: notice.message,
-            link: '/employee#punch',
+            link: '/employee/attendance#punch',
             read_at: null,
             created_at: new Date(),
           };

@@ -33,7 +33,8 @@ async function acknowledgePolicy(policyId: string) {
   if (error) {
     // Duplicate acknowledgement is benign (already marked read).
     if (error.code === queryErrorCodes.duplicateKey) {
-      revalidatePath('/employee');
+      // 'layout' is the refresh scope, not a path: /employee and every tab under it.
+      revalidatePath('/employee', 'layout');
       revalidatePath('/company-policies');
       return { ok: true };
     }
@@ -57,7 +58,7 @@ async function acknowledgePolicy(policyId: string) {
   await clearPolicyNag(dbc, policyId);
 
   revalidatePath('/', 'layout');
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   revalidatePath('/company-policies'); // HR read counts
   return { ok: true };
 }
@@ -129,14 +130,14 @@ async function createPolicy(formData: FormData) {
         kind: 'policy',
         title: `New policy to read: ${title}`,
         body: 'Please open it on your dashboard and mark it as read.',
-        link: '/employee#policies',
+        link: '/employee/policies',
       },
       gate.profileId,
     );
   }
 
   revalidatePath('/company-policies');
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   return { ok: true };
 }
 
@@ -176,14 +177,14 @@ async function setPolicyPublished(policyId: string, published: boolean) {
         kind: 'policy',
         title: `New policy to read: ${policy?.title ?? 'Company policy'}`,
         body: 'Please open it on your dashboard and mark it as read.',
-        link: '/employee#policies',
+        link: '/employee/policies',
       },
       gate.profileId,
     );
   }
 
   revalidatePath('/company-policies');
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   return { ok: true };
 }
 
@@ -226,7 +227,7 @@ async function updatePolicy(id: string, formData: FormData) {
   }
 
   revalidatePath('/company-policies');
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   return { ok: true };
 }
 
@@ -250,7 +251,7 @@ async function deletePolicy(id: string) {
   }
 
   revalidatePath('/company-policies');
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   return { ok: true };
 }
 

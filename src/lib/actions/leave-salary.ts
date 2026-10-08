@@ -374,7 +374,7 @@ async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
     body: `${inr(total)} for ${row.year}`,
     // /employee has no leave-salary section of its own yet; payslips is the nearest
     // truthful destination for a payout notification.
-    link: '/employee#payslips',
+    link: '/employee/payslips',
   });
   await dbc.from('activity_log').insert({
     actor_id: gate.profileId,
@@ -385,7 +385,8 @@ async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
   });
 
   revalidatePath('/leave-salary');
-  revalidatePath('/employee');
+  // 'layout' is the refresh scope, not a path: /employee and every tab under it.
+  revalidatePath('/employee', 'layout');
   return { ok: true };
 }
 

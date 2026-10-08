@@ -291,7 +291,8 @@ async function updateUserPunchAccess(
       return { ok: false, error: 'That account changed. Refresh the user list and try again.' };
     }
     revalidatePath('/users');
-    revalidatePath('/employee');
+    // 'layout' is the refresh scope, not a path: /employee and every tab under it.
+    revalidatePath('/employee', 'layout');
     return { ok: true };
   } catch (error) {
     return {

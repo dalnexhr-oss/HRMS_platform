@@ -99,7 +99,8 @@ async function acknowledgeDocument(input: {
     return { ok: false, error: 'The signature was not recorded — reload and try again.' };
   }
 
-  revalidatePath('/employee');
+  // 'layout' is the refresh scope, not a path: /employee and every tab under it.
+  revalidatePath('/employee', 'layout');
   return { ok: true };
 }
 

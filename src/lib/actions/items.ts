@@ -209,7 +209,7 @@ async function assignItem(formData: FormData) {
     kind: 'item',
     title: 'An item was issued to you',
     body: `${quantity} × ${item.item_name}`,
-    link: '/employee#items',
+    link: '/employee/assets#items',
   });
 
   revalidatePath('/inventory-management');
@@ -245,7 +245,7 @@ async function returnAssignment(id: string) {
     kind: 'item',
     title: 'An item was marked returned',
     body: `${row.quantity} × ${row.items?.item_name ?? 'item'}`,
-    link: '/employee#items',
+    link: '/employee/assets#items',
   });
 
   revalidatePath('/inventory-management');
@@ -283,7 +283,7 @@ async function deleteAssignment(id: string) {
       kind: 'item',
       title: 'An item was removed from you',
       body: `${row.quantity} × ${row.items?.item_name ?? 'item'}`,
-      link: '/employee#items',
+      link: '/employee/assets#items',
     });
   }
 

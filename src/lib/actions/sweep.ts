@@ -86,7 +86,8 @@ async function runNightSweep(dateISO?: string): Promise<SweepResult> {
 
     revalidatePath('/dashboard');
     revalidatePath('/monthly-register');
-    revalidatePath('/employee');
+    // 'layout' is the refresh scope, not a path: /employee and every tab under it.
+    revalidatePath('/employee', 'layout');
     return { ok: true, closed, at: minutesToClock(autoOutMin), date };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'The night sweep failed.' };

@@ -277,7 +277,7 @@ async function assignAsset(formData: FormData) {
     kind: 'asset',
     title: 'An asset was assigned to you',
     body: [row.desktop_name, row.brand].filter(Boolean).join(' · '),
-    link: '/employee#assets',
+    link: '/employee/assets',
   });
 
   revalidatePath('/asset-management');
@@ -346,7 +346,7 @@ async function unassignAsset(id: string) {
     kind: 'asset',
     title: 'An asset was returned',
     body: [before.desktop_name, before.brand].filter(Boolean).join(' · '),
-    link: '/employee#assets',
+    link: '/employee/assets',
   });
 
   revalidatePath('/asset-management');

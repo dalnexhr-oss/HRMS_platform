@@ -57,7 +57,8 @@ async function createTicket(formData: FormData) {
   // '/helpdesk' is the staff queue; '/employee' is the employee's own ticket list —
   // a ticket can be raised from either, so refresh both.
   revalidatePath('/helpdesk');
-  revalidatePath('/employee');
+  // 'layout' is the refresh scope, not a path: /employee and every tab under it.
+  revalidatePath('/employee', 'layout');
   return { ok: true };
 }
 
@@ -104,11 +105,11 @@ async function setTicketStatus(id: string, status: TicketStatus, note?: string) 
     kind: 'ticket',
     title: `Your ticket is now ${status.replace('_', ' ')}`,
     body: reply ? `${row.subject} — ${reply}` : row.subject,
-    link: '/employee#tickets',
+    link: '/employee/helpdesk',
   });
 
   revalidatePath('/helpdesk');
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   return { ok: true };
 }
 
@@ -224,7 +225,7 @@ async function addTicketComment(ticketId: string, body: string) {
       kind: 'ticket',
       title: `New reply on your ticket: ${subject}`,
       body: text,
-      link: '/employee#tickets',
+      link: '/employee/helpdesk',
     });
   } else {
     await notifyApprovers(
@@ -239,7 +240,7 @@ async function addTicketComment(ticketId: string, body: string) {
   }
 
   revalidatePath('/helpdesk');
-  revalidatePath('/employee');
+  revalidatePath('/employee', 'layout');
   return { ok: true, comment };
 }
 

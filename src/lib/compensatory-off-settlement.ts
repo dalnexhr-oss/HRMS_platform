@@ -77,7 +77,8 @@ async function settleApprovedCompOff(
     }
 
     revalidatePath('/monthly-register');
-    revalidatePath('/employee');
+    // 'layout' is the refresh scope, not a path: /employee and every tab under it.
+    revalidatePath('/employee', 'layout');
     return null;
   } catch (e) {
     return e instanceof Error ? e.message : 'The comp off could not be settled.';
