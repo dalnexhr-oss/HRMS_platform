@@ -2,6 +2,7 @@
 /.next/
 /.next-dev/
 /.next-production/
+/.next-verify/
 /out/
 /build/
 /package-lock.json

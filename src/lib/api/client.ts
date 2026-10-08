@@ -2,7 +2,7 @@
 // cancellation, retries for requests that are safe to repeat, a single shared request when the same
 // call is made twice at once, and one error type whatever went wrong.
 //
-// Self-contained on purpose (type-only imports): the integration tests load this file directly.
+// Type-only imports keep this module independent of server code.
 import type { ApiErrorBody } from '@/lib/api/errors';
 
 type ApiMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

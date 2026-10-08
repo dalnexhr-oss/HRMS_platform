@@ -32,5 +32,5 @@
     "next-env.d.ts",
     ".next-production/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", ".next-verify"]
 }

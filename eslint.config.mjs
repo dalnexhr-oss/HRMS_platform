@@ -11,6 +11,7 @@ const config = [
       '.next/**',
       '.next-dev/**',
       '.next-production/**',
+      '.next-verify/**',
       '.local/**',
       'node_modules/**',
       'out/**',
