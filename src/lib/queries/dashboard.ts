@@ -219,7 +219,10 @@ async function getTopbarStats(): Promise<TopbarStats> {
     const dbc = await createClient();
     const periodMonth = `${todayISO().slice(0, 7)}-01`;
     const [employees, branches, approvals, run, sweep] = await Promise.all([
-      dbc.from('employees').select('code', { count: 'exact', head: true }).eq('status', 'active'),
+      dbc
+        .from('employees')
+        .select('code', { count: 'exact', head: true })
+        .in('status', ['active', 'on_notice']),
       dbc.from('branches').select('name').order('name'),
       dbc.from('requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
       dbc

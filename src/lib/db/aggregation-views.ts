@@ -26,7 +26,8 @@ async function todayBoard(scope?: Scope): Promise<Document[]> {
   const employees = await handle(collections.employees, scope);
 
   return employees.aggregate([
-    { $match: { status: 'active' } },
+    // Someone serving notice still attends, so they stay on the board.
+    { $match: { status: { $in: ['active', 'on_notice'] } } },
     {
       // Correlate attendance records for the target date via pipeline lookup to preserve
       // employees without an attendance record (counted as absent).
@@ -70,7 +71,7 @@ async function celebrations(scope?: Scope): Promise<Document[]> {
   const rows = await employees.aggregate([
     {
       $match: {
-        status: 'active',
+        status: { $in: ['active', 'on_notice'] },
         $or: [
           { date_of_birth: { $regex: `-${mmdd}$` } },
           { date_of_joining: { $regex: `-${mmdd}$` } },

@@ -12,6 +12,8 @@ import { fromPaise as formatMoney } from '@/lib/db/decimal-conversions';
 import { sendEmail, isEmailConfigured } from '@/lib/email-delivery';
 import { requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { buildWelcomeEmail } from '@/lib/documents/templates';
+import { isCalendarDate } from '@/lib/calendar-dates';
+import { todayIST } from '@/lib/display-formatting';
 import { startOnboarding } from '@/lib/actions/onboarding';
 import type { EmployeeEditRow } from '@/lib/queries/employees';
 import type { Decimal128 } from 'mongodb';
@@ -211,6 +213,31 @@ function parseBankAndEmergency(formData: FormData):
   };
 }
 
+// The reason an employee's joining or birth date cannot be saved, or null when both are sound.
+// A joining date may be in the future for someone who has not started yet.
+function employeeDateProblem(
+  dateOfJoining: string,
+  dateOfBirthValue: FormDataEntryValue | null,
+): string | null {
+  if (!isCalendarDate(dateOfJoining)) {
+    return 'Enter a valid date of joining.';
+  }
+  const dateOfBirth = String(dateOfBirthValue ?? '').trim();
+  if (!dateOfBirth) {
+    return null;
+  }
+  if (!isCalendarDate(dateOfBirth)) {
+    return 'Enter a valid date of birth.';
+  }
+  if (dateOfBirth > todayIST()) {
+    return 'The date of birth is in the future.';
+  }
+  if (dateOfBirth >= dateOfJoining) {
+    return 'The date of birth must be before the date of joining.';
+  }
+  return null;
+}
+
 /**
  * Calculate salary components in integer paise and return Decimal128 values. The employee validator
  * requires decimal fields and checks that components sum exactly to gross.
@@ -404,6 +431,10 @@ async function createEmployee(formData: FormData) {
   if (!dateOfJoining) {
     return { ok: false, error: 'Date of joining is required.' };
   }
+  const dateProblem = employeeDateProblem(dateOfJoining, formData.get('date_of_birth'));
+  if (dateProblem) {
+    return { ok: false, error: dateProblem };
+  }
 
   const salary = parseSalary(formData);
   if (!salary.ok) {
@@ -550,6 +581,10 @@ async function updateEmployee(formData: FormData) {
   }
   if (!dateOfJoining) {
     return { ok: false, error: 'Date of joining is required.' };
+  }
+  const dateProblem = employeeDateProblem(dateOfJoining, formData.get('date_of_birth'));
+  if (dateProblem) {
+    return { ok: false, error: dateProblem };
   }
 
   const salary = parseSalary(formData);
@@ -698,6 +733,8 @@ async function reactivateEmployee(code: string) {
     .from('employees')
     .update({ status: 'active' })
     .eq('code', code)
+    // Only a deactivated employee is brought back; this must not take someone off notice.
+    .eq('status', 'inactive')
     .is('deleted_at', null)
     .select('id');
 

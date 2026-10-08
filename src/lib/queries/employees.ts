@@ -41,7 +41,9 @@ async function getEmployees(includeInactive = false): Promise<EmployeeListRow[]>
   const employees = await scoped<EmployeeDoc>(collections.employees);
   // Reads denormalized branch_name directly without additional collection lookup.
   const rows = await employees.find(
-    includeInactive ? { deleted_at: null } : { status: 'active', deleted_at: null },
+    includeInactive
+      ? { deleted_at: null }
+      : { status: { $in: ['active', 'on_notice'] }, deleted_at: null },
     {
       sort: { code: 1 },
     },
@@ -57,7 +59,8 @@ async function getEmployees(includeInactive = false): Promise<EmployeeListRow[]>
     gross: toNumber(e.gross_monthly),
     uan: e.pf_uan,
     esic_no: e.esic_number,
-    active: e.status === 'active',
+    // Someone serving notice is still employed: they punch, are paid, and can be edited.
+    active: e.status === 'active' || e.status === 'on_notice',
     status: e.status,
     // Absent on rows written before the field existed — those are employees.
     // employmentType: e.employment_type === 'intern' ? 'intern' : 'employee',
@@ -69,16 +72,18 @@ interface EmployeeOption {
   id: string;
   code: string;
   name: string;
+  /** 'active' or 'on_notice', when the caller loaded it. */
+  status?: string;
 }
 
 /** Active employees as {id, code, name} — for "link this login to an employee". */
 async function getEmployeeOptions(): Promise<EmployeeOption[]> {
   const employees = await scoped<EmployeeDoc>(collections.employees);
   const rows = await employees.find(
-    { status: 'active', deleted_at: null },
-    { projection: { code: 1, full_name: 1 }, sort: { code: 1 } },
+    { status: { $in: ['active', 'on_notice'] }, deleted_at: null },
+    { projection: { code: 1, full_name: 1, status: 1 }, sort: { code: 1 } },
   );
-  return rows.map((e) => ({ id: e._id, code: e.code, name: e.full_name }));
+  return rows.map((e) => ({ id: e._id, code: e.code, name: e.full_name, status: e.status }));
 }
 
 /** Full editable fields for one employee, keyed by code. Null when not found. */
@@ -321,7 +326,7 @@ async function getEmployeeOverview(
 async function getActiveEmployeeCount(): Promise<number> {
   try {
     const employees = await scoped<EmployeeDoc>(collections.employees);
-    return await employees.countDocuments({ status: 'active' });
+    return await employees.countDocuments({ status: { $in: ['active', 'on_notice'] } });
   } catch {
     return 0;
   }

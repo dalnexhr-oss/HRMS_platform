@@ -29,7 +29,7 @@ async function readBoard(): Promise<BoardData> {
     dbc
       .from('employees')
       .select('id, code, full_name, designation, branches(name), departments(name)')
-      .eq('status', 'active')
+      .in('status', ['active', 'on_notice'])
       .order('full_name'),
     dbc
       .from('attendance_days')

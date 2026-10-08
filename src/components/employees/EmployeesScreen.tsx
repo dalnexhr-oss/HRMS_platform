@@ -258,7 +258,19 @@ function EmployeesScreen({
                   <td className="text-monospace text-muted">{e.uan}</td>
                   <td className="text-monospace text-muted">{e.esic_no ?? '—'}</td>
                   <td>
-                    {e.active ? (
+                    {e.status === 'on_notice' ? (
+                      <span
+                        className="status-badge"
+                        style={{
+                          borderColor: 'var(--attendance-late-border)',
+                          color: 'var(--attendance-late)',
+                          background: 'var(--attendance-late-background)',
+                        }}
+                        title="Serving notice. Still employed until the exit is completed."
+                      >
+                        On notice
+                      </span>
+                    ) : e.active ? (
                       <span
                         className="status-badge"
                         style={{
