@@ -4,13 +4,16 @@
 // employee's login.
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { inr, formatDate } from '@/lib/display-formatting';
-import { initiateExit, refreshExitClearance, setClearanceItemCleared, setExitStage, prepareFullAndFinal, setFullAndFinalStatus, generateExitDocument, fetchClearanceItems, ensureExitInterview, saveExitInterview, fetchExitInterview, setKtStatus, deleteKtItem, fetchKtItems } from '@/lib/actions/exit';
+import { inr, formatDate, todayIST } from '@/lib/display-formatting';
+import { initiateExit, refreshExitClearance, setClearanceItemCleared, setExitStage, prepareFullAndFinal, setFullAndFinalStatus, fetchClearanceItems, ensureExitInterview, saveExitInterview, fetchExitInterview, setKtStatus, deleteKtItem, fetchKtItems } from '@/lib/actions/exit';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
+import { DocumentTypesProvider } from '@/components/documents/DocumentTypesContext';
+import { UploadDocumentDrawer } from '@/components/documents/UploadDocumentDrawer';
 import type { ExitCaseRow, ClearanceItemRow, ExitInterviewRow, KtItemRow } from '@/lib/queries/exits';
 import type { EmployeeOption } from '@/lib/queries/employees';
+import type { DocumentType } from '@/lib/document-categories';
 
 const stageOrder: Array<ExitCaseRow['stage']> = [
   'initiated',
@@ -26,7 +29,31 @@ const stageLabel: Record<ExitCaseRow['stage'], string> = {
   completed: 'Completed',
 };
 
-function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: EmployeeOption[] }) {
+// The exits register, wrapped so the letter upload reads HR's list of document types.
+function ExitsScreen({
+  documentTypes,
+  ...props
+}: {
+  cases: ExitCaseRow[];
+  employees: EmployeeOption[];
+  documentTypes: DocumentType[];
+}) {
+  return (
+    <DocumentTypesProvider types={documentTypes}>
+      <ExitsRegister {...props} />
+    </DocumentTypesProvider>
+  );
+}
+
+function ExitsRegister({
+  cases,
+  employees,
+}: {
+  cases: ExitCaseRow[];
+  employees: EmployeeOption[];
+}) {
+  // The employee whose exit letter is being uploaded, or null when the drawer is closed.
+  const [letterFor, setLetterFor] = useState<ExitCaseRow | null>(null);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [openCase, setOpenCase] = useState<ExitCaseRow | null>(null);
@@ -65,6 +92,22 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
     <div className="content-container grid">
       {confirmDialog}
       {notificationContainer}
+      {/* Exit letters are written by HR and uploaded here. The leaver is added to the list because
+          someone whose exit is complete is no longer among the current employees. */}
+      <UploadDocumentDrawer
+        target={
+          letterFor ? { mode: 'upload', employeeId: letterFor.employeeId, stage: 'exit' } : null
+        }
+        employees={
+          letterFor
+            ? [
+                { id: letterFor.employeeId, code: letterFor.code, name: letterFor.name },
+                ...employees.filter((e) => e.id !== letterFor.employeeId),
+              ]
+            : employees
+        }
+        onClose={() => setLetterFor(null)}
+      />
 
       <div className="card">
         <div className="card-header">
@@ -260,11 +303,14 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
                               Complete
                             </button>
                           )}
-                          <DocMenu
-                            caseId={c.id}
+                          <button
+                            className="button quiet"
                             disabled={pending}
-                            showNotification={showNotification}
-                          />
+                            onClick={() => setLetterFor(c)}
+                            title="Upload the relieving letter, experience letter or settlement statement"
+                          >
+                            ⬆ Upload letter
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -290,45 +336,6 @@ function ExitsScreen({ cases, employees }: { cases: ExitCaseRow[]; employees: Em
 }
 
 /** Issue relieving / experience / F&F PDFs into the documents bucket. */
-function DocMenu({
-  caseId,
-  disabled,
-  showNotification,
-}: {
-  caseId: string;
-  disabled: boolean;
-  showNotification: (m: string, k?: 'info' | 'error' | 'success') => void;
-}) {
-  const [busy, setBusy] = useState(false);
-  const gen = async (kind: 'relieving' | 'experience' | 'fnf') => {
-    setBusy(true);
-    const res = await generateExitDocument(caseId, kind);
-    setBusy(false);
-    if (!res.ok) {
-      showNotification(res.error ?? 'The document could not be generated.', 'error');
-    } else {
-      showNotification('Document generated and filed.', 'success');
-    }
-  };
-  return (
-    <>
-      <button className="button quiet" disabled={disabled || busy} onClick={() => gen('relieving')}>
-        {busy ? '…' : '📄 Relieving'}
-      </button>
-      <button
-        className="button quiet"
-        disabled={disabled || busy}
-        onClick={() => gen('experience')}
-      >
-        📄 Experience
-      </button>
-      <button className="button quiet" disabled={disabled || busy} onClick={() => gen('fnf')}>
-        📄 F&amp;F
-      </button>
-    </>
-  );
-}
-
 /** The per-case clearance checklist, loaded on open. */
 function ClearanceDrawer({
   exitCase,
@@ -714,6 +721,7 @@ function StartExitForm({
         <label>Resignation date</label>
         <input
           type="date"
+          max={todayIST()}
           value={resignationDate}
           onChange={(e) => setResignationDate(e.target.value)}
         />
@@ -722,6 +730,7 @@ function StartExitForm({
         <label>Last working day</label>
         <input
           type="date"
+          min={resignationDate || undefined}
           value={lastWorkingDay}
           onChange={(e) => setLastWorkingDay(e.target.value)}
         />

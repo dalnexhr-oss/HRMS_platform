@@ -5,15 +5,13 @@
 import { queryErrorCodes } from '@/lib/db/query-errors';
 import { revalidatePath } from 'next/cache';
 import { todayIST } from '@/lib/display-formatting';
+import { isCalendarDate } from '@/lib/calendar-dates';
 import { toMoney } from '@/lib/db/decimal-conversions';
 import { notifyEmployee } from '@/lib/notification-delivery';
 import { createClient } from '@/lib/db/server-client';
-import { renderLetterPdf } from '@/lib/documents/letters';
 import { deactivateEmployee } from '@/lib/actions/employees';
-import { uploadFileService } from '@/lib/file-storage';
 import { requireRoles, wroteNothing } from '@/lib/actions/guards';
 import { getClearanceItems as readClearanceItems, getExitInterview as readExitInterview, getKtItems as readKtItems } from '@/lib/queries/exits';
-import { buildRelievingLetter, buildExperienceLetter, buildFullAndFinalStatement } from '@/lib/documents/templates';
 import type { ExitInterviewRow } from '@/lib/queries/exits';
 import type { AppRole } from '@/types/database';
 
@@ -25,7 +23,6 @@ interface ActionResult {
 }
 
 const exitRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
-const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // IST, not the host clock: a letter issued between 00:00 and 05:30 IST used
@@ -49,17 +46,38 @@ async function initiateExit(input: {
   if (!uuidRe.test(String(input.employeeId ?? ''))) {
     return { ok: false, error: 'Pick an employee.' };
   }
-  if (!isoDate.test(input.resignationDate)) {
+  if (!isCalendarDate(input.resignationDate)) {
     return { ok: false, error: 'Enter the resignation date.' };
   }
-  if (!isoDate.test(input.lastWorkingDay)) {
+  if (!isCalendarDate(input.lastWorkingDay)) {
     return { ok: false, error: 'Enter the last working day.' };
+  }
+  if (input.resignationDate > today()) {
+    return {
+      ok: false,
+      error: 'The resignation date is in the future — record the exit once notice is given.',
+    };
   }
   if (input.lastWorkingDay < input.resignationDate) {
     return { ok: false, error: 'The last working day cannot be before the resignation date.' };
   }
 
   const dbc = await createClient();
+
+  // On-notice employees appear in the employee picker, so an exit already under way has to be
+  // refused here rather than by leaving them out of the list.
+  const { data: openCases, error: openError } = await dbc
+    .from('exit_cases')
+    .select('id')
+    .eq('employee_id', input.employeeId)
+    .neq('stage', 'completed')
+    .limit(1);
+  if (openError) {
+    return { ok: false, error: openError.message };
+  }
+  if (openCases && openCases.length > 0) {
+    return { ok: false, error: 'This employee already has an exit in progress.' };
+  }
 
   const { data, error } = await dbc
     .from('exit_cases')
@@ -705,141 +723,6 @@ async function setFullAndFinalStatus(
   return { ok: true };
 }
 
-/**
- * Generate the exit PDF under system scope and store it in the employee's generated-documents
- * folder.
- */
-async function generateExitDocument(
-  exitCaseId: string,
-  kind: 'relieving' | 'experience' | 'fnf',
-): Promise<ActionResult & { path?: string }> {
-  const gate = await requireRoles(exitRoles, 'Generating an exit document');
-  if (!gate.ok) {
-    return gate;
-  }
-
-  const dbc = await createClient();
-  const { data: kase } = await dbc
-    .from('exit_cases')
-    .select(
-      'id, employee_id, last_working_day, employees(code, full_name, date_of_joining, designation)',
-    )
-    .eq('id', exitCaseId)
-    .maybeSingle<any>();
-  if (!kase) {
-    return { ok: false, error: 'That exit case no longer exists.' };
-  }
-
-  const emp = kase.employees ?? {};
-  const issuedOn = today();
-  const base = {
-    employeeName: emp.full_name ?? '',
-    employeeCode: emp.code ?? '',
-    designation: emp.designation ?? undefined,
-    dateOfJoining: String(emp.date_of_joining ?? '').slice(0, 10),
-    lastWorkingDay: String(kase.last_working_day ?? '').slice(0, 10),
-    issuedOn,
-  };
-  if (!base.employeeName || !base.dateOfJoining || !base.lastWorkingDay) {
-    return {
-      ok: false,
-      error: 'The employee record is missing a joining date or last working day.',
-    };
-  }
-
-  let spec;
-  let filename: string;
-  if (kind === 'relieving') {
-    spec = buildRelievingLetter(base);
-    filename = `relieving-${base.employeeCode}.pdf`;
-  } else if (kind === 'experience') {
-    spec = buildExperienceLetter(base);
-    filename = `experience-${base.employeeCode}.pdf`;
-  } else {
-    const { data: fnf } = await dbc
-      .from('full_and_final')
-      .select(
-        'salary_payable, leave_encashment, pending_reimbursements, asset_recovery, other_deductions, net_payable',
-      )
-      .eq('exit_case_id', exitCaseId)
-      .maybeSingle<any>();
-    if (!fnf) {
-      return { ok: false, error: 'Prepare the settlement before generating its statement.' };
-    }
-    spec = buildFullAndFinalStatement({
-      employeeName: base.employeeName,
-      employeeCode: base.employeeCode,
-      lastWorkingDay: base.lastWorkingDay,
-      issuedOn,
-      salaryPayable: Number(fnf.salary_payable ?? 0),
-      leaveEncashment: Number(fnf.leave_encashment ?? 0),
-      pendingReimbursements: Number(fnf.pending_reimbursements ?? 0),
-      assetRecovery: Number(fnf.asset_recovery ?? 0),
-      otherDeductions: Number(fnf.other_deductions ?? 0),
-      netPayable: Number(fnf.net_payable ?? 0),
-    });
-    filename = `full-and-final-${base.employeeCode}.pdf`;
-  }
-
-  let bytes: Uint8Array;
-  try {
-    bytes = await renderLetterPdf(spec);
-  } catch (e) {
-    return {
-      ok: false,
-      error: `The document could not be rendered: ${e instanceof Error ? e.message : String(e)}`,
-    };
-  }
-
-  const up = await uploadFileService(
-    'generated-documents',
-    kase.employee_id,
-    filename,
-    bytes,
-    'application/pdf',
-  );
-  if (!up.ok) {
-    return { ok: false, error: up.error ?? 'The document could not be stored.' };
-  }
-
-  // Store generated document in `generated-documents` bucket.
-  const { data: docRow, error: docErr } = await dbc
-    .from('employee_documents')
-    .insert({
-      employee_id: kase.employee_id,
-      bucket: 'generated-documents',
-      category: kind === 'fnf' ? 'settlement' : kind,
-      title: filename,
-      storage_path: up.path,
-      uploaded_by: gate.profileId,
-      // An HR-issued letter is authoritative the moment it is produced. Stamping
-      // it here keeps it out of getUnverifiedDocuments, which is HR's "an
-      // employee filed something, please check it" queue — not a self-review one.
-      verified_by: gate.profileId,
-      verified_at: new Date(),
-    })
-    .select('id');
-  if (docErr) {
-    return {
-      ok: false,
-      error: `The PDF was stored but could not be filed against the employee: ${docErr.message}`,
-    };
-  }
-  if (wroteNothing(docRow)) {
-    return { ok: false, error: 'The document was not filed against the employee.' };
-  }
-
-  await notifyEmployee(kase.employee_id, {
-    kind: 'system',
-    title: 'A document was issued to you',
-    body: filename,
-    link: '/employee#documents',
-  });
-
-  revalidatePath('/exits');
-  return { ok: true, path: up.path };
-}
-
 export {
   initiateExit,
   fetchClearanceItems,
@@ -856,7 +739,6 @@ export {
   prepareFullAndFinal,
   updateFullAndFinal,
   setFullAndFinalStatus,
-  generateExitDocument,
 };
 
 export type { ExitInterviewRow, ActionResult };

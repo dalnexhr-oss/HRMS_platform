@@ -3,6 +3,7 @@ import { getSession } from '@/lib/server-auth';
 import { ExitsScreen } from '@/components/exits/ExitsScreen';
 import { getExitCases } from '@/lib/queries/exits';
 import { getEmployeeOptions } from '@/lib/queries/employees';
+import { getDocumentTypes } from '@/lib/queries/document-settings';
 import type { AppRole } from '@/types/database';
 
 // Match the exit actions' staff role gate.
@@ -15,8 +16,12 @@ async function ExitsPage() {
     redirect('/dashboard');
   }
 
-  const [cases, employees] = await Promise.all([getExitCases(), getEmployeeOptions()]);
-  return <ExitsScreen cases={cases} employees={employees} />;
+  const [cases, employees, documentTypes] = await Promise.all([
+    getExitCases(),
+    getEmployeeOptions(),
+    getDocumentTypes(),
+  ]);
+  return <ExitsScreen cases={cases} employees={employees} documentTypes={documentTypes} />;
 }
 
 export { ExitsPage as default };
