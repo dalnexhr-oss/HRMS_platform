@@ -1,0 +1,49 @@
+.trigger {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+/* Let the wrapper show the explanation even when its button is disabled. */
+.trigger > button:disabled {
+  pointer-events: none;
+}
+
+.tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  width: max-content;
+  padding: 7px 11px;
+  border: 1px solid var(--border-surface);
+  border-radius: var(--border-radius-small);
+  background: linear-gradient(180deg, #ffffff, #e9eef6);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-raised-small);
+  font: 600 12px/1.4 var(--font-body);
+  white-space: nowrap;
+}
+
+/* Keep the tooltip open while the pointer crosses the gap below the control. */
+.tooltip::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  left: 0;
+  height: 8px;
+}
+
+.tooltip::after {
+  content: '';
+  position: absolute;
+  right: 11px;
+  bottom: calc(100% - 4px);
+  width: 8px;
+  height: 8px;
+  border-top: 1px solid var(--border-surface);
+  border-left: 1px solid var(--border-surface);
+  background: var(--surface-solid);
+  transform: rotate(45deg);
+}

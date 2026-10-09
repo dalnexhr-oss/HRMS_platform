@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { CalendarExportButton } from '@/components/employee/CalendarExportButton';
 import { describePolicy } from '@/lib/weekly-off-policy';
 import { todayIST, yearOptionsAround } from '@/lib/display-formatting';
 import type { WeekOffPolicy } from '@/lib/weekly-off-policy';
@@ -28,7 +29,6 @@ function EmployeeHolidays({
     <div>
       {policy && <WeekOffBanner policy={policy} />}
 
-      {/* Subscribe/download the personal .ics feed: approved leave, comp-off credits and these holidays, in the employee's own calendar app. */}
       <div
         style={{
           display: 'flex',
@@ -44,12 +44,11 @@ function EmployeeHolidays({
         <div style={{ flex: '1 1 220px', minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: 13 }}>Add to your calendar</div>
           <div className="text-muted" style={{ fontSize: 12 }}>
-            Your approved leave, comp-off credits and company holidays as one calendar file.
+            Download your approved leave, work requests, comp-off credits and company holidays to
+            import into your calendar app.
           </div>
         </div>
-        <a className="button quiet" href="/api/calendar" download="dalnex-hr.ics">
-          ⬇ Download .ics
-        </a>
+        <CalendarExportButton />
       </div>
 
       <div className="period-toolbar">

@@ -3,10 +3,11 @@
 // Notification dropdown and unread count. Render bodies as text because they may contain
 // user-submitted content.
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useRef, useState, useTransition } from 'react';
+import { useEffect, useId, useRef, useState, useTransition } from 'react';
 import { markNotificationRead, markAllNotificationsRead } from '@/lib/actions/notifications';
 import { safeRedirectPath } from '@/lib/auth/redirect';
 import { resolveEmployeeLink } from '@/lib/employee-navigation';
+import styles from './HeaderTooltip.module.css';
 import type { Route } from 'next';
 import type { NotificationRow } from '@/lib/queries/notifications';
 
@@ -83,6 +84,8 @@ function NotificationBell({
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [tooltipVisible, setTooltipVisible] = useState(false);
+  const tooltipId = useId();
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const boxRef = useRef<HTMLDivElement>(null);
@@ -90,17 +93,19 @@ function NotificationBell({
   // Close on outside click / Escape — a dropdown that traps focus in a sticky
   // topbar is worse than no dropdown.
   useEffect(() => {
-    if (!open) {
+    if (!open && !tooltipVisible) {
       return;
     }
     function onDown(e: MouseEvent) {
       if (boxRef.current && !boxRef.current.contains(e.target as Node)) {
         setOpen(false);
+        setTooltipVisible(false);
       }
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         setOpen(false);
+        setTooltipVisible(false);
       }
     }
     document.addEventListener('mousedown', onDown);
@@ -109,7 +114,7 @@ function NotificationBell({
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey);
     };
-  }, [open]);
+  }, [open, tooltipVisible]);
 
   // Handle navigation explicitly so notifications can scroll to a section on the current page,
   // including repeated clicks. Complete navigation before refreshing.
@@ -159,14 +164,25 @@ function NotificationBell({
   };
 
   return (
-    <div ref={boxRef} style={{ position: 'relative' }}>
+    <div
+      ref={boxRef}
+      style={{ position: 'relative' }}
+      onMouseEnter={() => setTooltipVisible(true)}
+      onMouseLeave={() => setTooltipVisible(false)}
+    >
       <button
         type="button"
         className="button quiet"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          setTooltipVisible(false);
+          setOpen((o) => !o);
+        }}
+        onFocus={() => setTooltipVisible(true)}
+        onBlur={() => setTooltipVisible(false)}
         aria-haspopup="true"
         aria-expanded={open}
         aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
+        aria-describedby={!open && tooltipVisible ? tooltipId : undefined}
         style={{ position: 'relative' }}
       >
         <svg
@@ -201,6 +217,12 @@ function NotificationBell({
           </span>
         )}
       </button>
+
+      {!open && tooltipVisible && (
+        <span id={tooltipId} role="tooltip" className={styles.tooltip}>
+          Notifications
+        </span>
+      )}
 
       {open && (
         <div

@@ -3,7 +3,8 @@
 // Profile popover with identity details and a link to the account settings page.
 import Link from 'next/link';
 import { AvatarInner } from '@/components/ui/Avatar';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import styles from './HeaderTooltip.module.css';
 import type { Route } from 'next';
 
 const roleLabel: Record<string, string> = {
@@ -29,20 +30,24 @@ function ProfileMenu({
   accountHref: Route;
 }) {
   const [open, setOpen] = useState(false);
+  const [tooltipVisible, setTooltipVisible] = useState(false);
+  const tooltipId = useId();
   const boxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) {
+    if (!open && !tooltipVisible) {
       return;
     }
     function onDown(e: MouseEvent) {
       if (boxRef.current && !boxRef.current.contains(e.target as Node)) {
         setOpen(false);
+        setTooltipVisible(false);
       }
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         setOpen(false);
+        setTooltipVisible(false);
       }
     }
     document.addEventListener('mousedown', onDown);
@@ -51,20 +56,37 @@ function ProfileMenu({
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey);
     };
-  }, [open]);
+  }, [open, tooltipVisible]);
 
   return (
-    <div ref={boxRef} className="avatar-menu">
+    <div
+      ref={boxRef}
+      className="avatar-menu"
+      onMouseEnter={() => setTooltipVisible(true)}
+      onMouseLeave={() => setTooltipVisible(false)}
+    >
       <button
         type="button"
         className="avatar avatar-button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          setTooltipVisible(false);
+          setOpen((o) => !o);
+        }}
+        onFocus={() => setTooltipVisible(true)}
+        onBlur={() => setTooltipVisible(false)}
         aria-haspopup="true"
         aria-expanded={open}
-        aria-label="Your profile"
+        aria-label="Manage profile"
+        aria-describedby={!open && tooltipVisible ? tooltipId : undefined}
       >
         <AvatarInner name={name} avatar={avatar} />
       </button>
+
+      {!open && tooltipVisible && (
+        <span id={tooltipId} role="tooltip" className={styles.tooltip}>
+          Manage profile
+        </span>
+      )}
 
       {open && (
         <div role="menu" className="avatar-popover">
