@@ -5,6 +5,5 @@
   "trailingComma": "all",
   "printWidth": 100,
   "endOfLine": "lf",
-  "embeddedLanguageFormatting": "off",
-  "plugins": ["./scripts/prettier-imports.mjs"]
+  "embeddedLanguageFormatting": "off"
 }

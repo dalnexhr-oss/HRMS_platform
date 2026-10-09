@@ -129,9 +129,9 @@ function LeaveSalaryAdmin({
         {!migrated && (
           <div className="card-body">
             <p className="text-muted" style={{ margin: 0 }}>
-              Leave salary is not set up on this database yet — run <b>npm run db:setup</b> to
-              create the collections. The figures below are computed live and correct, but nothing
-              can be saved until then.
+              Leave salary is not set up on this database yet. The figures below are computed live
+              and correct, but nothing can be saved until the database is configured by an
+              administrator.
             </p>
           </div>
         )}
@@ -480,7 +480,7 @@ function WorkingRow({
                 disabled={pending || !migrated || !valid || !dirty}
                 title={
                   !migrated
-                    ? 'Run npm run db:setup first'
+                    ? 'Ask an administrator to configure leave salary storage first'
                     : !valid
                       ? 'Enter both salaries'
                       : !dirty
