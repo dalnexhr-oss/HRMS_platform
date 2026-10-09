@@ -1,13 +1,14 @@
 'use client';
 
 import './payslip.css';
+import styles from './PayrollOverview.module.css';
 import { inr } from '@/lib/display-formatting';
 import { useNotifications } from '@/components/ui/Notifications';
 import { printPayslip } from '@/lib/payslip-print';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { Fragment, useState, useTransition, useActionState } from 'react';
 import { computeRun, lockRun, markRunPaid, openRun, saveAdjustments } from '@/lib/actions/payroll';
-import type { ChangeEvent } from 'react';
+import type { ChangeEvent, ReactNode } from 'react';
 import type { PayslipRow } from '@/types/domain';
 import type { PayrollRunView } from '@/lib/queries/payroll';
 
@@ -201,24 +202,24 @@ function PayrollTable({
   payslips,
   run,
   monthLabel,
-  statusLabel,
   adjustments,
+  downloads,
 }: {
   payslips: PayslipRow[];
   run: PayrollRunView | null;
   monthLabel: string;
-  statusLabel: string;
   adjustments: Record<string, PayslipAdjustments>;
+  downloads: ReactNode;
 }) {
   const [open, setOpen] = useState<string | null>(null);
   const sum = (k: keyof PayslipRow) => payslips.reduce((a, p) => a + (p[k] as number), 0);
 
-  const totals: Array<[string, string]> = [
-    ['Total net payout', inr(sum('netPayable'))],
-    ['Earned gross', inr(sum('earnedGross'))],
-    ['PF (emp + er)', inr(sum('pfEmployee') + sum('pfEmployer'))],
-    ['ESIC (emp + er)', inr(sum('esicEmployee') + sum('esicEmployer'))],
-    ['Professional tax', inr(sum('professionalTax'))],
+  const totals: Array<[string, string, string]> = [
+    ['Net payout', inr(sum('netPayable')), 'After deductions'],
+    ['Earned gross', inr(sum('earnedGross')), 'Before deductions'],
+    ['PF contributions', inr(sum('pfEmployee') + sum('pfEmployer')), 'Employee + employer'],
+    ['ESIC contributions', inr(sum('esicEmployee') + sum('esicEmployer')), 'Employee + employer'],
+    ['Professional tax', inr(sum('professionalTax')), 'Employee deductions'],
   ];
 
   const frozen = isFrozen(run);
@@ -228,24 +229,29 @@ function PayrollTable({
 
   return (
     <>
-      <div className="payroll-totals">
-        {totals.map(([l, v]) => (
-          <div className="card" key={l}>
-            <div className="metric-label">{l}</div>
-            <div className="metric-value">{v}</div>
+      <section className={styles.totals} aria-label={`Payroll totals for ${monthLabel}`}>
+        {totals.map(([l, v, note]) => (
+          <div className={`card ${styles.summaryCard}`} key={l}>
+            <h3 className={styles.metricTitle}>{l}</h3>
+            <div className={styles.metricValue}>{v}</div>
+            <p className={styles.metricNote}>{note}</p>
           </div>
         ))}
-      </div>
+      </section>
 
-      <div className="card">
-        <div className="card-header">
-          <h3>Payslips — {monthLabel}</h3>
-          <span className="card-caption">
-            {payslips.length} {payslips.length === 1 ? 'employee' : 'employees'} ·{' '}
-            {statusLabel.toLowerCase()}
-          </span>
+      <div className={`card ${styles.payslips}`}>
+        {downloads}
+        <div className={styles.tableHeader}>
+          <div className={styles.headingRow}>
+            <h3>Payslips</h3>
+            <span className={styles.count}>
+              {payslips.length} {payslips.length === 1 ? 'employee' : 'employees'}
+            </span>
+          </div>
+          {payslips.length > 0 && (
+            <p className={styles.hint}>Select a row for the breakdown and adjustments.</p>
+          )}
         </div>
-
         {payslips.length === 0 ? (
           <div className="card-body">
             <p className="text-muted">
@@ -256,7 +262,7 @@ function PayrollTable({
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table>
+            <table aria-label={`Payslips for ${monthLabel}`}>
               <thead>
                 <tr>
                   <th>Emp</th>

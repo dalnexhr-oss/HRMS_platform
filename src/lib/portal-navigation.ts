@@ -128,13 +128,6 @@ interface TopbarStats {
   nightSweep: string | null;
 }
 
-const runStatusLabel: Record<string, string> = {
-  draft: 'draft',
-  in_review: 'in review',
-  locked: 'locked',
-  paid: 'paid',
-};
-
 // Title + subtitle for a page. Falls back to the static tabTitles row whenever the figure behind a
 // subtitle is unavailable, so a failed count degrades to a plain description rather than to a wrong
 // number.
@@ -154,10 +147,10 @@ function pageHeader(slug: string, stats?: TopbarStats | null): [string, string] 
       return [title, `${stats.periodLabel}\n${closed ? 'Closed' : 'Active'}`];
     }
 
-    case 'payroll': {
-      const status = stats.runStatus ? (runStatusLabel[stats.runStatus] ?? stats.runStatus) : null;
-      return [title, `${stats.periodLabel} · ${status ?? 'no run yet'}`];
-    }
+    // The payroll page shows its selected month and status together. Layout stats always
+    // describe the current month, which may differ when viewing a historical run.
+    case 'payroll':
+      return [title, fallback];
 
     case 'employees': {
       if (stats.activeEmployees == null) {

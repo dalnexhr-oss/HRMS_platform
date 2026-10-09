@@ -1,4 +1,5 @@
 import './payroll.css';
+import styles from '@/components/payroll/PayrollOverview.module.css';
 import { MonthNavigation } from '@/components/ui/MonthNavigation';
 import { createClient } from '@/lib/db/server-client';
 import { StatutoryExports } from '@/components/payroll/StatutoryExports';
@@ -201,22 +202,24 @@ async function PayrollPage({
   }
 
   return (
-    <div className="content-container">
-      <div className="period-toolbar">
-        <MonthNavigation
-          label={label}
-          previousHref={`/payroll?m=${prev}` as Route}
-          nextHref={`/payroll?m=${next}` as Route}
-        />
-      </div>
-
+    <div className="content-container payroll-page">
       <div className="payroll-run-banner">
-        <span className="payroll-run-status">{statusLabel.toUpperCase()}</span>
+        <div className={styles.period}>
+          <MonthNavigation
+            label={label}
+            previousHref={`/payroll?m=${prev}` as Route}
+            nextHref={`/payroll?m=${next}` as Route}
+          />
+          <span className="payroll-run-status" data-status={run?.status ?? 'none'}>
+            {statusLabel}
+          </span>
+        </div>
         <div className="payroll-run-details">
           {segments.length > 0 ? (
             segments.map(([l, v]) => (
               <span className="payroll-run-detail" key={l}>
-                {l} <b>&nbsp;{v}</b>
+                <span>{l}</span>
+                <b>{v}</b>
               </span>
             ))
           ) : (
@@ -225,35 +228,41 @@ async function PayrollPage({
             </span>
           )}
         </div>
-        <span style={{ flex: 1 }} />
-        <RunActions
-          run={run}
-          payslipCount={payslips.length}
-          periodMonth={run?.periodMonth ?? periodMonth}
-        />
-      </div>
-
-      <div className="payroll-export-actions">
-        <XlsxExportButton
-          action={exportPayrollXlsx.bind(null, run?.periodMonth ?? periodMonth)}
-          label="Export payroll .xlsx"
-        />
-        <XlsxExportButton
-          action={exportAttendanceTemplateXlsx.bind(null, run?.periodMonth ?? periodMonth)}
-          label="Attendance template"
-        />
-        <StatutoryExports
-          periodMonth={run?.periodMonth ?? periodMonth}
-          disabled={payslips.length === 0}
-        />
+        <div className="payroll-run-actions">
+          <RunActions
+            run={run}
+            payslipCount={payslips.length}
+            periodMonth={run?.periodMonth ?? periodMonth}
+          />
+        </div>
       </div>
 
       <PayrollTable
         payslips={payslips}
         run={run}
         monthLabel={label}
-        statusLabel={statusLabel}
         adjustments={adjustments}
+        downloads={
+          <div className={styles.downloads} role="group" aria-label="Payroll downloads">
+            <div className={styles.downloadGroup}>
+              <span className={styles.downloadLabel}>Payroll files</span>
+              <div className={styles.downloadButtons}>
+                <XlsxExportButton
+                  action={exportPayrollXlsx.bind(null, run?.periodMonth ?? periodMonth)}
+                  label="Payroll Excel"
+                />
+                <XlsxExportButton
+                  action={exportAttendanceTemplateXlsx.bind(null, run?.periodMonth ?? periodMonth)}
+                  label="Attendance template"
+                />
+              </div>
+            </div>
+            <StatutoryExports
+              periodMonth={run?.periodMonth ?? periodMonth}
+              disabled={payslips.length === 0}
+            />
+          </div>
+        }
       />
 
       <p className="text-muted" style={{ fontSize: 12, marginTop: 10 }}>
