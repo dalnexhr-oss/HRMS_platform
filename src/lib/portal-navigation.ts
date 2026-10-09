@@ -81,56 +81,42 @@ const tabRoleAccess: Record<string, readonly string[]> = {
 // Static titles and fallback subtitles by slug. pageHeader supplies dates and counts from live
 // data.
 const tabTitles: Record<string, [string, string]> = {
-  dashboard: ['Dashboard', 'Live attendance '],
+  'dashboard': ['Dashboard', 'Live attendance '],
   'monthly-register': ['Monthly register', 'Attendance by month'],
   'attendance-audit': ['Attendance audit', 'Who edited attendance & why'],
   'tv-dashboard': ['TV dashboard', 'Live employee attendance'],
   'leave-management': ['Leave Management', 'Manage employee leave requests'],
   'leave-salary': ['Leave salary', 'Leave salary & payroll'],
-  exits: ['Exits', 'Clearance, settlement & documents'],
-  onboarding: ['Onboarding', 'Joiner checklist & documents'],
-  documents: ['Documents', 'Employee document register'],
-  payroll: ['Payroll', 'Salary runs & payslips'],
+  'exits': ['Exits', 'Clearance, settlement & documents'],
+  'onboarding': ['Onboarding', 'Joiner checklist & documents'],
+  'documents': ['Documents', 'Employee document register'],
+  'payroll': ['Payroll', 'Salary runs & payslips'],
   'professional-tax': ['Professional tax', 'Slabs by state'],
-  reimbursements: ['Reimbursements', 'Employee claims & approvals'],
-  employees: ['Employees', 'Staff directory'],
+  'reimbursements': ['Reimbursements', 'Employee claims & approvals'],
+  'employees': ['Employees', 'Manage employee details'],
   'asset-management': ['Asset management', 'IT assets'],
   'inventory-management': ['Inventory management', 'Stock, tools & assignments'],
   'company-policies': ['Company policies', 'Published to employee dashboards'],
-  approvals: ['Approvals', 'Leave & duty requests'],
-  holidays: ['Holidays', 'Holiday calendar'],
-  notices: ['Notices', 'Policy bulletin'],
-  helpdesk: ['Helpdesk', 'Employee tickets'],
-  settings: ['Settings', 'Rules & thresholds'],
-  users: ['Users', 'Login accounts & roles'],
+  'approvals': ['Approvals', 'Leave & duty requests'],
+  'holidays': ['Holidays', 'Holiday calendar'],
+  'notices': ['Notices', 'Policy bulletin'],
+  'helpdesk': ['Helpdesk', 'Employee tickets'],
+  'settings': ['Settings', 'Rules & thresholds'],
+  'users': ['Users', 'Login accounts & roles'],
   'data-import': ['Attendance import', 'Import monthly attendance from Excel'],
-  account: ['My account', 'Your profile & password'],
+  'account': ['My account', 'Your profile & password'],
 };
 
-// Server-formatted dates keep topbar hydration consistent. Keep this client-safe contract outside
-// the server-only queries module.
+
 interface TopbarStats {
-  // e.g. 'Saturday, 25 July YYYY' — today in the business timezone.
   todayLabel: string;
-  // e.g. 'July YYYY' — the current payroll period.
   periodLabel: string;
-  // Current year in the business timezone.
   year: number;
-  // Active head-count, or null when the lookup failed.
-  activeEmployees: number | null;
-  // Branch names, for the '· Pune & Vadodara' tail.
-  branches: string[];
-  // Requests awaiting a decision, or null when the lookup failed.
   pendingApprovals: number | null;
-  // payroll_runs.status for the current period; null when there is no run.
   runStatus: string | null;
-  // Configured auto punch-out time, already formatted ('11:00 PM').
   nightSweep: string | null;
 }
 
-// Title + subtitle for a page. Falls back to the static tabTitles row whenever the figure behind a
-// subtitle is unavailable, so a failed count degrades to a plain description rather than to a wrong
-// number.
 function pageHeader(slug: string, stats?: TopbarStats | null): [string, string] {
   const [title, fallback] = tabTitles[slug] ?? ['', ''];
   if (!stats) {
@@ -151,15 +137,6 @@ function pageHeader(slug: string, stats?: TopbarStats | null): [string, string] 
     // describe the current month, which may differ when viewing a historical run.
     case 'payroll':
       return [title, fallback];
-
-    case 'employees': {
-      if (stats.activeEmployees == null) {
-        return [title, fallback];
-      }
-      const where = stats.branches.length ? `\n${stats.branches.join(' & ')}` : '';
-
-      return [title, `${stats.activeEmployees} active${where}`];
-    }
 
     case 'approvals': {
       if (stats.pendingApprovals == null) {

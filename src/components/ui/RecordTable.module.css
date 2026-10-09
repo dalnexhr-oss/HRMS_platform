@@ -1,0 +1,350 @@
+.panel {
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius) var(--border-radius) 0 0;
+  background: linear-gradient(180deg, var(--surface-solid), var(--page-background-muted));
+  box-shadow: inset 0 1px 0 var(--shadow-highlight);
+}
+
+.heading h3 {
+  margin: 0;
+  font: 700 14px/1.4 var(--font-body);
+  color: var(--text-primary);
+}
+
+.subtitle {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font: 500 11px/1.5 var(--font-body);
+}
+
+.headerAction {
+  margin-left: auto;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  padding: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-surface);
+  border-radius: 9px;
+  background: linear-gradient(180deg, #ffffff, #e9eef6);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-raised-small);
+  font: 600 11px/1.5 var(--font-body);
+  text-transform: capitalize;
+}
+
+.filter:hover {
+  color: var(--brand);
+  border-color: var(--brand);
+}
+
+.filter[aria-pressed='true'] {
+  background: var(--brand-soft);
+  color: var(--brand-deep);
+  border-color: rgba(14, 122, 143, 0.3);
+  box-shadow: var(--shadow-inset);
+}
+
+.filter:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
+
+.filterCount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.search {
+  flex: 1 1 220px;
+  min-width: 0;
+  max-width: 310px;
+  margin-left: auto;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.search input {
+  min-width: 0;
+  width: 100%;
+}
+
+.search svg {
+  flex-shrink: 0;
+}
+
+.scroll {
+  max-width: 100%;
+  overflow: auto;
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(143, 164, 197, 0.7) transparent;
+}
+
+.scroll:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+
+.historyScroll {
+  max-height: 480px;
+}
+
+.employeeScroll {
+  border-radius: var(--border-radius);
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+}
+
+.table > thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, var(--surface-solid), var(--surface-inset));
+  box-shadow: inset 0 1px 0 var(--shadow-highlight);
+  color: var(--text-secondary);
+  font: 600 11px/1.5 var(--font-body);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.table > tbody > tr > td {
+  padding: 10px 12px;
+  line-height: 1.5;
+}
+
+.employeeTable {
+  min-width: 1060px;
+}
+
+.historyTable {
+  min-width: 980px;
+}
+
+.identity {
+  min-width: 180px;
+}
+
+.employeeName {
+  display: block;
+  font-weight: 600;
+}
+
+.identityDetails {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.table :global(.status-badge) {
+  padding: 4px 8px;
+  font: 600 10px/1.4 var(--font-body);
+  white-space: nowrap;
+}
+
+.leaveStatus {
+  text-transform: capitalize;
+}
+
+.leaveStatus[data-status='approved'] {
+  background: var(--attendance-present-background);
+  border-color: var(--attendance-present-border);
+  color: var(--attendance-present);
+}
+
+.leaveStatus[data-status='pending'] {
+  background: var(--attendance-late-background);
+  border-color: var(--attendance-late-border);
+  color: var(--attendance-late);
+}
+
+.leaveStatus[data-status='rejected'] {
+  background: var(--attendance-half-day-background);
+  border-color: var(--attendance-half-day-border);
+  color: var(--attendance-half-day);
+}
+
+.leaveStatus[data-status='cancelled'] {
+  background: var(--surface-inset);
+  border-color: var(--border-surface);
+  color: var(--text-muted);
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rowActions > button {
+  padding: 6px 10px;
+  border-radius: 9px;
+  font: 600 11px/1.5 var(--font-body);
+}
+
+.employeeToolbar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin-bottom: 16px;
+}
+
+.employeeSearch {
+  flex: 1 1 340px;
+  min-width: 0;
+  max-width: 560px;
+}
+
+.employeeSearch :global(.employee-picker) {
+  margin: 0;
+}
+
+.employeeSearch :global(.employee-picker) > label {
+  font: 600 12px/1.5 var(--font-body);
+  color: var(--text-secondary);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.employeeSearch :global(.employee-picker-control) > input {
+  padding: 9px 80px 9px 12px;
+  font: 400 13px/1.5 var(--font-body);
+}
+
+.employeeActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.employeeActions > button {
+  padding: 9px 12px;
+  font-size: 12px;
+}
+
+.rosterCount {
+  color: var(--text-muted);
+  font: 500 11px/1.5 var(--font-body);
+}
+
+.inactiveToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.inactiveToggle input {
+  accent-color: var(--brand);
+}
+
+.empty {
+  margin: 0;
+  padding: 20px 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+@media (max-width: 860px) {
+  .search {
+    flex-basis: 100%;
+    max-width: none;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .employeeSearch {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .employeeActions {
+    margin-left: 0;
+  }
+
+  .search input,
+  .employeeSearch :global(.employee-picker-control) > input {
+    font-size: 16px;
+  }
+}
+
+@media (pointer: coarse), (max-width: 640px) {
+  .filter,
+  .rowActions > button {
+    min-height: 44px;
+  }
+}
+
+@media print {
+  .toolbar,
+  .employeeToolbar,
+  .rowActions,
+  .headerAction {
+    display: none;
+  }
+
+  .scroll {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .table {
+    min-width: 0;
+  }
+
+  .table > thead > tr > th {
+    position: static;
+    background: #fff;
+    box-shadow: none;
+  }
+}

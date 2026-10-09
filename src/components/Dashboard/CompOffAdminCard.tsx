@@ -71,15 +71,14 @@ function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; error?: st
               (c) => c.status === 'available' && c.isApplicable,
             ).length;
             return (
-              <div key={g.code + g.name} style={{ marginBottom: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+              <div key={g.code + g.name} className="dashboard-comp-off-group">
+                <div className="dashboard-comp-off-employee">
                   <b>{g.name}</b>
                   <span className="text-monospace text-muted" style={{ fontSize: 11 }}>
                     {g.code}
                   </span>
-                  <span style={{ flex: 1 }} />
                   <span
-                    className="status-badge"
+                    className="status-badge dashboard-comp-off-balance"
                     style={{
                       borderColor: balance
                         ? 'var(--attendance-present-border)'
@@ -91,15 +90,12 @@ function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; error?: st
                     Balance: {balance}
                   </span>
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <div className="dashboard-comp-off-credits">
                   {g.credits.map((c) => (
                     <span
                       key={c.id}
-                      className="status-badge"
+                      className="status-badge dashboard-comp-off-credit"
                       style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
                         borderColor: 'var(--border-strong)',
                         color:
                           c.status === 'available' && c.isApplicable
@@ -120,7 +116,6 @@ function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; error?: st
                       ) : (
                         <button
                           className="button quiet"
-                          style={{ padding: '1px 7px', fontSize: 11 }}
                           disabled={pending && busyId === c.id}
                           title={
                             c.isApplicable

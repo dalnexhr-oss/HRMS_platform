@@ -204,8 +204,6 @@ async function getTopbarStats(): Promise<TopbarStats> {
     todayLabel: fmt({ weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
     periodLabel: fmt({ month: 'long', year: 'numeric' }),
     year: Number(todayISO().slice(0, 4)),
-    activeEmployees: null,
-    branches: [],
     pendingApprovals: null,
     runStatus: null,
     nightSweep: null,
@@ -218,12 +216,7 @@ async function getTopbarStats(): Promise<TopbarStats> {
   try {
     const queryClient = await createClient();
     const periodMonth = `${todayISO().slice(0, 7)}-01`;
-    const [employees, branches, approvals, run, sweep] = await Promise.all([
-      queryClient
-        .from('employees')
-        .select('code', { count: 'exact', head: true })
-        .in('status', ['active', 'on_notice']),
-      queryClient.from('branches').select('name').order('name'),
+    const [approvals, run, sweep] = await Promise.all([
       queryClient
         .from('requests')
         .select('id', { count: 'exact', head: true })
@@ -242,8 +235,6 @@ async function getTopbarStats(): Promise<TopbarStats> {
 
     return {
       ...base,
-      activeEmployees: employees.error ? null : (employees.count ?? null),
-      branches: branches.error ? [] : (branches.data ?? []).map((b: any) => b.name as string),
       pendingApprovals: approvals.error ? null : (approvals.count ?? null),
       runStatus: run.error ? null : (run.data?.status ?? null),
       nightSweep: sweep.error ? null : prettyClock(sweep.data?.value),

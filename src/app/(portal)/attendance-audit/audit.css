@@ -1,87 +1,58 @@
-.audit-card {
-  min-width: 0;
-  overflow: hidden;
-  border-color: var(--border-strong);
-}
-
-.audit-card .card-header {
-  flex-wrap: wrap;
-}
-
 .audit-title {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+}
+
+.audit-title > span {
+  display: inline-flex;
 }
 
 .audit-title .icon {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   flex: none;
   color: var(--brand);
 }
 
 .audit-scroll {
   max-height: max(280px, calc(100dvh - 180px));
-  overflow: auto;
-  scroll-padding-top: 48px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(143, 164, 197, 0.7) transparent;
-}
-
-.audit-scroll:focus-visible {
-  outline-offset: -3px;
+  scroll-padding-top: 40px;
 }
 
 .audit-table {
-  min-width: 680px;
+  min-width: 900px;
   table-layout: fixed;
 }
 
 .audit-column-when {
-  width: 19%;
+  width: 154px;
 }
 
 .audit-column-type {
-  width: 14%;
+  width: 110px;
 }
 
 .audit-column-actor {
-  width: 15%;
+  width: 148px;
 }
 
 .audit-column-employee {
-  width: 18%;
+  width: 172px;
 }
 
-.audit-column-detail {
-  width: 34%;
-}
-
-.audit-table th,
 .audit-table td {
-  white-space: normal;
   overflow-wrap: anywhere;
-}
-
-.audit-table th {
-  background: var(--surface-inset);
-}
-
-.audit-table td {
   vertical-align: top;
-  padding-top: 16px;
-  padding-bottom: 16px;
 }
 
-.audit-employee-code {
-  display: block;
-  margin-top: 4px;
-  font-size: 11px;
+.audit-event-type {
+  border-color: var(--border-surface);
+  background: var(--surface-inset);
+  color: var(--text-secondary);
 }
 
 @media print {
-  .audit-card,
   .audit-scroll {
     max-height: none;
     overflow: visible;
@@ -89,9 +60,16 @@
 
   .audit-table {
     min-width: 0;
+    table-layout: auto;
   }
+}
+.audit-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-  .audit-table th {
-    position: static;
-  }
+.audit-title > span:first-child {
+  display: inline-flex;
+  align-items: center;
 }

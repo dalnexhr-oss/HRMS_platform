@@ -121,7 +121,6 @@ function ImportScreen({
         <div className="card">
           <div className="card-header">
             <h3>Upload monthly register</h3>
-            <span className="card-caption">.xlsx · from the attendance sheet</span>
             <span style={{ flex: 1 }} />
             {canDownloadTemplate && (
               // An arrow closure, not .bind — it is recreated on every render, so

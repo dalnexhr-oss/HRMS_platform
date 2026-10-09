@@ -3,6 +3,7 @@
 // Leave request history. Decisions happen on /approvals; revalidation keeps this list in sync.
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import styles from '@/components/ui/RecordTable.module.css';
 import type { RequestView } from '@/lib/queries/requests';
 
 const statusTabs = ['all', 'pending', 'approved', 'rejected', 'cancelled'] as const;
@@ -84,100 +85,111 @@ function LeaveHistory({ requests }: { requests: RequestView[] }) {
   }, [requests, tab, query]);
 
   return (
-    <div className="card" id="leave-management">
-      <div className="card-header">
-        <h3>Leave management</h3>
-        <span className="card-caption">
-          complete history · {counts.pending} pending · {requests.length} total
-        </span>
-        <span style={{ flex: 1 }} />
-        <Link className="button quiet" href="/approvals">
+    <div className={`card ${styles.panel}`} id="leave-management">
+      <div className={styles.header}>
+        <div className={styles.heading}>
+          <h3>Leave management</h3>
+          <p className={styles.subtitle}>
+            Complete history · {counts.pending} pending · {requests.length} total
+          </p>
+        </div>
+        <Link className={`button ${styles.headerAction}`} href="/approvals">
           Review pending →
         </Link>
       </div>
-      <div className="card-body">
-        <div
-          style={{
-            display: 'flex',
-            gap: 6,
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            marginBottom: 12,
-          }}
-        >
-          {statusTabs.map((t) => (
-            <button
-              key={t}
-              className={`button quiet${tab === t ? ' primary' : ''}`}
-              style={{ padding: '4px 10px', fontSize: 12, textTransform: 'capitalize' }}
-              onClick={() => setTab(t)}
+      <div>
+        <div className={styles.toolbar}>
+          <div className={styles.filters} role="group" aria-label="Filter leave requests by status">
+            {statusTabs.map((t) => (
+              <button
+                key={t}
+                type="button"
+                className={styles.filter}
+                aria-pressed={tab === t}
+                onClick={() => setTab(t)}
+              >
+                {t} <span className={styles.filterCount}>({counts[t]})</span>
+              </button>
+            ))}
+          </div>
+          <label className={`search-field ${styles.search}`}>
+            <span className="visually-hidden">
+              Search leave history by employee name, code or branch
+            </span>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
             >
-              {t} ({counts[t]})
-            </button>
-          ))}
-          <span style={{ flex: 1 }} />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name / code / branch"
-            aria-label="Search leave history by employee name, code or branch"
-            style={{ minWidth: 200, padding: '6px 10px' }}
-          />
+              <circle cx="10.5" cy="10.5" r="6.5" />
+              <path d="m16 16 4.5 4.5" />
+            </svg>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name / code / branch"
+            />
+          </label>
         </div>
 
         {visible.length === 0 ? (
-          <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
+          <p className={styles.empty}>
             {requests.length === 0
               ? 'No leave requests have been filed yet. Requests submitted from the employee dashboard appear here automatically.'
               : 'Nothing matches this filter.'}
           </p>
         ) : (
-          <div style={{ overflowX: 'auto', maxHeight: 480, overflowY: 'auto' }}>
-            <table>
+          <div
+            className={`${styles.scroll} ${styles.historyScroll}`}
+            role="region"
+            aria-label="Leave request history"
+            tabIndex={0}
+          >
+            <table className={`${styles.table} ${styles.historyTable}`} aria-label="Leave requests">
               <thead>
                 <tr>
-                  <th>Employee</th>
-                  <th>Type</th>
-                  <th>Dates</th>
-                  <th className="text-right">Days</th>
-                  <th>Submitted</th>
-                  <th>Decided</th>
-                  <th>Status</th>
-                  <th>Reason / decision</th>
+                  <th scope="col" className={styles.identity}>
+                    Employee
+                  </th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Dates</th>
+                  <th scope="col" className="text-right">
+                    Days
+                  </th>
+                  <th scope="col">Submitted</th>
+                  <th scope="col">Decided</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Reason / decision</th>
                 </tr>
               </thead>
               <tbody>
                 {visible.map((r) => (
                   <tr key={r.id}>
-                    <td>
+                    <td className={styles.identity}>
                       <Link href={`/requests/${r.id}`}>
-                        <b>{r.employeeName}</b>
-                      </Link>{' '}
-                      <span className="text-monospace text-muted" style={{ fontSize: 11 }}>
-                        {r.employeeCode}
-                      </span>
-                      <div className="text-muted" style={{ fontSize: 11 }}>
-                        {r.branch}
+                        <b className={styles.employeeName}>{r.employeeName}</b>
+                      </Link>
+                      <div className={styles.identityDetails}>
+                        <span className="text-monospace">{r.employeeCode}</span>
+                        <span>{r.branch}</span>
                       </div>
                     </td>
                     <td>{(r.leaveKind && kindLabel[r.leaveKind]) || r.leaveKind || 'Leave'}</td>
-                    <td className="text-monospace" style={{ whiteSpace: 'nowrap' }}>
+                    <td className={`text-monospace ${styles.nowrap}`}>
                       {r.startDate === r.endDate
                         ? day(r.startDate)
                         : `${day(r.startDate)} – ${day(r.endDate)}`}
                     </td>
                     <td className="text-right text-monospace">{r.days}</td>
-                    <td className="text-monospace">{stamp(r.createdAt)}</td>
-                    <td className="text-monospace">{stamp(r.reviewedAt)}</td>
+                    <td className={`text-monospace ${styles.nowrap}`}>{stamp(r.createdAt)}</td>
+                    <td className={`text-monospace ${styles.nowrap}`}>{stamp(r.reviewedAt)}</td>
                     <td>
-                      <span
-                        className="status-badge"
-                        style={{
-                          borderColor: 'var(--border-strong)',
-                          color: statusColor[r.status],
-                          textTransform: 'capitalize',
-                        }}
-                      >
+                      <span className={`status-badge ${styles.leaveStatus}`} data-status={r.status}>
                         {r.status}
                       </span>
                     </td>

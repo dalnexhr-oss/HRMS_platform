@@ -30,8 +30,7 @@ function Topbar({
 }) {
   const pathname = usePathname();
   const slug = slugFromPathname(pathname) || 'dashboard';
-  // Subtitles carry live data (today's date, the current period, head-counts),
-  // so they are derived rather than read from a static table.
+  // Use live dates and pending approvals where relevant, with plain descriptions elsewhere.
   const [title, sub] = pageHeader(slug, stats);
 
   return (

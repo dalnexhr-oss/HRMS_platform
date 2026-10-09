@@ -3,6 +3,7 @@ import { AttendanceStatusBadge } from '@/components/ui/AttendanceStatusBadge';
 import { ExportButton } from '@/components/Dashboard/ExportButton';
 import { NightSweepButton } from '@/components/Dashboard/NightSweepButton';
 import { branchColorAt } from '@/lib/branch-colors';
+import tableStyles from '@/components/ui/RecordTable.module.css';
 import type { ActivityRow } from '@/lib/queries/dashboard';
 import type { PayrollRunView } from '@/lib/queries/payroll';
 import type { Celebration, MarkWatch, PunchLogRow, TodayKpis } from '@/types/domain';
@@ -235,17 +236,31 @@ function Dashboard({
           {!punchLog.ok ? (
             <LoadError what="the punch log" message={punchLog.error} />
           ) : (
-            <div className="punch-log-scroll">
-              <table>
+            <div
+              className={`punch-log-scroll ${tableStyles.scroll}`}
+              role="region"
+              aria-label="Today's punch log"
+              tabIndex={0}
+            >
+              <table className={tableStyles.table} aria-label="Today's employee punches">
+                <colgroup>
+                  <col className="punch-log-column-id" />
+                  <col />
+                  <col className="punch-log-column-branch" />
+                  <col className="punch-log-column-time" />
+                  <col className="punch-log-column-time" />
+                  <col className="punch-log-column-active" />
+                  <col className="punch-log-column-status" />
+                </colgroup>
                 <thead>
                   <tr>
-                    <th>Emp</th>
-                    <th>Name</th>
-                    <th>Branch</th>
-                    <th>In</th>
-                    <th>Out</th>
-                    <th>Active</th>
-                    <th>Status</th>
+                    <th scope="col">Employee ID</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Branch</th>
+                    <th scope="col">In</th>
+                    <th scope="col">Out</th>
+                    <th scope="col">Active</th>
+                    <th scope="col">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -258,14 +273,18 @@ function Dashboard({
                   ) : (
                     punchLog.data.map((r) => (
                       <tr key={r.code}>
-                        <td className="text-monospace text-muted">{r.code}</td>
-                        <td>
-                          <b>{r.name}</b>
+                        <td className={`text-monospace text-muted ${tableStyles.nowrap}`}>
+                          {r.code}
                         </td>
-                        <td>{r.branch}</td>
-                        <td className="text-monospace">{r.in ?? '—'}</td>
-                        <td className="text-monospace">{r.out ?? '—'}</td>
-                        <td className="text-monospace">{r.active ?? '—'}</td>
+                        <td className="punch-log-name">
+                          <b className={tableStyles.employeeName}>{r.name}</b>
+                        </td>
+                        <td className="punch-log-branch">{r.branch}</td>
+                        <td className={`text-monospace ${tableStyles.nowrap}`}>{r.in ?? '—'}</td>
+                        <td className={`text-monospace ${tableStyles.nowrap}`}>{r.out ?? '—'}</td>
+                        <td className={`text-monospace ${tableStyles.nowrap}`}>
+                          {r.active ?? '—'}
+                        </td>
                         <td>
                           <AttendanceStatusBadge status={r.status} />
                         </td>

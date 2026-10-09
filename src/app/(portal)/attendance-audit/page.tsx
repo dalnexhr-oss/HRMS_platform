@@ -3,6 +3,7 @@ import { formatDate } from '@/lib/display-formatting';
 import { redirect } from 'next/navigation';
 import { getAttendanceAudit } from '@/lib/queries/attendance';
 import { icons } from '@/components/Icons';
+import tableStyles from '@/components/ui/RecordTable.module.css';
 import './audit.css';
 import type { AppRole } from '@/types/database';
 
@@ -39,70 +40,62 @@ async function AuditPage() {
 
   return (
     <div className="content-container">
-      <div className="card audit-card">
-        <div className="card-header">
-          <h3 className="audit-title">
-            <span aria-hidden="true" style={{ marginRight: '0.5em' }}>
-              {icons.recent}
-            </span>
-            {entries.length} recent event{entries.length === 1 ? '' : 's'}
-          </h3>
+      <div className={`card ${tableStyles.panel}`}>
+        <div className={tableStyles.header}>
+          <div className={tableStyles.heading}>
+            <h3 className="audit-title">
+              <span aria-hidden="true">{icons.recent}</span>
+              <span>Recent attendance activity ({entries.length})</span>
+            </h3>
+          </div>
         </div>
         {loadError ? (
           <div className="card-body">
             <div className="error-message">Could not load the audit log: {loadError}</div>
           </div>
         ) : entries.length === 0 ? (
-          <div className="card-body">
-            <p className="text-muted" style={{ margin: 0 }}>
-              No attendance edits recorded yet.
-            </p>
-          </div>
+          <p className={tableStyles.empty}>No attendance edits recorded yet.</p>
         ) : (
           <div
-            className="audit-scroll"
+            className={`${tableStyles.scroll} audit-scroll`}
             role="region"
             aria-label="Attendance audit log"
             tabIndex={0}
           >
-            <table className="audit-table sticky-table-header">
+            <table className={`${tableStyles.table} audit-table`} aria-label="Attendance events">
               <colgroup>
                 <col className="audit-column-when" />
                 <col className="audit-column-type" />
                 <col className="audit-column-actor" />
                 <col className="audit-column-employee" />
-                <col className="audit-column-detail" />
+                <col />
               </colgroup>
               <thead>
                 <tr>
-                  <th scope="col">When</th>
+                  <th scope="col">Date &amp; time</th>
                   <th scope="col">Type</th>
-                  <th scope="col">By</th>
+                  <th scope="col">Changed by</th>
                   <th scope="col">Employee</th>
-                  <th scope="col">Detail</th>
+                  <th scope="col">Details</th>
                 </tr>
               </thead>
               <tbody>
                 {entries.map((e) => (
                   <tr key={e.id}>
-                    <td className="text-monospace text-muted">{stampTime(e.occurredAt)}</td>
+                    <td className={`text-monospace text-muted ${tableStyles.nowrap}`}>
+                      {stampTime(e.occurredAt)}
+                    </td>
                     <td>
-                      <span
-                        className="status-badge"
-                        style={{
-                          borderColor: 'var(--border-strong)',
-                          color: 'var(--text-secondary)',
-                        }}
-                      >
+                      <span className="status-badge audit-event-type">
                         {eventLabel[e.eventType] ?? e.eventType}
                       </span>
                     </td>
-                    <td>{e.actor ?? <span className="text-muted">system</span>}</td>
+                    <td>{e.actor ?? <span className="text-muted">System</span>}</td>
                     <td>
                       {e.employeeName ? (
                         <>
-                          {e.employeeName}
-                          <span className="text-monospace text-muted audit-employee-code">
+                          <span className={tableStyles.employeeName}>{e.employeeName}</span>
+                          <span className={`text-monospace ${tableStyles.identityDetails}`}>
                             {e.employeeCode}
                           </span>
                         </>

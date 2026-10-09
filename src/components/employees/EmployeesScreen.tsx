@@ -7,9 +7,10 @@ import { AddEmployeeDrawer } from './AddEmployeeDrawer';
 import { EmployeePicker } from './EmployeePicker';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
-import { fetchEmployeeForEdit, deactivateEmployee, reactivateEmployee } from '@/lib/actions/employees';
 import { branchColorAt } from '@/lib/branch-colors';
 import { deleteEmployee } from '@/lib/actions/employee-deletion';
+import { fetchEmployeeForEdit, deactivateEmployee, reactivateEmployee } from '@/lib/actions/employees';
+import styles from '@/components/ui/RecordTable.module.css';
 import type { EmployeeListRow, EmployeeEditRow } from '@/lib/queries/employees';
 import type { BranchRow } from '@/lib/queries/branches';
 
@@ -171,75 +172,77 @@ function EmployeesScreen({
 
   return (
     <div className="content-container">
-      <div className="records-toolbar employees-toolbar">
-        <EmployeePicker
-          label="Find employee"
-          employees={editOptions}
-          value=""
-          searchValue={searchQuery}
-          onSearchChange={setSearchQuery}
-          placeholder="Search name, employee code, or PF UAN…"
-          onChange={(code) => {
-            if (code) {
-              openEdit(code);
-            }
-          }}
-          disabled={pending}
-        />
-        <span
-          className="status-badge"
-          style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}
-        >
-          {activeCount} active{inactiveCount ? ` · ${inactiveCount} inactive` : ''}
-        </span>
-        {inactiveCount > 0 && (
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 13,
-              color: 'var(--text-secondary)',
+      <div className={styles.employeeToolbar}>
+        <div className={styles.employeeSearch}>
+          <EmployeePicker
+            label="Find employee"
+            employees={editOptions}
+            value=""
+            searchValue={searchQuery}
+            onSearchChange={setSearchQuery}
+            placeholder="Search name, employee code, or PF UAN…"
+            onChange={(code) => {
+              if (code) {
+                openEdit(code);
+              }
             }}
-          >
-            <input
-              type="checkbox"
-              checked={showInactive}
-              onChange={(e) => setShowInactive(e.target.checked)}
-            />
-            Show inactive
-          </label>
-        )}
-        <button className="button primary" onClick={openAdd}>
-          + Add employee
-        </button>
+            disabled={pending}
+          />
+        </div>
+        <div className={styles.employeeActions}>
+          <span className={styles.rosterCount}>
+            {activeCount} active{inactiveCount ? ` · ${inactiveCount} inactive` : ''}
+          </span>
+          {inactiveCount > 0 && (
+            <label className={styles.inactiveToggle}>
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={(e) => setShowInactive(e.target.checked)}
+              />
+              Show inactive
+            </label>
+          )}
+          <button className="button primary" onClick={openAdd}>
+            + Add employee
+          </button>
+        </div>
       </div>
 
       {notificationContainer}
 
-      <div className="card">
-        <div style={{ overflowX: 'auto' }}>
-          <table>
+      <div className={`card ${styles.panel}`}>
+        <div
+          className={`${styles.scroll} ${styles.employeeScroll}`}
+          role="region"
+          aria-label="Employee directory"
+          tabIndex={0}
+        >
+          <table className={`${styles.table} ${styles.employeeTable}`} aria-label="Employees">
             <thead>
               <tr>
-                <th>Emp</th>
-                <th>Name</th>
-                <th>Branch</th>
-                <th>Gender</th>
-                <th>Joined</th>
-                <th className="text-right">Gross / mo</th>
-                <th>PF UAN</th>
-                <th>ESIC</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th scope="col">Employee ID</th>
+                <th scope="col" className={styles.identity}>
+                  Name
+                </th>
+                <th scope="col">Branch</th>
+                <th scope="col">Gender</th>
+                <th scope="col">Joined</th>
+                <th scope="col" className="text-right">
+                  Monthly gross
+                </th>
+                <th scope="col">PF UAN</th>
+                <th scope="col">ESIC</th>
+                <th scope="col">Status</th>
+                <th scope="col">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((e) => (
                 <tr key={e.code}>
-                  <td className="text-monospace text-muted">{e.code}</td>
-                  <td>
-                    <b>{e.name}</b>
+                  <td className={`text-monospace text-muted ${styles.nowrap}`}>{e.code}</td>
+                  <td className={styles.identity}>
+                    <b className={styles.employeeName}>{e.name}</b>
                   </td>
                   <td>
                     <span
@@ -253,10 +256,12 @@ function EmployeesScreen({
                     </span>
                   </td>
                   <td>{e.gender}</td>
-                  <td className="text-monospace">{e.doj}</td>
-                  <td className="text-right text-monospace">{inr(e.gross)}</td>
-                  <td className="text-monospace text-muted">{e.uan}</td>
-                  <td className="text-monospace text-muted">{e.esic_no ?? '—'}</td>
+                  <td className={`text-monospace ${styles.nowrap}`}>{e.doj}</td>
+                  <td className={`text-right text-monospace ${styles.nowrap}`}>{inr(e.gross)}</td>
+                  <td className={`text-monospace text-muted ${styles.nowrap}`}>{e.uan}</td>
+                  <td className={`text-monospace text-muted ${styles.nowrap}`}>
+                    {e.esic_no ?? '—'}
+                  </td>
                   <td>
                     {e.status === 'on_notice' ? (
                       <span
@@ -291,7 +296,7 @@ function EmployeesScreen({
                     )}
                   </td>
                   <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <div className={styles.rowActions}>
                       {e.active ? (
                         <>
                           <button

@@ -3,14 +3,15 @@
 // Leave-salary workings by employee. Drafts recalculate from salaries and register attendance;
 // finalized rows use saved figures. The paid-leave pool below supports annual provisioning and
 // audited adjustments.
+import { inr } from '@/lib/display-formatting';
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { inr } from '@/lib/display-formatting';
-import { computeLeaveSalary, effectiveFigures } from '@/lib/leave-salary';
-import { saveLeaveSalaryWorking, finalizeLeaveSalary, reopenLeaveSalary, markLeaveSalaryPaid } from '@/lib/actions/leave-salary';
-import { provisionLeaveYear, adjustLeaveBalance } from '@/lib/actions/leave';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
+import { computeLeaveSalary, effectiveFigures } from '@/lib/leave-salary';
+import { provisionLeaveYear, adjustLeaveBalance } from '@/lib/actions/leave';
+import {saveLeaveSalaryWorking,finalizeLeaveSalary,reopenLeaveSalary,markLeaveSalaryPaid } from '@/lib/actions/leave-salary';
+import styles from './LeaveSalaryAdmin.module.css';
 import type { LeaveSalaryResult } from '@/lib/leave-salary';
 import type { ReactNode } from 'react';
 import type { LeaveSalaryViewRow } from '@/lib/leave-salary-view';
@@ -102,28 +103,43 @@ function LeaveSalaryAdmin({
       {notificationContainer}
 
       <div className="card">
-        <div className="card-header">
-          <h3>Leave salary working · {year}</h3>
-          <span className="card-caption">
-            {rows.length} employee{rows.length === 1 ? '' : 's'} · total {inr(grandTotal)}
-          </span>
-          <span style={{ flex: 1 }} />
-          {/* Year switcher: the working is strictly per calendar year. */}
-          <button
-            className="button quiet"
-            disabled={pending}
-            onClick={() => router.push(`/leave-salary?y=${year - 1}`)}
-          >
-            ← {year - 1}
-          </button>
-          <button
-            className="button quiet"
-            disabled={pending}
-            onClick={() => router.push(`/leave-salary?y=${year + 1}`)}
-          >
-            {year + 1} →
-          </button>
-          {exportSlot}
+        <div className={styles.header}>
+          <div className={styles.heading}>
+            <div className={styles.titleRow}>
+              <h3>Leave salary working</h3>
+              <span className={styles.year}>{year}</span>
+            </div>
+            <div className={styles.summary}>
+              <span>
+                {rows.length} employee{rows.length === 1 ? '' : 's'}
+              </span>
+              <span className={styles.total}>
+                Total leave salary <strong>{inr(grandTotal)}</strong>
+              </span>
+            </div>
+          </div>
+          <div className={styles.actions}>
+            {/* Year switcher: the working is strictly per calendar year. */}
+            <button
+              type="button"
+              className="button"
+              aria-label={`View leave salary for ${year - 1}`}
+              disabled={pending}
+              onClick={() => router.push(`/leave-salary?y=${year - 1}`)}
+            >
+              ← {year - 1}
+            </button>
+            <button
+              type="button"
+              className="button"
+              aria-label={`View leave salary for ${year + 1}`}
+              disabled={pending}
+              onClick={() => router.push(`/leave-salary?y=${year + 1}`)}
+            >
+              {year + 1} →
+            </button>
+            {exportSlot}
+          </div>
         </div>
 
         {!migrated && (
@@ -144,20 +160,61 @@ function LeaveSalaryAdmin({
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table>
+            <table className={styles.workingTable} aria-label={`Leave salary working for ${year}`}>
+              <colgroup span={1} />
+              <colgroup span={2} />
+              <colgroup span={1} />
+              <colgroup span={2} />
+              <colgroup span={2} />
+              <colgroup span={1} />
+              <colgroup span={1} />
+              <colgroup span={1} />
               <thead>
-                <tr>
-                  <th>Employee</th>
-                  <th className="text-right">Salary before</th>
-                  <th className="text-right">Salary after</th>
-                  <th>Increment from</th>
-                  <th className="text-right">Present · before</th>
-                  <th className="text-right">Present · after</th>
-                  <th className="text-right">Payable · before</th>
-                  <th className="text-right">Payable · after</th>
-                  <th className="text-right">Total</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                <tr className={styles.columnGroups}>
+                  <th scope="col" rowSpan={2}>
+                    Employee
+                  </th>
+                  <th scope="colgroup" colSpan={2} className={styles.groupTitle}>
+                    Monthly salary
+                  </th>
+                  <th scope="col" rowSpan={2}>
+                    Increment from
+                  </th>
+                  <th scope="colgroup" colSpan={2} className={styles.groupTitle}>
+                    Present / calendar days
+                  </th>
+                  <th scope="colgroup" colSpan={2} className={styles.groupTitle}>
+                    Leave salary payable
+                  </th>
+                  <th scope="col" rowSpan={2} className="text-right">
+                    Total
+                  </th>
+                  <th scope="col" rowSpan={2}>
+                    Status
+                  </th>
+                  <th scope="col" rowSpan={2}>
+                    Actions
+                  </th>
+                </tr>
+                <tr className={styles.columnPeriods}>
+                  <th scope="col" className="text-right">
+                    Before increment
+                  </th>
+                  <th scope="col" className="text-right">
+                    After increment
+                  </th>
+                  <th scope="col" className="text-right">
+                    Before increment
+                  </th>
+                  <th scope="col" className="text-right">
+                    After increment
+                  </th>
+                  <th scope="col" className="text-right">
+                    Before increment
+                  </th>
+                  <th scope="col" className="text-right">
+                    After increment
+                  </th>
                 </tr>
               </thead>
               <tbody>
