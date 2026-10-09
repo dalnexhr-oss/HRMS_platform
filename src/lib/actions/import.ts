@@ -310,7 +310,7 @@ function explainWriteError(message: string, code?: string): string {
 }
 
 async function commitImport(formData: FormData): Promise<CommitResult> {
-  // 1. A write is impossible without a database. Never pretend otherwise.
+  // 1. Verify database is connected before saving imported records.
   if (!isMongoConfigured()) {
     return { ok: false, error: 'The database is not configured, so nothing can be imported.' };
   }

@@ -19,7 +19,7 @@ function HolidaysScreen({
   year: number;
   // e.g. "Sun off · Sat off except 2nd, 4th" — the scheduled week-off rule.
   weekOffSummary: string;
-  // Real branch names from the DB — was a hardcoded Pune/Vadodara pair.
+  // Active company branch names used for holiday schedules.
   branchNames?: string[];
 }) {
   // One shared confirm modal + notification stack for the whole screen.

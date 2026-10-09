@@ -126,8 +126,7 @@ const saturday = 6;
 const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const ord = (n: number) => `${n}${['th', 'st', 'nd', 'rd'][n] ?? 'th'}`;
 
-// Build a plain-language explanation that stays consistent with describePolicy
-// for ANY configured policy — no hardcoded Sunday/Saturday assumptions.
+// Creates a friendly, plain-English summary of the employee's weekly days off.
 function weekOffSentence(policy: WeekOffPolicy): string {
   const parts: string[] = [];
 

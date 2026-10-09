@@ -47,8 +47,7 @@ function UploadDocumentDrawer({
     {},
   );
 
-  // Keyed on the state object's identity, not on `ok`, so a reopened drawer is
-  // not snapped shut by a stale success from the previous submit.
+  // Automatically close the drawer and refresh the document list once an upload succeeds.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   useEffect(() => {

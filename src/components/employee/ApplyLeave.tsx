@@ -21,8 +21,10 @@ const typeLabel: Record<RequestType, string> = {
   comp_off: 'Comp off',
 };
 
-// The leave_type enum is a subset of the leave_kind enum, so the labels are not identical.
+/** Primary workplace request categories available for submission. */
 const typeOptions: RequestType[] = ['leave', 'site_visit', 'outdoor_duty', 'wfh'];
+
+/** Display labels for employee leave balance types. */
 const leaveKindLabel: Record<LeaveBalanceRow['type'], string> = {
   PL: 'Paid leave',
   CL: 'Casual leave',
@@ -30,8 +32,7 @@ const leaveKindLabel: Record<LeaveBalanceRow['type'], string> = {
   LWP: 'Leave without pay',
 };
 
-// CO uses applyCompOff to reserve an earned credit. It is not a leave_type and must not go through
-// createRequest.
+/** Options available when Request Type is 'leave'. Comp off reservations route through applyCompOff. */
 const leaveKindOptions = [
   { value: 'CO', label: 'Comp off' },
   { value: 'LWP', label: 'Leave without pay' },
@@ -297,8 +298,8 @@ function NewRequestForm({
     }
   };
 
-  // The form action is async and returns a JSON object with { ok: boolean, error?: string }.
-  // The state is preserved until the drawer is closed, so the user can fix errors and resubmit.
+  // Form submission action returning { ok: boolean, error?: string }.
+  // State retains error feedback upon submission failure so the user can amend inputs.
   const [state, action, pending] = useActionState<{ ok?: boolean; error?: string }, FormData>(
     async (_prev, formData) => {
       const takingCompOff = formData.get('type') === 'leave' && formData.get('leave_kind') === 'CO';

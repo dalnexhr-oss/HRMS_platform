@@ -3,10 +3,7 @@ import { createClient } from '@/lib/db/server-client';
 import { fail, isoOrNull, iso } from '@/lib/queries/shared';
 import { presentCredit } from '@/lib/leave-salary';
 
-// leave salary
-// The /leave-salary page model: one paid-leave pool of 15 days plus
-// an annual leave-salary working per employee. The old encashment/adjustment
-// list queries died with the PL/CL/SL screen; the tables themselves remain.
+// Leave-salary domain queries: retrieves annual paid-leave balances and saved workings.
 
 interface LeaveBalanceAdminRow {
   employeeId: string;
@@ -17,14 +14,13 @@ interface LeaveBalanceAdminRow {
   balance: number;
 }
 
-/** Every employee's PAID-LEAVE pool for a year — the pool card on /leave-salary. */
+/** Retrieves annual Paid Leave (PL) balances for all employees for the specified year. */
 async function getLeaveBalancesForYear(year: number): Promise<LeaveBalanceAdminRow[]> {
   const queryClient = await createClient();
   const { data, error } = await queryClient
     .from('leave_balances')
     .select('employee_id, year, type, balance, employees(code, full_name)')
     .eq('year', year)
-    // One pool now. Historic CL/SL rows stay in the table but not on screen.
     .eq('type', 'PL');
   if (error) {
     fail('getLeaveBalancesForYear: could not load balances', error);
@@ -118,9 +114,8 @@ interface LeaveSalaryEmployee {
 }
 
 /**
- * Who belongs on the year's leave-salary sheet: everyone still on the roster,
- * PLUS anyone off it who already has a saved working for the year — a mid-year
- * leaver's payout row must not vanish the day HR marks them inactive.
+ * Retrieves roster employees eligible for the year's leave-salary calculation:
+ * active and on-notice staff, plus former employees retaining a saved working for the year.
  */
 async function getLeaveSalaryRoster(year: number): Promise<LeaveSalaryEmployee[]> {
   const queryClient = await createClient();

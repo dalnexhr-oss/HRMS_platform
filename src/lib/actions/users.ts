@@ -444,8 +444,7 @@ async function setUserDisabled(userId: string, disabled: boolean): Promise<Actio
       { _id: userId },
       {
         $set: { disabled, updated_at: new Date() },
-        // Disabling revokes outstanding tokens as well as blocking new sign-ins,
-        // so re-enabling later cannot silently resurrect an old cookie.
+        // Invalidate all active login sessions immediately when an account is disabled.
         ...(disabled ? { $inc: { token_version: 1 } } : {}),
       },
     );
@@ -568,8 +567,7 @@ async function setUserPassword(userId: string, password: string): Promise<Action
       return { ok: false, error: 'That account no longer exists.' };
     }
 
-    // Any outstanding reset link is now stale — drop it rather than leaving a
-    // second, older credential live.
+    // Delete any pending password reset links now that a new password has been set.
     const database = await db();
     await database.collection('password_reset_tokens').deleteMany({ user_id: userId });
 

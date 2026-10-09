@@ -325,18 +325,16 @@ function usePunchClock(
       setVersion((n) => n + 1);
       // Quiet: the history and page refresh for this punch are issued right here.
       await load({ quiet: true });
-      // Wake the other control before the route refresh, so the two buttons
-      // never point opposite ways even for a frame.
+      // Sync both the topbar and page buttons immediately so they show the same status.
       announcePunch(source);
-      // The month strip and today's totals elsewhere on /employee are server-rendered.
+      // Refresh the page data to update hours worked.
       router.refresh();
     } catch (reason) {
       if (!alive.current) {
         return;
       }
       showNotification(apiErrorMessage(reason, 'Could not record the punch.'), 'error');
-      // A 409 means our view of in/out was stale, and after a timeout the punch may or may not
-      // have been stored — resync rather than leave the button pointing the wrong way.
+      // If there was an error, reload the latest status from the server so the button remains accurate.
       void load();
     } finally {
       punchInFlight = false;

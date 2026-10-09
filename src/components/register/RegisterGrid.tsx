@@ -547,9 +547,7 @@ function RegisterGrid({
             aria-label="Correct attendance"
           >
             {target && (
-              // Keying on the cell *and the open counter* remounts the form every
-              // time the drawer opens, resetting the field defaults, any stale
-              // error, and the stale state.ok that would otherwise re-close it.
+              // Reset form fields and previous messages each time the correction drawer opens.
               <CorrectionForm
                 key={`${target.employeeId}-${target.workDate}-${target.seq}`}
                 target={target}

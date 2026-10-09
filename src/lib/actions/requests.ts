@@ -25,7 +25,7 @@ interface ActionResult {
 }
 
 const requestTypes: readonly RequestType[] = ['leave', 'site_visit', 'outdoor_duty', 'wfh'];
-// Paid leave pool; CL/SL retained only for historical record compatibility.
+// Supported leave category identifiers for balance deductions.
 const leaveTypes: readonly LeaveType[] = ['PL', 'LWP', 'CL', 'SL'];
 
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;

@@ -5,8 +5,7 @@ import { useEffect } from 'react';
 import { resolveEmployeeLink } from '@/lib/employee-navigation';
 import type { Route } from 'next';
 
-// Sections that were anchors on the dashboard are now tabs. Links saved before that change, such as
-// /employee#payslips in a stored notification or an email, open the dashboard; forward them.
+// Automatically forwards notification links and email bookmarks (e.g. /employee#payslips) to the matching tab.
 function LegacySectionRedirect() {
   const router = useRouter();
 

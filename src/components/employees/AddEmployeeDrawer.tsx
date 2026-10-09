@@ -24,9 +24,7 @@ function AddEmployeeDrawer({
   employee?: EmployeeEditRow | null;
   // Existing department names, shown as combobox suggestions (pick or type new).
   departments?: string[];
-  // Real branches from the DB. Previously this list was hardcoded to Pune and Vadodara, so the form
-  // could offer a branch that no longer existed in the table — updateEmployee then failed its name
-  // lookup, and the save was lost.
+  // Active company branches shown in the branch selection dropdown.
   branches?: BranchRow[];
   // Increment on open to reload form defaults. Keep the key stable during the closing animation.
   formSeq?: number;

@@ -13,7 +13,7 @@ const resetTokensCollection = 'password_reset_tokens';
 interface ResetTokenDoc {
   _id: string;
   user_id: string;
-  // A password or session revocation makes previously issued links unusable.
+  // Ensures older reset links expire automatically when the password is changed.
   token_version: number;
   // SHA-256 of the raw token. The raw value is never persisted.
   token_hash: string;

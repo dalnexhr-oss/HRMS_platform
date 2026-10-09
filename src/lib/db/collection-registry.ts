@@ -103,7 +103,7 @@ interface UserDoc {
 
   // Links to the employees collection. Null for staff with no employee record.
   employee_id: string | null;
-  // Missing on legacy accounts means both web and device punching remain available.
+  // Punch permissions (web, biometric device, or both). Defaults to both if not specified.
   punch_access?: PunchAccess;
 
   // When true, immediately denies authentication even if JWT session cookie is unexpired.

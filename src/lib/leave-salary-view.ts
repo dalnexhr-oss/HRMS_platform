@@ -28,15 +28,14 @@ interface LeaveSalaryViewRow {
   live: LeaveSalaryResult;
   // The saved row, when one exists. Authoritative once status ≠ draft.
   working: LeaveSalaryWorkingRow | null;
-  // A finalized/paid snapshot no longer matches current attendance — someone edited the register
-  // after the working was locked. The snapshot stays authoritative; this flag is how the UI says
-  // "look again".
+  // True if attendance was edited after this calculation was already finalized or paid.
+  // The approved amount stays locked, but this flag alerts HR that attendance records changed.
   drift: boolean;
 }
 
 interface LeaveSalaryView {
   year: number;
-  // Indicates availability of saved workings collection.
+  // True if leave-salary database records are available for this year.
   migrated: boolean;
   rows: LeaveSalaryViewRow[];
 }
@@ -65,8 +64,7 @@ async function buildLeaveSalaryView(year: number): Promise<LeaveSalaryView> {
     const calendarDaysP1Override = working?.calendarDaysP1Override ?? null;
     const calendarDaysP2Override = working?.calendarDaysP2Override ?? null;
 
-    // Live honours the saved overrides, so "drift" keeps meaning "attendance
-    // moved under a locked snapshot" — an overridden denominator can't drift.
+    // Use HR's custom day counts if entered, so we only flag changes in actual attendance.
     const live = computeLeaveSalary({
       year,
       salaryBefore,

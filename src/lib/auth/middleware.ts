@@ -38,9 +38,7 @@ async function updateSession(request: NextRequest) {
     return response;
   }
 
-  // A prefetch is speculative and must never cost work. The sidebar holds ~19
-  // links, all in the viewport, so one page load fires 19 prefetches. Access is
-  // still enforced: the layouts redirect and the data layer scopes every query.
+  // Skip background link prefetching to keep page loads fast; full access checks run on actual navigation.
   if (
     request.headers.get('next-router-prefetch') === '1' ||
     request.headers.get('purpose') === 'prefetch'
@@ -49,8 +47,7 @@ async function updateSession(request: NextRequest) {
   }
 
   const token = request.cookies.get(sessionCookie)?.value;
-  // Signature + expiry only. No database, no network — this is a local verify
-  // against the shared secret, so it costs microseconds per request.
+  // Quickly verify token signature and expiry without making database calls.
   const claims = token ? await verifySession(token) : null;
 
   if (!claims) {
@@ -72,8 +69,7 @@ async function updateSession(request: NextRequest) {
   }
 
   if (isLogin) {
-    // An ?error= on /login means something upstream deliberately sent the user
-    // here to read it. Bouncing them off would loop.
+    // If the login page is displaying an error message, stay on the page so the user can read it.
     if (request.nextUrl.searchParams.has('error')) {
       return response;
     }

@@ -14,9 +14,7 @@ interface LeaveBalanceRow {
 }
 
 /**
- * An employee's PAID-LEAVE balance for the current year. PL-only since the
- * leave-salary policy: historic CL/SL rows survive in the table but would
- * render retired pills on the dashboard.
+ * Retrieves an employee's active Paid Leave (PL) balance for the current calendar year.
  */
 async function getLeaveBalances(employeeId: string): Promise<LeaveBalanceRow[]> {
   const balances = await scoped(collections.leaveBalances);

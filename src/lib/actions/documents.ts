@@ -537,7 +537,7 @@ async function getDocumentUrl(id: string): Promise<{ ok: boolean; url?: string; 
     return { ok: false, error: 'That document is not available to you.' };
   }
 
-  // Resolve storage bucket (defaults to 'employee-documents' for legacy uploads).
+  // Use the document's assigned storage folder, defaulting to 'employee-documents'.
   const bucket = (data.bucket ?? uploadBucket) as StorageBucket;
   const signed = await signedUrl(bucket, data.storage_path);
   return signed.ok ? { ok: true, url: signed.url } : { ok: false, error: signed.error };

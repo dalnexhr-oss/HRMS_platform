@@ -167,8 +167,7 @@ function TableColumnMenu({
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuPanelRef = useRef<HTMLDivElement>(null);
 
-  // A date column falls back to the checkbox list if the screen never wired a
-  // range setter — half a date filter is worse than the old one.
+  // Show a date range picker when range filtering is supported, otherwise show the checkbox list.
   const isDateFilter = kind === 'date' && !!onRange;
   const menuWidth = isDateFilter ? dateColumnMenuWidth : columnMenuWidth;
 

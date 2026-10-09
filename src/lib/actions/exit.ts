@@ -25,8 +25,7 @@ interface ActionResult {
 const exitRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
 const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// IST, not the host clock: a letter issued between 00:00 and 05:30 IST used
-// to be dated the previous day (new Date().toISOString() is UTC).
+// Current date in India Standard Time (IST) to match the official business day.
 function today(): string {
   return todayIST();
 }

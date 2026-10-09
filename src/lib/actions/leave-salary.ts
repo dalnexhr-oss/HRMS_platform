@@ -110,8 +110,7 @@ async function saveLeaveSalaryWorking(input: {
 
   const queryClient = await createClient();
 
-  // The lock check. A separate read rather than a predicated upsert because the
-  // caller deserves "reopen it first", not a silent no-op.
+  // Check if this record is already finalized or paid. If it is locked, HR must reopen it before saving changes.
   const { data: existing, error: readErr } = await queryClient
     .from('leave_salary_workings')
     .select('id, status')
@@ -257,7 +256,7 @@ async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
       updated_by: gate.profileId,
     })
     .eq('id', id)
-    .eq('status', 'draft') // races with a concurrent finalize lose here
+    .eq('status', 'draft') // Only finalize if still in draft, preventing conflicts if two admins finalize at the same time
     .select('id');
   if (error) {
     return { ok: false, error: error.message };
@@ -372,8 +371,7 @@ async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
     kind: 'payroll',
     title: 'Your leave salary was paid',
     body: `${inr(total)} for ${row.year}`,
-    // /employee has no leave-salary section of its own yet; payslips is the nearest
-    // truthful destination for a payout notification.
+    // Directs employee to payslips tab for disbursement confirmation.
     link: '/employee/payslips',
   });
   await queryClient.from('activity_log').insert({

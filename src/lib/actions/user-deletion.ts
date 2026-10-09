@@ -30,7 +30,7 @@ async function deleteUserAccounts(
     throw new Error('That account no longer exists.');
   }
 
-  // Check every target before removing any accounts, including legacy employees with multiple logins.
+  // Verify permissions for every account before deleting, including users with multiple logins.
   for (const target of targets) {
     if (tierOf(target.role) > tierOf(caller.role)) {
       const label = tierLabel[target.role];

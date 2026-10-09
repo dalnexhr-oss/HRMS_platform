@@ -8,8 +8,7 @@ const configurableRoles: readonly AppRole[] = ['admin', 'hr'];
 // Per-account overrides. Missing entries leave the role's default access unchanged.
 type TabAccess = Record<string, boolean>;
 
-// Existing users.tab_access fields remain effective until an administrator saves the current
-// key. These are stored permission keys only; they do not define or redirect application URLs.
+// Maps section URLs to their respective permission keys stored in user account settings.
 const storedTabKeys: Readonly<Record<string, readonly string[]>> = {
   dashboard: ['today'],
   'monthly-register': ['register'],
@@ -28,7 +27,7 @@ const storedTabKeys: Readonly<Record<string, readonly string[]>> = {
 function staticallyAllowed(role: AppRole | null | undefined, slug: string): boolean {
   const allowed = tabRoleAccess[slug];
   if (!allowed) {
-    // ungated tab — every staff role reaches it
+    // Open tab — accessible to all staff roles
     return true;
   }
   return role != null && allowed.includes(role);
@@ -39,7 +38,7 @@ function isConfigurableRole(role: AppRole | null | undefined): boolean {
   return !!role && configurableRoles.includes(role);
 }
 
-// Super admins retain access so they can restore another account's permissions.
+// Super admins always have full access to all tabs.
 function canAccessTab(role: AppRole | null | undefined, slug: string, access: TabAccess): boolean {
   if (role === 'super_admin') {
     return true;
@@ -50,8 +49,7 @@ function canAccessTab(role: AppRole | null | undefined, slug: string, access: Ta
   if (!isConfigurableRole(role)) {
     return true;
   }
-  // A renamed URL must not grant access that was denied under its previous name.
-  // Once an administrator saves the new key, it takes precedence over older settings.
+  // Check permission using the current tab name or any recognized alias.
   const key = [slug, ...(storedTabKeys[slug] ?? [])].find(
     (candidate) => typeof access[candidate] === 'boolean',
   );

@@ -81,9 +81,7 @@ async function RegisterPage({
   let branches: Awaited<ReturnType<typeof getBranches>> = [];
   let mismatches: Awaited<ReturnType<typeof getLeaveRegisterMismatches>> = [];
   try {
-    // getSession() throws when the profile lookup fails (e.g. schema not
-    // applied), so it belongs inside the same guard — outside it, the error card
-    // below is unreachable and the page dies with a stack trace instead.
+    // Catch any connection or session errors to display a friendly error message on the page.
     const [session, register, payrollRun, compOffs, policy, allBranches, leaveGaps] =
       await Promise.all([
         getSession(),

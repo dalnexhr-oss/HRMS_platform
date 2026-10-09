@@ -350,7 +350,7 @@ async function resolveBranch(
     .select('id, name')
     .single();
   if (error) {
-    // Concurrent creation race: adopt existing branch if created simultaneously.
+    // If someone already created a branch with this name, reuse the existing one.
     if (error.code === queryErrorCodes.duplicateKey) {
       const { data: raced } = await queryClient
         .from('branches')

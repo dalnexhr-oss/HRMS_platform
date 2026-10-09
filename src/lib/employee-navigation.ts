@@ -118,8 +118,7 @@ function employeeSlugFromPathname(pathname: string): string {
   return area === 'employee' ? (slug ?? '') : '';
 }
 
-// Sections used to be anchors on one page. Stored notifications and old emails still carry links
-// such as /employee#payslips, so each former anchor maps to the tab that now holds the section.
+// Maps section shortcuts (such as #payslips in notification emails) to the dedicated tab for that feature.
 const employeeSectionSlugs: Readonly<Record<string, string>> = {
   punch: 'attendance',
   attendance: 'attendance',
@@ -136,8 +135,7 @@ const employeeSectionSlugs: Readonly<Record<string, string>> = {
   tickets: 'helpdesk',
 };
 
-// Rewrite a former dashboard anchor to its tab, keeping the anchor so the section still highlights.
-// Any other path, including anchors that remain on the dashboard, is returned unchanged.
+// Redirects shortcut links from emails or notifications to their target employee tab.
 function resolveEmployeeLink(
   path: string,
   hash: string | null,

@@ -422,7 +422,7 @@ function writeTemplateGuideSheet(
   ws.getColumn(1).width = 22;
   ws.getColumn(2).width = 68;
 
-  // The old A1 title is folded into the band; addRow then appends from row 4.
+  // Add the company brand banner at the top of the worksheet.
   writeBrandHeader(wb, ws, {
     title: `Register import template — ${monthTitle(periodMonth)}`,
   });
@@ -517,8 +517,7 @@ async function attendanceTemplateWorkbook(
   employees.forEach((e, ix) => {
     const ws = wb.addWorksheet(safeSheetName(e.code || e.name, `Employee ${ix + 1}`));
 
-    // Rows 1–3 are the brand band (which carries the old A1 heading); the
-    // employee meta block sits below it at rows 5–6.
+    // Rows 1–3 contain the brand banner; employee summary fields sit below at rows 5–6.
     writeBrandHeader(wb, ws, { title: `Monthly attendance · ${title}` });
 
     ws.getCell('A5').value = 'Name';

@@ -20,7 +20,7 @@ function NoticesScreen({
   branchNames = [],
 }: {
   notices: NoticeView[];
-  // Real branch names from the DB — was a hardcoded Pune/Vadodara pair.
+  // Active company branch names used for targeting notices.
   branchNames?: string[];
 }) {
   const [editing, setEditing] = useState<NoticeView | null>(null);

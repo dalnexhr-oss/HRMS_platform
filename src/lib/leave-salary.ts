@@ -9,9 +9,8 @@
 // - Total: 13,561.11.
 import type { AttendanceStatus } from '@/types/database';
 
-// Presence credit per attendance status. Week-offs, holidays and comp-offs COUNT as present — the
-// sheet's 344.5-of-365 sample year is impossible otherwise. Only Absent and Leave reduce the
-// payout; a half day is half.
+// Presence credit weighting per attendance status. Paid non-working days (WO, OH, CO)
+// count as full presence (1.0). Unpaid leaves and absences (L, AB) receive 0; half-days (HD) receive 0.5.
 const presentCredit: Record<AttendanceStatus, number> = {
   P: 1,
   LM: 1,
