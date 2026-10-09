@@ -14,6 +14,7 @@ import { EmployeeNotices } from '@/components/employee/EmployeeNotices';
 import { EmployeeApprovalSummary } from '@/components/employee/EmployeeApprovalSummary';
 import { LegacySectionRedirect } from '@/components/employee/LegacySectionRedirect';
 import { UnlinkedEmployeeNotice } from '@/components/employee/UnlinkedEmployeeNotice';
+import styles from './overview.module.css';
 import type { CompOffRow } from '@/lib/queries/compensatory-off';
 import type { OnLeaveTodayRow } from '@/lib/queries/leave';
 import type { NoticeView } from '@/lib/queries/notices';
@@ -89,137 +90,85 @@ async function MePage() {
       <UnlinkedEmployeeNotice employeeId={employeeId} />
 
       {/* personal snapshot */}
-      <div className="summary-cards">
-        <div className="card summary-card">
-          <div className="metric-label">
-            <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Present Days</span> -{' '}
-            {monthName(periodMonth)}
+      <section className={styles.summary} aria-label="Your overview">
+        <section aria-labelledby="monthly-overview-title">
+          <div className={styles.sectionHeader}>
+            <h2 id="monthly-overview-title" className={styles.sectionTitle}>
+              Monthly overview
+            </h2>
+            <time className={styles.period} dateTime={periodMonth.slice(0, 7)}>
+              {monthYear(periodMonth)}
+            </time>
           </div>
-          <div className="metric-value" style={{ color: 'var(--attendance-present)' }}>
-            {overview.present}
+          <div className={styles.cards}>
+            <OverviewCard
+              title="Present days"
+              value={overview.present}
+              tone="positive"
+              note={`${overview.halfDays} half-day${overview.halfDays === 1 ? '' : 's'} · ${overview.leaves} leave day${overview.leaves === 1 ? '' : 's'}`}
+            />
+            <OverviewCard
+              title="Hours worked"
+              value={overview.workedHours}
+              unit="hrs"
+              note={
+                overview.surplusMinutes > 0
+                  ? `+${overview.surplusMinutes} min surplus`
+                  : 'No surplus time'
+              }
+              detail={`9h 15m per day · ${overview.surplusPresentDays} present day${overview.surplusPresentDays === 1 ? '' : 's'}`}
+            />
+            <OverviewCard
+              title="Hours remaining"
+              value={overview.pendingHours}
+              unit="hrs"
+              tone={overview.pendingMinutes > 0 ? 'warning' : 'positive'}
+              note={`Target so far: ${overview.targetHours} hrs`}
+              detail={overview.pendingMinutes === 0 ? 'You’re on target' : undefined}
+            />
+            <OverviewCard
+              title="Net pay"
+              value={overview.netPay != null ? inr(overview.netPay) : '—'}
+              tone="brand"
+              note={run ? `Payroll ${runStatusLabel[run.status]}` : 'Payroll not calculated yet'}
+            />
           </div>
-          <div className="metric-note">
-            {overview.halfDays} half-day{overview.halfDays === 1 ? '' : 's'} · {overview.leaves}{' '}
-            leave
+        </section>
+        <section aria-labelledby="current-status-title">
+          <div className={styles.sectionHeader}>
+            <h2 id="current-status-title" className={styles.sectionTitle}>
+              Current status
+            </h2>
           </div>
-        </div>
-        <div className="card summary-card">
-          <div className="metric-label">
-            <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Hours worked</span> -{' '}
-            {monthName(periodMonth)}
+          <div className={styles.cards}>
+            <OverviewCard
+              title="Available comp-offs"
+              value={compOffBalance}
+              tone={compOffBalance > 0 ? 'positive' : 'muted'}
+              note={`${compOffs.length} earned in total`}
+              detail={compOffApplied > 0 ? `${compOffApplied} awaiting approval` : undefined}
+            />
+            <OverviewCard
+              title="Unread policies"
+              value={unread}
+              tone={unread ? 'warning' : 'positive'}
+              note={`${policies.length} ${policies.length === 1 ? 'policy' : 'policies'} published`}
+            />
+            <OverviewCard
+              title="Pending requests"
+              value={pendingRequests}
+              tone={pendingRequests ? 'warning' : 'positive'}
+              note={`${requests.length} ${requests.length === 1 ? 'request' : 'requests'} submitted`}
+            />
+            <OverviewCard
+              title="Open tickets"
+              value={openTickets}
+              tone={openTickets ? 'warning' : 'positive'}
+              note={`${tickets.length} ${tickets.length === 1 ? 'ticket' : 'tickets'} raised`}
+            />
           </div>
-          <div
-            className="metric-value text-monospace"
-            style={{ fontSize: 26, paddingTop: 4, paddingBottom: 6 }}
-          >
-            {overview.workedHours}
-          </div>
-          <div className="hours-note">
-            {overview.surplusMinutes > 0 ? '+' : ''}
-            {overview.surplusMinutes} min
-            <span style={{ color: 'var(--brand)' }}> surplus</span>
-          </div>
-          <div className="metric-note" style={{ fontSize: 9, marginTop: 0 }}>
-            Daily target of 9 hours 15 minutes, across {overview.surplusPresentDays}{' '}
-            {overview.surplusPresentDays === 1 ? ' day you were present' : 'days you were present'}.
-          </div>
-        </div>
-        <div className="card summary-card">
-          <div className="metric-label">
-            <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Pending hours</span> -{' '}
-            {monthName(periodMonth)}
-          </div>
-          <div
-            className="metric-value text-monospace"
-            style={{
-              fontSize: 26,
-              paddingTop: 8,
-              color:
-                overview.pendingMinutes > 0
-                  ? 'var(--attendance-late)'
-                  : 'var(--attendance-present)',
-            }}
-          >
-            {overview.pendingHours}
-          </div>
-          <div className="metric-note">
-            {overview.pendingMinutes > 0
-              ? `of ${overview.targetHours} due so far this month`
-              : 'you are on target'}
-          </div>
-        </div>
-        <div className="card summary-card">
-          <div className="metric-label">
-            <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Comp offs remaining</span>
-          </div>
-          <div
-            className="metric-value"
-            style={{
-              color: compOffBalance > 0 ? 'var(--attendance-present)' : 'var(--text-muted)',
-            }}
-          >
-            {compOffBalance}
-          </div>
-          <div className="metric-note">
-            {compOffApplied > 0
-              ? `${compOffApplied} awaiting approval · ${compOffs.length} earned in total`
-              : `${compOffs.length} earned in total`}
-          </div>
-        </div>
-        <div className="card summary-card">
-          <div className="metric-label">
-            <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Net pay</span> -{' '}
-            {monthName(periodMonth)}
-          </div>
-          <div
-            className="metric-value"
-            style={{ fontSize: 26, paddingTop: 8, color: 'var(--brand-deep)' }}
-          >
-            {overview.netPay != null ? inr(overview.netPay) : '—'}
-          </div>
-          <div className="metric-note">
-            {monthYear(periodMonth)} · {run ? runStatusLabel[run.status] : 'not computed yet'}
-          </div>
-        </div>
-        <div className="card summary-card">
-          <div className="metric-label">
-            <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Policies to read</span>
-          </div>
-          <div
-            className="metric-value"
-            style={{ color: unread ? 'var(--attendance-half-day)' : 'var(--attendance-present)' }}
-          >
-            {unread}
-          </div>
-          <div className="metric-note">{policies.length} published in total</div>
-        </div>
-        <div className="card summary-card">
-          <div className="metric-label">
-            <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Requests pending</span>
-          </div>
-          <div
-            className="metric-value"
-            style={{
-              color: pendingRequests ? 'var(--attendance-late)' : 'var(--attendance-present)',
-            }}
-          >
-            {pendingRequests}
-          </div>
-          <div className="metric-note">{requests.length} filed in total</div>
-        </div>
-        <div className="card summary-card">
-          <div className="metric-label">
-            <span style={{ color: 'var(--brand)', fontWeight: 'bold' }}>Opened tickets</span>
-          </div>
-          <div
-            className="metric-value"
-            style={{ color: openTickets ? 'var(--attendance-late)' : 'var(--attendance-present)' }}
-          >
-            {openTickets}
-          </div>
-          <div className="metric-note">{tickets.length} raised in total</div>
-        </div>
-      </div>
+        </section>
+      </section>
 
       {profile && (
         <EmployeeApprovalSummary
@@ -294,12 +243,36 @@ const runStatusLabel: Record<PayrollRunView['status'], string> = {
   paid: 'paid',
 };
 
-/** 'yyyy-MM-dd' -> 'month  name'. */
-function monthName(periodMonth: string): string {
-  return new Date(`${periodMonth.slice(0, 7)}-01T00:00:00Z`).toLocaleDateString('en-GB', {
-    month: 'long',
-    timeZone: 'UTC',
-  });
+function OverviewCard({
+  title,
+  value,
+  unit,
+  tone = 'default',
+  note,
+  detail,
+}: {
+  title: string;
+  value: string | number;
+  unit?: string;
+  tone?: 'default' | 'positive' | 'warning' | 'muted' | 'brand';
+  note: string;
+  detail?: string;
+}) {
+  return (
+    <article className={`card summary-card ${styles.card}`}>
+      <div className={styles.heading}>
+        <h3 className={styles.title}>{title}</h3>
+      </div>
+      <div className={styles.value} data-tone={tone}>
+        {value}
+        {unit && <span className={styles.unit}>{unit}</span>}
+      </div>
+      <div className={styles.notes}>
+        <p className={styles.note}>{note}</p>
+        {detail && <p className={styles.detail}>{detail}</p>}
+      </div>
+    </article>
+  );
 }
 
 /** 'yyyy-MM-dd' -> 'monthname yyyy'. */
