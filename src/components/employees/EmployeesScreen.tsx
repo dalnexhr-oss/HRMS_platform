@@ -36,7 +36,7 @@ function EmployeesScreen({
   const { confirm, confirmDialog } = useConfirm();
   const { showNotification, notificationContainer } = useNotifications();
 
-  // Same 20-slot palette as TodayBoard's split bar (branchPalette), keyed by
+  // Same 20-slot palette as Dashboard's split bar (branchPalette), keyed by
   // the branch's position in the (alphabetical) branches list — so a branch
   // wears one stable colour on /dashboard and /employees alike.
   const branchColor = useMemo(() => {

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { AttendanceStatusBadge } from '@/components/ui/AttendanceStatusBadge';
-import { ExportButton } from '@/components/today/ExportButton';
-import { NightSweepButton } from '@/components/today/NightSweepButton';
+import { ExportButton } from '@/components/Dashboard/ExportButton';
+import { NightSweepButton } from '@/components/Dashboard/NightSweepButton';
 import { branchColorAt } from '@/lib/branch-colors';
 import type { ActivityRow } from '@/lib/queries/dashboard';
 import type { PayrollRunView } from '@/lib/queries/payroll';
@@ -104,7 +104,7 @@ function LoadError({ what, message }: { what: string; message: string }) {
   );
 }
 
-function TodayBoard({
+function Dashboard({
   board,
   punchLog,
   celebrations,
@@ -382,4 +382,4 @@ function TodayBoard({
   );
 }
 
-export { TodayBoard, type Loaded, type TodayBoardProps };
+export { Dashboard, type Loaded, type TodayBoardProps };

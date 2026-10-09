@@ -1,15 +1,15 @@
 import './dashboard.css';
-import { TodayBoard } from '@/components/today/TodayBoard';
-import { LiveRefresh } from '@/components/today/LiveRefresh';
+import { Dashboard } from '@/components/Dashboard/MainBoard';
+import { LiveRefresh } from '@/components/Dashboard/LiveRefresh';
 import { getRegister } from '@/lib/queries/attendance';
 import { getSettings } from '@/lib/queries/settings';
 import { getPayrollRun } from '@/lib/queries/payroll';
 import { currentPeriodMonth } from '@/lib/business-dates';
 import { getCompOffAdmin } from '@/lib/queries/compensatory-off';
-import { CompOffAdminCard } from '@/components/today/CompOffAdminCard';
+import { CompOffAdminCard } from '@/components/Dashboard/CompOffAdminCard';
 import { getActivityFeed, getCelebrationsToday, getPunchLogToday, getTodayBoard } from '@/lib/queries/dashboard';
 import type { Metadata } from 'next';
-import type { Loaded } from '@/components/today/TodayBoard';
+import type { Loaded } from '@/components/Dashboard/MainBoard';
 import type { SettingView } from '@/lib/queries/settings';
 import type { MarkWatch, RegisterEmployee } from '@/types/domain';
 
@@ -99,7 +99,7 @@ async function TodayPage() {
     <>
       {/* Punches land through /api/punch/*, which no page is subscribed to — so the board re-reads itself on a timer rather than waiting for someone to navigate. Renders nothing. */}
       <LiveRefresh />
-      <TodayBoard
+      <Dashboard
         board={board}
         punchLog={punchLog}
         celebrations={celebrations}
