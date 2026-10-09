@@ -3,6 +3,7 @@
 import { useActionState, useState } from 'react';
 import { createTicket } from '@/lib/actions/helpdesk';
 import { TicketChatDrawer } from '@/components/helpdesk/TicketChatDrawer';
+import sectionStyles from '@/components/ui/SectionCard.module.css';
 import type { TicketComment, TicketView } from '@/lib/queries/helpdesk';
 
 type TicketStatus = TicketView['status'];
@@ -43,7 +44,7 @@ function HelpdeskScreen({
   return (
     <div className="content-container grid">
       <div className="two-column-layout">
-        <div className="card">
+        <div className={`card ${sectionStyles.panel}`}>
           <div className="card-header">
             <h3>Support tickets</h3>
             <span className="card-caption">{tickets.length} total</span>
@@ -51,7 +52,7 @@ function HelpdeskScreen({
           {tickets.length === 0 ? (
             <div className="card-body">
               <div className="empty-state">
-                <p>No tickets yet — raise one on the right.</p>
+                <p>No tickets yet. Use “Raise a ticket” to get started.</p>
               </div>
             </div>
           ) : (

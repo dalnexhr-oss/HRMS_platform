@@ -6,6 +6,7 @@ import { formatDate } from '@/lib/display-formatting';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { createNotice, updateNotice, deleteNotice, setNoticePublished } from '@/lib/actions/notices';
+import sectionStyles from '@/components/ui/SectionCard.module.css';
 import type { NotificationKind } from '@/components/ui/Notifications';
 import type { NoticeView } from '@/lib/queries/notices';
 
@@ -32,14 +33,16 @@ function NoticesScreen({
     <div className="two-column-layout">
       {confirmDialog}
       {notificationContainer}
-      <div className="card">
+      <div className={`card ${sectionStyles.panel}`}>
         <div className="card-header">
           <h3>Published notices</h3>
           <span className="card-caption">{notices.length} total</span>
         </div>
         <div className="card-body">
           {notices.length === 0 && (
-            <p className="text-muted">No notices yet — publish one on the right.</p>
+            <p className="text-muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.6 }}>
+              No notices yet. Use “Publish a notice” to add one.
+            </p>
           )}
           {notices.map((n) => (
             <NoticeItem

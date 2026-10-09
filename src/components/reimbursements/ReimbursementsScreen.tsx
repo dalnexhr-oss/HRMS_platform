@@ -9,6 +9,7 @@ import { usePrompt } from '@/components/ui/PromptDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { exportReimbursementsXlsx } from '@/lib/actions/export';
 import { reviewReimbursement, markReimbursementPaid, financeReviewReimbursement, getReceiptUrl } from '@/lib/actions/reimbursements';
+import sectionStyles from '@/components/ui/SectionCard.module.css';
 import type { ReimbursementView } from '@/lib/queries/reimbursements';
 
 const purposeLabel: Record<ReimbursementView['purpose'], string> = {
@@ -186,7 +187,7 @@ function ReimbursementsScreen({
         </div>
       </div>
 
-      <div className="card">
+      <div className={`card ${sectionStyles.panel}`}>
         <div className="card-header">
           <h3>Expense claims</h3>
           <span className="card-caption">{rows.length} shown</span>

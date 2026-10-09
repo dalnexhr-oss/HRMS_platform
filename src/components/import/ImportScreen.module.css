@@ -1,0 +1,99 @@
+.monthFieldset {
+  min-width: 0;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-surface);
+  border-radius: 12px;
+  background: var(--page-background-muted);
+  box-shadow: inset 0 1px 0 var(--shadow-highlight);
+}
+
+.monthFieldset legend {
+  padding: 0 6px;
+  color: var(--text-secondary);
+  font: 600 12px/1.5 var(--font-body);
+}
+
+.monthChoices {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+
+.monthChoices label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.monthChoices input {
+  flex-shrink: 0;
+  margin: 0;
+  accent-color: var(--brand);
+}
+
+.monthChoices select {
+  min-height: 38px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-surface);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #e7ecf4, #f6f8fc);
+  box-shadow: var(--shadow-inset);
+  color: var(--text-primary);
+  font: 500 12px/1.5 var(--font-body);
+}
+
+.monthChoices select:disabled {
+  color: var(--text-muted);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.monthChoices select:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.templateHint,
+.fileHint {
+  color: var(--text-muted);
+  font: 400 12px/1.6 var(--font-body);
+}
+
+.templateHint {
+  margin: 0 0 18px;
+}
+
+.fileHint {
+  display: block;
+  max-width: 80ch;
+  margin-top: 8px;
+}
+
+.uploadForm input[type='file'] {
+  max-width: 640px;
+  padding: 8px;
+  font: 400 13px/1.5 var(--font-body);
+}
+
+.uploadForm input[type='file']::file-selector-button {
+  margin-right: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-surface);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fff, #e9eef6);
+  box-shadow: var(--shadow-raised-small);
+  color: var(--text-secondary);
+  font: 600 12px/1.5 var(--font-body);
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .monthChoices select {
+    font-size: 16px;
+  }
+}

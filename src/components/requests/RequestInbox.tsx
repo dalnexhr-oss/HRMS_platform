@@ -1,5 +1,7 @@
 import './requests.css';
 import Link from 'next/link';
+import { formatDate } from '@/lib/display-formatting';
+import sectionStyles from '@/components/ui/SectionCard.module.css';
 import type { RequestView } from '@/lib/queries/requests';
 
 function RequestInbox({ requests, userId }: { requests: RequestView[]; userId: string }) {
@@ -15,7 +17,7 @@ function RequestInbox({ requests, userId }: { requests: RequestView[]; userId: s
     return null;
   }
   return (
-    <div className="card" id="request-inbox">
+    <div className={`card ${sectionStyles.panel}`} id="request-inbox">
       <div className="card-header">
         <h3>Requests sent to you</h3>
         <span className="card-caption">Assigned · CC · earlier reviews</span>
@@ -25,8 +27,14 @@ function RequestInbox({ requests, userId }: { requests: RequestView[]; userId: s
           <Link key={request.id} href={`/requests/${request.id}`} className="request-inbox-row">
             <div>
               <b>{request.employeeName}</b>
-              <div>
-                {request.type.replaceAll('_', ' ')} · {request.startDate} – {request.endDate}
+              <div className={sectionStyles.requestMeta}>
+                <span className={sectionStyles.requestType}>
+                  {request.type.replaceAll('_', ' ')}
+                </span>
+                {' · '}
+                {request.startDate === request.endDate
+                  ? formatDate(request.startDate)
+                  : `${formatDate(request.startDate)} – ${formatDate(request.endDate)}`}
               </div>
             </div>
             <span>

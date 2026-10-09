@@ -5,13 +5,13 @@ import { previewImport, commitImport } from '@/lib/actions/import';
 import { exportRegisterImportTemplateXlsx } from '@/lib/actions/export';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { monthLabelUTC, monthOptionsAround } from '@/lib/display-formatting';
+import sectionStyles from '@/components/ui/SectionCard.module.css';
+import styles from './ImportScreen.module.css';
 import type { CommitResult, ImportPreview, PreviewResult } from '@/lib/actions/import';
 import type { AppRole } from '@/types/database';
 
-// Match commitImport's staff roles for importing and downloading templates.
+// Match commitImport's reaches: next month down to 12 months back.
 const importRoles: AppRole[] = ['super_admin', 'admin', 'hr'];
-
-// How far the "Other month" list reaches: next month down to 12 months back.
 const monthsBack = 12;
 const monthsAhead = 1;
 
@@ -118,7 +118,7 @@ function ImportScreen({
       )}
 
       {step === 'upload' && (
-        <div className="card">
+        <div className={`card ${sectionStyles.panel}`}>
           <div className="card-header">
             <h3>Upload monthly register</h3>
             <span style={{ flex: 1 }} />
@@ -135,19 +135,10 @@ function ImportScreen({
           <div className="card-body">
             {canDownloadTemplate && (
               <>
-                <fieldset
-                  style={{
-                    border: `1px solid var(--border-subtle, ${amberLine})`,
-                    borderRadius: 8,
-                    padding: '10px 14px 12px',
-                    margin: '0 0 14px',
-                  }}
-                >
-                  <legend className="text-muted" style={{ fontSize: 12, padding: '0 6px' }}>
-                    Template month
-                  </legend>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 18 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <fieldset className={styles.monthFieldset}>
+                  <legend>Template month</legend>
+                  <div className={styles.monthChoices}>
+                    <label>
                       <input
                         type="radio"
                         name="template-month-mode"
@@ -157,7 +148,7 @@ function ImportScreen({
                       />
                       <span>Current month — {monthLabelUTC(currentMonth)}</span>
                     </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <label>
                       <input
                         type="radio"
                         name="template-month-mode"
@@ -182,14 +173,14 @@ function ImportScreen({
                     </select>
                   </div>
                 </fieldset>
-                <p className="hint" style={{ marginTop: 0, marginBottom: 14 }}>
-                  New to this? <b>Download template</b> Gives you a blank register in the exact
-                  upload format. It arrives already stamped with the month you selected above, so
-                  you can fill it in and upload it straight away.
+                <p className={styles.templateHint}>
+                  <b>Download template</b> creates a blank register for the selected month. Fill it
+                  in, then upload the completed Excel file below.
                 </p>
               </>
             )}
             <form
+              className={`${sectionStyles.form} ${styles.uploadForm}`}
               ref={formRef}
               action={previewAction}
               onSubmit={() => {
@@ -214,7 +205,7 @@ function ImportScreen({
                     setResult(null);
                   }}
                 />
-                <span className="hint">
+                <span className={styles.fileHint}>
                   The sheet is read exactly as laid out: month from B2, day columns across row 4,
                   one four-row block per employee from row 6. Nothing is written until you confirm
                   the preview.

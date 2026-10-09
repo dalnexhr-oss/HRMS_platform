@@ -10,6 +10,7 @@ import { OnboardingTemplateDrawer } from './OnboardingTemplateDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
+import sectionStyles from '@/components/ui/SectionCard.module.css';
 import type { OnboardingTaskRow, OnboardingTemplateRow } from '@/lib/queries/onboarding';
 import type { EmployeeOption } from '@/lib/queries/employees';
 
@@ -120,12 +121,12 @@ function OnboardingScreen({
       {confirmDialog}
       {notificationContainer}
 
-      <div className="card">
+      <div className={`card ${sectionStyles.panel}`}>
         <div className="card-header">
           <h3>Checklist templates</h3>
           <span className="card-caption">
             {templates.length === 0
-              ? 'none yet'
+              ? 'No templates'
               : `${templates.filter((t) => t.active).length} in use`}
           </span>
           <span style={{ flex: 1 }} />
@@ -198,7 +199,7 @@ function OnboardingScreen({
         }}
       />
 
-      <div className="card">
+      <div className={`card ${sectionStyles.panel}`}>
         <div className="card-header">
           <h3>Start onboarding</h3>
         </div>
@@ -219,7 +220,7 @@ function OnboardingScreen({
         </div>
       </div>
 
-      <div className="card">
+      <div className={`card ${sectionStyles.panel}`}>
         <div className="card-header">
           <h3>Onboarding tasks</h3>
           <span className="card-caption">
@@ -387,7 +388,7 @@ function StartForm({
   const [busy, setBusy] = useState(false);
 
   return (
-    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+    <div className={sectionStyles.formRow}>
       <EmployeePicker
         employees={employees}
         value={employeeId}
@@ -442,7 +443,7 @@ function AddTaskForm({
   const [busy, setBusy] = useState(false);
 
   return (
-    <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+    <div className={sectionStyles.formRow}>
       <EmployeePicker
         employees={employees}
         value={employeeId}
