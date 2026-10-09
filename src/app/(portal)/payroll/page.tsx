@@ -1,5 +1,5 @@
 import './payroll.css';
-import Link from 'next/link';
+import { MonthNavigation } from '@/components/ui/MonthNavigation';
 import { createClient } from '@/lib/db/server-client';
 import { StatutoryExports } from '@/components/payroll/StatutoryExports';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
@@ -203,15 +203,11 @@ async function PayrollPage({
   return (
     <div className="content-container">
       <div className="period-toolbar">
-        <div className="month-navigation">
-          <Link href={`/payroll?m=${prev}` as Route} aria-label="Previous month" role="button">
-            ‹
-          </Link>
-          <span className="current-month">{label.toUpperCase()}</span>
-          <Link href={`/payroll?m=${next}` as Route} aria-label="Next month" role="button">
-            ›
-          </Link>
-        </div>
+        <MonthNavigation
+          label={label}
+          previousHref={`/payroll?m=${prev}` as Route}
+          nextHref={`/payroll?m=${next}` as Route}
+        />
       </div>
 
       <div className="payroll-run-banner">

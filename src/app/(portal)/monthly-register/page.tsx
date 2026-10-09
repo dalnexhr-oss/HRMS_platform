@@ -5,6 +5,7 @@ import { getSession } from '@/lib/server-auth';
 import { RegisterGrid } from '@/components/register/RegisterGrid';
 import { registerLegend } from '@/lib/attendance-status';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
+import { MonthNavigation } from '@/components/ui/MonthNavigation';
 import { exportRegisterXlsx } from '@/lib/actions/export';
 import { weekOffDaysInMonth } from '@/lib/weekly-off-policy';
 import { minutesToHHMM, formatDate } from '@/lib/display-formatting';
@@ -28,11 +29,13 @@ function periodFromParam(m: string | undefined): string {
   return m && monthRe.test(m) ? `${m}-01` : currentPeriodMonth();
 }
 
-/** 'YYYY-06-01' -> 'JUNE YYYY'. */
+
 function monthLabel(periodMonth: string): string {
-  return new Date(`${periodMonth}T00:00:00`)
-    .toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
-    .toUpperCase();
+  return new Date(`${periodMonth}T00:00:00Z`).toLocaleDateString('en-GB', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
 }
 
 /** Shift a 'YYYY-MM-01' by ±n months, returning the '?m=' param form 'YYYY-MM'. */
@@ -123,15 +126,11 @@ async function RegisterPage({
   return (
     <div className="content-container register-page">
       <div className="period-toolbar">
-        <div className="month-navigation">
-          <Link href={withParams(prev, branch)} aria-label="Previous month" role="button">
-            ‹
-          </Link>
-          <span className="current-month">{monthLabel(periodMonth)}</span>
-          <Link href={withParams(next, branch)} aria-label="Next month" role="button">
-            ›
-          </Link>
-        </div>
+        <MonthNavigation
+          label={monthLabel(periodMonth)}
+          previousHref={withParams(prev, branch)}
+          nextHref={withParams(next, branch)}
+        />
 
         {branches.length > 0 && (
           <div className="legend" role="group" aria-label="Filter by branch">
