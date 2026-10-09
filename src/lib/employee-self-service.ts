@@ -12,7 +12,6 @@ async function getEmployeeContext() {
     profile,
     email,
     employeeId,
-    // Requests, claims and tickets must be traceable to an employee record.
     canSubmit: databaseReady && !!employeeId,
     blockedReason: !databaseReady
       ? 'The database is not configured, so a ticket cannot be saved.'

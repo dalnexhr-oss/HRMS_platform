@@ -1,94 +1,76 @@
-// Build all-day ICS events from HRMS records using RFC 5545 formatting. Callers supply the
-// timestamp so identical inputs produce identical output.
-//
-// DATE end values are exclusive: a one-day event ends on the following date. Fold lines at 75 UTF-8
-// octets, preserving code points, and use CRLF line endings. These helpers have no I/O or server
-// dependencies.
+// Copyright (c) 2024 Dalnex LLP. All rights reserved
 
-// RFC 5545 §3.1: content lines are delimited by CRLF, never a bare LF.
-const crlf = '\r\n';
+const calendarLineEnding = '\r\n';
+const maxLineBytes = 75;
+const millisecondsPerDay = 86_400_000;
+const calendarProductId = '-//Dalnex LLP//HRMS Calendar 1.0//EN';
+const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+const utcTimestampPattern = /^\d{8}T\d{6}Z$/;
 
-// RFC 5545 §3.1: lines SHOULD NOT be longer than 75 octets, excluding CRLF.
-const maxOctets = 75;
-
-// Identifies the product that wrote the file. Free text, but must be present.
-const prodid = '-//Dalnex LLP//HRMS Calendar 1.0//EN';
-
-const isoDate = /^\d{4}-\d{2}-\d{2}$/;
-
-// RFC 5545 UTC date-time, e.g. '20260729T101530Z'.
-const icsStamp = /^\d{8}T\d{6}Z$/;
-
-interface CalendarEvent {
-  // Globally unique, STABLE id for this event. Re-exporting the same holiday must reuse the same UID, otherwise subscribers accumulate duplicates instead of seeing an update. Prefer `${table}-${row.id}@dalnex-hrms`.
-  uid: string;
-  // First day, 'YYYY-MM-DD'.
-  start: string;
-  // INCLUSIVE last day, 'YYYY-MM-DD'. Omit for a single-day event. This is the human meaning of
-  // "leave until the 20th"; the +1 conversion to RFC 5545's exclusive DTEND happens inside buildIcs
-  // so callers never have to think about it.
-  end?: string | null;
-  summary: string;
+/** A holiday, leave period, or company event to include in the calendar download. */
+interface CalendarExportEvent {
+  /** Stable across exports so calendar clients can recognise the same event. */
+  uniqueId: string;
+  /** First day in YYYY-MM-DD format. */
+  startDate: string;
+  /** Last included day in YYYY-MM-DD format; defaults to startDate. */
+  endDateInclusive?: string | null;
+  title: string;
   description?: string | null;
-  // All-day defaults to true. False emits floating midnight-to-midnight DATE-TIME values without
-  // TZID, interpreted in each calendar client's timezone.
-  allDay?: boolean;
+  /** Defaults to true; false exports local midnight-to-midnight times. */
+  isAllDay?: boolean;
 }
 
-interface BuildIcsOptions {
-  // Shown as the calendar's name in most clients via X-WR-CALNAME.
-  calName?: string;
-  // Supply DTSTAMP as YYYYMMDDTHHMMSSZ or ISO-8601 to make exports deterministic. One timestamp
-  // can be reused for all events.
-  timestamp?: string;
+interface CalendarExportOptions {
+  calendarName?: string;
+  /** ISO or YYYYMMDDTHHMMSSZ timestamp; defaults to now. Supply it for repeatable output. */
+  generatedAt?: string;
 }
 
-// UTF-8 byte length of a string. `for…of` iterates by code point, so an astral character (emoji,
-// some Indic conjuncts) is measured once as 4 octets rather than twice as a surrogate.
-function octetLength(text: string): number {
-  let n = 0;
-  for (const ch of text) {
-    const cp = ch.codePointAt(0) as number;
-    n += cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4;
+function getUtf8ByteLength(text: string): number {
+  let byteLength = 0;
+  for (const character of text) {
+    const codePoint = character.codePointAt(0) as number;
+    byteLength += codePoint < 0x80 ? 1 : codePoint < 0x800 ? 2 : codePoint < 0x10000 ? 3 : 4;
   }
-  return n;
+  return byteLength;
 }
 
-// Keep Unicode code points and backslash escape pairs intact when folding. Some calendar clients
-// mishandle escapes split across continuation lines.
-function tokenize(line: string): string[] {
-  const chars = Array.from(line);
+/** Keep Unicode characters and backslash escapes together when wrapping a line. */
+function splitPreservingEscapes(line: string): string[] {
+  const characters = Array.from(line);
   const tokens: string[] = [];
-  for (let i = 0; i < chars.length; i++) {
-    if (chars[i] === '\\' && i + 1 < chars.length) {
-      tokens.push(chars[i] + chars[i + 1]);
-      i++;
+  for (let index = 0; index < characters.length; index++) {
+    if (characters[index] === '\\' && index + 1 < characters.length) {
+      tokens.push(characters[index] + characters[index + 1]);
+      index++;
     } else {
-      tokens.push(chars[i]);
+      tokens.push(characters[index]);
     }
   }
   return tokens;
 }
 
-// Round-trip parsed dates to reject impossible days and months that Date.UTC would normalize.
-// Reject years below 100 to avoid its legacy two-digit-year conversion.
-function assertIsoDate(value: string, field: string): void {
-  if (!isoDate.test(value)) {
-    throw new Error(`Calendar ${field} must be 'YYYY-MM-DD', got '${value}'.`);
+function validateCalendarDate(dateValue: string, fieldName: string): void {
+  if (!isoDatePattern.test(dateValue)) {
+    throw new Error(`Calendar ${fieldName} must be 'YYYY-MM-DD', got '${dateValue}'.`);
   }
-  const [y, m, d] = value.split('-').map(Number);
-  const probe = new Date(Date.UTC(y, m - 1, d));
-  if (probe.getUTCFullYear() !== y || probe.getUTCMonth() !== m - 1 || probe.getUTCDate() !== d) {
-    throw new Error(`Calendar ${field} is not a real date: '${value}'.`);
+  const [year, month, day] = dateValue.split('-').map(Number);
+  const parsedDate = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsedDate.getUTCFullYear() !== year ||
+    parsedDate.getUTCMonth() !== month - 1 ||
+    parsedDate.getUTCDate() !== day
+  ) {
+    throw new Error(`Calendar ${fieldName} is not a real date: '${dateValue}'.`);
   }
 }
 
-/** Render a Date as RFC 5545 UTC form 'YYYYMMDDTHHMMSSZ'. */
-function formatIcsStamp(d: Date): string {
-  const p = (n: number, width = 2) => String(n).padStart(width, '0');
+function formatUtcTimestamp(date: Date): string {
+  const padNumber = (value: number, width = 2) => String(value).padStart(width, '0');
   return (
-    `${p(d.getUTCFullYear(), 4)}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}` +
-    `T${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())}Z`
+    `${padNumber(date.getUTCFullYear(), 4)}${padNumber(date.getUTCMonth() + 1)}${padNumber(date.getUTCDate())}` +
+    `T${padNumber(date.getUTCHours())}${padNumber(date.getUTCMinutes())}${padNumber(date.getUTCSeconds())}Z`
   );
 }
 
@@ -96,31 +78,31 @@ function formatIcsStamp(d: Date): string {
  * Format DTSTAMP as YYYYMMDDTHHMMSSZ. Accept compact UTC or ISO timestamps; use the current clock
  * only when omitted. Callers should pass a timestamp for reproducible output.
  */
-function toIcsStamp(value?: string): string {
-  if (value === undefined) {
-    return formatIcsStamp(new Date());
+function normalizeExportTimestamp(generatedAt?: string): string {
+  if (generatedAt === undefined) {
+    return formatUtcTimestamp(new Date());
   }
 
-  const raw = value.trim();
-  if (icsStamp.test(raw)) {
-    return raw;
+  const trimmedTimestamp = generatedAt.trim();
+  if (utcTimestampPattern.test(trimmedTimestamp)) {
+    return trimmedTimestamp;
   }
 
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) {
+  const parsedDate = new Date(trimmedTimestamp);
+  if (Number.isNaN(parsedDate.getTime())) {
     throw new Error(
-      `Calendar timestamp must be 'YYYYMMDDTHHMMSSZ' or an ISO-8601 date, got '${value}'.`,
+      `Calendar timestamp must be 'YYYYMMDDTHHMMSSZ' or an ISO-8601 date, got '${generatedAt}'.`,
     );
   }
-  return formatIcsStamp(parsed);
+  return formatUtcTimestamp(parsedDate);
 }
 
 /**
  * Escape backslashes before commas and semicolons, and encode newlines as literal \n. Leave colons
  * and quotes unchanged in ICS TEXT values.
  */
-function escapeIcsText(v: string): string {
-  return v
+function escapeCalendarText(text: string): string {
+  return text
     .replace(/\\/g, '\\\\')
     .replace(/;/g, '\\;')
     .replace(/,/g, '\\,')
@@ -131,139 +113,134 @@ function escapeIcsText(v: string): string {
  * Fold at 75 UTF-8 octets per RFC 5545 §3.1. Continuation lines start with one space, leaving 74
  * octets for content. Count encoded bytes, not JavaScript string length.
  */
-function foldLine(line: string): string {
-  if (octetLength(line) <= maxOctets) {
+function foldCalendarLine(line: string): string {
+  if (getUtf8ByteLength(line) <= maxLineBytes) {
     return line;
   }
 
-  const out: string[] = [];
-  let chunk = '';
-  let used = 0;
-  let limit = maxOctets; // first line spends nothing on a continuation space
+  const foldedLines: string[] = [];
+  let currentLine = '';
+  let currentLineBytes = 0;
+  let availableLineBytes = maxLineBytes;
 
-  for (const token of tokenize(line)) {
-    const size = octetLength(token);
-    if (used > 0 && used + size > limit) {
-      out.push(chunk);
-      chunk = '';
-      used = 0;
-      limit = maxOctets - 1; // every later line gives one octet to the space
+  for (const token of splitPreservingEscapes(line)) {
+    const tokenBytes = getUtf8ByteLength(token);
+    if (currentLineBytes > 0 && currentLineBytes + tokenBytes > availableLineBytes) {
+      foldedLines.push(currentLine);
+      currentLine = '';
+      currentLineBytes = 0;
+      availableLineBytes = maxLineBytes - 1; // Reserve one byte for the continuation space.
     }
-    chunk += token;
-    used += size;
+    currentLine += token;
+    currentLineBytes += tokenBytes;
   }
-  if (chunk) {
-    out.push(chunk);
+  if (currentLine) {
+    foldedLines.push(currentLine);
   }
 
-  return out.join(`${crlf} `);
+  return foldedLines.join(`${calendarLineEnding} `);
 }
 
-/** 'YYYY-08-15' -> '20260815'. Inverse of the parser's `toISO`. */
-function icsDate(iso: string): string {
-  assertIsoDate(iso, 'date');
-  return iso.replace(/-/g, '');
+/** Convert YYYY-MM-DD to the calendar file's YYYYMMDD date format. */
+function formatCalendarDate(dateValue: string): string {
+  validateCalendarDate(dateValue, 'date');
+  return dateValue.replace(/-/g, '');
 }
 
 /**
  * Add whole days to YYYY-MM-DD in UTC so daylight-saving transitions cannot shift calendar end
  * dates.
  */
-function addDays(iso: string, n: number): string {
-  assertIsoDate(iso, 'date');
-  const [y, m, d] = iso.split('-').map(Number);
-  const shifted = new Date(Date.UTC(y, m - 1, d) + n * 86_400_000);
-  const yyyy = String(shifted.getUTCFullYear()).padStart(4, '0');
-  const mm = String(shifted.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(shifted.getUTCDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
+function addCalendarDays(dateValue: string, daysToAdd: number): string {
+  validateCalendarDate(dateValue, 'date');
+  const [year, month, day] = dateValue.split('-').map(Number);
+  const shiftedDate = new Date(Date.UTC(year, month - 1, day) + daysToAdd * millisecondsPerDay);
+  const formattedYear = String(shiftedDate.getUTCFullYear()).padStart(4, '0');
+  const formattedMonth = String(shiftedDate.getUTCMonth() + 1).padStart(2, '0');
+  const formattedDay = String(shiftedDate.getUTCDate()).padStart(2, '0');
+  return `${formattedYear}-${formattedMonth}-${formattedDay}`;
 }
 
 /** Emit `NAME:escaped-value`, folded. Empty values are skipped by the caller. */
-function textLine(name: string, value: string): string {
-  return foldLine(`${name}:${escapeIcsText(value)}`);
+function formatTextProperty(propertyName: string, text: string): string {
+  return foldCalendarLine(`${propertyName}:${escapeCalendarText(text)}`);
 }
 
 /**
  * Convert the inclusive event end to ICS's exclusive DTEND by adding one day. A holiday on August
  * 15 ends on August 16; leave through August 17 ends on August 18.
  */
-function buildEvent(ev: CalendarEvent, stamp: string): string[] {
-  // Require a nonempty stable UID so calendar clients can update an existing event without
-  // creating duplicates.
-  const uid = ev.uid?.trim();
-  if (!uid) {
-    throw new Error(`Calendar event for '${ev.summary}' is missing a UID.`);
+function buildEventLines(event: CalendarExportEvent, exportTimestamp: string): string[] {
+  const eventId = event.uniqueId?.trim();
+  if (!eventId) {
+    throw new Error(`Calendar event for '${event.title}' is missing a UID.`);
   }
 
-  assertIsoDate(ev.start, `event '${uid}' start`);
-  // `?? ev.start` alone is not enough: a nullable DB column arriving as '' is
-  // "no end date", not a date, and would otherwise throw on the shape check.
-  const lastDay = ev.end?.trim() || ev.start;
-  assertIsoDate(lastDay, `event '${uid}' end`);
-  if (lastDay < ev.start) {
-    throw new Error(`Calendar event '${uid}' ends (${lastDay}) before it starts (${ev.start}).`);
+  validateCalendarDate(event.startDate, `event '${eventId}' start`);
+  // Missing and blank end dates both mean a single-day event.
+  const inclusiveEndDate = event.endDateInclusive?.trim() || event.startDate;
+  validateCalendarDate(inclusiveEndDate, `event '${eventId}' end`);
+  if (inclusiveEndDate < event.startDate) {
+    throw new Error(
+      `Calendar event '${eventId}' ends (${inclusiveEndDate}) before it starts (${event.startDate}).`,
+    );
   }
 
-  const exclusiveEnd = addDays(lastDay, 1); // <- the +1 described above
-  const allDay = ev.allDay !== false;
+  const exclusiveEndDate = addCalendarDays(inclusiveEndDate, 1);
+  const isAllDay = event.isAllDay !== false;
 
-  const lines: string[] = ['BEGIN:VEVENT'];
-  // UID is a TEXT value, so it is escaped like any other; stable across exports.
-  lines.push(textLine('UID', uid));
-  lines.push(`DTSTAMP:${stamp}`);
+  const eventLines: string[] = ['BEGIN:VEVENT'];
+  eventLines.push(formatTextProperty('UID', eventId));
+  eventLines.push(`DTSTAMP:${exportTimestamp}`);
 
-  if (allDay) {
-    lines.push(`DTSTART;VALUE=DATE:${icsDate(ev.start)}`);
-    lines.push(`DTEND;VALUE=DATE:${icsDate(exclusiveEnd)}`);
+  if (isAllDay) {
+    eventLines.push(`DTSTART;VALUE=DATE:${formatCalendarDate(event.startDate)}`);
+    eventLines.push(`DTEND;VALUE=DATE:${formatCalendarDate(exclusiveEndDate)}`);
   } else {
-    // No clock time exists in our model, so this degenerates to a floating
-    // midnight-to-midnight span. No TZID and no trailing Z: floating times are
-    // rendered in each viewer's own zone, which is what a distributed team wants.
-    lines.push(`DTSTART:${icsDate(ev.start)}T000000`);
-    lines.push(`DTEND:${icsDate(exclusiveEnd)}T000000`);
+    // Events have dates but no clock times. Export midnight in the viewer's local timezone.
+    eventLines.push(`DTSTART:${formatCalendarDate(event.startDate)}T000000`);
+    eventLines.push(`DTEND:${formatCalendarDate(exclusiveEndDate)}T000000`);
   }
 
-  lines.push(textLine('SUMMARY', ev.summary?.trim() || '(untitled)'));
-  const description = ev.description?.trim();
+  eventLines.push(formatTextProperty('SUMMARY', event.title?.trim() || '(untitled)'));
+  const description = event.description?.trim();
   if (description) {
-    lines.push(textLine('DESCRIPTION', description));
+    eventLines.push(formatTextProperty('DESCRIPTION', description));
   }
 
-  lines.push('END:VEVENT');
-  return lines;
+  eventLines.push('END:VEVENT');
+  return eventLines;
 }
 
 /**
  * Build a VCALENDAR with CRLF endings, including the final line. Serve as text/calendar;
  * charset=utf-8. Omit METHOD so clients treat this as a calendar feed rather than a meeting
  * invitation. Empty event lists are valid.
- *
- * @param events Events with stable UIDs.
- * @param opts Calendar name and optional timestamp; pass the timestamp for deterministic output.
  */
-function buildIcs(events: CalendarEvent[], opts: BuildIcsOptions = {}): string {
-  const stamp = toIcsStamp(opts.timestamp);
-  const calName = opts.calName?.trim() || 'Dalnex HRMS';
+function buildCalendarIcs(
+  events: CalendarExportEvent[],
+  options: CalendarExportOptions = {},
+): string {
+  const exportTimestamp = normalizeExportTimestamp(options.generatedAt);
+  const calendarName = options.calendarName?.trim() || 'Dalnex HRMS';
 
-  const lines: string[] = [
+  const calendarLines: string[] = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    foldLine(`PRODID:${prodid}`),
+    foldCalendarLine(`PRODID:${calendarProductId}`),
     'CALSCALE:GREGORIAN',
-    // X-WR-* are non-standard but universally honoured; without CALNAME the
-    // calendar imports as "Untitled".
-    textLine('X-WR-CALNAME', calName),
-    textLine('X-WR-CALDESC', `${calName} — holidays, leave and company events`),
+    // Calendar clients can use these properties to display the calendar's name and description.
+    formatTextProperty('X-WR-CALNAME', calendarName),
+    formatTextProperty('X-WR-CALDESC', `${calendarName} — holidays, leave and company events`),
   ];
 
-  for (const ev of events) {
-    lines.push(...buildEvent(ev, stamp));
+  for (const event of events) {
+    calendarLines.push(...buildEventLines(event, exportTimestamp));
   }
 
-  lines.push('END:VCALENDAR');
-  return lines.join(crlf) + crlf;
+  calendarLines.push('END:VCALENDAR');
+  return calendarLines.join(calendarLineEnding) + calendarLineEnding;
 }
 
-export { escapeIcsText, foldLine, icsDate, addDays, buildIcs };
-export type { CalendarEvent, BuildIcsOptions };
+export { escapeCalendarText, foldCalendarLine, formatCalendarDate ,addCalendarDays buildCalendarIcs };
+export type { CalendarExportEvent, CalendarExportOptions };
