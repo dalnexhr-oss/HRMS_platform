@@ -242,5 +242,5 @@ function buildCalendarIcs(
   return calendarLines.join(calendarLineEnding) + calendarLineEnding;
 }
 
-export { escapeCalendarText, foldCalendarLine, formatCalendarDate ,addCalendarDays buildCalendarIcs };
+export { escapeCalendarText, foldCalendarLine, formatCalendarDate, addCalendarDays, buildCalendarIcs };
 export type { CalendarExportEvent, CalendarExportOptions };

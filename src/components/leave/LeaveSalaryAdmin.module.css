@@ -108,8 +108,14 @@
   font-weight: 500;
 }
 
-.columnPeriods > th:nth-child(even) {
+.columnPeriods > th,
+.poolTable > thead > tr > th:not(:last-child) {
   border-right: 1px solid var(--border-subtle);
+}
+
+.workingTable > tbody > tr > td:not(:last-child),
+.poolTable > tbody > tr > td:not(:last-child) {
+  border-right: 1px solid color-mix(in srgb, var(--border-subtle) 65%, transparent);
 }
 
 @media (max-width: 640px) {

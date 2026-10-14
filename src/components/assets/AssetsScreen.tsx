@@ -8,6 +8,8 @@ import { AssignAssetDrawer } from './AssignAssetDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { TableColumnMenu, getDistinctColumnValues, sortTableRows, isWithinDateRange, isDateRangeActive } from '@/components/ui/TableColumnMenu';
+import summaryStyles from './AssetSummary.module.css';
+import styles from '@/components/ui/RecordTable.module.css';
 import { deleteAsset } from '@/lib/actions/assets';
 import { inr } from '@/lib/display-formatting';
 import type { SortDirection, ColumnDataType, DateRange } from '@/components/ui/TableColumnMenu';
@@ -157,14 +159,24 @@ function AssetsScreen({
     }
     setBusyId(a.id);
     startTransition(async () => {
-      const res = await deleteAsset(a.id);
-      setBusyId(null);
-      if (!res.ok) {
-        showNotification(res.error ?? 'Could not delete the asset.', 'error');
-        return;
+      try {
+        const res = await deleteAsset(a.id);
+        if (!res.ok) {
+          showNotification(res.error ?? 'Could not delete the asset.', 'error');
+          return;
+        }
+        showNotification('Asset deleted.', 'success');
+        router.refresh();
+      } catch (error) {
+        console.warn('[assets] Could not confirm asset deletion:', error);
+        // A lost response does not tell us whether the server committed the deletion.
+        showNotification(
+          'Could not confirm whether the asset was deleted. Refresh the page before trying again.',
+          'error',
+        );
+      } finally {
+        setBusyId(null);
       }
-      showNotification('Asset deleted.', 'success');
-      router.refresh();
     });
   }
 
@@ -203,36 +215,44 @@ function AssetsScreen({
 
       {notificationContainer}
 
-      {/* 14px below, matching .emp-top's own margin, so the search row, summary
-          band and table card sit on one consistent vertical rhythm. */}
       {summary.length > 0 && (
-        <div className="summary-cards" style={{ marginBottom: 14 }}>
+        <div className={`summary-cards ${summaryStyles.grid}`}>
           {summary.map((s) => (
-            <div className="card summary-card" key={s.category}>
-              <div className="metric-label">{s.category}</div>
-              <div className="metric-value">{s.total}</div>
-              <div className="metric-note">
-                {s.assigned} assigned · {s.available} free
-                {s.warranty_expiring > 0 && (
-                  <>
-                    {' '}
-                    ·{' '}
-                    <span style={{ color: 'var(--attendance-late)' }}>
-                      {s.warranty_expiring} warranty≤30d
-                    </span>
-                  </>
-                )}
+            <div className={`card ${summaryStyles.card}`} key={s.category}>
+              <div className={summaryStyles.header}>
+                <h3>{s.category}</h3>
+                <div className={summaryStyles.total}>
+                  <strong>{s.total}</strong>
+                  <span>{s.total === 1 ? 'asset' : 'assets'}</span>
+                </div>
               </div>
+              <div className={summaryStyles.counts}>
+                <span>
+                  <strong>{s.assigned}</strong> assigned
+                </span>
+                <span className={summaryStyles.available}>
+                  <strong>{s.available}</strong> available
+                </span>
+              </div>
+              {s.warranty_expiring > 0 && (
+                <div
+                  className={summaryStyles.warranty}
+                  title="Expired or expiring within the next 30 days"
+                >
+                  <strong>{s.warranty_expiring}</strong>{' '}
+                  {s.warranty_expiring === 1 ? 'warranty needs' : 'warranties need'} attention
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
 
       <div className="card">
-        <div style={{ overflowX: 'auto' }}>
+        <div className={`${styles.scroll} ${styles.columnScroll}`}>
           {/* min-width keeps 12 columns from crushing into each other — below
               it the wrapper scrolls horizontally instead of misaligning. */}
-          <table style={{ minWidth: 1180 }}>
+          <table className={styles.columnTable} style={{ minWidth: 1180 }}>
             <thead>
               <tr>
                 {columns.map((c) => (
@@ -315,16 +335,9 @@ function AssetsScreen({
                     <Trunc v={a.storage} w={140} />
                   </td>
                   <td>
-                    <div style={{ display: 'flex', gap: 6, whiteSpace: 'nowrap' }}>
+                    <div className={styles.rowActions}>
                       <button
-                        className="button quiet"
-                        onClick={() => openEdit(a)}
-                        disabled={pending && busyId === a.id}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="button quiet"
+                        className={`button ${styles.assignAction}`}
                         onClick={() => setAssigning(a)}
                         disabled={pending && busyId === a.id}
                         title="Assign this asset to an employee"
@@ -332,7 +345,14 @@ function AssetsScreen({
                         {a.assigned_employee_id ? 'Reassign' : 'Assign'}
                       </button>
                       <button
-                        className="button quiet"
+                        className="button"
+                        onClick={() => openEdit(a)}
+                        disabled={pending && busyId === a.id}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="button danger"
                         onClick={() => onDelete(a)}
                         disabled={pending && busyId === a.id}
                         title="Delete this asset"
@@ -345,7 +365,7 @@ function AssetsScreen({
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td className="text-muted" colSpan={11} style={{ textAlign: 'center' }}>
+                  <td className="text-muted" colSpan={13} style={{ textAlign: 'center' }}>
                     {searchQuery || hasFilters
                       ? 'No assets match the current search / filters.'
                       : 'No assets yet.'}

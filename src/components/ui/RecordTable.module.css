@@ -125,6 +125,10 @@
   border-radius: var(--border-radius);
 }
 
+.columnScroll {
+  border-radius: var(--border-radius);
+}
+
 .table {
   width: 100%;
   border-collapse: separate;
@@ -132,7 +136,8 @@
   font-size: 12px;
 }
 
-.table > thead > tr > th {
+.table > thead > tr > th,
+.columnTable > thead > tr > th {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -143,6 +148,24 @@
   font: 600 11px/1.5 var(--font-body);
   letter-spacing: normal;
   text-transform: none;
+}
+
+.columnTable > thead > tr > th,
+.columnTable > tbody > tr > td {
+  border-right: 1px solid var(--border-subtle);
+}
+
+.columnTable > thead > tr > th {
+  vertical-align: middle;
+}
+
+.columnTable > tbody > tr > td {
+  border-right-color: color-mix(in srgb, var(--border-subtle) 65%, transparent);
+}
+
+.columnTable > thead > tr > th:last-child,
+.columnTable > tbody > tr > td:last-child {
+  border-right: 0;
 }
 
 .table > tbody > tr > td {
@@ -213,6 +236,69 @@
   background: var(--surface-inset);
   border-color: var(--border-surface);
   color: var(--text-muted);
+}
+
+.inventoryStatus:global(.status-badge) {
+  gap: 6px;
+  padding: 4px 8px;
+  background: #f1f3f5;
+  border-color: #d8dbe0;
+  color: #4b5058;
+  box-shadow: none;
+  font: 600 11px/1.4 var(--font-body);
+  white-space: nowrap;
+}
+
+.inventoryStatus::before {
+  content: '';
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.inventoryStatus[data-status='in stock'] {
+  background: var(--attendance-present-background);
+  border-color: var(--attendance-present-border);
+  color: var(--attendance-present);
+}
+
+.inventoryStatus[data-status='low stock'] {
+  background: var(--attendance-late-background);
+  border-color: var(--attendance-late-border);
+  color: var(--attendance-late);
+}
+
+.inventoryStatus[data-status='out of stock'] {
+  background: var(--attendance-holiday-background);
+  border-color: var(--attendance-holiday-border);
+  color: var(--attendance-holiday);
+}
+
+.assignAction:global(.button) {
+  background: linear-gradient(180deg, #5573a0, #314b75);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+  box-shadow:
+    0 4px 12px rgba(49, 75, 117, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.36);
+}
+
+.assignAction:global(.button):hover:not(:disabled) {
+  background: linear-gradient(180deg, #4c6a96, #263d62);
+  color: #fff;
+  box-shadow:
+    0 6px 16px rgba(49, 75, 117, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.assignAction:global(.button):active:not(:disabled) {
+  box-shadow: inset 0 2px 6px rgba(18, 32, 57, 0.38);
+}
+
+.assignAction:global(.button):disabled {
+  box-shadow: none;
 }
 
 .rowActions {
@@ -342,7 +428,8 @@
     min-width: 0;
   }
 
-  .table > thead > tr > th {
+  .table > thead > tr > th,
+  .columnTable > thead > tr > th {
     position: static;
     background: #fff;
     box-shadow: none;

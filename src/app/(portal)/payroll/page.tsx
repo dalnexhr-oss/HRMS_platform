@@ -158,7 +158,7 @@ async function loadAdjustments(payslipIds: string[]): Promise<Record<string, Pay
 async function PayrollPage({
   searchParams,
 }: {
-  // Next 15: searchParams is a Promise.
+  // The query string is parsed into a Promise because Next.js 13+ uses async server components.
   searchParams: Promise<{ m?: string }>;
 }) {
   const { m } = await searchParams;
@@ -187,7 +187,7 @@ async function PayrollPage({
       ).flatMap(([l, v]) => (v ? [[l, v] as [string, string]] : []))
     : [];
 
-  // Real, seeded data (payroll_runs.adjustments_open/_close) — informational.
+  // Show the adjustment window, if it exists.
   const openLabel = dayLabel(adjWindow.open);
   const closeLabel = dayLabel(adjWindow.close);
   if (openLabel || closeLabel) {

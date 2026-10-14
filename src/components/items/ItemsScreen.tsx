@@ -9,6 +9,7 @@ import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import { TableColumnMenu, getDistinctColumnValues, sortTableRows } from '@/components/ui/TableColumnMenu';
 import { deleteItem } from '@/lib/actions/items';
+import styles from '@/components/ui/RecordTable.module.css';
 import type { SortDirection, ColumnDataType } from '@/components/ui/TableColumnMenu';
 import type { ItemRow } from '@/lib/queries/items';
 import type { EmployeeOption } from '@/lib/queries/employees';
@@ -182,10 +183,10 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
       {notificationContainer}
 
       <div className="card">
-        <div style={{ overflowX: 'auto' }}>
+        <div className={`${styles.scroll} ${styles.columnScroll}`}>
           {/* min-width keeps 12 columns from crushing into each other — below
               it the wrapper scrolls horizontally instead of misaligning. */}
-          <table style={{ minWidth: 1000 }}>
+          <table className={styles.columnTable} style={{ minWidth: 1000 }}>
             <thead>
               <tr>
                 {columns.map((c) => (
@@ -227,12 +228,19 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
                   <td className="text-right text-monospace">
                     <b>{i.quantity_remaining}</b>
                   </td>
-                  <td style={{ whiteSpace: 'nowrap' }}>{i.status}</td>
+                  <td>
+                    <span
+                      className={`status-badge ${styles.inventoryStatus}`}
+                      data-status={(i.status ?? '').trim().toLowerCase()}
+                    >
+                      {i.status || '—'}
+                    </span>
+                  </td>
                   <td>{i.returnable ? 'Yes' : 'No'}</td>
                   <td>
-                    <div style={{ display: 'flex', gap: 6, whiteSpace: 'nowrap' }}>
+                    <div className={styles.rowActions}>
                       <button
-                        className="button quiet"
+                        className={`button ${styles.assignAction}`}
                         onClick={() => setAssignFor(i)}
                         disabled={i.quantity_remaining <= 0}
                         title={
@@ -243,11 +251,11 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
                       >
                         Assign
                       </button>
-                      <button className="button quiet" onClick={() => openEdit(i)}>
+                      <button className="button" onClick={() => openEdit(i)}>
                         Edit
                       </button>
                       <button
-                        className="button quiet"
+                        className="button danger"
                         onClick={() => onDelete(i)}
                         disabled={pending && busyId === i.id}
                         title="Delete this item"

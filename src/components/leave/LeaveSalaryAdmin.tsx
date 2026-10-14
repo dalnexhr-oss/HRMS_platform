@@ -271,7 +271,7 @@ function LeaveSalaryAdmin({
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table>
+            <table className={styles.poolTable}>
               <thead>
                 <tr>
                   <th>Employee</th>

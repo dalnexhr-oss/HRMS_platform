@@ -17,6 +17,13 @@ const nextConfig = (phase) => ({
       bodySizeLimit: '12mb',
     },
   },
+  logging: {
+  incomingRequests: true,
+  fetches: {
+    fullUrl: true,
+    hmrRefreshes: true,
+  },
+}
 });
 
 export { nextConfig as default };
