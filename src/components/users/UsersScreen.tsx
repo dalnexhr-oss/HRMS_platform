@@ -10,6 +10,7 @@ import { AccessDrawer } from '@/components/users/AccessDrawer';
 import { PunchAccessSelect, punchAccessHelp } from '@/components/users/PunchAccessSelect';
 import { UserActions } from '@/components/users/UserActions';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
+import tableStyles from '@/components/ui/RecordTable.module.css';
 import { isConfigurableRole } from '@/lib/portal-access';
 import { isEmployeeAreaRole } from '@/lib/user-roles';
 import type { AccessTarget } from '@/components/users/AccessDrawer';
@@ -185,7 +186,7 @@ function UsersScreen({
       </div>
 
       <div className="card users-table-card">
-        <table className="users-table" role="table" aria-label="User accounts">
+        <table className={`users-table ${tableStyles.columnTable}`} role="table" aria-label="User accounts">
           <colgroup>
             <col className="users-column-account" />
             <col className="users-column-role" />

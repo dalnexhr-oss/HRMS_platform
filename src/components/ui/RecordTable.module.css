@@ -276,31 +276,6 @@
   color: var(--attendance-holiday);
 }
 
-.assignAction:global(.button) {
-  background: linear-gradient(180deg, #5573a0, #314b75);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #fff;
-  box-shadow:
-    0 4px 12px rgba(49, 75, 117, 0.24),
-    inset 0 1px 0 rgba(255, 255, 255, 0.36);
-}
-
-.assignAction:global(.button):hover:not(:disabled) {
-  background: linear-gradient(180deg, #4c6a96, #263d62);
-  color: #fff;
-  box-shadow:
-    0 6px 16px rgba(49, 75, 117, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
-}
-
-.assignAction:global(.button):active:not(:disabled) {
-  box-shadow: inset 0 2px 6px rgba(18, 32, 57, 0.38);
-}
-
-.assignAction:global(.button):disabled {
-  box-shadow: none;
-}
-
 .rowActions {
   display: flex;
   align-items: center;

@@ -20,6 +20,8 @@
 .users-table {
   width: 100%;
   table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 .users-column-account {
   width: 26%;
@@ -45,33 +47,38 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.users-table th {
-  line-height: 1.5;
-  letter-spacing: 0.06em;
+.users-table th:first-child {
+  border-top-left-radius: var(--border-radius);
+}
+.users-table th:last-child {
+  border-top-right-radius: var(--border-radius);
 }
 .users-table td {
-  padding-top: 14px;
-  padding-bottom: 14px;
+  padding: 10px 12px;
+  line-height: 1.5;
+}
+.users-table tbody tr:last-child td {
+  border-bottom: 0;
 }
 .users-email,
 .users-employee-code {
   display: block;
-  margin-top: 5px;
+  margin-top: 4px;
   font-size: 11px;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 .users-select {
   display: block;
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  min-height: 38px;
+  min-height: 34px;
   padding: 7px 8px;
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: 9px;
   background: var(--surface-solid);
   color: var(--text-primary);
-  font: inherit;
+  font: 400 12px/1.5 var(--font-body);
 }
 .users-select:disabled {
   opacity: 0.6;
@@ -87,11 +94,18 @@
 }
 .users-actions .users-actions-toggle {
   width: 100%;
-  min-height: 38px;
+  min-height: 34px;
   justify-content: center;
-  padding: 7px 8px;
-  border-radius: 8px;
-  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  font: 600 11px/1.5 var(--font-body);
+}
+.users-actions-toggle svg {
+  flex-shrink: 0;
+  transition: transform var(--transition-fast) var(--easing-standard);
+}
+.users-actions-toggle[aria-expanded='true'] svg {
+  transform: rotate(180deg);
 }
 .users-actions-menu {
   position: absolute;
@@ -113,10 +127,9 @@
   justify-content: flex-start;
   white-space: normal;
   text-align: left;
-  border-color: transparent;
-}
-.users-actions-menu .users-delete {
-  color: var(--attendance-absent);
+  padding: 7px 10px;
+  border-radius: 9px;
+  font: 600 11px/1.5 var(--font-body);
 }
 
 /* Respond to the actual content width, including space taken by the sidebar. */
@@ -150,7 +163,7 @@
   .users-table tr:last-child {
     border-bottom: 0;
   }
-  .users-table td {
+  .users-table-card .users-table td {
     display: block;
     padding: 0;
     border: 0;
@@ -169,7 +182,7 @@
   .users-table .users-empty td {
     grid-column: 1 / -1;
   }
-  .users-table .users-actions-cell {
+  .users-table-card .users-table .users-actions-cell {
     display: flex;
     justify-content: flex-end;
   }
@@ -180,6 +193,14 @@
   .users-table .users-actions-cell::before,
   .users-table .users-empty td::before {
     display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .users-select,
+  .users-actions .users-actions-toggle,
+  .users-actions-menu .button {
+    min-height: 44px;
   }
 }
 @container user-accounts (max-width: 480px) {

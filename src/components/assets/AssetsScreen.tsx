@@ -337,7 +337,7 @@ function AssetsScreen({
                   <td>
                     <div className={styles.rowActions}>
                       <button
-                        className={`button ${styles.assignAction}`}
+                        className="button"
                         onClick={() => setAssigning(a)}
                         disabled={pending && busyId === a.id}
                         title="Assign this asset to an employee"

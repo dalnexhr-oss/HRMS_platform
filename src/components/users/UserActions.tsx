@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
+import tableStyles from '@/components/ui/RecordTable.module.css';
 
 interface UserAction {
   label: string;
@@ -66,7 +67,7 @@ function UserActions({
   return (
     <div
       ref={root}
-      className="users-actions"
+      className={`users-actions ${tableStyles.rowActions}`}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) {
           setOpen(false);
@@ -76,7 +77,7 @@ function UserActions({
       <button
         ref={trigger}
         type="button"
-        className="button quiet users-actions-toggle"
+        className="button users-actions-toggle"
         disabled={disabled}
         aria-label={`Actions for ${name}`}
         aria-haspopup="menu"
@@ -85,6 +86,19 @@ function UserActions({
         onClick={() => setOpen((value) => !value)}
       >
         Actions
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="m3 4.5 3 3 3-3" />
+        </svg>
       </button>
       {open && (
         <div
@@ -117,7 +131,7 @@ function UserActions({
               key={item.label}
               type="button"
               role="menuitem"
-              className={`button quiet${item.danger ? ' users-delete' : ''}`}
+              className={`button${item.danger ? ' danger' : ''}`}
               disabled={disabled || item.disabled}
               onClick={() => {
                 setOpen(false);

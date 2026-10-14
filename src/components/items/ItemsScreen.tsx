@@ -240,7 +240,7 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
                   <td>
                     <div className={styles.rowActions}>
                       <button
-                        className={`button ${styles.assignAction}`}
+                        className="button"
                         onClick={() => setAssignFor(i)}
                         disabled={i.quantity_remaining <= 0}
                         title={
