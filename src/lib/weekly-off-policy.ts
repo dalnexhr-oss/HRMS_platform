@@ -1,179 +1,170 @@
-// Shared week-off rules. Defaults work the second and fourth Saturdays; other Saturdays and all
-// Sundays are off. Settings can override both parts of the schedule.
+// Calendar rules shared by attendance, leave and payroll.
+
+const SUNDAY = 0;
+const SATURDAY = 6;
+const DAYS_PER_WEEK = 7;
+
+// The weekly off policy is a combination of regular days off and working Saturdays.
+// The regular days off are the weekdays that are always off,
+// while the working Saturdays are the specific Saturdays that are considered working days.
 
 interface WeekOffPolicy {
-  // Weekdays always off, JS getUTCDay(): 0=Sunday … 6=Saturday.
   weekOffWeekdays: number[];
-  // Saturdays of the month that ARE worked (1=first … 5=fifth).
   workingSaturdays: number[];
 }
 
-// Sundays off; Saturdays off except the 2nd and 4th, which are worked.
+interface LeaveDayCountOptions {
+  policy?: WeekOffPolicy;
+  holidays?: ReadonlySet<string>;
+  sandwich?: boolean;
+}
+
 const defaultWeekOffPolicy: WeekOffPolicy = {
-  weekOffWeekdays: [0, 6],
+  weekOffWeekdays: [SUNDAY, SATURDAY],
   workingSaturdays: [2, 4],
 };
 
-const saturday = 6;
-
-// Parse a stored settings value into a number[], or null when unusable.
-function numberList(value: unknown): number[] | null {
-  if (!Array.isArray(value)) {
-    return null;
-  }
-  const out = value.map(Number).filter((n) => Number.isFinite(n));
-  return out.length === value.length ? out : null;
-}
-
-// Build a policy from raw settings values, falling back per-field so one bad setting can't silently
-// disable the whole schedule.
 function policyFromSettings(weekOffWeekdays: unknown, workingSaturdays: unknown): WeekOffPolicy {
   return {
-    weekOffWeekdays: numberList(weekOffWeekdays) ?? defaultWeekOffPolicy.weekOffWeekdays,
-    workingSaturdays: numberList(workingSaturdays) ?? defaultWeekOffPolicy.workingSaturdays,
+    weekOffWeekdays: parseNumberArray(weekOffWeekdays) ?? defaultWeekOffPolicy.weekOffWeekdays,
+    workingSaturdays: parseNumberArray(workingSaturdays) ?? defaultWeekOffPolicy.workingSaturdays,
   };
 }
 
-// 'YYYY-MM-DD' -> a UTC Date, or null when unparseable.
-function utcDate(dateISO: string): Date | null {
-  const d = new Date(`${dateISO}T00:00:00Z`);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-/**
- * Which occurrence of its weekday this date is within its month.
- * The 8th of a month is always the 2nd of that weekday, the 15th the 3rd, etc.
- */
+// Returns the ordinal occurrence of the weekday in the month, for example 2 for the second Saturday. Returns null if the date is invalid.
 function weekdayOrdinal(dateISO: string): number | null {
-  const d = utcDate(dateISO);
-  if (!d) {
-    return null;
-  }
-  return Math.floor((d.getUTCDate() - 1) / 7) + 1;
+  const date = parseUtcDate(dateISO);
+  return date ? getWeekdayOccurrence(date) : null;
 }
 
-/**
- * Is this date a scheduled week-off?
- *
- * A Saturday listed in `workingSaturdays` (by its ordinal in the month) is a
- * WORKING day even though Saturday is in `weekOffWeekdays` — that exception is
- * the whole point of the rule.
- */
+// Returns true if the date is a scheduled weekly off according to the policy, false otherwise. Invalid dates are treated as not being a weekly off.
 function isScheduledWeekOff(
   dateISO: string,
   policy: WeekOffPolicy = defaultWeekOffPolicy,
 ): boolean {
-  const d = utcDate(dateISO);
-  if (!d) {
-    return false;
-  }
-  const dow = d.getUTCDay();
-  if (!policy.weekOffWeekdays.includes(dow)) {
-    return false;
-  }
-
-  if (dow === saturday) {
-    const ordinal = weekdayOrdinal(dateISO);
-    if (ordinal !== null && policy.workingSaturdays.includes(ordinal)) {
-      return false;
-    }
-  }
-  return true;
+  const date = parseUtcDate(dateISO);
+  return date !== null && isWeekOffDate(date, policy);
 }
 
-/**
- * Count leave within an inclusive span. Normally skip holidays and week-offs. With sandwich policy
- * enabled, count non-working days only when leave days bracket them inside the span. Never charge
- * leading or trailing days off. holidays contains YYYY-MM-DD strings.
- */
-function countLeaveDays(
-  startISO: string,
-  endISO: string,
-  opts: {
-    policy?: WeekOffPolicy;
-    holidays?: ReadonlySet<string>;
-    sandwich?: boolean;
-  } = {},
-): number {
-  const { policy = defaultWeekOffPolicy, holidays = new Set<string>(), sandwich = false } = opts;
-
-  const start = utcDate(startISO);
-  const end = utcDate(endISO);
-  if (!start || !end || end.getTime() < start.getTime()) {
-    return 0;
-  }
-
-  // Enumerate the span, flagging which days are non-working.
-  const days: Array<{ iso: string; off: boolean }> = [];
-  const cursor = new Date(start.getTime());
-  while (cursor.getTime() <= end.getTime()) {
-    const iso = cursor.toISOString().slice(0, 10);
-    days.push({ iso, off: isScheduledWeekOff(iso, policy) || holidays.has(iso) });
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-  }
-
-  const workingCount = days.filter((d) => !d.off).length;
-  if (!sandwich) {
-    return workingCount;
-  }
-
-  // Sandwich: charge every day from the FIRST to the LAST working day inclusive,
-  // so interior non-working days are bridged and the edges are still free. When
-  // the span contains no working day at all there is nothing to bridge.
-  const first = days.findIndex((d) => !d.off);
-  if (first === -1) {
-    return 0;
-  }
-  let last = days.length - 1;
-  while (last > first && days[last].off) {
-    last -= 1;
-  }
-  return last - first + 1;
-}
-
-/** Days-of-month that are scheduled week-offs for a 'YYYY-MM-01' period. */
+// Returns the day numbers of all scheduled weekly offs in the given month according to the policy. Invalid months return an empty array.
 function weekOffDaysInMonth(
   periodMonth: string,
   policy: WeekOffPolicy = defaultWeekOffPolicy,
 ): number[] {
-  const ym = periodMonth.slice(0, 7);
-  const first = utcDate(`${ym}-01`);
-  if (!first) {
+  const yearMonth = periodMonth.slice(0, 7);
+  const date = parseUtcDate(`${yearMonth}-01`);
+  if (!date) {
     return [];
   }
-  const daysInMonth = new Date(
-    Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0),
-  ).getUTCDate();
 
-  const out: number[] = [];
-  for (let day = 1; day <= daysInMonth; day++) {
-    if (isScheduledWeekOff(`${ym}-${String(day).padStart(2, '0')}`, policy)) {
-      out.push(day);
+  const daysInMonth = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  const weekOffDayNumbers: number[] = [];
+
+  for (let dayOfMonth = 1; dayOfMonth <= daysInMonth; dayOfMonth++) {
+    date.setUTCDate(dayOfMonth);
+    if (isWeekOffDate(date, policy)) {
+      weekOffDayNumbers.push(dayOfMonth);
     }
   }
-  return out;
+
+  return weekOffDayNumbers;
 }
 
-/** Human summary for the settings/register UI, e.g. "Sun off · Sat off except 2nd, 4th". */
-function describePolicy(policy: WeekOffPolicy = defaultWeekOffPolicy): string {
-  const names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const off = policy.weekOffWeekdays.filter((d) => d !== saturday).map((d) => names[d] ?? d);
-  const parts: string[] = [];
-  if (off.length) {
-    parts.push(`${off.join(', ')} off`);
+// Counts the number of leave days between two dates, excluding weekly offs and holidays. If sandwich is true, only counts days between working days.
+function countLeaveDays(startDateISO: string, endDateISO: string,options: LeaveDayCountOptions = {}): number {
+  const { policy = defaultWeekOffPolicy, holidays = new Set<string>(), sandwich = false } = options;
+  const startDate = parseUtcDate(startDateISO);
+  const endDate = parseUtcDate(endDateISO);
+
+  if (!startDate || !endDate || endDate.getTime() < startDate.getTime()) {
+    return 0;
   }
-  if (policy.weekOffWeekdays.includes(saturday)) {
-    parts.push(
-      policy.workingSaturdays.length
-        ? `Sat off except ${policy.workingSaturdays
-            .slice()
-            .sort((a, b) => a - b)
-            .map((n) => `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`)
-            .join(', ')}`
+
+  const workingDayFlags: boolean[] = [];
+  const currentDate = new Date(startDate.getTime());
+  while (currentDate.getTime() <= endDate.getTime()) {
+    const dateISO = currentDate.toISOString().slice(0, 10);
+    const isWorkingDay = !isWeekOffDate(currentDate, policy) && !holidays.has(dateISO);
+    workingDayFlags.push(isWorkingDay);
+    currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+  }
+
+  if (!sandwich) {
+    return workingDayFlags.filter(Boolean).length;
+  }
+
+  // Only days between working days are charged. Days off at either end remain excluded.
+  const firstWorkingDayIndex = workingDayFlags.indexOf(true);
+  if (firstWorkingDayIndex === -1) {
+    return 0;
+  }
+  const lastWorkingDayIndex = workingDayFlags.lastIndexOf(true);
+  return lastWorkingDayIndex - firstWorkingDayIndex + 1;
+}
+
+// Returns a human-readable summary of the weekly off policy, e.g. "Sun, Mon off · Sat off except 2nd, 4th".
+function describePolicy(policy: WeekOffPolicy = defaultWeekOffPolicy): string {
+  const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const regularDaysOff = policy.weekOffWeekdays
+    .filter((weekday) => weekday !== SATURDAY)
+    .map((weekday) => weekdayLabels[weekday] ?? weekday);
+  const summaryParts: string[] = [];
+
+  if (regularDaysOff.length) {
+    summaryParts.push(`${regularDaysOff.join(', ')} off`);
+  }
+
+  if (policy.weekOffWeekdays.includes(SATURDAY)) {
+    const workingSaturdays = policy.workingSaturdays.slice().sort((a, b) => a - b);
+    const workingSaturdayLabels = workingSaturdays.map(formatSaturdayOccurrence);
+    summaryParts.push(
+      workingSaturdayLabels.length
+        ? `Sat off except ${workingSaturdayLabels.join(', ')}`
         : 'Sat off',
     );
   }
-  return parts.join(' · ');
+
+  return summaryParts.join(' · ');
+}
+
+// Parses an unknown value as an array of numbers. Returns null if the value is not an array or contains non-numeric elements.
+function parseNumberArray(value: unknown): number[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const numbers = Array.from(value, Number);
+  const containsInvalidNumber = numbers.some((number) => !Number.isFinite(number));
+  return containsInvalidNumber ? null : numbers;
+}
+
+// Parses a date string in the format "YYYY-MM-DD" as a UTC date. Returns null if the string is not a valid date.
+function parseUtcDate(dateISO: string): Date | null {
+  const date = new Date(`${dateISO}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getWeekdayOccurrence(date: Date): number {
+  return Math.floor((date.getUTCDate() - 1) / DAYS_PER_WEEK) + 1;
+}
+
+function isWeekOffDate(date: Date, policy: WeekOffPolicy): boolean {
+  const weekday = date.getUTCDay();
+  if (!policy.weekOffWeekdays.includes(weekday)) {
+    return false;
+  }
+
+  const isWorkingSaturday =
+    weekday === SATURDAY && policy.workingSaturdays.includes(getWeekdayOccurrence(date));
+  return !isWorkingSaturday;
+}
+
+function formatSaturdayOccurrence(occurrence: number): string {
+  const suffixByLastDigit: Record<number, string> = { 1: 'st', 2: 'nd', 3: 'rd' };
+  const suffix = suffixByLastDigit[occurrence % 10] ?? 'th';
+  return `${occurrence}${suffix}`;
 }
 
 export {
@@ -186,4 +177,4 @@ export {
   describePolicy,
 };
 
-export type { WeekOffPolicy };
+export type { WeekOffPolicy, LeaveDayCountOptions };
