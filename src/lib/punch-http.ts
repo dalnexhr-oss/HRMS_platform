@@ -60,9 +60,7 @@ async function handlePunch(request: Request, kind: PunchKind) {
   const requestKey = readIdempotencyKey(request);
   const coords = readCoords(await readJsonObject(request));
   const result = await recordPunch(kind, coords, requestKey, context);
-  // Only after the write actually succeeded — a refused or failed punch has
-  // changed nothing, and invalidating on it would just cost everyone a
-  // re-render to redisplay the same numbers.
+  // Revalidate the pages that show the punch log, so the new punch appears immediately.
   for (const path of affectedPaths) {
     revalidatePath(path);
   }

@@ -22,13 +22,7 @@ import type { Profile } from '@/types/database';
 // geofence_radius_m, or the geofence_radius_m setting, overrides it.
 const defaultGeoRadius = 100;
 
-// geofencing --
-
-/**
- * Great-circle distance in metres. The haversine formula rather than a flat
- * approximation — at a 50m radius the difference is immaterial, but this stays
- * correct if the radius is ever widened to cover a campus.
- */
+// Great-circle distance in metres. The haversine formula rather than a flat
 function distanceMetres(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const earthRadiusM = 6_371_000;
   const toRad = (deg: number) => (deg * Math.PI) / 180;

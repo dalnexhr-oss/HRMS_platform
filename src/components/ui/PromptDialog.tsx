@@ -1,23 +1,19 @@
 'use client';
-
-// Use usePrompt() to await text input and render promptDialog once. Cancellation returns null.
-// matchToken requires a case-insensitive match; validate returns an error string or null.
 import { useCallback, useEffect, useState } from 'react';
 
+
+// PromptDialog is a modal dialog that prompts the user for text input.
+//  It is rendered by the usePrompt hook.
 interface PromptOptions {
   title?: string;
   message: string;
-  // Prefilled input value.
   defaultValue?: string;
   placeholder?: string;
   confirmLabel?: string;
   cancelLabel?: string;
   danger?: boolean;
-  // 'text' | 'password' — mask the input for secrets (set-password).
   inputType?: 'text' | 'password';
-  // Require the typed value to equal this token (case-insensitive) before confirming.
   matchToken?: string;
-  // Return an error message to block submit, or null/undefined to allow.
   validate?: (value: string) => string | null | undefined;
 }
 
@@ -160,10 +156,7 @@ function PromptDialog({
 
 type Pending = PromptOptions & { resolve: (v: string | null) => void };
 
-/**
- * Promise-based prompt. `prompt(opts)` resolves the typed string, or null when
- * cancelled; render the returned `promptDialog` node once in your component tree.
- */
+// Hook to prompt the user for text input. Returns a promise that resolves to the input value or null if cancelled.
 function usePrompt() {
   const [pending, setPending] = useState<Pending | null>(null);
 
