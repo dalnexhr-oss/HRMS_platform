@@ -4,6 +4,7 @@
 import { useActionState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createItem, updateItem } from '@/lib/actions/items';
+import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import type { ItemRow } from '@/lib/queries/items';
 
 interface State {
@@ -16,10 +17,12 @@ const statusOptions = ['In Stock', 'Low Stock', 'Out of Stock', 'Discontinued'];
 function AddItemDrawer({
   open,
   onClose,
+  suggestions,
   item = null,
 }: {
   open: boolean;
   onClose: () => void;
+  suggestions: { categories: string[]; brands: string[]; units: string[] };
   item?: ItemRow | null;
 }) {
   const router = useRouter();
@@ -48,7 +51,7 @@ function AddItemDrawer({
         className={`drawer${open ? ' is-active' : ''}`}
         aria-label={editing ? 'Edit material / tool' : 'Add material / tool'}
       >
-        <form key={item?.id ?? 'new'} action={formAction} style={{ display: 'contents' }}>
+        <form key={item?.id ?? 'new'} action={formAction} autoComplete="off" style={{ display: 'contents' }}>
           {editing && <input type="hidden" name="id" value={item!.id} />}
           <div className="drawer-header">
             <h3>{editing ? 'Edit material / tool' : 'Add material / tool'}</h3>
@@ -74,15 +77,17 @@ function AddItemDrawer({
               />
             </div>
             <div className="form-row">
-              <Field
+              <AutocompleteInput
                 name="category"
                 label="Category"
+                options={suggestions.categories}
                 placeholder="e.g. Peripherals"
                 defaultValue={item?.category ?? undefined}
               />
-              <Field
+              <AutocompleteInput
                 name="brand"
                 label="Brand"
+                options={suggestions.brands}
                 placeholder="e.g. Logitech"
                 defaultValue={item?.brand ?? undefined}
               />
@@ -103,9 +108,10 @@ function AddItemDrawer({
                 defaultValue={item ? String(item.total_quantity) : '0'}
                 mono
               />
-              <Field
+              <AutocompleteInput
                 name="unit"
                 label="Unit"
+                options={suggestions.units}
                 placeholder="e.g. pcs"
                 defaultValue={item?.unit ?? undefined}
               />

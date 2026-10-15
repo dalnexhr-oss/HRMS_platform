@@ -4,6 +4,7 @@
 import { useActionState, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createAsset, updateAsset } from '@/lib/actions/assets';
+import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { todayIST } from '@/lib/display-formatting';
 import { assetLinkMaxLength } from '@/lib/asset-qr-link';
 import type { AssetRow } from '@/lib/queries/assets';
@@ -48,7 +49,7 @@ function AddAssetDrawer({
         className={`drawer${open ? ' is-active' : ''}`}
         aria-label={editing ? 'Edit asset' : 'Add asset'}
       >
-        <form key={asset?.id ?? 'new'} action={formAction} style={{ display: 'contents' }}>
+        <form key={asset?.id ?? 'new'} action={formAction} autoComplete="off" style={{ display: 'contents' }}>
           {editing && <input type="hidden" name="id" value={asset!.id} />}
           <div className="drawer-header">
             <h3>{editing ? 'Edit asset' : 'Add asset'}</h3>
@@ -65,23 +66,13 @@ function AddAssetDrawer({
               defaultValue={asset?.desktop_name}
             />
             <div className="form-row">
-              <div className="form-field">
-                <label>Category</label>
-                <input
-                  name="asset_category"
-                  list="asset-category-options"
-                  placeholder="e.g. Desktop, Laptop, Monitor"
-                  defaultValue={asset?.asset_category ?? undefined}
-                />
-                <datalist id="asset-category-options">
-                  <option value="Desktop" />
-                  <option value="Laptop" />
-                  <option value="Monitor" />
-                  <option value="Printer" />
-                  <option value="Peripheral" />
-                  <option value="Networking" />
-                </datalist>
-              </div>
+              <AutocompleteInput
+                name="asset_category"
+                label="Category"
+                options={['Desktop', 'Laptop', 'Monitor', 'Printer', 'Peripheral', 'Networking']}
+                placeholder="e.g. Desktop, Laptop, Monitor"
+                defaultValue={asset?.asset_category ?? undefined}
+              />
               <Field
                 name="brand"
                 label="Brand"

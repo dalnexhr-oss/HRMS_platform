@@ -3,6 +3,7 @@
 import { useActionState, useState } from 'react';
 import { createTicket } from '@/lib/actions/helpdesk';
 import { TicketChatDrawer } from '@/components/helpdesk/TicketChatDrawer';
+import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import sectionStyles from '@/components/ui/SectionCard.module.css';
 import type { TicketComment, TicketView } from '@/lib/queries/helpdesk';
 
@@ -150,15 +151,18 @@ function NewTicketForm() {
   );
 
   return (
-    <form action={action}>
+    <form action={action} autoComplete="off">
       <div className="form-field">
         <label>Subject</label>
         <input name="subject" placeholder="e.g. June payslip mismatch" required />
       </div>
-      <div className="form-field">
-        <label>Category</label>
-        <input name="category" placeholder="Payroll / Attendance / General…" />
-      </div>
+      <AutocompleteInput
+        name="category"
+        label="Category"
+        options={['Payroll', 'Attendance', 'General']}
+        placeholder="Payroll / Attendance / General…"
+        disabled={pending}
+      />
       <div className="form-field">
         <label>Details</label>
         <textarea

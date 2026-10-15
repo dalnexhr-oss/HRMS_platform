@@ -123,7 +123,7 @@ function ApplyForm({ available, people }: { available: CompOffRow[]; people: Req
   const [compOffId, setCompOffId] = useState('');
 
   return (
-    <form action={action} style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: 14 }}>
+    <form action={action} autoComplete="off" style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: 14 }}>
       <RequestRecipients key={recipientKey} people={people} disabled={pending} />
       <div className="form-row">
         <div className="form-field">

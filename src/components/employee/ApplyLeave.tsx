@@ -319,7 +319,7 @@ function NewRequestForm({
   const noCredits = takingCompOff && compOffBalance === 0;
 
   return (
-    <form action={action}>
+    <form action={action} autoComplete="off">
       <RequestRecipients key={recipientKey} people={people} disabled={pending} />
       <div className="form-field">
         <label>Request type</label>

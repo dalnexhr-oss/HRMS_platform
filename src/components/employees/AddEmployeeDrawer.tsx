@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { createEmployee, updateEmployee } from '@/lib/actions/employees';
 import { States } from '@/lib/indian-states';
 import { SalaryFields } from './SalaryFields';
+import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import type { EmployeeEditRow } from '@/lib/queries/employees';
 import type { BranchRow } from '@/lib/queries/branches';
 
@@ -78,6 +79,7 @@ function AddEmployeeDrawer({
         <form
           key={`${employee?.code ?? 'new'}:${formSeq}`}
           onSubmit={onSubmit}
+          autoComplete="off"
           style={{ display: 'contents' }}
         >
           {editing && <input type="hidden" name="original_code" value={employee!.code} />}
@@ -111,7 +113,7 @@ function AddEmployeeDrawer({
               genderDefault={employee?.gender}
             />
             <div className="form-row">
-              <ComboField
+              <AutocompleteInput
                 name="department"
                 label="Department"
                 placeholder="Pick or type a new one"
@@ -391,34 +393,6 @@ function Field({
         type={type}
         readOnly={readOnly}
       />
-    </div>
-  );
-}
-
-/** Text input backed by a <datalist>: pick an existing suggestion or type a new value. */
-function ComboField({
-  name,
-  label,
-  options,
-  placeholder,
-  defaultValue,
-}: {
-  name: string;
-  label: string;
-  options: string[];
-  placeholder?: string;
-  defaultValue?: string;
-}) {
-  const listId = `${name}-list`;
-  return (
-    <div className="form-field">
-      <label>{label}</label>
-      <input name={name} list={listId} placeholder={placeholder} defaultValue={defaultValue} />
-      <datalist id={listId}>
-        {options.map((o) => (
-          <option key={o} value={o} />
-        ))}
-      </datalist>
     </div>
   );
 }

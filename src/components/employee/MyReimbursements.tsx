@@ -2,12 +2,13 @@
 
 // Employee expense claims. Travel previews use distance × rate; the server recalculates the amount
 // on submission and approval.
-import { useActionState, useState, useTransition } from 'react';
+import { useActionState, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { inr, formatDate, todayIST } from '@/lib/display-formatting';
 import { createReimbursement, updateReimbursement, deleteReimbursement, uploadReimbursementReceipt, getReceiptUrl } from '@/lib/actions/reimbursements';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
+import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import type { NotificationKind } from '@/components/ui/Notifications';
 import type { ReimbursementView } from '@/lib/queries/reimbursements';
 import type { ReimbursementPurpose } from '@/types/database';
@@ -68,6 +69,10 @@ function MyReimbursements({
   const [pending, startTransition] = useTransition();
   const { confirm, confirmDialog } = useConfirm();
   const { showNotification, notificationContainer } = useNotifications();
+  const formSuggestions = useMemo(() => ({
+    sources: claims.flatMap((claim) => claim.sourceMedium ? [claim.sourceMedium] : []),
+    payments: ['Cash', 'UPI', 'Card', ...claims.flatMap((claim) => claim.modeOfPayment ? [claim.modeOfPayment] : [])],
+  }), [claims]);
 
   // Receipts live in a private bucket — open via a short-lived signed URL.
   async function openReceipt(id: string) {
@@ -230,6 +235,7 @@ function MyReimbursements({
               key={editing?.id ?? 'new'}
               ratePerKm={ratePerKm}
               claim={editing}
+              suggestions={formSuggestions}
               onDone={() => setEditing(null)}
               showNotification={showNotification}
             />
@@ -247,12 +253,14 @@ function MyReimbursements({
 function ClaimForm({
   ratePerKm,
   claim,
+  suggestions,
   onDone,
   showNotification,
 }: {
   ratePerKm: number;
   // When set, the form edits this pending claim instead of creating a new one.
   claim: ReimbursementView | null;
+  suggestions: { sources: string[]; payments: string[] };
   onDone: () => void;
   showNotification: (message: string, kind?: NotificationKind) => void;
 }) {
@@ -288,7 +296,7 @@ function ClaimForm({
   const derived = isTravel && Number.isFinite(kmsNum) && kmsNum > 0 ? kmsNum * ratePerKm : 0;
 
   return (
-    <form action={action}>
+    <form action={action} autoComplete="off">
       <div className="form-field">
         <label>Description</label>
         <input
@@ -327,22 +335,22 @@ function ClaimForm({
       </div>
 
       <div className="form-row">
-        <div className="form-field">
-          <label>Source / Medium</label>
-          <input
-            name="source_medium"
-            placeholder="e.g. Own car, Ola, Vendor"
-            defaultValue={claim?.sourceMedium ?? ''}
-          />
-        </div>
-        <div className="form-field">
-          <label>Mode of payment</label>
-          <input
-            name="mode_of_payment"
-            placeholder="e.g. Cash, UPI, Card"
-            defaultValue={claim?.modeOfPayment ?? ''}
-          />
-        </div>
+        <AutocompleteInput
+          name="source_medium"
+          label="Source / Medium"
+          options={suggestions.sources}
+          placeholder="e.g. Own car, Ola, Vendor"
+          defaultValue={claim?.sourceMedium ?? ''}
+          disabled={pending}
+        />
+        <AutocompleteInput
+          name="mode_of_payment"
+          label="Mode of payment"
+          options={suggestions.payments}
+          placeholder="e.g. Cash, UPI, Card"
+          defaultValue={claim?.modeOfPayment ?? ''}
+          disabled={pending}
+        />
       </div>
 
       {isTravel ? (

@@ -10,6 +10,7 @@ import { AccessDrawer } from '@/components/users/AccessDrawer';
 import { PunchAccessSelect, punchAccessHelp } from '@/components/users/PunchAccessSelect';
 import { UserActions } from '@/components/users/UserActions';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
+import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import tableStyles from '@/components/ui/RecordTable.module.css';
 import { isConfigurableRole } from '@/lib/portal-access';
 import { isEmployeeAreaRole } from '@/lib/user-roles';
@@ -366,7 +367,7 @@ function AddUserDrawer({
     <>
       <div className={`dialog-backdrop${open ? ' is-active' : ''}`} onClick={onClose} />
       <aside className={`drawer${open ? ' is-active' : ''}`} aria-label="Add user">
-        <form action={action} style={{ display: 'contents' }}>
+        <form action={action} autoComplete="off" style={{ display: 'contents' }}>
           <div className="drawer-header">
             <h3>Add user</h3>
             <span style={{ flex: 1 }} />
@@ -375,10 +376,14 @@ function AddUserDrawer({
             </button>
           </div>
           <div className="drawer-body">
-            <div className="form-field">
-              <label>Full name</label>
-              <input name="full_name" placeholder="e.g. Meera Kulkarni" required />
-            </div>
+            <AutocompleteInput
+              name="full_name"
+              label="Full name"
+              options={employees.map((employee) => employee.name)}
+              placeholder="e.g. Meera Kulkarni"
+              required
+              disabled={pending}
+            />
             <div className="form-field">
               <label>Email</label>
               <input
@@ -394,6 +399,7 @@ function AddUserDrawer({
               <input
                 name="password"
                 type="text"
+                autoComplete="new-password"
                 className="text-monospace"
                 minLength={8}
                 placeholder="min 8 characters"

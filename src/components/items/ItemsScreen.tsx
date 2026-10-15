@@ -78,6 +78,12 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
     return out;
   }, [items]);
 
+  const formSuggestions = useMemo(() => ({
+    categories: items.flatMap((item) => item.category ? [item.category] : []),
+    brands: items.flatMap((item) => item.brand ? [item.brand] : []),
+    units: items.flatMap((item) => item.unit ? [item.unit] : []),
+  }), [items]);
+
   const hasFilters = Object.values(filters).some((sel) => (sel?.length ?? 0) > 0);
 
   const filtered = useMemo(() => {
@@ -283,6 +289,7 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
       <AddItemDrawer
         open={editDrawer}
         item={editing}
+        suggestions={formSuggestions}
         onClose={() => {
           setEditDrawer(false);
           setEditing(null);
