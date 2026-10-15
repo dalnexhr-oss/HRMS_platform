@@ -6,7 +6,7 @@ import { cache } from 'react';
 import { cookies, headers } from 'next/headers';
 import { sessionCookie } from '@/lib/auth/session-shared';
 import { usersCollection } from '@/lib/db/collection-registry';
-import { readPunchAccess } from '@/lib/punch-access';
+import { readPunchAccess } from '@/lib/punch/punch-access';
 import { signSession, verifySession, sessionMaxAgeSeconds } from '@/lib/auth/jwt';
 import type { SessionClaims } from '@/lib/auth/jwt';
 import type { UserDoc } from '@/lib/db/collection-registry';

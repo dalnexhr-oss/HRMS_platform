@@ -7,7 +7,7 @@ import { createClient, createServiceClient } from '@/lib/db/server-client';
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { getSession } from '@/lib/server-auth';
 import { requireStaff } from '@/lib/actions/guards';
-import { releaseCompOff, settleApprovedCompOff } from '@/lib/compensatory-off-settlement';
+import { releaseCompOff, settleApprovedCompOff } from '@/lib/leave-management/compensatory-off-settlement';
 import { toDecimal } from '@/lib/db/decimal-conversions';
 import { notifyApprovers, notifyEmployee } from '@/lib/notification-delivery';
 import { requestOverlapProblem, requestStartProblem } from '@/lib/requests/date-rules';

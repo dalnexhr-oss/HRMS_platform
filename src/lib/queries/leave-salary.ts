@@ -1,7 +1,7 @@
 import 'server-only';
 import { createClient } from '@/lib/db/server-client';
 import { fail, isoOrNull, iso } from '@/lib/queries/shared';
-import { presentCredit } from '@/lib/leave-salary';
+import { presentCredit } from '@/lib/leave-salary/leave-salary';
 
 // Leave-salary domain queries: retrieves annual paid-leave balances and saved workings.
 

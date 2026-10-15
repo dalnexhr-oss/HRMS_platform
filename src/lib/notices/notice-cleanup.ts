@@ -1,5 +1,5 @@
 import 'server-only';
-import { deleteExpiredNotices } from '@/lib/db/scheduled-jobs';
+import { deleteExpiredNotices } from '@/lib/jobs/scheduled-jobs';
 
 /**
  * Run best-effort notice cleanup when staff publish. Use the scheduler's retention implementation

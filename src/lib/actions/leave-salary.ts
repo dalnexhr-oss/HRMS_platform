@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server-client';
 import { requireRoles, wroteNothing } from '@/lib/actions/guards';
 import { notifyEmployee } from '@/lib/notification-delivery';
-import { computeLeaveSalary, presenceByMonth } from '@/lib/leave-salary';
+import { computeLeaveSalary, presenceByMonth } from '@/lib/leave-salary/leave-salary';
 import { inr } from '@/lib/display-formatting';
 import { toMoney } from '@/lib/db/decimal-conversions';
 

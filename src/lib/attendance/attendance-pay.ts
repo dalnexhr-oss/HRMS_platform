@@ -1,5 +1,5 @@
-import { isScheduledWeekOff } from '@/lib/weekly-off-policy';
-import type { WeekOffPolicy } from '@/lib/weekly-off-policy';
+import { isScheduledWeekOff } from '@/lib/attendance/weekly-off-policy';
+import type { WeekOffPolicy } from '@/lib/attendance/weekly-off-policy';
 
 interface AttendancePayDay {
   workDate: string;

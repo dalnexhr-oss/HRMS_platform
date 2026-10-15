@@ -8,7 +8,7 @@ import { reserveWrite } from '@/lib/db/write-reservations';
 import { createClient } from '@/lib/db/server-client';
 import { getSession } from '@/lib/server-auth';
 import { getWeekOffPolicy } from '@/lib/queries/settings';
-import { isScheduledWeekOff } from '@/lib/weekly-off-policy';
+import { isScheduledWeekOff } from '@/lib/attendance/weekly-off-policy';
 import { requireDb, requireStaff, wroteNothing } from '@/lib/actions/guards';
 import { toDecimal } from '@/lib/db/decimal-conversions';
 import { notifyEmployee } from '@/lib/notification-delivery';

@@ -1,6 +1,6 @@
 import 'server-only';
 import { createClient } from '@/lib/db/server-client';
-import { countLeaveDays, isScheduledWeekOff, policyFromSettings } from '@/lib/weekly-off-policy';
+import { countLeaveDays, isScheduledWeekOff, policyFromSettings } from '@/lib/attendance/weekly-off-policy';
 import { reserveAttendanceMonth } from '@/lib/db/write-reservations';
 
 type DbClient = Awaited<ReturnType<typeof createClient>>;

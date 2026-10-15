@@ -7,8 +7,8 @@
 // a holiday with no attendance row is counted as WO / OH for an employee who worked that month.
 import 'server-only';
 import { randomUUID } from 'node:crypto';
-import { policyFromSettings } from '@/lib/weekly-off-policy';
-import { resolvePayableAttendance } from '@/lib/attendance-pay';
+import { policyFromSettings } from '@/lib/attendance/weekly-off-policy';
+import { resolvePayableAttendance } from '@/lib/attendance/attendance-pay';
 import { reserveOpenRun, reservePayrollPeriod } from '@/lib/db/write-reservations';
 import { todayIST } from '@/lib/display-formatting';
 import { collections } from '@/lib/db/collection-registry';
@@ -20,7 +20,7 @@ import { calculatePayslip } from '@/lib/payroll/payslip-calculation';
 import { registerFunction } from '@/lib/db/scoped-query-client';
 import { requireTabAccess } from '@/lib/actions/guards';
 import type { PayslipComputation, PayrollAttendanceDay } from '@/lib/payroll/payslip-calculation';
-import type { WeekOffPolicy } from '@/lib/weekly-off-policy';
+import type { WeekOffPolicy } from '@/lib/attendance/weekly-off-policy';
 import type { ClientSession, Document } from 'mongodb';
 import type { BaseDoc } from '@/lib/db/collection-registry';
 

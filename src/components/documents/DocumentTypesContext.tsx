@@ -1,8 +1,8 @@
 'use client';
 
 import { createContext, useContext, useMemo } from 'react';
-import { defaultDocumentTypes, documentCategoryLabel, requiredDocumentKeys } from '@/lib/document-categories';
-import type { DocumentType } from '@/lib/document-categories';
+import { defaultDocumentTypes, documentCategoryLabel, requiredDocumentKeys } from '@/lib/documents/document-categories';
+import type { DocumentType } from '@/lib/documents/document-categories';
 import type { ReactNode } from 'react';
 
 interface DocumentTypesValue {

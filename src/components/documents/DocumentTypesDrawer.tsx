@@ -5,9 +5,9 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveDocumentTypes } from '@/lib/actions/document-settings';
-import { documentStages } from '@/lib/document-categories';
+import { documentStages } from '@/lib/documents/document-categories';
 import { useDocumentTypes } from './DocumentTypesContext';
-import type { DocumentStage, DocumentType } from '@/lib/document-categories';
+import type { DocumentStage, DocumentType } from '@/lib/documents/document-categories';
 
 // A row being edited. New rows have no key until they are saved.
 type Row = Omit<DocumentType, 'key'> & { key?: string; rowId: string };

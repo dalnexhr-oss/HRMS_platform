@@ -4,9 +4,9 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server-client';
 import { requireRoles, wroteNothing } from '@/lib/actions/guards';
-import { documentStages, documentTypeKey } from '@/lib/document-categories';
+import { documentStages, documentTypeKey } from '@/lib/documents/document-categories';
 import { documentTypesKey, getDocumentTypes } from '@/lib/queries/document-settings';
-import type { DocumentStage, DocumentType } from '@/lib/document-categories';
+import type { DocumentStage, DocumentType } from '@/lib/documents/document-categories';
 import type { AppRole } from '@/types/database';
 
 interface ActionResult {

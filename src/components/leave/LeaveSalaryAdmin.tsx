@@ -8,13 +8,13 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
-import { computeLeaveSalary, effectiveFigures } from '@/lib/leave-salary';
+import { computeLeaveSalary, effectiveFigures } from '@/lib/leave-salary/leave-salary';
 import { provisionLeaveYear, adjustLeaveBalance } from '@/lib/actions/leave';
 import {saveLeaveSalaryWorking,finalizeLeaveSalary,reopenLeaveSalary,markLeaveSalaryPaid } from '@/lib/actions/leave-salary';
 import styles from './LeaveSalaryAdmin.module.css';
-import type { LeaveSalaryResult } from '@/lib/leave-salary';
+import type { LeaveSalaryResult } from '@/lib/leave-salary/leave-salary';
 import type { ReactNode } from 'react';
-import type { LeaveSalaryViewRow } from '@/lib/leave-salary-view';
+import type { LeaveSalaryViewRow } from '@/lib/leave-salary/leave-salary-view';
 import type { LeaveBalanceAdminRow } from '@/lib/queries/leave-salary';
 
 const monthNames = [

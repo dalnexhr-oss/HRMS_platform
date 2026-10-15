@@ -11,7 +11,7 @@ import { reservePayrollPeriod } from '@/lib/db/write-reservations';
 import { notifyEmployee } from '@/lib/notification-delivery';
 import { toMoney } from '@/lib/db/decimal-conversions';
 import { queryErrorMessage } from '@/lib/db/query-errors';
-import { savePayslipAdjustments } from '@/lib/db/payroll-processing';
+import { savePayslipAdjustments } from '@/lib/payroll/payroll-processing';
 import type { Decimal128 } from 'mongodb';
 import type { AppRole } from '@/types/database';
 

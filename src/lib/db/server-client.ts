@@ -2,8 +2,8 @@
 import 'server-only';
 import { createQueryClient } from '@/lib/db/scoped-query-client';
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
-import { registerDbFunctions } from '@/lib/db/domain-function-handlers';
-import { registerPayrollFunctions } from '@/lib/db/payroll-processing';
+import { registerDbFunctions } from '@/lib/leave-management/domain-function-handlers';
+import { registerPayrollFunctions } from '@/lib/payroll/payroll-processing';
 import { transactionSession } from '@/lib/db/transaction-context';
 import type { QueryClient } from '@/lib/db/scoped-query-client';
 import type { ClientSession } from 'mongodb';

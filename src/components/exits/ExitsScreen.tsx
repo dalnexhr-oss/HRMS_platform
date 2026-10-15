@@ -13,7 +13,7 @@ import { DocumentTypesProvider } from '@/components/documents/DocumentTypesConte
 import { UploadDocumentDrawer } from '@/components/documents/UploadDocumentDrawer';
 import type { ExitCaseRow, ClearanceItemRow, ExitInterviewRow, KtItemRow } from '@/lib/queries/exits';
 import type { EmployeeOption } from '@/lib/queries/employees';
-import type { DocumentType } from '@/lib/document-categories';
+import type { DocumentType } from '@/lib/documents/document-categories';
 
 const stageOrder: Array<ExitCaseRow['stage']> = [
   'initiated',

@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { getSession, isStaffRole } from '@/lib/server-auth';
 import { canAccessTab } from '@/lib/portal-access';
 import { getMyTabAccess } from '@/lib/queries/settings';
-import { readBoard } from '@/lib/tv-dashboard-data';
+import { readBoard } from '@/lib/tv-dashboard/tv-dashboard-data';
 import { EmployeeScreen } from '@/components/tv-dashboard/EmployeeScreen';
 
 export const dynamic = 'force-dynamic';

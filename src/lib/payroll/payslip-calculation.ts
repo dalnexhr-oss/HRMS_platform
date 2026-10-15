@@ -1,7 +1,7 @@
 // Payroll rules operate on integer paise and plain attendance data. Database adapters
 // load configuration and convert Decimal128 values before calling these functions.
 import { scalePaiseAmount as scaleAmount, roundToRupee } from '@/lib/currency-conversion';
-import { attendancePaySummary } from '@/lib/attendance-pay';
+import { attendancePaySummary } from '@/lib/attendance/attendance-pay';
 
 interface PayrollAttendanceDay {
   workDate: string;

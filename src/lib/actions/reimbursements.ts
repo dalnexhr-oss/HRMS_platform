@@ -8,7 +8,7 @@ import { createClient } from '@/lib/db/server-client';
 import { db } from '@/lib/db/mongodb-connection';
 import { transactionSession } from '@/lib/db/transaction-context';
 import { reserveOpenRun } from '@/lib/db/write-reservations';
-import { computePayslipInTransaction } from '@/lib/db/payroll-processing';
+import { computePayslipInTransaction } from '@/lib/payroll/payroll-processing';
 import { getSession } from '@/lib/server-auth';
 import { getReimbursementRate, getReimbursementEvents } from '@/lib/queries/reimbursements';
 import { uploadFile, signedUrl, resolveUploadType } from '@/lib/file-storage';

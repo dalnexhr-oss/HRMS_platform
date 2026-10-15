@@ -6,8 +6,8 @@
 import { NextResponse } from 'next/server';
 import { ApiError, apiErrorCodes } from '@/lib/api/errors';
 import { apiRoute } from '@/lib/api/route-handler';
-import { jobs, runDailyJobs } from '@/lib/db/scheduled-jobs';
-import type { JobName } from '@/lib/db/scheduled-jobs';
+import { jobs, runDailyJobs } from '@/lib/jobs/scheduled-jobs';
+import type { JobName } from '@/lib/jobs/scheduled-jobs';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

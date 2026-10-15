@@ -3,7 +3,7 @@ import { ApiError, apiErrorCodes } from '@/lib/api/errors';
 import { apiRoute, requireStaffSession } from '@/lib/api/route-handler';
 import { canAccessTab } from '@/lib/portal-access';
 import { getMyTabAccess } from '@/lib/queries/settings';
-import { readBoard } from '@/lib/tv-dashboard-data';
+import { readBoard } from '@/lib/tv-dashboard/tv-dashboard-data';
 
 // Require staff access and fetch fresh attendance data for every board request.
 export const dynamic = 'force-dynamic';

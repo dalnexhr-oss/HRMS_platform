@@ -7,7 +7,7 @@ import { requireRoles } from '@/lib/actions/guards';
 import { deleteUserAccounts } from '@/lib/actions/user-deletion';
 import { tierLabel, tierOf } from '@/lib/user-roles';
 import { isEmployeeAreaRole } from '@/lib/server-auth';
-import { isPunchAccess, readPunchAccess } from '@/lib/punch-access';
+import { isPunchAccess, readPunchAccess } from '@/lib/punch/punch-access';
 // validatePassword enforces length limits (10 min, 200 max) before hashing.
 import { hashPassword, validatePassword } from '@/lib/auth/password';
 import { createResetToken, resetTokenTtlMinutes } from '@/lib/auth/reset-tokens';

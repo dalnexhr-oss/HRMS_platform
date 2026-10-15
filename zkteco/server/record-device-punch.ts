@@ -1,11 +1,11 @@
 import 'server-only';
 import { db, withTransaction } from '@/lib/db/mongodb-connection';
 import { createQueryClient } from '@/lib/db/scoped-query-client';
-import { classify, readPunchPolicy, resolveDay } from '@/lib/punch';
-import { localParts } from '@/lib/punch-day';
-import { punchWriteReason, readDayEvents } from '@/lib/punch-storage';
+import { classify, readPunchPolicy, resolveDay } from '@/lib/punch/punch';
+import { localParts } from '@/lib/punch/punch-day';
+import { punchWriteReason, readDayEvents } from '@/lib/punch/punch-storage';
 import { toCoordinate } from '@/lib/db/decimal-conversions';
-import { allowsZktecoPunch } from '@/lib/punch-access';
+import { allowsZktecoPunch } from '@/lib/punch/punch-access';
 import { crossTransportReceiptFilter, deviceEventId, devicePunchKind } from './punch-protocol';
 import { resolveDeviceEmployee, UnknownDeviceEmployee } from './employee-mapping';
 import type { Document } from 'mongodb';

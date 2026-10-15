@@ -6,7 +6,7 @@ import { getSession } from '@/lib/server-auth';
 import { notifyEmployee } from '@/lib/notification-delivery';
 import { todayIST } from '@/lib/display-formatting';
 import { toMoney } from '@/lib/db/decimal-conversions';
-import { parseAssetLink } from '@/lib/asset-qr-link';
+import { parseAssetLink } from '@/lib/asset-management/asset-qr-link';
 import { getAssetAssignments, getAssetMaintenance } from '@/lib/queries/assets';
 import { requireRoles, wroteNothing } from './guards';
 import type { AppRole } from '@/types/database';

@@ -5,7 +5,7 @@ import { toNumber } from '@/lib/db/decimal-conversions';
 import { createClient } from '@/lib/db/server-client';
 import { fail } from '@/lib/queries/shared';
 import { currentPeriodMonth, monthRange, todayISO } from '@/lib/business-dates';
-import { presentDaySurplus } from '@/lib/worked-time';
+import { presentDaySurplus } from '@/lib/attendance/worked-time';
 import { minutesToHHMM } from '@/lib/display-formatting';
 import type { EmployeeDoc, EmployeeStatus, DepartmentDoc } from '@/lib/db/collection-registry';
 

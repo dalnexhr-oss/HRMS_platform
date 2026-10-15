@@ -18,7 +18,7 @@ import { DocumentTypesProvider, useDocumentTypes } from './DocumentTypesContext'
 import { verifyEmployeeDocument, deleteEmployeeDocument } from '@/lib/actions/documents';
 import { TableColumnMenu, getDistinctColumnValues, sortTableRows, isWithinDateRange, isDateRangeActive } from '@/components/ui/TableColumnMenu';
 import type { DrawerTarget } from './UploadDocumentDrawer';
-import type { DocumentType } from '@/lib/document-categories';
+import type { DocumentType } from '@/lib/documents/document-categories';
 import type { EmployeeOption } from '@/lib/queries/employees';
 import type { DocumentStats, EmployeeDocumentRow } from '@/lib/documents/document-summary';
 import type { SortDirection, ColumnDataType, DateRange } from '@/components/ui/TableColumnMenu';

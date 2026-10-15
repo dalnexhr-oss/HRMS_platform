@@ -3,14 +3,14 @@
 // Manually close open attendance days at the configured auto punch-out time, recompute worked
 // minutes, and write an audit entry.
 //
-// Scheduled sweeps use db/scheduled-jobs.ts instead: they run with system scope and default to
+// Scheduled sweeps use jobs/scheduled-jobs.ts instead: they run with system scope and default to
 // yesterday, whereas this action requires a staff session and defaults to today.
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/db/server-client';
 import { todayIST } from '@/lib/display-formatting';
 import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/guards';
-import { getAutoPunchOutMinutes, minutesToClock } from '@/lib/attendance-rules';
-import { closePunchDay } from '@/lib/punch-storage';
+import { getAutoPunchOutMinutes, minutesToClock } from '@/lib/attendance/attendance-rules';
+import { closePunchDay } from '@/lib/punch/punch-storage';
 
 type SweepResult =
   { ok: true; closed: number; at: string; date: string } | { ok: false; error: string };

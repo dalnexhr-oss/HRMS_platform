@@ -3,7 +3,7 @@
 import '@/components/payroll/payslip.css';
 import { Fragment, useState } from 'react';
 import { inr } from '@/lib/display-formatting';
-import { printPayslip } from '@/lib/payslip-print';
+import { printPayslip } from '@/lib/payroll/payslip-print';
 import { useNotifications } from '@/components/ui/Notifications';
 import type { PayslipRow } from '@/types/domain';
 

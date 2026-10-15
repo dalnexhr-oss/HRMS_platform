@@ -4,7 +4,7 @@
 async function register(): Promise<void> {
   // The sweep is only needed on the server, not in the edge runtime or the client.
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    const { startMidnightSweep } = await import('@/lib/db/midnight-attendance-sweep');
+    const { startMidnightSweep } = await import('@/lib/jobs/midnight-attendance-sweep');
     startMidnightSweep();
   }
 }

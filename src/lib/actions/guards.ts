@@ -5,8 +5,8 @@ import { currentScope } from '@/lib/db/access-scope';
 import { canAccessTab } from '@/lib/portal-access';
 import { transactionSession } from '@/lib/db/transaction-context';
 import { reserveAttendanceMonth } from '@/lib/db/write-reservations';
-import { monthSealReason, periodMonthFor } from '@/lib/payroll-month';
-import type { PayrollRunSeal } from '@/lib/payroll-month';
+import { monthSealReason, periodMonthFor } from '@/lib/payroll/payroll-month';
+import type { PayrollRunSeal } from '@/lib/payroll/payroll-month';
 import type { createClient } from '@/lib/db/server-client';
 import type { AppRole } from '@/types/database';
 

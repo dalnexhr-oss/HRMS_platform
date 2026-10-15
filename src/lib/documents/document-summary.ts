@@ -1,5 +1,5 @@
-import { requiredDocumentKeys } from '@/lib/document-categories';
-import type { DocumentType } from '@/lib/document-categories';
+import { requiredDocumentKeys } from '@/lib/documents/document-categories';
+import type { DocumentType } from '@/lib/documents/document-categories';
 
 // documents
 

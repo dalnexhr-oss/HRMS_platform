@@ -1,9 +1,9 @@
 import 'server-only';
 import { db } from '@/lib/db/mongodb-connection';
 import { transactionSession } from '@/lib/db/transaction-context';
-import { monthSealReason, periodMonthFor } from '@/lib/payroll-month';
+import { monthSealReason, periodMonthFor } from '@/lib/payroll/payroll-month';
 import type { ClientSession, Document } from 'mongodb';
-import type { PayrollRunSeal } from '@/lib/payroll-month';
+import type { PayrollRunSeal } from '@/lib/payroll/payroll-month';
 
 /** A real shared write prevents snapshot write skew, including periods with no payroll run yet. */
 async function reserveWrite(key: string, session = transactionSession()): Promise<void> {

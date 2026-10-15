@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateAssetQrLink } from '@/lib/actions/assets';
-import { assetLinkMaxLength } from '@/lib/asset-qr-link';
+import { assetLinkMaxLength } from '@/lib/asset-management/asset-qr-link';
 import { AssetQrCode } from './AssetQrCode';
 
 function AssetQrEditor({

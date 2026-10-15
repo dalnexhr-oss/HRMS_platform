@@ -6,7 +6,7 @@ import { queryErrorCodes } from '@/lib/db/query-errors';
 import { runAction, revalidatePath } from '@/lib/db/action';
 import { todayIST } from '@/lib/display-formatting';
 import { isCalendarDate } from '@/lib/calendar-dates';
-import { prepareSettlement, transitionSettlement } from '@/lib/db/final-settlement';
+import { prepareSettlement, transitionSettlement } from '@/lib/exits/final-settlement';
 import { toPaise, toMoney } from '@/lib/db/decimal-conversions';
 import { notifyEmployee } from '@/lib/notification-delivery';
 import { createClient } from '@/lib/db/server-client';

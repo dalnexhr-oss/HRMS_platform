@@ -1,7 +1,7 @@
 import 'server-only';
 import { createClient } from '@/lib/db/server-client';
-import { normalizeDocumentTypes } from '@/lib/document-categories';
-import type { DocumentType } from '@/lib/document-categories';
+import { normalizeDocumentTypes } from '@/lib/documents/document-categories';
+import type { DocumentType } from '@/lib/documents/document-categories';
 
 // The settings row that holds the document list HR manages on the Documents tab. It is edited
 // there, so the Settings screen leaves it out.

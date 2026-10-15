@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/server-auth';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
 import { LeaveSalaryAdmin } from '@/components/leave/LeaveSalaryAdmin';
-import { buildLeaveSalaryView } from '@/lib/leave-salary-view';
+import { buildLeaveSalaryView } from '@/lib/leave-salary/leave-salary-view';
 import { exportLeaveSalaryXlsx } from '@/lib/actions/export';
 import { getLeaveBalancesForYear } from '@/lib/queries/leave-salary';
 import type { AppRole } from '@/types/database';

@@ -1,10 +1,10 @@
 // Shared request handling for the punch in / punch out routes.
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { recordPunch } from '@/lib/punch';
+import { recordPunch } from '@/lib/punch/punch';
 import { ApiError, apiErrorCodes } from '@/lib/api/errors';
 import { readJsonObject, requireEmployeeSession } from '@/lib/api/route-handler';
-import type { PunchCoords, PunchKind } from '@/lib/punch';
+import type { PunchCoords, PunchKind } from '@/lib/punch/punch';
 
 // Pages a punch changes: the board and its punch log, the register, /employee.
 const affectedPaths = ['/dashboard', '/monthly-register', '/employee', '/employee/attendance'];

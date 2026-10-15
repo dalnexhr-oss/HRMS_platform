@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { AttendanceStatusBadge } from '@/components/ui/AttendanceStatusBadge';
-import { ExportButton } from '@/components/Dashboard/ExportButton';
-import { NightSweepButton } from '@/components/Dashboard/NightSweepButton';
+import { ExportButton } from '@/components/dashboard/ExportButton';
+import { NightSweepButton } from '@/components/dashboard/NightSweepButton';
 import { branchColorAt } from '@/lib/branch-colors';
 import tableStyles from '@/components/ui/RecordTable.module.css';
 import type { ActivityRow } from '@/lib/queries/dashboard';

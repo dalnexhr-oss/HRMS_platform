@@ -1,15 +1,15 @@
 import 'server-only';
 import { createClient } from '@/lib/db/server-client';
 import { fail, numberOrNull, iso } from '@/lib/queries/shared';
-import { localParts, summarizePunches } from '@/lib/punch-day';
-import { clockToMinutes } from '@/lib/attendance-rules';
+import { localParts, summarizePunches } from '@/lib/punch/punch-day';
+import { clockToMinutes } from '@/lib/attendance/attendance-rules';
 import { trimTime } from '@/lib/display-formatting';
 import { scoped } from '@/lib/db/scoped-repository';
 import { collections } from '@/lib/db/collection-registry';
 import { todayISO } from '@/lib/business-dates';
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import type { TodayKpis, PunchLogRow, Celebration } from '@/types/domain';
-import type { DayEvent } from '@/lib/punch-day';
+import type { DayEvent } from '@/lib/punch/punch-day';
 import type { TopbarStats } from '@/lib/portal-navigation';
 
 /** minutes -> '3h 23m' (the punch log's "active" column). */

@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { describePolicy } from '@/lib/weekly-off-policy';
+import { describePolicy } from '@/lib/attendance/weekly-off-policy';
 import { CalendarExportButton } from '@/components/employee/CalendarExportButton';
 import { todayIST, yearOptionsAround } from '@/lib/display-formatting';
-import type { WeekOffPolicy } from '@/lib/weekly-off-policy';
+import type { WeekOffPolicy } from '@/lib/attendance/weekly-off-policy';
 import type { HolidayView } from '@/lib/queries/holidays';
 
 // Show the employee's weekly off schedule and one year of holidays at a time. The year can be

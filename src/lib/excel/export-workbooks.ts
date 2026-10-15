@@ -5,13 +5,13 @@
 // header. Employee blocks start at row 6 with four rows: status, punch-in, punch-out, and worked
 // hours.
 import ExcelJS from 'exceljs';
-import { getAttendanceStatusDetails } from '@/lib/attendance-status';
+import { getAttendanceStatusDetails } from '@/lib/attendance/attendance-status';
 import { minutesToHHMM } from '@/lib/display-formatting';
-import { effectiveFigures } from '@/lib/leave-salary';
+import { effectiveFigures } from '@/lib/leave-salary/leave-salary';
 import { writeBrandHeader, writeBrandOverlay } from '@/lib/excel/workbook-branding';
 import { statusFill, headerFill, timeFormat, clockToExcelTime } from '@/lib/excel/monthly-register-styles';
 import type { ReimbursementView } from '@/lib/queries/reimbursements';
-import type { LeaveSalaryViewRow } from '@/lib/leave-salary-view';
+import type { LeaveSalaryViewRow } from '@/lib/leave-salary/leave-salary-view';
 import type { PayslipRow, PunchLogRow, RegisterEmployee, DayCell } from '@/types/domain';
 
 /// Build the register export workbook: the company's own layout first (re-importable), then a

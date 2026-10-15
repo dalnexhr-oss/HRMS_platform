@@ -2,7 +2,7 @@
 // state; attendance_days holds daily totals and cannot distinguish a return from lunch.
 import { createClient } from '@/lib/db/server-client';
 import { todayIST } from '@/lib/display-formatting';
-import { dayFloorUtc, punchInstant } from '@/lib/punch';
+import { dayFloorUtc, punchInstant } from '@/lib/punch/punch';
 import type { BoardData, EmployeeData, Presence } from '@/types/tv-dashboard';
 
 const bussinessTimeZone = 'Asia/Kolkata';

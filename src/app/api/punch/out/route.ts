@@ -1,5 +1,5 @@
 import { apiRoute } from '@/lib/api/route-handler';
-import { handlePunch } from '@/lib/punch-http';
+import { handlePunch } from '@/lib/punch/punch-http';
 
 export const dynamic = 'force-dynamic';
 

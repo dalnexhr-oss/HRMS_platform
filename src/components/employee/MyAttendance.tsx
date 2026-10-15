@@ -3,7 +3,7 @@
 import '@/components/register/register.css';
 import { useState } from 'react';
 import { AttendanceStatusBadge } from '@/components/ui/AttendanceStatusBadge';
-import { dow } from '@/lib/attendance-status';
+import { dow } from '@/lib/attendance/attendance-status';
 import type { DayCell } from '@/types/domain';
 
 // Statuses that read as "you were at work" for the summary strip.

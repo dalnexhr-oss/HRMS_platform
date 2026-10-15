@@ -6,7 +6,7 @@
  */
 
 import { runAction, revalidatePath } from '@/lib/db/action';
-import { commitDocumentReplacement } from '@/lib/db/document-replacement';
+import { commitDocumentReplacement } from '@/lib/documents/document-replacement';
 import { reserveWrite } from '@/lib/db/write-reservations';
 import { randomUUID } from 'node:crypto';
 import { createClient, createServiceClient } from '@/lib/db/server-client';

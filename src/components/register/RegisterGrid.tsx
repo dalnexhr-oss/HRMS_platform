@@ -4,7 +4,7 @@ import './register.css';
 import { useActionState, useEffect, useRef, useState, useTransition, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { AttendanceStatusBadge } from '@/components/ui/AttendanceStatusBadge';
-import { dow, isWorkedStatus } from '@/lib/attendance-status';
+import { dow, isWorkedStatus } from '@/lib/attendance/attendance-status';
 import { correctAttendance, correctAttendanceBulk } from '@/lib/actions/attendance';
 import { grantCompOff } from '@/lib/actions/comp-off';
 import { useConfirm } from '@/components/ui/ConfirmDialog';

@@ -5,8 +5,8 @@ import { fail, iso } from '@/lib/queries/shared';
 import { trimTime, minutesToHHMM, todayIST } from '@/lib/display-formatting';
 import { scoped } from '@/lib/db/scoped-repository';
 import { collections } from '@/lib/db/collection-registry';
-import { attendancePaySummary, resolvePayableAttendance } from '@/lib/attendance-pay';
-import { policyFromSettings } from '@/lib/weekly-off-policy';
+import { attendancePaySummary, resolvePayableAttendance } from '@/lib/attendance/attendance-pay';
+import { policyFromSettings } from '@/lib/attendance/weekly-off-policy';
 import type { RegisterEmployee, DayCell } from '@/types/domain';
 import type { UserDoc, EmployeeDoc } from '@/lib/db/collection-registry';
 

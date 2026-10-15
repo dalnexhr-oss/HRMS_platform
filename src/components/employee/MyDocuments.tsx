@@ -6,9 +6,9 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/display-formatting';
 import { getDocumentUrl, uploadSignedDocument } from '@/lib/actions/documents';
-import { documentCategoryLabel, requiredDocumentKeys } from '@/lib/document-categories';
+import { documentCategoryLabel, requiredDocumentKeys } from '@/lib/documents/document-categories';
 import { useNotifications } from '@/components/ui/Notifications';
-import type { DocumentType } from '@/lib/document-categories';
+import type { DocumentType } from '@/lib/documents/document-categories';
 import type { EmployeeDocumentRow } from '@/lib/documents/document-summary';
 
 // Match the server upload limit and reject oversized files before sending them.

@@ -2,7 +2,7 @@
 
 // Build staff exports on the server and return workbook bytes as base64 for browser download.
 import { getSession } from '@/lib/server-auth';
-import { buildLeaveSalaryView } from '@/lib/leave-salary-view';
+import { buildLeaveSalaryView } from '@/lib/leave-salary/leave-salary-view';
 import { getPayslips } from '@/lib/queries/payroll';
 import { getPunchLogToday } from '@/lib/queries/dashboard';
 import { getRegister } from '@/lib/queries/attendance';

@@ -1,5 +1,5 @@
 import { QRCodeSVG } from 'qrcode.react';
-import { parseAssetLink } from '@/lib/asset-qr-link';
+import { parseAssetLink } from '@/lib/asset-management/asset-qr-link';
 
 function AssetQrCode({ url, name }: { url: string | null; name: string }) {
   const link = parseAssetLink(url);

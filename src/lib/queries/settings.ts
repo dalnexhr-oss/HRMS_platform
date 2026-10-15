@@ -1,9 +1,9 @@
 import 'server-only';
 import { createClient } from '@/lib/db/server-client';
-import { defaultWeekOffPolicy, policyFromSettings } from '@/lib/weekly-off-policy';
+import { defaultWeekOffPolicy, policyFromSettings } from '@/lib/attendance/weekly-off-policy';
 import { fail } from '@/lib/queries/shared';
 import { getSessionUser } from '@/lib/auth/session';
-import type { WeekOffPolicy } from '@/lib/weekly-off-policy';
+import type { WeekOffPolicy } from '@/lib/attendance/weekly-off-policy';
 import type { TabAccess } from '@/lib/portal-access';
 
 // week-off policy

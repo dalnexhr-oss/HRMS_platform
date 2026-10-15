@@ -7,19 +7,19 @@ import { randomUUID } from 'node:crypto';
 import { collections } from '@/lib/db/collection-registry';
 import { scopedFor } from '@/lib/db/scoped-repository';
 import { systemScope } from '@/lib/db/access-scope';
-import { provisionLeaveBalances, scheduled } from '@/lib/db/domain-function-handlers';
-import { autoPunchOutMinutesFrom } from '@/lib/attendance-rules';
-import { closePunchDay } from '@/lib/punch-storage';
-import { monthSealReason, periodMonthFor } from '@/lib/payroll-month';
+import { provisionLeaveBalances, scheduled } from '@/lib/leave-management/domain-function-handlers';
+import { autoPunchOutMinutesFrom } from '@/lib/attendance/attendance-rules';
+import { closePunchDay } from '@/lib/punch/punch-storage';
+import { monthSealReason, periodMonthFor } from '@/lib/payroll/payroll-month';
 import { todayIST } from '@/lib/display-formatting';
-import { noticeRetentionDays } from '@/lib/notice-retention';
-import { lastNightSweepNotice } from '@/lib/automatic-punch-out-notice';
+import { noticeRetentionDays } from '@/lib/notices/notice-retention';
+import { lastNightSweepNotice } from '@/lib/punch/automatic-punch-out-notice';
 import { isMongoDuplicateKey } from '@/lib/db/query-errors';
 import { withTransaction } from '@/lib/db/mongodb-connection';
 import { reservePayrollPeriod } from '@/lib/db/write-reservations';
 import type { BaseDoc } from '@/lib/db/collection-registry';
-import type { PayrollRunSeal } from '@/lib/payroll-month';
-import type { SweepClosure } from '@/lib/automatic-punch-out-notice';
+import type { PayrollRunSeal } from '@/lib/payroll/payroll-month';
+import type { SweepClosure } from '@/lib/punch/automatic-punch-out-notice';
 
 function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`);

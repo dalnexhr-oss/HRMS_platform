@@ -4,7 +4,7 @@ import './payslip.css';
 import styles from './PayrollOverview.module.css';
 import { inr } from '@/lib/display-formatting';
 import { useNotifications } from '@/components/ui/Notifications';
-import { printPayslip } from '@/lib/payslip-print';
+import { printPayslip } from '@/lib/payroll/payslip-print';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { Fragment, useState, useTransition, useActionState } from 'react';
 import { computeRun, lockRun, markRunPaid, openRun, saveAdjustments } from '@/lib/actions/payroll';

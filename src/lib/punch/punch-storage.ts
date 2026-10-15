@@ -1,12 +1,12 @@
 import 'server-only';
 import { db, withTransaction } from '@/lib/db/mongodb-connection';
 import { reserveAttendanceMonth } from '@/lib/db/write-reservations';
-import { monthSealReason, periodMonthFor } from '@/lib/payroll-month';
-import { localParts, dayFloorUtc, summarizePunches } from '@/lib/punch-day';
-import { autoCloseDay, clockToMinutes, minutesToClock } from '@/lib/attendance-rules';
+import { monthSealReason, periodMonthFor } from '@/lib/payroll/payroll-month';
+import { localParts, dayFloorUtc, summarizePunches } from '@/lib/punch/punch-day';
+import { autoCloseDay, clockToMinutes, minutesToClock } from '@/lib/attendance/attendance-rules';
 import type { ClientSession, Document } from 'mongodb';
-import type { DayEvent } from '@/lib/punch-day';
-import type { PayrollRunSeal } from '@/lib/payroll-month';
+import type { DayEvent } from '@/lib/punch/punch-day';
+import type { PayrollRunSeal } from '@/lib/payroll/payroll-month';
 
 type StoredDoc = Document & { _id: string };
 

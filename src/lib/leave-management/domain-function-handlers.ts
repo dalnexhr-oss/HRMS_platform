@@ -20,7 +20,7 @@ interface Invocation {
 // A request-borne call. The default, and never trusted.
 const request: Invocation = { isScheduler: false };
 
-// An in-process scheduled job. Only db/scheduled-jobs.ts may pass this.
+// An in-process scheduled job. Only jobs/scheduled-jobs.ts may pass this.
 const scheduled: Invocation = { isScheduler: true };
 
 // The signed-in caller, or a refusal. Never falls back to the system.

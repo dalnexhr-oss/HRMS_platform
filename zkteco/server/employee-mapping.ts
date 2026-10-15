@@ -1,5 +1,5 @@
 import 'server-only';
-import { lockEmployeePunches } from '@/lib/punch-storage';
+import { lockEmployeePunches } from '@/lib/punch/punch-storage';
 import type { ClientSession, Db, Document } from 'mongodb';
 import type { DevicePunch } from './punch-protocol';
 

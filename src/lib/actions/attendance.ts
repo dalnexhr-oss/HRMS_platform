@@ -7,9 +7,9 @@ import { createClient } from '@/lib/db/server-client';
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { getSession } from '@/lib/server-auth';
 import { hhmmToMinutes, todayIST } from '@/lib/display-formatting';
-import { isWorkedStatus } from '@/lib/attendance-status';
+import { isWorkedStatus } from '@/lib/attendance/attendance-status';
 import { isCalendarDate } from '@/lib/calendar-dates';
-import { consumeManualCompOff } from '@/lib/db/manual-comp-off';
+import { consumeManualCompOff } from '@/lib/leave-management/manual-comp-off';
 import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/guards';
 import type { AppRole, AttendanceStatus } from '@/types/database';
 

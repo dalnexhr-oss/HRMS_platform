@@ -5,10 +5,10 @@
 import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { uploadEmployeeDocument, replaceEmployeeDocument } from '@/lib/actions/documents';
-import { documentStageLabels, documentStages } from '@/lib/document-categories';
+import { documentStageLabels, documentStages } from '@/lib/documents/document-categories';
 import { useDocumentTypes } from './DocumentTypesContext';
 import { EmployeePicker } from '@/components/employees/EmployeePicker';
-import type { DocumentStage } from '@/lib/document-categories';
+import type { DocumentStage } from '@/lib/documents/document-categories';
 import type { EmployeeDocumentRow } from '@/lib/documents/document-summary';
 import type { EmployeeOption } from '@/lib/queries/employees';
 

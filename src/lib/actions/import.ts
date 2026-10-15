@@ -7,7 +7,7 @@ import { createClient } from '@/lib/db/server-client';
 import { getSession } from '@/lib/server-auth';
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { getEmployeeCodeMap } from '@/lib/queries/employees';
-import { autoCloseDay, getAutoPunchOutMinutes } from '@/lib/attendance-rules';
+import { autoCloseDay, getAutoPunchOutMinutes } from '@/lib/attendance/attendance-rules';
 import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/guards';
 import { parseRegisterWorkbook, employeeCode, isKnownStatus,minutesToClock} from '@/lib/excel/parse-monthly-register';
 import type { ParsedRegister } from '@/lib/excel/parse-monthly-register';

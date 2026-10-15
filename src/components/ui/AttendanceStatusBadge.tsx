@@ -1,4 +1,4 @@
-import { getAttendanceStatusDetails } from '@/lib/attendance-status';
+import { getAttendanceStatusDetails } from '@/lib/attendance/attendance-status';
 import type { AttendanceStatus } from '@/types/database';
 
 function AttendanceStatusBadge({ status }: { status: AttendanceStatus | string }) {

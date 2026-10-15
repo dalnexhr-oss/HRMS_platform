@@ -1,4 +1,4 @@
-import { describePolicy } from '@/lib/weekly-off-policy';
+import { describePolicy } from '@/lib/attendance/weekly-off-policy';
 import { HolidaysScreen } from '@/components/holidays/HolidaysScreen';
 import { getHolidays } from '@/lib/queries/holidays';
 import { getWeekOffPolicy } from '@/lib/queries/settings';

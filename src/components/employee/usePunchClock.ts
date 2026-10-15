@@ -6,9 +6,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getPunchStatus, locationPermission, punchIn, punchOut, requestCoords } from '@/lib/actions/punch';
 import { apiErrorMessage, isAbort } from '@/lib/api/client';
-import { announcePunch, onPunchChange } from '@/lib/punch-bus';
-import { allowsWebPunch, webPunchDisabled } from '@/lib/punch-access';
-import type { PunchSource } from '@/lib/punch-bus';
+import { announcePunch, onPunchChange } from '@/lib/punch/punch-bus';
+import { allowsWebPunch, webPunchDisabled } from '@/lib/punch/punch-access';
+import type { PunchSource } from '@/lib/punch/punch-bus';
 import type { LocationFailure, PunchStatusResponse } from '@/lib/actions/punch';
 import type { NotificationKind } from '@/components/ui/Notifications';
 
