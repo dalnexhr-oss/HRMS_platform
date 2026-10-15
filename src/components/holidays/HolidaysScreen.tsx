@@ -6,6 +6,8 @@ import { addHoliday, deleteHoliday, importHolidaysFromGoogle } from '@/lib/actio
 import { formatDate, yearOptionsAround } from '@/lib/display-formatting';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
+import sectionStyles from '@/components/ui/SectionCard.module.css';
+import scheduleStyles from './WeeklyOffSchedule.module.css';
 import type { NotificationKind } from '@/components/ui/Notifications';
 import type { HolidayView } from '@/lib/queries/holidays';
 
@@ -17,7 +19,7 @@ function HolidaysScreen({
 }: {
   holidays: HolidayView[];
   year: number;
-  // e.g. "Sun off · Sat off except 2nd, 4th" — the scheduled week-off rule.
+  // Full description of the configured weekly-off schedule.
   weekOffSummary: string;
   // Active company branch names used for holiday schedules.
   branchNames?: string[];
@@ -29,19 +31,15 @@ function HolidaysScreen({
     <div className="content-container grid">
       {confirmDialog}
       {notificationContainer}
-      <div className="card">
+      <div className={`card ${sectionStyles.panel}`}>
         <div className="card-header">
           <h3>Weekly off schedule</h3>
-          <span className="card-caption">Applies to every month</span>
+          <span className={scheduleStyles.cadence}>Repeats every month</span>
         </div>
         <div className="card-body">
-          <p style={{ margin: 0 }}>
-            <b>{weekOffSummary}</b>
-          </p>
-          <p className="text-muted" style={{ fontSize: 12, margin: '6px 0 0' }}>
-            The <b>2nd and 4th Saturday are working days</b>; the 1st, 3rd and 5th Saturdays and
-            every Sunday are week-offs. Change this in Settings (“Week-off days” and “Working
-            Saturdays”). Working a scheduled week-off makes a comp off applicable on the register.
+          <p className={scheduleStyles.summary}>{weekOffSummary}</p>
+          <p className={scheduleStyles.note}>
+            Manage this schedule in Settings. Working on a day off may qualify for comp-off credit.
           </p>
         </div>
       </div>
@@ -133,8 +131,8 @@ function ImportHolidays({
   return (
     <>
       <p className="text-muted" style={{ fontSize: 13, marginTop: 0 }}>
-        Pulls India’s gazetted public holidays from Google’s published calendar and adds them for
-        all branches. Dates you already have are skipped, so it is safe to re-run.
+        Import public holidays in India from Google Calendar for all branches. Dates already in
+        your holiday calendar are skipped.
       </p>
 
       <div className="form-field">
@@ -168,8 +166,7 @@ function ImportHolidays({
       </button>
 
       <p className="text-muted" style={{ fontSize: 11, marginBottom: 0 }}>
-        Only entries Google marks “Public holiday” are imported — the same feed carries ~37
-        observances a year (Valentine’s Day, Vasant Panchami…) which are not days off.
+        Only public holiday events are imported. Observances are excluded.
       </p>
     </>
   );

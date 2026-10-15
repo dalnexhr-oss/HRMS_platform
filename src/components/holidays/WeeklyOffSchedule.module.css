@@ -1,0 +1,26 @@
+.cadence {
+  margin-left: auto;
+  color: var(--text-muted);
+  font: 400 11px/1.5 var(--font-body);
+}
+
+.summary {
+  max-width: 76ch;
+  margin: 0;
+  color: var(--text-primary);
+  font: 400 13px/1.7 var(--font-body);
+}
+
+.note {
+  max-width: 76ch;
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font: 400 12px/1.7 var(--font-body);
+}
+
+@media (max-width: 480px) {
+  .cadence {
+    width: 100%;
+    margin-left: 0;
+  }
+}
