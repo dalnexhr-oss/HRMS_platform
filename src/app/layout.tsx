@@ -3,6 +3,7 @@
  */
 import './globals.css';
 import { NetworkStatus } from '@/components/shell/NetworkStatus';
+import { TooltipLayer } from '@/components/ui/TooltipLayer';
 import type { Metadata, Viewport } from 'next';
 
 const metadata: Metadata = {
@@ -34,6 +35,7 @@ function RootLayout({ children }: { children: React.ReactNode }) {
       <body>
         {children}
         <NetworkStatus />
+        <TooltipLayer />
       </body>
     </html>
   );

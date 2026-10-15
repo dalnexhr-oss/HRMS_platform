@@ -1,0 +1,66 @@
+.surface {
+  width: max-content;
+  max-width: min(360px, calc(100vw - 24px));
+  padding: 7px 11px;
+  border: 1px solid var(--border-surface);
+  border-radius: var(--border-radius-small);
+  background: linear-gradient(180deg, #ffffff, #e9eef6);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-raised-small);
+  font: 600 12px/1.4 var(--font-body);
+  text-align: left;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.tooltip {
+  composes: surface;
+  position: fixed;
+  z-index: 100;
+}
+
+.content {
+  display: block;
+  max-height: calc(100vh - 50px);
+  overflow: auto;
+}
+
+/* Bridge the hover gap so the explanation can be pointed at and read. */
+.tooltip::before {
+  content: '';
+  position: absolute;
+  top: -9px;
+  right: 0;
+  left: 0;
+  height: 9px;
+}
+
+.arrow {
+  position: absolute;
+  top: -5px;
+  width: 8px;
+  height: 8px;
+  border-top: 1px solid var(--border-surface);
+  border-left: 1px solid var(--border-surface);
+  background: var(--surface-solid);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.tooltip[data-side='top']::before {
+  top: 100%;
+}
+
+.tooltip[data-side='top'] .arrow {
+  top: auto;
+  bottom: -5px;
+  border: 0;
+  border-right: 1px solid var(--border-surface);
+  border-bottom: 1px solid var(--border-surface);
+  background: #e9eef6;
+}
+
+@media print {
+  .tooltip {
+    display: none;
+  }
+}
