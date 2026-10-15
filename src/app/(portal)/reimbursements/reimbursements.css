@@ -1,0 +1,41 @@
+/* reimbursements */
+
+.reimbursements-page div.reimbursements-pending {
+  color: var(--attendance-late);
+}
+
+.reimbursements-page div.reimbursements-approved {
+  color: var(--attendance-present);
+}
+
+.reimbursements-page span.reimbursements-spacer {
+  flex: 1;
+}
+
+.reimbursements-page div.reimbursements-table-wrap {
+  overflow-x: auto;
+}
+
+.reimbursements-page span.reimbursements-employee-code {
+  font-size: 11px;
+}
+
+.reimbursements-page td.reimbursements-amount {
+  font-weight: 700;
+}
+
+.reimbursements-page td.reimbursements-note,
+.reimbursements-page span.reimbursements-note,
+.reimbursements-page p.reimbursements-note {
+  font-size: 12px;
+}
+
+.reimbursements-page div.reimbursements-rejection {
+  color: var(--attendance-half-day);
+  margin-top: 4px;
+}
+
+.reimbursements-page div.reimbursements-actions {
+  display: flex;
+  gap: 6px;
+}

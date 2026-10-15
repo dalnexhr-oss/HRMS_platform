@@ -1,13 +1,16 @@
 import './dashboard.css';
-import { Dashboard } from '@/components/dashboard/MainBoard';
-import { LiveRefresh } from '@/components/dashboard/LiveRefresh';
+import { DashboardScreen } from '@/components/dashboard/DashboardScreen';
 import { getRegister } from '@/lib/queries/attendance';
 import { getSettings } from '@/lib/queries/settings';
 import { getPayrollRun } from '@/lib/queries/payroll';
 import { currentPeriodMonth } from '@/lib/business-dates';
 import { getCompOffAdmin } from '@/lib/queries/compensatory-off';
-import { CompOffAdminCard } from '@/components/dashboard/CompOffAdminCard';
-import { getActivityFeed, getCelebrationsToday, getPunchLogToday, getTodayBoard } from '@/lib/queries/dashboard';
+import {
+  getActivityFeed,
+  getCelebrationsToday,
+  getPunchLogToday,
+  getTodayBoard,
+} from '@/lib/queries/dashboard';
 import type { Metadata } from 'next';
 import type { Loaded } from '@/components/dashboard/MainBoard';
 import type { SettingView } from '@/lib/queries/settings';
@@ -96,29 +99,21 @@ async function TodayPage() {
     : register;
 
   return (
-    <>
-      {/* Punches land through /api/punch/*, which no page is subscribed to — so the board re-reads itself on a timer rather than waiting for someone to navigate. Renders nothing. */}
-      <LiveRefresh />
-      <Dashboard
-        board={board}
-        punchLog={punchLog}
-        celebrations={celebrations}
-        activity={activity}
-        run={run}
-        marks={marks}
-        markThreshold={threshold}
-        today={todayISO()}
-        todayLabel={todayLabel()}
-        periodMonthLabel={monthLabelOf(periodMonth)}
-      />
-
-      <div className="content-container grid dashboard-comp-offs">
-        <CompOffAdminCard
-          rows={compOffs.ok ? compOffs.data : []}
-          error={compOffs.ok ? undefined : compOffs.error}
-        />
-      </div>
-    </>
+    <DashboardScreen
+      boardProps={{
+        board,
+        punchLog,
+        celebrations,
+        activity,
+        run,
+        marks,
+        markThreshold: threshold,
+        today: todayISO(),
+        todayLabel: todayLabel(),
+        periodMonthLabel: monthLabelOf(periodMonth),
+      }}
+      compOffs={compOffs}
+    />
   );
 }
 

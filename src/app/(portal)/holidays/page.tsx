@@ -1,3 +1,4 @@
+import './holidays.css';
 import { describePolicy } from '@/lib/attendance/weekly-off-policy';
 import { HolidaysScreen } from '@/components/holidays/HolidaysScreen';
 import { getHolidays } from '@/lib/queries/holidays';

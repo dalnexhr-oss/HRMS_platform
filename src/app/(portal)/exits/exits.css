@@ -1,0 +1,92 @@
+/* exits */
+
+.exits-page span.exits-count {
+  color: var(--brand);
+}
+
+.exits-page p.exits-message {
+  margin: 0;
+}
+
+.exits-page div.exits-table-wrap {
+  overflow-x: auto;
+}
+
+.exits-page span.exits-detail,
+.exits-page div.exits-detail {
+  font-size: 11px;
+}
+
+.exits-page span.exits-clear {
+  color: var(--attendance-present);
+}
+
+.exits-page span.exits-outstanding {
+  color: var(--attendance-late);
+}
+
+.exits-page div.exits-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.exits-page span.exits-spacer {
+  flex: 1;
+}
+
+.exits-page label.exits-checklist-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.exits-page p.exits-empty {
+  font-size: 13px;
+}
+
+.exits-page textarea.exits-answer {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  font: inherit;
+  background: #fff;
+  resize: vertical;
+}
+
+.exits-page div.exits-handover-form {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.exits-page div.exits-start-form {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.exits-page div.exits-date-field {
+  margin-bottom: 0;
+}
+
+.exits-page div.exits-reason-field {
+  flex: 1 1 160px;
+  margin-bottom: 0;
+}
+
+.exits-page .exits-handover-form > .employee-picker {
+  flex: 1 1 130px;
+  margin-bottom: 0;
+}
+
+.exits-page .exits-start-form > .employee-picker {
+  flex: 1 1 180px;
+  margin-bottom: 0;
+}

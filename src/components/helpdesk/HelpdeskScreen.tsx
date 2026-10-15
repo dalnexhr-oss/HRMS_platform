@@ -43,7 +43,7 @@ function HelpdeskScreen({
   const [chat, setChat] = useState<TicketView | null>(null);
 
   return (
-    <div className="content-container grid">
+    <div className="content-container grid helpdesk-page">
       <div className="two-column-layout">
         <div className={`card ${sectionStyles.panel}`}>
           <div className="card-header">
@@ -57,7 +57,7 @@ function HelpdeskScreen({
               </div>
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+            <div className="helpdesk-table-wrap">
               <table>
                 <thead>
                   <tr>
@@ -76,7 +76,7 @@ function HelpdeskScreen({
                         <td>
                           <b>{t.subject}</b>
                           {t.body && (
-                            <div className="text-muted" style={{ fontSize: 12 }}>
+                            <div className="text-muted helpdesk-body">
                               {t.body}
                             </div>
                           )}
@@ -169,22 +169,14 @@ function NewTicketForm() {
           name="body"
           rows={5}
           placeholder="Describe the issue…"
-          style={{
-            width: '100%',
-            padding: '9px 11px',
-            border: '1px solid var(--border-strong)',
-            borderRadius: 8,
-            font: 'inherit',
-            background: '#fff',
-            resize: 'vertical',
-          }}
+          className="helpdesk-message"
         />
       </div>
 
       {state.error && <div className="error-message">{state.error}</div>}
       {state.ok && <div className="hint">✓&nbsp; Ticket raised.</div>}
 
-      <button className="button primary" type="submit" disabled={pending} style={{ marginTop: 4 }}>
+      <button className="button primary helpdesk-submit" type="submit" disabled={pending}>
         {pending ? 'Submitting…' : 'Submit ticket'}
       </button>
     </form>

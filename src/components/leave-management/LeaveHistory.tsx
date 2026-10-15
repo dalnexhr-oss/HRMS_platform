@@ -193,10 +193,10 @@ function LeaveHistory({ requests }: { requests: RequestView[] }) {
                         {r.status}
                       </span>
                     </td>
-                    <td style={{ maxWidth: 260 }}>
-                      {r.reason && <div style={{ fontSize: 12 }}>{r.reason}</div>}
+                    <td className="leave-management-reason-cell">
+                      {r.reason && <div className="leave-management-reason">{r.reason}</div>}
                       {r.reviewRemark && (
-                        <div style={{ fontSize: 11, color: statusColor[r.status] }}>
+                        <div className="leave-management-review" style={{ color: statusColor[r.status] }}>
                           <b>Decision:</b> {r.reviewRemark}
                         </div>
                       )}

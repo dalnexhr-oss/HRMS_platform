@@ -1,0 +1,23 @@
+/* helpdesk */
+
+.helpdesk-page div.helpdesk-table-wrap {
+  overflow-x: auto;
+}
+
+.helpdesk-page div.helpdesk-body {
+  font-size: 12px;
+}
+
+.helpdesk-page textarea.helpdesk-message {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  font: inherit;
+  background: #fff;
+  resize: vertical;
+}
+
+.helpdesk-page button.helpdesk-submit {
+  margin-top: 4px;
+}

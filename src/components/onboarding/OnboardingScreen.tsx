@@ -4,8 +4,15 @@
 // authorization role; employees see read-only progress.
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { formatDate } from '@/lib/display-formatting';
-import { startOnboarding, setOnboardingTaskStatus, addOnboardingTask, deleteOnboardingTask, deleteOnboardingTemplate } from '@/lib/actions/onboarding';
+import {
+  startOnboarding,
+  setOnboardingTaskStatus,
+  addOnboardingTask,
+  deleteOnboardingTask,
+  deleteOnboardingTemplate,
+} from '@/lib/actions/onboarding';
 import { OnboardingTemplateDrawer } from './OnboardingTemplateDrawer';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
@@ -117,256 +124,266 @@ function OnboardingScreen({
   }
 
   return (
-    <div className="content-container grid">
-      {confirmDialog}
-      {notificationContainer}
+    <>
+      <div className="content-container grid onboarding-page">
+        {confirmDialog}
+        {notificationContainer}
 
-      <div className={`card ${sectionStyles.panel}`}>
-        <div className="card-header">
-          <h3>Checklist templates</h3>
-          <span className="card-caption">
-            {templates.length === 0
-              ? 'No templates'
-              : `${templates.filter((t) => t.active).length} in use`}
-          </span>
-          <span style={{ flex: 1 }} />
-          <button className="button primary" onClick={() => setEditingTemplate('new')}>
-            + New template
-          </button>
-        </div>
-        <div className="card-body">
-          {templates.length === 0 ? (
-            <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
-              A template is the list of steps every new joiner goes through. Create one to start
-              onboarding employees.
-            </p>
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Template</th>
-                    <th>Steps</th>
-                    <th>Status</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {templates.map((template) => (
-                    <tr key={template.id}>
-                      <td>
-                        <b>{template.name}</b>
-                      </td>
-                      <td>{template.steps}</td>
-                      <td>{template.active ? 'In use' : 'Not in use'}</td>
-                      <td>
-                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                          <button
-                            className="button quiet"
-                            onClick={() => setEditingTemplate(template)}
-                            disabled={pending}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="button quiet"
-                            onClick={() => onDeleteTemplate(template)}
-                            disabled={pending}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
+        <div className={`card ${sectionStyles.panel}`}>
+          <div className="card-header">
+            <h3>Checklist templates</h3>
+            <span className="card-caption">
+              {templates.length === 0
+                ? 'No templates'
+                : `${templates.filter((t) => t.active).length} in use`}
+            </span>
+            <span className="onboarding-spacer" />
+            <button className="button primary" onClick={() => setEditingTemplate('new')}>
+              + New template
+            </button>
+          </div>
+          <div className="card-body">
+            {templates.length === 0 ? (
+              <p className="text-muted onboarding-empty">
+                A template is the list of steps every new joiner goes through. Create one to start
+                onboarding employees.
+              </p>
+            ) : (
+              <div className="onboarding-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Template</th>
+                      <th>Steps</th>
+                      <th>Status</th>
+                      <th />
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <p className="text-muted" style={{ fontSize: 12, margin: '10px 0 0' }}>
-            Editing a template changes checklists started from now on. Checklists already running
-            keep the steps they were created with.
-          </p>
-        </div>
-      </div>
-
-      <OnboardingTemplateDrawer
-        target={editingTemplate}
-        onClose={() => setEditingTemplate(null)}
-        onSaved={(message) => {
-          showNotification(message, 'success');
-          router.refresh();
-        }}
-      />
-
-      <div className={`card ${sectionStyles.panel}`}>
-        <div className="card-header">
-          <h3>Start onboarding</h3>
-        </div>
-        <div className="card-body">
-          <StartForm
-            employees={employees}
-            templates={templates}
-            disabled={pending}
-            onDone={(res, created) => {
-              if (!res.ok) {
-                showNotification(res.error ?? 'Could not start onboarding.', 'error');
-              } else {
-                showNotification(`Checklist created — ${created} step(s).`, 'success');
-                router.refresh();
-              }
-            }}
-          />
-        </div>
-      </div>
-
-      <div className={`card ${sectionStyles.panel}`}>
-        <div className="card-header">
-          <h3>Onboarding tasks</h3>
-          <span className="card-caption">
-            {openCount} open{doneCount ? ` · ${doneCount} done` : ''}
-          </span>
-          <span style={{ flex: 1 }} />
-          {doneCount > 0 && (
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                fontSize: 13,
-                color: 'var(--text-secondary)',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={showDone}
-                onChange={(e) => setShowDone(e.target.checked)}
-              />
-              Show completed
-            </label>
-          )}
-        </div>
-        <div className="card-body">
-          {groups.length === 0 ? (
-            <p className="text-muted" style={{ margin: 0 }}>
-              {tasks.length === 0
-                ? 'No onboarding in progress — start one above.'
-                : 'Everything is done. Tick “Show completed” to review.'}
-            </p>
-          ) : (
-            groups.map(([role, list]) => (
-              <div key={role} style={{ marginBottom: 18 }}>
-                <div className="section-heading">
-                  {roleLabel[role] ?? role} · {list.length}
-                </div>
-                <div style={{ overflowX: 'auto' }}>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Joiner</th>
-                        <th>Step</th>
-                        <th>Due</th>
-                        <th>Status</th>
-                        <th>Action</th>
+                  </thead>
+                  <tbody>
+                    {templates.map((template) => (
+                      <tr key={template.id}>
+                        <td>
+                          <b>{template.name}</b>
+                        </td>
+                        <td>{template.steps}</td>
+                        <td>{template.active ? 'In use' : 'Not in use'}</td>
+                        <td>
+                          <div className="onboarding-template-actions">
+                            <button
+                              className="button quiet"
+                              onClick={() => setEditingTemplate(template)}
+                              disabled={pending}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="button quiet"
+                              onClick={() => onDeleteTemplate(template)}
+                              disabled={pending}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {list.map((t) => (
-                        <tr key={t.id}>
-                          <td>
-                            <b>{t.name}</b>{' '}
-                            <span className="text-monospace text-muted" style={{ fontSize: 11 }}>
-                              {t.code}
-                            </span>
-                          </td>
-                          <td>{t.title}</td>
-                          <td className="text-monospace">
-                            {t.dueDate ? formatDate(t.dueDate) : '—'}
-                          </td>
-                          <td>
-                            <span className="status-badge" style={statusStyle[t.status]}>
-                              {t.status}
-                            </span>
-                          </td>
-                          <td>
-                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                              {t.status !== 'done' && (
-                                <button
-                                  className="button quiet"
-                                  disabled={pending}
-                                  onClick={() =>
-                                    run(
-                                      () => setOnboardingTaskStatus(t.id, 'done'),
-                                      'Step completed.',
-                                    )
-                                  }
-                                >
-                                  ✓ Done
-                                </button>
-                              )}
-                              {t.status === 'pending' && (
-                                <button
-                                  className="button quiet"
-                                  disabled={pending}
-                                  onClick={() =>
-                                    run(
-                                      () => setOnboardingTaskStatus(t.id, 'blocked'),
-                                      'Step marked blocked.',
-                                    )
-                                  }
-                                  data-tooltip-content="Parked — still outstanding, and still chased by the reminder job"
-                                >
-                                  Block
-                                </button>
-                              )}
-                              {t.status !== 'pending' && (
-                                <button
-                                  className="button quiet"
-                                  disabled={pending}
-                                  onClick={() =>
-                                    run(
-                                      () => setOnboardingTaskStatus(t.id, 'pending'),
-                                      'Step reopened.',
-                                    )
-                                  }
-                                >
-                                  Reopen
-                                </button>
-                              )}
-                              <button
-                                className="button quiet"
-                                disabled={pending}
-                                onClick={() => onDelete(t)}
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))
-          )}
+            )}
+            <p className="text-muted onboarding-template-note">
+              Editing a template changes checklists started from now on. Checklists already running
+              keep the steps they were created with.
+            </p>
+          </div>
+        </div>
 
-          <div className="section-heading">Add a one-off step</div>
-          <AddTaskForm
-            employees={employees}
-            disabled={pending}
-            onDone={(res) => {
-              if (!res.ok) {
-                showNotification(res.error ?? 'Could not add the task.', 'error');
-              } else {
-                showNotification('Task added.', 'success');
-                router.refresh();
-              }
-            }}
-          />
+        <OnboardingTemplateDrawer
+          target={editingTemplate}
+          onClose={() => setEditingTemplate(null)}
+          onSaved={(message) => {
+            showNotification(message, 'success');
+            router.refresh();
+          }}
+        />
+
+        <div className={`card ${sectionStyles.panel}`}>
+          <div className="card-header">
+            <h3>Start onboarding</h3>
+          </div>
+          <div className="card-body">
+            <StartForm
+              employees={employees}
+              templates={templates}
+              disabled={pending}
+              onDone={(res, created) => {
+                if (!res.ok) {
+                  showNotification(res.error ?? 'Could not start onboarding.', 'error');
+                } else {
+                  showNotification(`Checklist created — ${created} step(s).`, 'success');
+                  router.refresh();
+                }
+              }}
+            />
+          </div>
+        </div>
+
+        <div className={`card ${sectionStyles.panel}`}>
+          <div className="card-header">
+            <h3>Onboarding tasks</h3>
+            <span className="card-caption">
+              {openCount} open{doneCount ? ` · ${doneCount} done` : ''}
+            </span>
+            <span className="onboarding-spacer" />
+            {doneCount > 0 && (
+              <label className="onboarding-show-done">
+                <input
+                  type="checkbox"
+                  checked={showDone}
+                  onChange={(e) => setShowDone(e.target.checked)}
+                />
+                Show completed
+              </label>
+            )}
+          </div>
+          <div className="card-body">
+            {groups.length === 0 ? (
+              <p className="text-muted onboarding-message">
+                {tasks.length === 0
+                  ? 'No onboarding in progress — start one above.'
+                  : 'Everything is done. Tick “Show completed” to review.'}
+              </p>
+            ) : (
+              groups.map(([role, list]) => (
+                <div key={role} className="onboarding-group">
+                  <div className="section-heading">
+                    {roleLabel[role] ?? role} · {list.length}
+                  </div>
+                  <div className="onboarding-table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Joiner</th>
+                          <th>Step</th>
+                          <th>Due</th>
+                          <th>Status</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {list.map((t) => (
+                          <tr key={t.id}>
+                            <td>
+                              <b>{t.name}</b>{' '}
+                              <span className="text-monospace text-muted onboarding-detail">
+                                {t.code}
+                              </span>
+                            </td>
+                            <td>{t.title}</td>
+                            <td className="text-monospace">
+                              {t.dueDate ? formatDate(t.dueDate) : '—'}
+                            </td>
+                            <td>
+                              <span className="status-badge" style={statusStyle[t.status]}>
+                                {t.status}
+                              </span>
+                            </td>
+                            <td>
+                              <div className="onboarding-task-actions">
+                                {t.status !== 'done' && (
+                                  <button
+                                    className="button quiet"
+                                    disabled={pending}
+                                    onClick={() =>
+                                      run(
+                                        () => setOnboardingTaskStatus(t.id, 'done'),
+                                        'Step completed.',
+                                      )
+                                    }
+                                  >
+                                    ✓ Done
+                                  </button>
+                                )}
+                                {t.status === 'pending' && (
+                                  <button
+                                    className="button quiet"
+                                    disabled={pending}
+                                    onClick={() =>
+                                      run(
+                                        () => setOnboardingTaskStatus(t.id, 'blocked'),
+                                        'Step marked blocked.',
+                                      )
+                                    }
+                                    data-tooltip-content="Parked — still outstanding, and still chased by the reminder job"
+                                  >
+                                    Block
+                                  </button>
+                                )}
+                                {t.status !== 'pending' && (
+                                  <button
+                                    className="button quiet"
+                                    disabled={pending}
+                                    onClick={() =>
+                                      run(
+                                        () => setOnboardingTaskStatus(t.id, 'pending'),
+                                        'Step reopened.',
+                                      )
+                                    }
+                                  >
+                                    Reopen
+                                  </button>
+                                )}
+                                <button
+                                  className="button quiet"
+                                  disabled={pending}
+                                  onClick={() => onDelete(t)}
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))
+            )}
+
+            <div className="section-heading">Add a one-off step</div>
+            <AddTaskForm
+              employees={employees}
+              disabled={pending}
+              onDone={(res) => {
+                if (!res.ok) {
+                  showNotification(res.error ?? 'Could not add the task.', 'error');
+                } else {
+                  showNotification('Task added.', 'success');
+                  router.refresh();
+                }
+              }}
+            />
+          </div>
         </div>
       </div>
-    </div>
+      <div className="content-container onboarding-page">
+        <div className="card">
+          <div className="card-body onboarding-documents">
+            <div>
+              <b>Documents</b>
+              <div className="text-muted onboarding-note">
+                Uploads, verification and the full register live on the Documents page.
+              </div>
+            </div>
+            <span className="onboarding-spacer" />
+            <Link className="button" href="/documents">
+              Open Documents
+            </Link>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -388,15 +405,14 @@ function StartForm({
   const [busy, setBusy] = useState(false);
 
   return (
-    <div className={sectionStyles.formRow}>
+    <div className={`${sectionStyles.formRow} onboarding-start-form`}>
       <EmployeePicker
         employees={employees}
         value={employeeId}
         onChange={setEmployeeId}
         disabled={disabled || busy}
-        style={{ flex: '1 1 200px', marginBottom: 0 }}
       />
-      <div className="form-field" style={{ flex: '1 1 180px', marginBottom: 0 }}>
+      <div className="form-field onboarding-template-field">
         <label>Template</label>
         <select value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
           {active.length === 0 && <option value="">No active template</option>}
@@ -443,15 +459,14 @@ function AddTaskForm({
   const [busy, setBusy] = useState(false);
 
   return (
-    <div className={sectionStyles.formRow}>
+    <div className={`${sectionStyles.formRow} onboarding-task-form`}>
       <EmployeePicker
         employees={employees}
         value={employeeId}
         onChange={setEmployeeId}
         disabled={disabled || busy}
-        style={{ flex: '1 1 160px', marginBottom: 0 }}
       />
-      <div className="form-field" style={{ flex: '1 1 200px', marginBottom: 0 }}>
+      <div className="form-field onboarding-task-field">
         <label>Step</label>
         <input
           value={title}
@@ -459,7 +474,7 @@ function AddTaskForm({
           placeholder="e.g. Order access card"
         />
       </div>
-      <div className="form-field" style={{ marginBottom: 0 }}>
+      <div className="form-field onboarding-date-field">
         <label>Owner</label>
         <select value={assigneeRole} onChange={(e) => setAssigneeRole(e.target.value)}>
           {Object.entries(roleLabel).map(([k, v]) => (
@@ -469,7 +484,7 @@ function AddTaskForm({
           ))}
         </select>
       </div>
-      <div className="form-field" style={{ marginBottom: 0 }}>
+      <div className="form-field onboarding-date-field">
         <label>Due</label>
         <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
       </div>

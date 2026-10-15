@@ -1,7 +1,8 @@
+import './leave-salary.css';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/server-auth';
 import { XlsxExportButton } from '@/components/ui/XlsxExportButton';
-import { LeaveSalaryAdmin } from '@/components/leave/LeaveSalaryAdmin';
+import { LeaveSalaryAdmin } from '@/components/leave-salary/LeaveSalaryAdmin';
 import { buildLeaveSalaryView } from '@/lib/leave-salary/leave-salary-view';
 import { exportLeaveSalaryXlsx } from '@/lib/actions/export';
 import { getLeaveBalancesForYear } from '@/lib/queries/leave-salary';

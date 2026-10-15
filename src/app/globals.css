@@ -6,7 +6,7 @@
   - Global resets and base styles for html, body, and common elements.
   - The app shell: sidebar, topbar, and main content area.
   - Primitives: cards, buttons, status badges, and text utilities.
-  *  It does not define component-specific styles, which are scoped to their own CSS modules.
+  *  Feature styles live beside routes; shared component styles live with their components.
   */
 
 /* tokens */

@@ -1,0 +1,36 @@
+import { QRCodeSVG } from 'qrcode.react';
+import { parseAssetLink } from '@/lib/asset-management/asset-qr-link';
+
+function AssetQrCode({ url, name }: { url: string | null; name: string }) {
+  const link = parseAssetLink(url);
+  if (!link.ok || !link.url) {
+    return (
+      <p className="text-muted">
+        Add and save a destination link to generate this asset’s QR code.
+      </p>
+    );
+  }
+
+  return (
+    <div className="asset-qr">
+      <QRCodeSVG
+        value={link.url}
+        size={link.url.length > 256 ? 384 : 240}
+        className="asset-qr-image"
+        level="M"
+        marginSize={4}
+        role="img"
+        aria-label={`Open the linked page for ${name}`}
+        data-tooltip-content={`Open the linked page for ${name}`}
+      />
+      <a href={link.url} target="_blank" rel="noopener noreferrer" className="asset-qr-link">
+        Open linked page
+      </a>
+      <span className="text-muted asset-note">
+        Scan to open the saved link. The destination may require a login.
+      </span>
+    </div>
+  );
+}
+
+export { AssetQrCode };

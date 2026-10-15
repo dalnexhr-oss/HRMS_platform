@@ -1,6 +1,6 @@
 import { getEmployeeContext } from '@/lib/employee-self-service';
 import { getEmployeePolicies } from '@/lib/queries/policies';
-import { PolicyList } from '@/components/policies/PolicyList';
+import { PolicyList } from '@/components/company-policies/PolicyList';
 
 // Published company policies for the employee to read and acknowledge.
 async function EmployeePoliciesPage() {

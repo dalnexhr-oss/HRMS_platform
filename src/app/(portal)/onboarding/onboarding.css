@@ -1,0 +1,98 @@
+/* onboarding */
+
+.onboarding-page span.onboarding-spacer {
+  flex: 1;
+}
+
+.onboarding-page p.onboarding-empty {
+  font-size: 13px;
+  margin: 0;
+}
+
+.onboarding-page div.onboarding-table-wrap {
+  overflow-x: auto;
+}
+
+.onboarding-page div.onboarding-template-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.onboarding-page p.onboarding-template-note {
+  font-size: 12px;
+  margin: 10px 0 0;
+}
+
+.onboarding-page label.onboarding-show-done {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.onboarding-page p.onboarding-message {
+  margin: 0;
+}
+
+.onboarding-page div.onboarding-group {
+  margin-bottom: 18px;
+}
+
+.onboarding-page span.onboarding-detail {
+  font-size: 11px;
+}
+
+.onboarding-page div.onboarding-task-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.onboarding-page div.onboarding-documents {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.onboarding-page div.onboarding-note {
+  font-size: 12px;
+}
+
+.onboarding-page div.onboarding-task-field {
+  flex: 1 1 200px;
+  margin-bottom: 0;
+}
+
+.onboarding-page div.onboarding-template-field {
+  flex: 1 1 180px;
+  margin-bottom: 0;
+}
+
+.onboarding-page div.onboarding-date-field {
+  margin-bottom: 0;
+}
+
+.onboarding-page label.onboarding-template-title {
+  margin-bottom: 14px;
+}
+
+.onboarding-page div.onboarding-step-heading {
+  margin-bottom: 6px;
+}
+
+.onboarding-page div.onboarding-add-step {
+  margin-top: 12px;
+}
+
+.onboarding-page .onboarding-start-form > .employee-picker {
+  flex: 1 1 200px;
+  margin-bottom: 0;
+}
+
+.onboarding-page .onboarding-task-form > .employee-picker {
+  flex: 1 1 160px;
+  margin-bottom: 0;
+}

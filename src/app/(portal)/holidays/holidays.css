@@ -1,0 +1,64 @@
+/* holidays */
+.holidays-cadence {
+  margin-left: auto;
+  color: var(--text-muted);
+  font: 400 11px/1.5 var(--font-body);
+}
+
+.holidays-summary {
+  max-width: 76ch;
+  margin: 0;
+  color: var(--text-primary);
+  font: 400 13px/1.7 var(--font-body);
+}
+
+.holidays-note {
+  max-width: 76ch;
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font: 400 12px/1.7 var(--font-body);
+}
+
+@media (max-width: 480px) {
+  .holidays-cadence {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+.holidays-page p.holidays-import-note {
+  font-size: 13px;
+  margin-top: 0;
+}
+
+.holidays-page div.holidays-feedback {
+  margin-top: 8px;
+}
+
+.holidays-page button.holidays-submit {
+  margin-top: 4px;
+}
+
+.holidays-page p.holidays-import-caption {
+  font-size: 11px;
+  margin-bottom: 0;
+}
+
+.holidays-page div.holidays-entry {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.holidays-page div.holidays-entry-row {
+  align-items: center;
+  gap: 12px;
+}
+
+.holidays-page span.holidays-date {
+  min-width: 96px;
+  color: var(--text-muted);
+}
+
+.holidays-page strong.holidays-name {
+  flex: 1;
+}

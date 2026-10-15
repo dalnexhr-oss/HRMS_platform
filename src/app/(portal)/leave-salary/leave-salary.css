@@ -1,0 +1,240 @@
+/* leave-salary */
+.leave-salary-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--border-surface);
+  border-radius: var(--border-radius) var(--border-radius) 0 0;
+  background: linear-gradient(180deg, var(--surface-solid), var(--page-background-muted));
+  box-shadow:
+    inset 0 1px 0 var(--shadow-highlight),
+    inset 0 -3px 8px -6px var(--shadow-shade);
+}
+
+.leave-salary-heading {
+  min-width: 0;
+}
+
+.leave-salary-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.leave-salary-title-row h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font: 700 14px/1.4 var(--font-body);
+}
+
+.leave-salary-year {
+  padding: 3px 8px;
+  border: 1px solid var(--border-surface);
+  border-radius: var(--border-radius-extra-small);
+  background: linear-gradient(180deg, #ffffff, #e9eef6);
+  box-shadow: var(--shadow-raised-small);
+  color: var(--text-secondary);
+  font: 600 11px/1.4 var(--font-body);
+}
+
+.leave-salary-summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 6px;
+  color: var(--text-muted);
+  font: 500 11px/1.5 var(--font-body);
+}
+
+.leave-salary-total {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border-strong);
+}
+
+.leave-salary-total strong {
+  color: var(--brand-deep);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.leave-salary-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.leave-salary-actions > button {
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.leave-salary-working-table > thead > tr > th {
+  padding: 9px 12px;
+  color: var(--text-secondary);
+  font: 600 11px/1.4 var(--font-body);
+  letter-spacing: normal;
+  text-transform: none;
+  vertical-align: middle;
+}
+
+.leave-salary-column-groups > th {
+  background: linear-gradient(180deg, var(--surface-solid), var(--surface-inset));
+  box-shadow: inset 0 1px 0 var(--shadow-highlight);
+  border-right: 1px solid var(--border-subtle);
+}
+
+.leave-salary-column-groups > th:last-child {
+  border-right: 0;
+}
+
+.leave-salary-working-table .leave-salary-group-title {
+  text-align: center;
+}
+
+.leave-salary-working-table > thead > .leave-salary-column-periods > th {
+  padding-top: 6px;
+  padding-bottom: 7px;
+  background: var(--surface-solid);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.leave-salary-column-periods > th,
+.leave-salary-pool-table > thead > tr > th:not(:last-child) {
+  border-right: 1px solid var(--border-subtle);
+}
+
+.leave-salary-working-table > tbody > tr > td:not(:last-child),
+.leave-salary-pool-table > tbody > tr > td:not(:last-child) {
+  border-right: 1px solid color-mix(in srgb, var(--border-subtle) 65%, transparent);
+}
+
+@media (max-width: 640px) {
+  .leave-salary-actions {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+}
+
+@media print {
+  .leave-salary-header,
+  .leave-salary-year,
+  .leave-salary-column-groups > th {
+    background: #fff;
+    box-shadow: none;
+  }
+}
+
+.leave-salary-page p.leave-salary-message {
+  margin: 0;
+}
+
+.leave-salary-page div.leave-salary-table-wrap {
+  overflow-x: auto;
+}
+
+.leave-salary-page p.leave-salary-note {
+  font-size: 12px;
+  margin: 0;
+}
+
+.leave-salary-page span.leave-salary-spacer {
+  flex: 1;
+}
+
+.leave-salary-page span.leave-salary-detail,
+.leave-salary-page div.leave-salary-detail {
+  font-size: 11px;
+}
+
+.leave-salary-page tr.leave-salary-working-row {
+  cursor: pointer;
+}
+
+.leave-salary-page div.leave-salary-drift {
+  font-size: 11px;
+  color: var(--attendance-late);
+}
+
+.leave-salary-page input.leave-salary-input {
+  width: 92px;
+  padding: 4px 6px;
+  text-align: right;
+}
+
+.leave-salary-page span.leave-salary-day-value {
+  white-space: nowrap;
+}
+
+.leave-salary-page input.leave-salary-days-input {
+  width: 48px;
+  padding: 4px 6px;
+  text-align: right;
+}
+
+.leave-salary-page td.leave-salary-amount {
+  font-weight: 700;
+}
+
+.leave-salary-page span.leave-salary-status {
+  border-color: var(--border-strong);
+}
+
+.leave-salary-page div.leave-salary-row-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.leave-salary-page td.leave-salary-breakdown-cell {
+  background: var(--page-background-muted, #fafaf8);
+}
+
+.leave-salary-page div.leave-salary-breakdown-line {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.leave-salary-page div.leave-salary-breakdown {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  padding: 10px 4px;
+  font-size: 12.5px;
+}
+
+.leave-salary-page div.leave-salary-breakdown-title {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.leave-salary-page textarea.leave-salary-remarks {
+  width: 100%;
+  padding: 6px;
+}
+
+.leave-salary-page div.leave-salary-balance-form {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.leave-salary-page input.leave-salary-balance-days {
+  width: 64px;
+}
+
+.leave-salary-page input.leave-salary-balance-reason {
+  width: 140px;
+}

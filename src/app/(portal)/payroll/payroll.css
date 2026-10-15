@@ -133,3 +133,10 @@
     backdrop-filter: none !important;
   }
 }
+
+/* payroll */
+
+.payroll-page p.payroll-note {
+  font-size: 12px;
+  margin-top: 10px;
+}

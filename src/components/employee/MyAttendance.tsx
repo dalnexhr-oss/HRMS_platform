@@ -1,6 +1,6 @@
 'use client';
 
-import '@/components/register/register.css';
+import '@/components/monthly-register/register.css';
 import { useState } from 'react';
 import { AttendanceStatusBadge } from '@/components/ui/AttendanceStatusBadge';
 import { dow } from '@/lib/attendance/attendance-status';

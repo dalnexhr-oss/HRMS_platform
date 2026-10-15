@@ -1,4 +1,5 @@
-import { PolicyAdmin } from '@/components/policies/PolicyAdmin';
+import './company-policies.css';
+import { PoliciesScreen } from '@/components/company-policies/PoliciesScreen';
 import { getAllPolicies, getPolicyAckCounts } from '@/lib/queries/policies';
 import { getActiveEmployeeCount } from '@/lib/queries/employees';
 
@@ -9,16 +10,7 @@ async function PoliciesPage() {
     getActiveEmployeeCount(),
   ]);
 
-  return (
-    <div className="content-container grid">
-      <PolicyAdmin policies={policies} ackCounts={ackCounts} headcount={headcount} />
-      <p className="text-muted" style={{ fontSize: 12 }}>
-        Published policies appear on every employee&rsquo;s dashboard, where they can read and
-        acknowledge them. The count on each published policy is how many active employees have
-        marked it as read.
-      </p>
-    </div>
-  );
+  return <PoliciesScreen policies={policies} ackCounts={ackCounts} headcount={headcount} />;
 }
 
 export { PoliciesPage as default };

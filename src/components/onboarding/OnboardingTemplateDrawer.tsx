@@ -105,7 +105,7 @@ function OnboardingTemplateDrawer({
       >
         <div className="drawer-header">
           <h3>{editing ? 'Edit template' : 'New template'}</h3>
-          <span style={{ flex: 1 }} />
+          <span className="onboarding-spacer" />
           <button type="button" className="button quiet" onClick={onClose}>
             ✕
           </button>
@@ -122,14 +122,14 @@ function OnboardingTemplateDrawer({
               onChange={(e) => setName(e.target.value)}
             />
           </div>
-          <label className="editor-check" style={{ marginBottom: 14 }}>
+          <label className="editor-check onboarding-template-title">
             <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
             <span>
               <b>In use</b> — can be picked when starting onboarding for a new joiner
             </span>
           </label>
 
-          <div className="form-field" style={{ marginBottom: 6 }}>
+          <div className="form-field onboarding-step-heading">
             <label>Steps, in the order they are done</label>
           </div>
           {steps.map((step, index) => (
@@ -196,11 +196,7 @@ function OnboardingTemplateDrawer({
             + Add step
           </button>
 
-          {error && (
-            <div className="error-message" style={{ marginTop: 12 }}>
-              {error}
-            </div>
-          )}
+          {error && <div className="error-message onboarding-add-step">{error}</div>}
         </div>
 
         <div className="drawer-footer">

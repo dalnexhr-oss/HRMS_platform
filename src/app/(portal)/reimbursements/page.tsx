@@ -1,3 +1,4 @@
+import './reimbursements.css';
 import { ReimbursementsScreen } from '@/components/reimbursements/ReimbursementsScreen';
 import { getReimbursements } from '@/lib/queries/reimbursements';
 import { getSession } from '@/lib/server-auth';

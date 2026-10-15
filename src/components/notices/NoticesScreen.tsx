@@ -5,7 +5,12 @@ import { openNoticePdf } from '@/components/notices/open-pdf';
 import { formatDate } from '@/lib/display-formatting';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
-import { createNotice, updateNotice, deleteNotice, setNoticePublished } from '@/lib/actions/notices';
+import {
+  createNotice,
+  updateNotice,
+  deleteNotice,
+  setNoticePublished,
+} from '@/lib/actions/notices';
 import sectionStyles from '@/components/ui/SectionCard.module.css';
 import type { NotificationKind } from '@/components/ui/Notifications';
 import type { NoticeView } from '@/lib/queries/notices';
@@ -30,44 +35,46 @@ function NoticesScreen({
   const { showNotification, notificationContainer } = useNotifications();
 
   return (
-    <div className="two-column-layout">
-      {confirmDialog}
-      {notificationContainer}
-      <div className={`card ${sectionStyles.panel}`}>
-        <div className="card-header">
-          <h3>Published notices</h3>
-          <span className="card-caption">{notices.length} total</span>
+    <div className="content-container grid notices-page">
+      <div className="two-column-layout">
+        {confirmDialog}
+        {notificationContainer}
+        <div className={`card ${sectionStyles.panel}`}>
+          <div className="card-header">
+            <h3>Published notices</h3>
+            <span className="card-caption">{notices.length} total</span>
+          </div>
+          <div className="card-body">
+            {notices.length === 0 && (
+              <p className="text-muted notices-empty">
+                No notices yet. Use “Publish a notice” to add one.
+              </p>
+            )}
+            {notices.map((n) => (
+              <NoticeItem
+                key={n.id}
+                notice={n}
+                onEdit={() => setEditing(n)}
+                confirm={confirm}
+                showNotification={showNotification}
+              />
+            ))}
+          </div>
         </div>
-        <div className="card-body">
-          {notices.length === 0 && (
-            <p className="text-muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.6 }}>
-              No notices yet. Use “Publish a notice” to add one.
-            </p>
-          )}
-          {notices.map((n) => (
-            <NoticeItem
-              key={n.id}
-              notice={n}
-              onEdit={() => setEditing(n)}
-              confirm={confirm}
-              showNotification={showNotification}
-            />
-          ))}
-        </div>
-      </div>
 
-      <div className="card">
-        <div className="card-header">
-          <h3>{editing ? 'Edit notice' : 'Publish a notice'}</h3>
-        </div>
-        <div className="card-body">
-          <NoticeForm
-            key={editing?.id ?? 'new'}
-            editing={editing}
-            onDone={() => setEditing(null)}
-            showNotification={showNotification}
-            branchNames={branchNames}
-          />
+        <div className="card">
+          <div className="card-header">
+            <h3>{editing ? 'Edit notice' : 'Publish a notice'}</h3>
+          </div>
+          <div className="card-body">
+            <NoticeForm
+              key={editing?.id ?? 'new'}
+              editing={editing}
+              onDone={() => setEditing(null)}
+              showNotification={showNotification}
+              branchNames={branchNames}
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -129,16 +136,11 @@ function NoticeItem({
         <h4>{notice.title}</h4>
         <span className="status-badge">{channelLabel[notice.channel]}</span>
         <span className="entry-category">{notice.branch ?? 'All branches'}</span>
-        <span style={{ flex: 1 }} />
+        <span className="notices-spacer" />
         {notice.published && notice.publishedAt ? (
           <span className="entry-version">{formatDate(notice.publishedAt.slice(0, 10))}</span>
         ) : (
-          <span
-            className="status-badge"
-            style={{ borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }}
-          >
-            Draft
-          </span>
+          <span className="status-badge notices-draft">Draft</span>
         )}
         {notice.pdfPath && (
           <button
@@ -206,15 +208,7 @@ function NoticeForm({
           name="body"
           rows={5}
           defaultValue={editing?.body ?? ''}
-          style={{
-            width: '100%',
-            padding: '9px 11px',
-            border: '1px solid var(--border-strong)',
-            borderRadius: 8,
-            font: 'inherit',
-            background: '#fff',
-            resize: 'vertical',
-          }}
+          className="notices-body-input"
         />
       </div>
       <div className="form-row">
@@ -245,17 +239,13 @@ function NoticeForm({
         </label>
         <input type="file" name="pdf" accept=".pdf,application/pdf" />
         {editing?.pdfPath && (
-          <label
-            style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginTop: 6 }}
-          >
+          <label className="notices-attachment">
             <input type="checkbox" name="remove_pdf" /> Remove the current PDF
           </label>
         )}
       </div>
       {!editing && (
-        <label
-          style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 14 }}
-        >
+        <label className="notices-publish">
           <input type="checkbox" name="publish" defaultChecked /> Publish immediately
         </label>
       )}
@@ -263,7 +253,7 @@ function NoticeForm({
       {state.error && <div className="error-message">{state.error}</div>}
       {state.ok && !editing && <div className="hint">✓&nbsp; Notice saved.</div>}
 
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div className="notices-actions">
         <button className="button primary" type="submit" disabled={pending}>
           {pending ? 'Saving…' : editing ? 'Save changes' : 'Publish notice'}
         </button>

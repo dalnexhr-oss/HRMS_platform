@@ -1,6 +1,7 @@
+import './professional-tax.css';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/server-auth';
-import { ProfessionalTaxScreen } from '@/components/payroll/ProfessionalTaxScreen';
+import { ProfessionalTaxScreen } from '@/components/professional-tax/ProfessionalTaxScreen';
 import { getPtSlabs } from '@/lib/queries/professional-tax';
 import { getBranches } from '@/lib/queries/branches';
 import type { AppRole } from '@/types/database';

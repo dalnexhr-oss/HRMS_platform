@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import './onboarding.css';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/server-auth';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
@@ -22,31 +22,7 @@ async function OnboardingPage() {
     getEmployeeOptions(),
   ]);
 
-  return (
-    <>
-      <OnboardingScreen tasks={tasks} templates={templates} employees={employees} />
-      {/* Document verification lives at /documents; this page manages onboarding checklists. */}
-      <div className="content-container">
-        <div className="card">
-          <div
-            className="card-body"
-            style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}
-          >
-            <div>
-              <b>Documents</b>
-              <div className="text-muted" style={{ fontSize: 12 }}>
-                Uploads, verification and the full register live on the Documents page.
-              </div>
-            </div>
-            <span style={{ flex: 1 }} />
-            <Link className="button" href="/documents">
-              Open Documents
-            </Link>
-          </div>
-        </div>
-      </div>
-    </>
-  );
+  return <OnboardingScreen tasks={tasks} templates={templates} employees={employees} />;
 }
 
 export { OnboardingPage as default };

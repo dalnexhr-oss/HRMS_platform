@@ -1,3 +1,4 @@
+import './exits.css';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/server-auth';
 import { ExitsScreen } from '@/components/exits/ExitsScreen';

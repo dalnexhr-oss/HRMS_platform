@@ -1,0 +1,22 @@
+/* leave-management */
+
+.leave-management-page td.leave-management-reason-cell {
+  max-width: 260px;
+}
+
+.leave-management-page div.leave-management-reason {
+  font-size: 12px;
+}
+
+.leave-management-page div.leave-management-review {
+  font-size: 11px;
+}
+
+.leave-management-page div.leave-management-approved {
+  color: var(--attendance-present);
+}
+
+.leave-management-page p.leave-management-note {
+  font-size: 12px;
+  margin: 0;
+}

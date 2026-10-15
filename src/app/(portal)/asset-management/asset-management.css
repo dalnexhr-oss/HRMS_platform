@@ -1,0 +1,162 @@
+/* asset-management */
+.asset-summary-grid {
+  gap: var(--layout-gap);
+  margin-bottom: var(--layout-gap);
+}
+
+.asset-summary-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.asset-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.asset-summary-header h3 {
+  min-width: 0;
+  margin: 0;
+  color: var(--text-secondary);
+  font: 600 13px/1.4 var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+.asset-summary-total {
+  display: flex;
+  align-items: baseline;
+  flex-shrink: 0;
+  gap: 5px;
+  color: var(--text-muted);
+  font: 500 11px/1.4 var(--font-body);
+}
+
+.asset-summary-total strong {
+  color: var(--text-primary);
+  font: 700 26px/1.2 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+}
+
+.asset-summary-counts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font: 500 11px/1.5 var(--font-body);
+}
+
+.asset-summary-counts > span {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.asset-summary-counts > span + span {
+  padding-left: 12px;
+  border-left: 1px solid var(--border-subtle);
+}
+
+.asset-summary-counts strong {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.asset-summary-available strong {
+  color: var(--attendance-present);
+}
+
+.asset-summary-warranty {
+  padding: 6px 8px;
+  border: 1px solid var(--attendance-late-border);
+  border-radius: var(--border-radius-extra-small);
+  background: var(--attendance-late-background);
+  color: var(--attendance-late);
+  font: 500 11px/1.5 var(--font-body);
+}
+
+.asset-summary-warranty strong {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.asset-management-page form.asset-form {
+  display: contents;
+}
+
+.asset-management-page span.asset-spacer {
+  flex: 1;
+}
+
+.asset-management-page span.asset-note,
+.asset-management-page p.asset-note {
+  font-size: 12px;
+}
+
+.asset-management-page div.asset-qr {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.asset-management-page svg.asset-qr-image {
+  max-width: 100%;
+  height: auto;
+}
+
+.asset-management-page a.asset-qr-link {
+  overflow-wrap: anywhere;
+}
+
+.asset-management-page div.asset-qr-editor {
+  display: grid;
+  gap: 12px;
+}
+
+.asset-management-page span.asset-count {
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.asset-management-page table.asset-table {
+  min-width: 1180px;
+}
+
+.asset-management-page td.asset-value {
+  white-space: nowrap;
+}
+
+.asset-management-page span.asset-detail {
+  font-size: 11px;
+}
+
+.asset-management-page td.asset-empty {
+  text-align: center;
+}
+
+.asset-management-page span.asset-truncated {
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.asset-management-page div.asset-submit {
+  margin: 4px 0 8px;
+}
+
+.asset-management-page p.asset-message {
+  font-size: 13px;
+}
+
+.asset-management-page div.asset-table-wrap {
+  overflow-x: auto;
+}

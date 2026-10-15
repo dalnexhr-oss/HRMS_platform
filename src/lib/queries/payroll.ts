@@ -1,10 +1,12 @@
 import 'server-only';
+import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { currentPeriodMonth, monthRange } from '@/lib/business-dates';
 import { createClient } from '@/lib/db/server-client';
 import { fail, isoOrNull } from '@/lib/queries/shared';
 import { scoped } from '@/lib/db/scoped-repository';
 import { collections } from '@/lib/db/collection-registry';
 import type { PayslipRow } from '@/types/domain';
+import type { PayslipAdjustments } from '@/types/payroll';
 
 // Projection fields for payslip queries, embedding related adjustments.
 const payslipFields = `id, payable_days, earned_gross, shortfall_amount, per_day_rate,
@@ -153,6 +155,85 @@ async function getMyPayslips(employeeId: string): Promise<PayslipRow[]> {
     .map(mapPayslip);
 }
 
-export { getPayslips, getPayrollRuns, getPayrollRun, getMyPayslips };
+/** Adjustment-window dates for display; payroll status controls whether edits are allowed. */
+async function loadAdjustmentWindow(
+  runId: string | null,
+): Promise<{ open: string | null; close: string | null }> {
+  if (!isMongoConfigured() || !runId) {
+    return { open: null, close: null };
+  }
+
+  const queryClient = await createClient();
+  const { data, error } = await queryClient
+    .from('payroll_runs')
+    .select('adjustments_open, adjustments_close')
+    .eq('id', runId)
+    .maybeSingle<{ adjustments_open: string | null; adjustments_close: string | null }>();
+
+  if (error) {
+    throw new Error(
+      `PayrollPage: could not load the adjustments window: ${error.message}${
+        error.code ? ` (${error.code})` : ''
+      }`,
+    );
+  }
+  return { open: data?.adjustments_open ?? null, close: data?.adjustments_close ?? null };
+}
+
+interface AdjustmentRow {
+  id: string;
+  advance_recovery: number | string | null;
+  bonus?: number | string | null;
+  loss_damage: number | string | null;
+  other_deductions?: number | string | null;
+  last_month_balance: number | string | null;
+  reimbursement_bonus: number | string | null;
+  remarks: string | null;
+}
+
+/** Surface read failures so missing adjustments cannot be mistaken for zero. */
+async function loadAdjustments(payslipIds: string[]): Promise<Record<string, PayslipAdjustments>> {
+  if (!isMongoConfigured() || payslipIds.length === 0) {
+    return {};
+  }
+
+  const queryClient = await createClient();
+  // Select all adjustment fields; missing values default to 0 during normalization below.
+  const { data, error } = await queryClient
+    .from('payslip_adjustments')
+    .select('*')
+    .in('id', payslipIds);
+
+  if (error) {
+    throw new Error(
+      `PayrollPage: could not load payslip adjustments: ${error.message}${
+        error.code ? ` (${error.code})` : ''
+      }`,
+    );
+  }
+
+  const map: Record<string, PayslipAdjustments> = {};
+  for (const row of (data ?? []) as AdjustmentRow[]) {
+    map[row.id] = {
+      advanceRecovery: Number(row.advance_recovery ?? 0),
+      bonus: Number(row.bonus ?? 0),
+      lossDamage: Number(row.loss_damage ?? 0),
+      otherDeductions: Number(row.other_deductions ?? 0),
+      lastMonthBalance: Number(row.last_month_balance ?? 0),
+      reimbursementBonus: Number(row.reimbursement_bonus ?? 0),
+      remarks: row.remarks ?? '',
+    };
+  }
+  return map;
+}
+
+export {
+  getPayslips,
+  getPayrollRuns,
+  getPayrollRun,
+  getMyPayslips,
+  loadAdjustmentWindow,
+  loadAdjustments,
+};
 
 export type { PayrollRunView };

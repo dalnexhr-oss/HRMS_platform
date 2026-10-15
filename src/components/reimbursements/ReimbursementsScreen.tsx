@@ -162,20 +162,20 @@ function ReimbursementsScreen({
   }
 
   return (
-    <div className="content-container grid">
+    <div className="content-container grid reimbursements-page">
       {promptDialog}
       {notificationContainer}
       <div className="summary-cards">
         <div className="card summary-card">
           <div className="metric-label">Pending claims</div>
-          <div className="metric-value" style={{ color: 'var(--attendance-late)' }}>
+          <div className="metric-value reimbursements-pending">
             {claims.filter((c) => c.status === 'pending').length}
           </div>
           <div className="metric-note">{inr(pendingTotal)} awaiting review</div>
         </div>
         <div className="card summary-card">
           <div className="metric-label">Approved (unpaid)</div>
-          <div className="metric-value" style={{ color: 'var(--attendance-present)' }}>
+          <div className="metric-value reimbursements-approved">
             {claims.filter((c) => c.status === 'approved').length}
           </div>
           <div className="metric-note">{inr(approvedTotal)} approved, not yet paid</div>
@@ -191,7 +191,7 @@ function ReimbursementsScreen({
         <div className="card-header">
           <h3>Expense claims</h3>
           <span className="card-caption">{rows.length} shown</span>
-          <span style={{ flex: 1 }} />
+          <span className="reimbursements-spacer" />
           <button
             className={`button${filter === 'pending' ? ' primary' : ' quiet'}`}
             onClick={() => setFilter('pending')}
@@ -214,7 +214,7 @@ function ReimbursementsScreen({
             </div>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="reimbursements-table-wrap">
             <table>
               <thead>
                 <tr>
@@ -241,7 +241,7 @@ function ReimbursementsScreen({
                     <td>
                       <b>{c.employeeName}</b>
                       <br />
-                      <span className="text-monospace text-muted" style={{ fontSize: 11 }}>
+                      <span className="text-monospace text-muted reimbursements-employee-code">
                         {c.employeeCode}
                       </span>
                     </td>
@@ -251,13 +251,13 @@ function ReimbursementsScreen({
                     <td>{c.sourceMedium ?? <span className="text-muted">—</span>}</td>
                     <td className="text-right text-monospace">{c.kms ?? '—'}</td>
                     <td>{c.modeOfPayment ?? <span className="text-muted">—</span>}</td>
-                    <td className="text-right text-monospace" style={{ fontWeight: 700 }}>
+                    <td className="text-right text-monospace reimbursements-amount">
                       {inr(c.amount)}
                     </td>
-                    <td className="text-muted" style={{ fontSize: 12 }}>
+                    <td className="text-muted reimbursements-note">
                       {c.remarks ?? '—'}
                       {c.status === 'rejected' && c.reviewRemark && (
-                        <div style={{ color: 'var(--attendance-half-day)', marginTop: 4 }}>
+                        <div className="reimbursements-rejection">
                           <b>Rejected:</b> {c.reviewRemark}
                         </div>
                       )}
@@ -268,7 +268,7 @@ function ReimbursementsScreen({
                       </span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div className="reimbursements-actions">
                         {c.status === 'pending' && (
                           <>
                             <button
@@ -319,14 +319,13 @@ function ReimbursementsScreen({
                               </button>
                             </>
                           ) : (
-                            <span className="text-muted" style={{ fontSize: 12 }}>
+                            <span className="text-muted reimbursements-note">
                               Awaiting Finance
                             </span>
                           ))}
                         {c.status === 'approved' && c.inPayroll && (
                           <span
-                            className="text-muted"
-                            style={{ fontSize: 12 }}
+                            className="text-muted reimbursements-note"
                             data-tooltip-content="Credited to the employee's payslip. It is marked paid when that payroll run is paid."
                           >
                             In payroll
@@ -351,7 +350,7 @@ function ReimbursementsScreen({
                           </button>
                         )}
                         {(c.status === 'rejected' || c.status === 'paid') && !c.receiptPath && (
-                          <span className="text-muted" style={{ fontSize: 12 }}>
+                          <span className="text-muted reimbursements-note">
                             —
                           </span>
                         )}
@@ -365,7 +364,7 @@ function ReimbursementsScreen({
         )}
       </div>
 
-      <p className="text-muted" style={{ fontSize: 12 }}>
+      <p className="text-muted reimbursements-note">
         Approving a claim adds its amount to that employee’s “Reimbursement / bonus” adjustment on
         the payslip for the claim’s month and recomputes it, so it is paid with salary. Travel
         claims are calculated as km × the rate in Settings.

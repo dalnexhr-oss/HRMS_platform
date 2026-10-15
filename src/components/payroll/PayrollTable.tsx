@@ -10,6 +10,7 @@ import { Fragment, useState, useTransition, useActionState } from 'react';
 import { computeRun, lockRun, markRunPaid, openRun, saveAdjustments } from '@/lib/actions/payroll';
 import type { ChangeEvent, ReactNode } from 'react';
 import type { PayslipRow } from '@/types/domain';
+import type { PayslipAdjustments } from '@/types/payroll';
 import type { PayrollRunView } from '@/lib/queries/payroll';
 
 interface ActionResult {
@@ -18,15 +19,6 @@ interface ActionResult {
 }
 
 // One payslip's manual adjustments, as loaded by the page.
-interface PayslipAdjustments {
-  advanceRecovery: number;
-  bonus: number;
-  lossDamage: number;
-  otherDeductions: number;
-  lastMonthBalance: number;
-  reimbursementBonus: number;
-  remarks: string;
-}
 
 const emptyAdjustments: PayslipAdjustments = {
   advanceRecovery: 0,
@@ -576,4 +568,4 @@ function AdjRow({
   );
 }
 
-export { emptyAdjustments, RunActions, PayrollTable, type PayslipAdjustments };
+export { emptyAdjustments, RunActions, PayrollTable };

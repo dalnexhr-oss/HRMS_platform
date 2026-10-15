@@ -1,0 +1,21 @@
+/* professional-tax */
+
+.professional-tax-page div.tax-table-wrap {
+  overflow-x: auto;
+}
+
+.professional-tax-page div.tax-row-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.professional-tax-page p.tax-note {
+  font-size: 12px;
+  margin: 12px 0 0;
+}
+
+.professional-tax-page div.tax-form-actions {
+  display: flex;
+  gap: 8px;
+}

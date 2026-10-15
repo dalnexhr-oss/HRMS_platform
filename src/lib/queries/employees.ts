@@ -332,6 +332,20 @@ async function getActiveEmployeeCount(): Promise<number> {
   }
 }
 
+/** Active-roster headcount; null when the count cannot be loaded. */
+async function getRosterHeadcount(): Promise<number | null> {
+  try {
+    const queryClient = await createClient();
+    const { count, error } = await queryClient
+      .from('employees')
+      .select('id', { count: 'exact', head: true })
+      .in('status', ['active', 'on_notice']);
+    return error ? null : (count ?? null);
+  } catch {
+    return null;
+  }
+}
+
 export {
   getEmployeeCodeMap,
   getEmployees,
@@ -340,6 +354,7 @@ export {
   getDepartments,
   getEmployeeOverview,
   getActiveEmployeeCount,
+  getRosterHeadcount,
 };
 
 export type { EmployeeListRow, EmployeeOption, EmployeeEditRow, EmployeeOverview };

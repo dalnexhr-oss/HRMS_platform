@@ -89,7 +89,7 @@ function ExitsRegister({
   }
 
   return (
-    <div className="content-container grid">
+    <div className="content-container grid exits-page">
       {confirmDialog}
       {notificationContainer}
       {/* Exit letters are written by HR and uploaded here. The leaver is added to the list because
@@ -133,17 +133,17 @@ function ExitsRegister({
         <div className="card-header">
           <h3>
             Active exit case{cases.length === 1 ? '' : 's'}{' '}
-            <span style={{ color: 'var(--brand)' }}>({cases.length})</span>
+            <span className="exits-count">({cases.length})</span>
           </h3>
         </div>
         {cases.length === 0 ? (
           <div className="card-body">
-            <p className="text-muted" style={{ margin: 0 }}>
+            <p className="text-muted exits-message">
               No exits in progress.
             </p>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="exits-table-wrap">
             <table>
               <thead>
                 <tr>
@@ -164,11 +164,11 @@ function ExitsRegister({
                     <tr key={c.id}>
                       <td>
                         <b>{c.name}</b>{' '}
-                        <span className="text-monospace text-muted" style={{ fontSize: 11 }}>
+                        <span className="text-monospace text-muted exits-detail">
                           {c.code}
                         </span>
                         {c.reason && (
-                          <div className="text-muted" style={{ fontSize: 11 }}>
+                          <div className="text-muted exits-detail">
                             {c.reason}
                           </div>
                         )}
@@ -198,11 +198,11 @@ function ExitsRegister({
                       </td>
                       <td>
                         {c.clearanceComplete ? (
-                          <span style={{ color: 'var(--attendance-present)' }}>✓ clear</span>
+                          <span className="exits-clear">✓ clear</span>
                         ) : (
-                          <span style={{ color: 'var(--attendance-late)' }}>
+                          <span className="exits-outstanding">
                             {outstanding} outstanding
-                            <div className="text-muted" style={{ fontSize: 11 }}>
+                            <div className="text-muted exits-detail">
                               {c.assetsOutstanding} asset · {c.itemsOutstanding} item
                             </div>
                           </span>
@@ -212,7 +212,7 @@ function ExitsRegister({
                         {c.fnfStatus ? (
                           <>
                             {inr(c.fnfNetPayable ?? 0)}
-                            <div className="text-muted" style={{ fontSize: 11 }}>
+                            <div className="text-muted exits-detail">
                               {c.fnfStatus}
                             </div>
                           </>
@@ -221,7 +221,7 @@ function ExitsRegister({
                         )}
                       </td>
                       <td>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <div className="exits-actions">
                           <button
                             className="button quiet"
                             onClick={() => setOpenCase(c)}
@@ -374,7 +374,7 @@ function ClearanceDrawer({
       <aside className="drawer is-active" aria-label="Exit clearance checklist">
         <div className="drawer-header">
           <h3>Clearance · {exitCase.name}</h3>
-          <span style={{ flex: 1 }} />
+          <span className="exits-spacer" />
           <button type="button" className="button quiet" onClick={onClose}>
             ✕
           </button>
@@ -391,13 +391,7 @@ function ClearanceDrawer({
             items.map((it) => (
               <label
                 key={it.id}
-                style={{
-                  display: 'flex',
-                  gap: 10,
-                  alignItems: 'flex-start',
-                  padding: '8px 0',
-                  borderBottom: '1px solid var(--border-strong)',
-                }}
+                className="exits-checklist-item"
               >
                 <input
                   type="checkbox"
@@ -418,11 +412,11 @@ function ClearanceDrawer({
                     }
                   }}
                 />
-                <span style={{ flex: 1 }}>
+                <span className="exits-spacer">
                   <span style={{ textDecoration: it.cleared ? 'line-through' : undefined }}>
                     {it.description ?? it.area}
                   </span>
-                  <div className="text-muted" style={{ fontSize: 11 }}>
+                  <div className="text-muted exits-detail">
                     {it.area}
                   </div>
                 </span>
@@ -489,7 +483,7 @@ function InterviewSection({
         <p className="text-muted">Loading…</p>
       ) : rows.length === 0 ? (
         <>
-          <p className="text-muted" style={{ fontSize: 13 }}>
+          <p className="text-muted exits-empty">
             No interview started for this exit yet.
           </p>
           <button
@@ -518,15 +512,7 @@ function InterviewSection({
                 rows={2}
                 value={draft[r.id] ?? ''}
                 onChange={(e) => setDraft((d) => ({ ...d, [r.id]: e.target.value }))}
-                style={{
-                  width: '100%',
-                  padding: '8px 10px',
-                  border: '1px solid var(--border-strong)',
-                  borderRadius: 8,
-                  font: 'inherit',
-                  background: '#fff',
-                  resize: 'vertical',
-                }}
+                className="exits-answer"
               />
             </div>
           ))}
@@ -601,13 +587,7 @@ function KtSection({
       </div>
 
       <div
-        style={{
-          display: 'flex',
-          gap: 6,
-          alignItems: 'flex-end',
-          flexWrap: 'wrap',
-          marginBottom: 10,
-        }}
+        className="exits-handover-form"
       >
         <EmployeePicker
           label="Handover to (optional)"
@@ -616,18 +596,17 @@ function KtSection({
           onChange={setHandoverTo}
           placeholder="Unassigned — type a name or code…"
           disabled={busy}
-          style={{ flex: '1 1 130px', marginBottom: 0 }}
         />
       </div>
 
       {rows === null ? (
         <p className="text-muted">Loading…</p>
       ) : rows.length === 0 ? (
-        <p className="text-muted" style={{ fontSize: 13 }}>
+        <p className="text-muted exits-empty">
           Nothing recorded for handover yet.
         </p>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <div className="exits-table-wrap">
           <table>
             <thead>
               <tr>
@@ -709,15 +688,14 @@ function StartExitForm({
   const ready = employeeId && resignationDate && lastWorkingDay;
 
   return (
-    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+    <div className="exits-start-form">
       <EmployeePicker
         employees={employees}
         value={employeeId}
         onChange={setEmployeeId}
         disabled={disabled || busy}
-        style={{ flex: '1 1 180px', marginBottom: 0 }}
       />
-      <div className="form-field" style={{ marginBottom: 0 }}>
+      <div className="form-field exits-date-field">
         <label>Resignation date</label>
         <input
           type="date"
@@ -726,7 +704,7 @@ function StartExitForm({
           onChange={(e) => setResignationDate(e.target.value)}
         />
       </div>
-      <div className="form-field" style={{ marginBottom: 0 }}>
+      <div className="form-field exits-date-field">
         <label>Last working day</label>
         <input
           type="date"
@@ -735,7 +713,7 @@ function StartExitForm({
           onChange={(e) => setLastWorkingDay(e.target.value)}
         />
       </div>
-      <div className="form-field" style={{ flex: '1 1 160px', marginBottom: 0 }}>
+      <div className="form-field exits-reason-field">
         <label>Reason</label>
         <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Optional" />
       </div>

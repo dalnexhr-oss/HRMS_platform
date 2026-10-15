@@ -1,6 +1,7 @@
+import './asset-management.css';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/server-auth';
-import { AssetsScreen } from '@/components/assets/AssetsScreen';
+import { AssetsScreen } from '@/components/asset-management/AssetsScreen';
 import { getAssets, getAssetSummary } from '@/lib/queries/assets';
 import { getEmployeeOptions } from '@/lib/queries/employees';
 import type { AppRole } from '@/types/database';

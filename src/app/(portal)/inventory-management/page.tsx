@@ -1,6 +1,7 @@
+import './inventory-management.css';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/server-auth';
-import { ItemsScreen } from '@/components/items/ItemsScreen';
+import { ItemsScreen } from '@/components/inventory-management/ItemsScreen';
 import { getItems } from '@/lib/queries/items';
 import { getEmployeeOptions } from '@/lib/queries/employees';
 import type { AppRole } from '@/types/database';

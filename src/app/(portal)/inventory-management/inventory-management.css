@@ -1,0 +1,47 @@
+/* inventory-management */
+
+.inventory-management-page span.inventory-count {
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.inventory-management-page span.inventory-spacer {
+  flex: 1;
+}
+
+.inventory-management-page table.inventory-table {
+  min-width: 1000px;
+}
+
+.inventory-management-page td.inventory-value {
+  white-space: nowrap;
+}
+
+.inventory-management-page td.inventory-empty {
+  text-align: center;
+}
+
+.inventory-management-page span.inventory-truncated {
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.inventory-management-page form.inventory-form {
+  display: contents;
+}
+
+.inventory-management-page div.inventory-submit {
+  margin: 4px 0 8px;
+}
+
+.inventory-management-page div.inventory-table-wrap {
+  overflow-x: auto;
+}
+
+.inventory-management-page div.inventory-actions {
+  display: flex;
+  gap: 6px;
+}

@@ -7,7 +7,6 @@ import { formatDate, yearOptionsAround } from '@/lib/display-formatting';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { useNotifications } from '@/components/ui/Notifications';
 import sectionStyles from '@/components/ui/SectionCard.module.css';
-import scheduleStyles from './WeeklyOffSchedule.module.css';
 import type { NotificationKind } from '@/components/ui/Notifications';
 import type { HolidayView } from '@/lib/queries/holidays';
 
@@ -28,17 +27,17 @@ function HolidaysScreen({
   const { confirm, confirmDialog } = useConfirm();
   const { showNotification, notificationContainer } = useNotifications();
   return (
-    <div className="content-container grid">
+    <div className="content-container grid holidays-page">
       {confirmDialog}
       {notificationContainer}
       <div className={`card ${sectionStyles.panel}`}>
         <div className="card-header">
           <h3>Weekly off schedule</h3>
-          <span className={scheduleStyles.cadence}>Repeats every month</span>
+          <span className="holidays-cadence">Repeats every month</span>
         </div>
         <div className="card-body">
-          <p className={scheduleStyles.summary}>{weekOffSummary}</p>
-          <p className={scheduleStyles.note}>
+          <p className="holidays-summary">{weekOffSummary}</p>
+          <p className="holidays-note">
             Manage this schedule in Settings. Working on a day off may qualify for comp-off credit.
           </p>
         </div>
@@ -130,7 +129,7 @@ function ImportHolidays({
 
   return (
     <>
-      <p className="text-muted" style={{ fontSize: 13, marginTop: 0 }}>
+      <p className="text-muted holidays-import-note">
         Import public holidays in India from Google Calendar for all branches. Dates already in
         your holiday calendar are skipped.
       </p>
@@ -149,23 +148,22 @@ function ImportHolidays({
       {error && <div className="error-message">{error}</div>}
       {result && <div className="hint">✓&nbsp; {result}</div>}
       {tentative.length > 0 && (
-        <div className="hint" style={{ marginTop: 8 }}>
+        <div className="hint holidays-feedback">
           Google lists these as <b>tentative</b> (the date can shift) — confirm before publishing:{' '}
           {tentative.join(', ')}.
         </div>
       )}
 
       <button
-        className="button primary"
+        className="button primary holidays-submit"
         type="button"
         onClick={onImport}
         disabled={pending}
-        style={{ marginTop: 4 }}
       >
         {pending ? 'Importing…' : `Import ${target} holidays`}
       </button>
 
-      <p className="text-muted" style={{ fontSize: 11, marginBottom: 0 }}>
+      <p className="text-muted holidays-import-caption">
         Only public holiday events are imported. Observances are excluded.
       </p>
     </>
@@ -209,16 +207,13 @@ function HolidayRow({
 
   return (
     <div
-      style={{
-        padding: '10px 0',
-        borderBottom: '1px solid var(--border-strong)',
-      }}
+      className="holidays-entry"
     >
-      <div className="form-row" style={{ alignItems: 'center', gap: 12 }}>
-        <span className="text-monospace" style={{ minWidth: 96, color: 'var(--text-muted)' }}>
+      <div className="form-row holidays-entry-row">
+        <span className="text-monospace holidays-date">
           {formatDate(holiday.date)}
         </span>
-        <strong style={{ flex: 1 }}>{holiday.name}</strong>
+        <strong className="holidays-name">{holiday.name}</strong>
         <span
           className="status-badge"
           style={

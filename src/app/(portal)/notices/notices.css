@@ -1,0 +1,47 @@
+/* notices */
+
+.notices-page p.notices-empty {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.notices-page span.notices-spacer {
+  flex: 1;
+}
+
+.notices-page span.notices-draft {
+  border-color: var(--border-strong);
+  color: var(--text-muted);
+}
+
+.notices-page textarea.notices-body-input {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  font: inherit;
+  background: #fff;
+  resize: vertical;
+}
+
+.notices-page label.notices-attachment {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.notices-page label.notices-publish {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.notices-page div.notices-actions {
+  display: flex;
+  gap: 8px;
+}
