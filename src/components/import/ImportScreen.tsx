@@ -313,7 +313,7 @@ function ImportScreen({
                     type="button"
                     onClick={onCommit}
                     disabled={committing || blocked !== null}
-                    title={blocked ?? undefined}
+                    data-tooltip-content={blocked ?? undefined}
                   >
                     {committing
                       ? `Importing ${preview.totalRows} rows…`

@@ -117,7 +117,7 @@ function CompOffAdminCard({ rows, error }: { rows: CompOffAdminRow[]; error?: st
                         <button
                           className="button quiet"
                           disabled={pending && busyId === c.id}
-                          title={
+                          data-tooltip-content={
                             c.isApplicable
                               ? 'Put this credit on hold — the employee will not be able to use it'
                               : 'Make this credit usable again'

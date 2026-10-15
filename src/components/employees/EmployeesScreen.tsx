@@ -271,7 +271,7 @@ function EmployeesScreen({
                           color: 'var(--attendance-late)',
                           background: 'var(--attendance-late-background)',
                         }}
-                        title="Serving notice. Still employed until the exit is completed."
+                        data-tooltip-content="Serving notice. Still employed until the exit is completed."
                       >
                         On notice
                       </span>
@@ -310,7 +310,7 @@ function EmployeesScreen({
                             className="button quiet"
                             onClick={() => onDeactivate(e.code, e.name)}
                             disabled={pending && busyCode === e.code}
-                            title="Deactivate this employee"
+                            data-tooltip-content="Deactivate this employee"
                           >
                             Deactivate
                           </button>
@@ -321,7 +321,7 @@ function EmployeesScreen({
                             className="button quiet"
                             onClick={() => onReactivate(e.code, e.name)}
                             disabled={pending}
-                            title="Reactivate this employee"
+                            data-tooltip-content="Reactivate this employee"
                           >
                             {pending && busyCode === e.code ? '…' : 'Reactivate'}
                           </button>
@@ -331,7 +331,7 @@ function EmployeesScreen({
                               className="button danger"
                               onClick={() => onDelete(e.code, e.name)}
                               disabled={pending}
-                              title="Delete this inactive employee from the list"
+                              data-tooltip-content="Delete this inactive employee from the list"
                             >
                               {pending && busyCode === e.code ? '…' : 'Delete'}
                             </button>

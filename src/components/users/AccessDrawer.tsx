@@ -214,7 +214,7 @@ function AccessDrawer({
                 className="button quiet"
                 onClick={onReset}
                 disabled={pending && busySlug === '__reset'}
-                title="Give this account every tab its role allows"
+                data-tooltip-content="Give this account every tab its role allows"
               >
                 Restore all tabs
               </button>

@@ -229,7 +229,7 @@ function DocumentsRegister({ register, stats, employees }: DocumentsScreenProps)
           <button
             className="button"
             onClick={() => setTypesOpen(true)}
-            title="Add or change the documents employees can be asked for"
+            data-tooltip-content="Add or change the documents employees can be asked for"
           >
             Document list
           </button>
@@ -498,7 +498,7 @@ function EmployeeLink({
     <button
       type="button"
       onClick={() => onOpen({ id: row.employeeId, code: row.code, name: row.name })}
-      title="Show every document for this employee"
+      data-tooltip-content="Show every document for this employee"
       style={{
         background: 'none',
         border: 0,

@@ -229,7 +229,7 @@ function RequestItem({ request }: { request: RequestView }) {
             className="button"
             onClick={onCancel}
             disabled={pending}
-            title={
+            data-tooltip-content={
               request.status === 'approved'
                 ? 'Cancel this approved request and free its dates'
                 : undefined

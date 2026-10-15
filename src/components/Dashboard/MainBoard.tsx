@@ -166,7 +166,7 @@ function Dashboard({
                 {branches.map((b, i) => (
                   <i
                     key={b.branch}
-                    title={`${b.branch} · ${b.count}`}
+                    data-tooltip-content={`${b.branch} · ${b.count}`}
                     style={{
                       width: `${(b.count / branchTotal) * 100}%`,
                       background: branchColorAt(i),

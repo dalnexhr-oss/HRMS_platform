@@ -195,7 +195,7 @@ function MyReimbursements({
                               className="button quiet"
                               disabled={pending && busy === c.id}
                               onClick={() => setEditing(c)}
-                              title="Correct this claim and submit it again"
+                              data-tooltip-content="Correct this claim and submit it again"
                             >
                               Fix &amp; resubmit
                             </button>

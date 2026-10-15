@@ -144,7 +144,7 @@ function NoticeItem({
           <button
             className="button quiet"
             onClick={() => openNoticePdf(notice.id, (m) => showNotification(m, 'error'))}
-            title="Open the attached PDF"
+            data-tooltip-content="Open the attached PDF"
           >
             📎 PDF
           </button>

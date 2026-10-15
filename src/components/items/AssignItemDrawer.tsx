@@ -246,7 +246,7 @@ function AssignItemDrawer({
                                 className="button quiet"
                                 onClick={() => onDeleteAssignment(a)}
                                 disabled={pending && busyId === a.id}
-                                title="Delete this assignment record"
+                                data-tooltip-content="Delete this assignment record"
                               >
                                 Delete
                               </button>

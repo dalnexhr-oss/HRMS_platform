@@ -236,7 +236,7 @@ function ExitsRegister({
                               onClick={() =>
                                 run(() => refreshExitClearance(c.id), 'Clearance refreshed.')
                               }
-                              title="Re-scan the asset and material registers"
+                              data-tooltip-content="Re-scan the asset and material registers"
                             >
                               ↻ Clearance
                             </button>
@@ -307,7 +307,7 @@ function ExitsRegister({
                             className="button quiet"
                             disabled={pending}
                             onClick={() => setLetterFor(c)}
-                            title="Upload the relieving letter, experience letter or settlement statement"
+                            data-tooltip-content="Upload the relieving letter, experience letter or settlement statement"
                           >
                             ⬆ Upload letter
                           </button>
@@ -657,7 +657,7 @@ function KtSection({
                           await reload();
                         }
                       }}
-                      title="Click to advance"
+                      data-tooltip-content="Click to advance"
                     >
                       {r.status.replace('_', ' ')}
                     </button>

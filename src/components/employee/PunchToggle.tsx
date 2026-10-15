@@ -47,7 +47,7 @@ function PunchToggle() {
         <a
           href="/employee/attendance#punch"
           className="text-muted"
-          title={state.lastNightSweep.message}
+          data-tooltip-content={state.lastNightSweep.message}
         >
           Missed punch-out
         </a>

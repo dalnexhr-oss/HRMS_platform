@@ -37,7 +37,7 @@ function SignPanel({
     return (
       <span
         className="signature-confirmation"
-        title={`Signed by ${signedName ?? 'you'} on ${when}`}
+        data-tooltip-content={`Signed by ${signedName ?? 'you'} on ${when}`}
       >
         ✍ Signed {when}
       </span>
@@ -72,7 +72,7 @@ function SignPanel({
         <button
           className="button primary"
           disabled={pending || !isSignatureValid}
-          title={!isSignatureValid ? 'Type your full name' : undefined}
+          data-tooltip-content={!isSignatureValid ? 'Type your full name' : undefined}
           onClick={() =>
             startTransition(async () => {
               const res = await acknowledgeDocument({

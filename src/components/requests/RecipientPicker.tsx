@@ -62,7 +62,7 @@ function RecipientPicker({
         {value.map((selectedId) => {
           const person = people.find((candidate) => candidate.id === selectedId);
           return (
-            <span className="recipient-tag" key={selectedId} title={person?.email}>
+            <span className="recipient-tag" key={selectedId} data-tooltip-content={person?.email}>
               {name && <input type="hidden" name={name} value={selectedId} />}
               <span>{person?.name ?? 'Selected person'}</span>
               <button

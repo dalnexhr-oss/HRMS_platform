@@ -203,7 +203,7 @@ async function MePage() {
                     color: 'var(--attendance-late)',
                     background: 'var(--attendance-late-background)',
                   }}
-                  title={`${p.startDate === p.endDate ? p.startDate : `${p.startDate} – ${p.endDate}`}`}
+                  data-tooltip-content={`${p.startDate === p.endDate ? p.startDate : `${p.startDate} – ${p.endDate}`}`}
                 >
                   <b>{p.name}</b>
                   {p.branch ? <span style={{ opacity: 0.75 }}>&nbsp;· {p.branch}</span> : null}

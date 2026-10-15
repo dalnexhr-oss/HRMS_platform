@@ -144,7 +144,7 @@ function PolicyItem({
                   }
                 : { borderColor: 'var(--border-strong)', color: 'var(--attendance-half-day)' }
             }
-            title="Employees who have marked this policy as read"
+            data-tooltip-content="Employees who have marked this policy as read"
           >
             {headcount > 0 ? `${ackCount}/${headcount} read` : `${ackCount} read`}
           </span>

@@ -102,7 +102,7 @@ function DocumentActions({
             key={action.label}
             type="button"
             className={`button document-action ${action.kind}`}
-            title={action.label}
+            data-tooltip-content={action.label}
             aria-label={`${action.label}: ${title}`}
             disabled={busy}
             onClick={action.onClick}

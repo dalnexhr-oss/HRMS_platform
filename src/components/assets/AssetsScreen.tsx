@@ -237,7 +237,7 @@ function AssetsScreen({
               {s.warranty_expiring > 0 && (
                 <div
                   className={summaryStyles.warranty}
-                  title="Expired or expiring within the next 30 days"
+                  data-tooltip-content="Expired or expiring within the next 30 days"
                 >
                   <strong>{s.warranty_expiring}</strong>{' '}
                   {s.warranty_expiring === 1 ? 'warranty needs' : 'warranties need'} attention
@@ -340,7 +340,7 @@ function AssetsScreen({
                         className="button"
                         onClick={() => setAssigning(a)}
                         disabled={pending && busyId === a.id}
-                        title="Assign this asset to an employee"
+                        data-tooltip-content="Assign this asset to an employee"
                       >
                         {a.assigned_employee_id ? 'Reassign' : 'Assign'}
                       </button>
@@ -355,7 +355,7 @@ function AssetsScreen({
                         className="button danger"
                         onClick={() => onDelete(a)}
                         disabled={pending && busyId === a.id}
-                        title="Delete this asset"
+                        data-tooltip-content="Delete this asset"
                       >
                         {pending && busyId === a.id ? '…' : 'Delete'}
                       </button>
@@ -406,7 +406,7 @@ function Trunc({ v, w = 150 }: { v: string | null; w?: number }) {
   }
   return (
     <span
-      title={v}
+      data-tooltip-content={v}
       style={{
         display: 'inline-block',
         maxWidth: w,

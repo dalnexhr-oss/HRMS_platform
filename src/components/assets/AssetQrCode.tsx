@@ -19,7 +19,9 @@ function AssetQrCode({ url, name }: { url: string | null; name: string }) {
         style={{ maxWidth: '100%', height: 'auto' }}
         level="M"
         marginSize={4}
-        title={`Open the linked page for ${name}`}
+        role="img"
+        aria-label={`Open the linked page for ${name}`}
+        data-tooltip-content={`Open the linked page for ${name}`}
       />
       <a
         href={link.url}

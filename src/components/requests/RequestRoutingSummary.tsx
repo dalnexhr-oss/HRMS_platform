@@ -14,7 +14,7 @@ function RequestRoutingSummary({
   return (
     <div className="request-routing">
       <p>
-        <b>To:</b> <span title={routing.initialApprover.email}>{routing.initialApprover.name}</span>
+        <b>To:</b> <span data-tooltip-content={routing.initialApprover.email}>{routing.initialApprover.name}</span>
       </p>
       {routing.cc.length > 0 && (
         <p>

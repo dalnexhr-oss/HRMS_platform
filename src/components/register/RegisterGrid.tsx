@@ -365,7 +365,7 @@ function RegisterGrid({
                     <span className="entry-details">{e.code}</span>
                   </div>
                   <div className="register-row-footer">
-                    <span className="entry-details" title="Worked hours / target hours">
+                    <span className="entry-details" data-tooltip-content="Worked hours / target hours">
                       {formatHrs(e.workedMinutes)} / {formatHrs(e.targetMinutes)} hrs
                     </span>
                     <button
@@ -444,7 +444,7 @@ function RegisterGrid({
                       <div
                         key={d}
                         className={`attendance-day-cell${isWeekOff ? ' is-weekly-off' : ''}`}
-                        title={
+                        data-tooltip-content={
                           canCorrect
                             ? bulkMode
                               ? `${punchTitle ? `${punchTitle} · ` : ''}Click to ${isSelected ? 'deselect' : 'select'}`
@@ -824,7 +824,7 @@ function BulkBar({
             resetFields();
             onEnter();
           }}
-          title="Select attendance cells for bulk correction"
+          data-tooltip-content="Select attendance cells for bulk correction"
         >
           ☑ Select cells
         </button>
@@ -854,7 +854,7 @@ function BulkBar({
             value={punchIn}
             onChange={(e) => setPunchIn(e.target.value)}
             aria-label="Bulk punch in"
-            title="Punch in (required for this status)"
+            data-tooltip-content="Punch in (required for this status)"
           />
           <input
             type="time"
@@ -862,7 +862,7 @@ function BulkBar({
             value={punchOut}
             onChange={(e) => setPunchOut(e.target.value)}
             aria-label="Bulk punch out"
-            title="Punch out (required for this status)"
+            data-tooltip-content="Punch out (required for this status)"
           />
         </>
       )}
@@ -877,7 +877,7 @@ function BulkBar({
         type="button"
         className="button primary"
         disabled={!canApply}
-        title={
+        data-tooltip-content={
           count === 0
             ? 'Select at least one cell'
             : !timesReady

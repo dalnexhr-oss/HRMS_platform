@@ -139,7 +139,7 @@ function RunActions({
       <button
         className="button"
         disabled={!run || frozen || pending}
-        title={
+        data-tooltip-content={
           !run
             ? noRun
             : frozen
@@ -154,7 +154,7 @@ function RunActions({
       <button
         className="button primary"
         disabled={!run || frozen || nothingToLock || pending}
-        title={
+        data-tooltip-content={
           !run
             ? noRun
             : frozen
@@ -525,7 +525,7 @@ function AdjForm({
               );
             }
           }}
-          title="Open a printable payslip (Save as PDF from the print dialog)"
+          data-tooltip-content="Open a printable payslip (Save as PDF from the print dialog)"
         >
           Payslip PDF
         </button>

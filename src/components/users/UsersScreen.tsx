@@ -222,7 +222,7 @@ function UsersScreen({
                       u.id === selfId ||
                       (u.role !== null && roleTier[u.role] > roleTier[callerRole])
                     }
-                    title={u.id === selfId ? 'Ask another admin to change your role' : undefined}
+                    data-tooltip-content={u.id === selfId ? 'Ask another admin to change your role' : undefined}
                     onChange={(event) => onRoleChange(u, event.target.value as AppRole)}
                   >
                     {!u.role && <option value="">no profile</option>}
@@ -253,7 +253,7 @@ function UsersScreen({
                     className="users-select"
                     aria-label={`Punch in/out access for ${u.fullName ?? u.email}`}
                     value={u.punchAccess}
-                    title={punchAccessHelp[u.punchAccess]}
+                    data-tooltip-content={punchAccessHelp[u.punchAccess]}
                     disabled={pending || !u.role || roleTier[u.role] > roleTier[callerRole]}
                     onChange={(event) => {
                       const value = event.target.value as PunchAccess;

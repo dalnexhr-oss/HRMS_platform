@@ -149,7 +149,7 @@ function MyAttendance({
                   <div
                     key={c.day}
                     className={`attendance-day-cell${c.isWeekOff ? ' is-weekly-off' : ''}`}
-                    title={c.in ? `${c.in} – ${c.out} · ${c.hours}` : undefined}
+                    data-tooltip-content={c.in ? `${c.in} – ${c.out} · ${c.hours}` : undefined}
                   >
                     <div style={{ display: 'grid', placeItems: 'center' }}>
                       <AttendanceStatusBadge status={c.status} />

@@ -314,7 +314,7 @@ function OnboardingScreen({
                                       'Step marked blocked.',
                                     )
                                   }
-                                  title="Parked — still outstanding, and still chased by the reminder job"
+                                  data-tooltip-content="Parked — still outstanding, and still chased by the reminder job"
                                 >
                                   Block
                                 </button>

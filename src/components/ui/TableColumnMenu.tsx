@@ -268,7 +268,7 @@ function TableColumnMenu({
         onClick={toggleOpen}
         aria-haspopup="true"
         aria-expanded={isMenuOpen}
-        title={`Sort or filter ${label}`}
+        data-tooltip-content={`Sort or filter ${label}`}
       >
         {label}
         {isFiltering && (
@@ -435,13 +435,13 @@ function TableColumnMenu({
 
                 <div className="table-column-menu-options">
                   {visibleOptions.map((o) => (
-                    <label key={o} className="table-column-menu-option">
+                    <label key={o} className="table-column-menu-option" data-tooltip-content={o}>
                       <input
                         type="checkbox"
                         checked={selected.includes(o)}
                         onChange={() => onToggle(o)}
                       />
-                      <span title={o}>{o}</span>
+                      <span>{o}</span>
                     </label>
                   ))}
                   {visibleOptions.length === 0 && (

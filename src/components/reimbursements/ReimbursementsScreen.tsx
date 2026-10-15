@@ -306,7 +306,7 @@ function ReimbursementsScreen({
                                     'Finance approved — added to payroll.',
                                   )
                                 }
-                                title="Final approval — this credits payroll"
+                                data-tooltip-content="Final approval — this credits payroll"
                               >
                                 {pending && busy === c.id ? '…' : 'Finance approve'}
                               </button>
@@ -327,7 +327,7 @@ function ReimbursementsScreen({
                           <span
                             className="text-muted"
                             style={{ fontSize: 12 }}
-                            title="Credited to the employee's payslip. It is marked paid when that payroll run is paid."
+                            data-tooltip-content="Credited to the employee's payslip. It is marked paid when that payroll run is paid."
                           >
                             In payroll
                           </span>
@@ -345,7 +345,7 @@ function ReimbursementsScreen({
                           <button
                             className="button quiet"
                             onClick={() => openReceipt(c.id)}
-                            title="Open the attached receipt"
+                            data-tooltip-content="Open the attached receipt"
                           >
                             📎 Receipt
                           </button>

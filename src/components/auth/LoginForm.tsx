@@ -46,7 +46,7 @@ function LoginForm({ initialError, next }: { initialError?: string; next?: strin
             onClick={() => setShowPassword((visible) => !visible)}
             aria-label={showPassword ? 'Hide password' : 'Show password'}
             aria-controls="password"
-            title={showPassword ? 'Hide password' : 'Show password'}
+            data-tooltip-content={showPassword ? 'Hide password' : 'Show password'}
           >
             <svg
               width="20"

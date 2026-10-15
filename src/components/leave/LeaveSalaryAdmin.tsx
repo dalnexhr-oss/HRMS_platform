@@ -487,7 +487,7 @@ function WorkingRow({
                 value={daysBeforeIncrementInput}
                 onChange={(e) => setDaysBeforeIncrementInput(e.target.value)}
                 placeholder={String(live.p1.calendarDays)}
-                title="Days in the pre-increment period (the ÷ days of the formula) — blank uses the real calendar days"
+                data-tooltip-content="Days in the pre-increment period (the ÷ days of the formula) — blank uses the real calendar days"
                 style={{ width: 48, padding: '4px 6px', textAlign: 'right' }}
                 aria-label={`${row.name}: calendar days before the increment (blank = real calendar days)`}
               />
@@ -509,7 +509,7 @@ function WorkingRow({
                 value={daysAfterIncrementInput}
                 onChange={(e) => setDaysAfterIncrementInput(e.target.value)}
                 placeholder={String(live.p2.calendarDays)}
-                title="Days in the post-increment period (the ÷ days of the formula) — blank uses the real calendar days"
+                data-tooltip-content="Days in the post-increment period (the ÷ days of the formula) — blank uses the real calendar days"
                 style={{ width: 48, padding: '4px 6px', textAlign: 'right' }}
                 aria-label={`${row.name}: calendar days after the increment (blank = real calendar days)`}
               />
@@ -535,7 +535,7 @@ function WorkingRow({
               <button
                 className="button quiet"
                 disabled={pending || !migrated || !valid || !dirty}
-                title={
+                data-tooltip-content={
                   !migrated
                     ? 'Ask an administrator to configure leave salary storage first'
                     : !valid
@@ -767,7 +767,7 @@ function AdjustForm({
       <button
         className="button quiet"
         disabled={disabled || busy || !ready}
-        title={!ready ? 'Enter a non-zero day count and a reason' : undefined}
+        data-tooltip-content={!ready ? 'Enter a non-zero day count and a reason' : undefined}
         onClick={async () => {
           setBusy(true);
           const res = await adjustLeaveBalance({

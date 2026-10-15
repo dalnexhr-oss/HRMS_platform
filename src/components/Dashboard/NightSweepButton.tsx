@@ -48,7 +48,7 @@ function NightSweepButton({ date }: { date: string }) {
         className="button"
         onClick={onClick}
         disabled={pending}
-        title="Close today's open sessions at the configured auto punch-out time"
+        data-tooltip-content="Close today's open sessions at the configured auto punch-out time"
       >
         {pending ? 'Sweeping…' : 'Night sweep'}
       </button>

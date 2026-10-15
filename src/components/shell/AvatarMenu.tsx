@@ -159,7 +159,7 @@ function AvatarMenu({
                   key={id}
                   type="button"
                   className={`avatar avatar-swatch${selected ? ' is-selected' : ''}`}
-                  title={avatarPresetLabel(id)}
+                  data-tooltip-content={avatarPresetLabel(id)}
                   aria-label={avatarPresetLabel(id)}
                   aria-pressed={selected}
                   onClick={() => commit(value)}

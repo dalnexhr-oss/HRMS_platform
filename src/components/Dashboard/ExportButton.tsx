@@ -24,7 +24,7 @@ function ExportButton({ rows, date, disabledReason = null }: ExportButtonProps) 
         type="button"
         className="button"
         disabled
-        title={reason ?? undefined}
+        data-tooltip-content={reason ?? undefined}
         style={{ opacity: 0.5, cursor: 'default' }}
       >
         Export

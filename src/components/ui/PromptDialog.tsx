@@ -147,7 +147,7 @@ function PromptDialog({
               className={`button ${danger ? 'danger' : 'primary'}`}
               onClick={submit}
               disabled={!matched}
-              title={!matched ? 'The value does not match yet.' : undefined}
+              data-tooltip-content={!matched ? 'The value does not match yet.' : undefined}
             >
               {confirmLabel}
             </button>

@@ -243,7 +243,7 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
                         className="button"
                         onClick={() => setAssignFor(i)}
                         disabled={i.quantity_remaining <= 0}
-                        title={
+                        data-tooltip-content={
                           i.quantity_remaining <= 0
                             ? 'Nothing left to assign'
                             : 'Assign to an employee'
@@ -258,7 +258,7 @@ function ItemsScreen({ items, employees }: { items: ItemRow[]; employees: Employ
                         className="button danger"
                         onClick={() => onDelete(i)}
                         disabled={pending && busyId === i.id}
-                        title="Delete this item"
+                        data-tooltip-content="Delete this item"
                       >
                         {pending && busyId === i.id ? '…' : 'Delete'}
                       </button>
@@ -306,7 +306,7 @@ function Trunc({ v, w = 150 }: { v: string | null; w?: number }) {
   }
   return (
     <span
-      title={v}
+      data-tooltip-content={v}
       style={{
         display: 'inline-block',
         maxWidth: w,

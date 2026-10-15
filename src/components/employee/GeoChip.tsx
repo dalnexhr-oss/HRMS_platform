@@ -34,7 +34,7 @@ function GeoChip({
       href={mapsUrl(lat as number, lng as number)}
       target="_blank"
       rel="noopener noreferrer"
-      title={`Open ${lat}, ${lng} on Google Maps`}
+      data-tooltip-content={`Open ${lat}, ${lng} on Google Maps`}
     >
       {label}
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
