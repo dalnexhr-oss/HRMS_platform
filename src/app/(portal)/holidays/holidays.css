@@ -50,6 +50,8 @@
 }
 
 .holidays-page div.holidays-entry-row {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
 }
@@ -61,4 +63,19 @@
 
 .holidays-page strong.holidays-name {
   flex: 1;
+  min-width: 120px;
+  overflow-wrap: anywhere;
+}
+
+.holidays-page .holidays-actions {
+  margin-left: auto;
+}
+
+.holidays-page .holidays-delete {
+  min-height: 44px;
+}
+
+.holidays-page .holidays-delete:hover {
+  border-color: var(--attendance-absent-border);
+  color: var(--attendance-absent);
 }

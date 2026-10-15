@@ -228,9 +228,11 @@ function HolidayRow({
         >
           {holiday.branch ?? 'All branches'}
         </span>
-        <button className="button quiet" onClick={remove} disabled={pending}>
-          {pending ? '…' : 'Delete'}
-        </button>
+        <div className="holidays-actions">
+          <button className="button quiet holidays-delete" onClick={remove} disabled={pending}>
+            {pending ? '…' : 'Delete'}
+          </button>
+        </div>
       </div>
     </div>
   );
