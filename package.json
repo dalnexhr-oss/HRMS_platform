@@ -47,16 +47,12 @@
     "@types/react-dom": "^19.0.3",
     "eslint": "^9.18.0",
     "eslint-config-next": "^15.5.20",
-    "fast-glob": "file:tooling/next-eslint-glob",
     "jsqr": "^1.4.0",
     "prettier": "^3.9.6",
     "sharp": "^0.35.5",
     "typescript": "^5.7.3"
   },
   "overrides": {
-    "@next/eslint-plugin-next": {
-      "fast-glob": "$fast-glob"
-    },
     "fast-csv": "^5.0.7",
     "glob": "^13.0.6",
     "postcss": "^8.5.28",
