@@ -2,10 +2,12 @@
 
 // Payroll run and adjustment actions. The payroll function handlers enforce state transitions; pass
 // their failures back to the caller.
-import { revalidatePath } from 'next/cache';
+import { runAction, revalidatePath } from '@/lib/db/action';
 import { createClient } from '@/lib/db/server-client';
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { getSession } from '@/lib/server-auth';
+import { requireTabAccess } from '@/lib/actions/guards';
+import { reservePayrollPeriod } from '@/lib/db/write-reservations';
 import { notifyEmployee } from '@/lib/notification-delivery';
 import { toMoney } from '@/lib/db/decimal-conversions';
 import { queryErrorMessage } from '@/lib/db/query-errors';
@@ -38,6 +40,10 @@ async function gate(): Promise<Gate> {
       error: `Payroll actions need an admin or HR account — yours is "${profile.role}".`,
     };
   }
+  const denied = await requireTabAccess('payroll');
+  if (denied) {
+    return { ok: false, error: denied };
+  }
   return { ok: true, profileId: profile.id };
 }
 
@@ -53,7 +59,7 @@ function caught(context: string, e: unknown): { ok: false; error: string } {
  * Creates a new payroll run in 'draft' status for the specified period month (YYYY-MM-01).
  * Working days and target minutes are computed per-employee during the compute stage.
  */
-async function openRun(periodMonth: string): Promise<{ ok: boolean; error?: string }> {
+async function openRunWrite(periodMonth: string): Promise<{ ok: boolean; error?: string }> {
   const context = 'Start payroll run';
   try {
     const g = await gate();
@@ -61,7 +67,11 @@ async function openRun(periodMonth: string): Promise<{ ok: boolean; error?: stri
       return { ok: false, error: g.error };
     }
 
+    if (!/^\d{4}-(0[1-9]|1[0-2])(?:-01)?$/.test(periodMonth)) {
+      return { ok: false, error: 'Choose a valid payroll month.' };
+    }
     const start = `${periodMonth.slice(0, 7)}-01`;
+    await reservePayrollPeriod(start);
     const queryClient = await createClient();
 
     const { data: existing, error: existErr } = await queryClient
@@ -286,3 +296,7 @@ async function saveAdjustments(formData: FormData): Promise<{ ok: boolean; error
 }
 
 export { openRun, computeRun, lockRun, markRunPaid, saveAdjustments };
+
+async function openRun(...args: Parameters<typeof openRunWrite>) {
+  return runAction(() => openRunWrite(...args));
+}

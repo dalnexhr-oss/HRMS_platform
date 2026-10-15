@@ -3,16 +3,21 @@
 // Recalculate travel claims on the server using distance × the configured rate. Approval adds the
 // claim to the month's payslip adjustment and recomputes pay.
 import { queryErrorCodes } from '@/lib/db/query-errors';
-import { revalidatePath } from 'next/cache';
+import { runAction, revalidatePath } from '@/lib/db/action';
 import { createClient } from '@/lib/db/server-client';
+import { db } from '@/lib/db/mongodb-connection';
+import { transactionSession } from '@/lib/db/transaction-context';
+import { reserveOpenRun } from '@/lib/db/write-reservations';
+import { computePayslipInTransaction } from '@/lib/db/payroll-processing';
 import { getSession } from '@/lib/server-auth';
 import { getReimbursementRate, getReimbursementEvents } from '@/lib/queries/reimbursements';
 import { uploadFile, signedUrl, resolveUploadType } from '@/lib/file-storage';
 import { requireDb, requireRoles, requireStaff, wroteNothing } from '@/lib/actions/guards';
-import { toDecimal, toMoney } from '@/lib/db/decimal-conversions';
+import { toDecimal, toMoney, fromPaise, toPaise } from '@/lib/db/decimal-conversions';
 import { notifyApprovers, notifyEmployee } from '@/lib/notification-delivery';
 import { isCalendarDate } from '@/lib/calendar-dates';
 import { todayIST } from '@/lib/display-formatting';
+import type { Document } from 'mongodb';
 import type { ReimbursementPurpose } from '@/types/database';
 
 interface ActionResult {
@@ -237,78 +242,58 @@ async function addToPayroll(
     return 'Approved. This employee has no payslip in that run yet — recompute drafts, then it can be added.';
   }
 
-  // Update only if the bonus still matches the value read. Retry concurrent changes so separate
-  // approvals cannot lose each other's amounts.
-  let applied = false;
-  for (let attempt = 0; attempt < 3 && !applied; attempt++) {
-    const { data: existing, error: adjErr } = await queryClient
-      .from('payslip_adjustments')
-      .select('id, reimbursement_bonus')
-      .eq('id', payslip.id)
-      .maybeSingle<{ id: string; reimbursement_bonus: number | string | null }>();
-    if (adjErr) {
-      return `Approved, but the current adjustments could not be read: ${adjErr.message}`;
-    }
-
-    const current = Number(existing?.reimbursement_bonus ?? 0) || 0;
-    const next = Math.round((current + amount) * 100) / 100;
-
-    if (!existing) {
-      // Insert initial adjustments; on duplicate key conflict (concurrent insert), retry update.
-      const { error: insErr } = await queryClient
-        .from('payslip_adjustments')
-        .insert({ id: payslip.id, reimbursement_bonus: toMoney(next), updated_at: new Date() });
-      if (insErr && insErr.code !== queryErrorCodes.duplicateKey) {
-        return `Approved, but the payslip adjustment failed: ${insErr.message}`;
-      }
-      applied = !insErr;
-      continue;
-    }
-
-    const casQuery = queryClient
-      .from('payslip_adjustments')
-      .update({ reimbursement_bonus: toMoney(next), updated_at: new Date() })
-      .eq('id', payslip.id);
-    // Null needs `is`, a number needs `eq` — the query builder distinguishes them.
-    const { data: casRows, error: upErr } = await (
-      existing.reimbursement_bonus == null
-        ? casQuery.is('reimbursement_bonus', null)
-        : casQuery.eq('reimbursement_bonus', existing.reimbursement_bonus)
-    ).select('id');
-    if (upErr) {
-      return `Approved, but the payslip adjustment failed: ${upErr.message}`;
-    }
-    applied = !!casRows && casRows.length > 0;
+  const session = transactionSession();
+  if (!session) {
+    throw new Error('Posting a reimbursement requires a transaction.');
   }
-  if (!applied) {
-    return 'Approved, but the payslip adjustment was contended and could not be applied. Add it manually from the payroll page.';
+  await reserveOpenRun(run.id, session);
+  const database = await db();
+  const claims = database.collection<Document & { _id: string }>('reimbursement_claims');
+  const claim = await claims.findOne({ _id: claimId, employee_id: employeeId }, { session });
+  if (!claim || claim.status !== 'approved' || claim.paid_at || claim.settlement_id) {
+    throw new Error('This claim is unavailable or reserved for another payment route.');
   }
-
-  // Record which run carries the claim. Paying that run closes the claim, and it cannot be marked
-  // paid separately in the meantime.
-  await queryClient
-    .from('reimbursement_claims')
-    .update({ payroll_run_id: run.id })
-    .eq('id', claimId);
-
-  const { error: recomputeErr } = await queryClient.callFunction('fn_compute_payslip', {
-    p_employee_id: employeeId,
-    p_run_id: run.id,
-  });
-  if (recomputeErr) {
-    return `Approved and added, but recomputing the payslip failed, so the net pay shown is stale: ${recomputeErr.message}`;
+  if (claim.payroll_run_id === run.id) {
+    return null;
   }
+  const linked = await claims.updateOne(
+    {
+      _id: claimId,
+      employee_id: employeeId,
+      status: 'approved',
+      paid_at: null,
+      payroll_run_id: null,
+      settlement_id: null,
+    },
+    { $set: { payroll_run_id: run.id, updated_at: new Date() } },
+    { session },
+  );
+  if (linked.matchedCount !== 1) {
+    throw new Error('The claim changed or was reserved elsewhere. Nothing was posted.');
+  }
+  const adjustments = database.collection<Document & { _id: string }>('payslip_adjustments');
+  const existing = await adjustments.findOne({ _id: payslip.id }, { session });
+  const reimbursement = fromPaise(toPaise(existing?.reimbursement_bonus) + toPaise(amount));
+  await adjustments.updateOne(
+    { _id: payslip.id },
+    {
+      $set: { reimbursement_bonus: reimbursement, updated_at: new Date() },
+      $setOnInsert: { created_at: new Date() },
+    },
+    { upsert: true, session },
+  );
+  await computePayslipInTransaction(employeeId, run.id, session);
 
   revalidatePath('/payroll');
   return null;
 }
 
-async function reviewReimbursement(
+async function reviewReimbursementWrite(
   id: string,
   decision: 'approved' | 'rejected',
   remark?: string,
 ): Promise<ActionResult> {
-  const gate = await requireStaff(`Marking a claim ${decision}`);
+  const gate = await requireStaff(`Marking a claim ${decision}`, 'reimbursements');
   if (!gate.ok) {
     return gate;
   }
@@ -443,7 +428,7 @@ async function reviewReimbursement(
  * Finalize a claim in finance_review. Admin approval credits payroll; rejection returns it to the
  * employee with a reason.
  */
-async function financeReviewReimbursement(
+async function financeReviewReimbursementWrite(
   id: string,
   decision: 'approved' | 'rejected',
   remark?: string,
@@ -451,6 +436,7 @@ async function financeReviewReimbursement(
   const gate = await requireRoles(
     ['super_admin', 'admin'],
     `Finance-${decision === 'approved' ? 'approving' : 'rejecting'} a claim`,
+    'reimbursements',
   );
   if (!gate.ok) {
     return gate;
@@ -682,8 +668,8 @@ async function deleteReimbursement(id: string): Promise<ActionResult> {
  * paid it, WHEN, and the payment reference — 'paid' with no such record was
  * unverifiable.
  */
-async function markReimbursementPaid(id: string, paymentRef?: string): Promise<ActionResult> {
-  const gate = await requireStaff('Marking a claim paid');
+async function markReimbursementPaidWrite(id: string, paymentRef?: string): Promise<ActionResult> {
+  const gate = await requireStaff('Marking a claim paid', 'reimbursements');
   if (!gate.ok) {
     return gate;
   }
@@ -691,9 +677,18 @@ async function markReimbursementPaid(id: string, paymentRef?: string): Promise<A
   const queryClient = await createClient();
   const { data: claim } = await queryClient
     .from('reimbursement_claims')
-    .select('payroll_run_id')
+    .select('payroll_run_id, settlement_id, status')
     .eq('id', id)
-    .maybeSingle<{ payroll_run_id: string | null }>();
+    .maybeSingle<{ payroll_run_id: string | null; settlement_id: string | null; status: string }>();
+  if (claim?.status === 'paid') {
+    return { ok: true };
+  }
+  if (claim?.settlement_id) {
+    return {
+      ok: false,
+      error: 'This claim is reserved for a final settlement and cannot be paid separately.',
+    };
+  }
   if (claim?.payroll_run_id) {
     return {
       ok: false,
@@ -714,6 +709,9 @@ async function markReimbursementPaid(id: string, paymentRef?: string): Promise<A
     .update(patch)
     .eq('id', id)
     .eq('status', 'approved')
+    .is('payroll_run_id', null)
+    .is('settlement_id', null)
+    .is('paid_at', null)
     .select('id, employee_id, amount');
 
   if (error) {
@@ -878,3 +876,17 @@ export {
 };
 
 export type { ActionResult, ReimbursementPurpose };
+
+async function reviewReimbursement(...args: Parameters<typeof reviewReimbursementWrite>) {
+  return runAction(() => reviewReimbursementWrite(...args));
+}
+
+async function financeReviewReimbursement(
+  ...args: Parameters<typeof financeReviewReimbursementWrite>
+) {
+  return runAction(() => financeReviewReimbursementWrite(...args));
+}
+
+async function markReimbursementPaid(...args: Parameters<typeof markReimbursementPaidWrite>) {
+  return runAction(() => markReimbursementPaidWrite(...args));
+}

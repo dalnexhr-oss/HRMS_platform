@@ -2,9 +2,9 @@
 
 // Update the signed-in user's avatar.
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/db/server-client';
+import { usersCollection } from '@/lib/db/collection-registry';
 import { getSession } from '@/lib/server-auth';
-import { requireDb, wroteNothing } from '@/lib/actions/guards';
+import { requireDb } from '@/lib/actions/guards';
 import { isAvatarPresetId } from '@/lib/avatar-presets';
 
 interface ActionResult {
@@ -49,17 +49,12 @@ async function updateAvatar(value: string | null): Promise<ActionResult> {
     return { ok: false, error: 'You must be signed in to change your picture.' };
   }
 
-  const queryClient = await createClient();
-  const { data, error } = await queryClient
-    .from('profiles')
-    .update({ avatar: value })
-    .eq('id', userId)
-    .select('id');
-
-  if (error) {
-    return { ok: false, error: error.message };
-  }
-  if (wroteNothing(data)) {
+  // Account self-service is independent of permission to administer other users. Both the
+  // target identity and the only writable field are fixed here, never taken from a client ID.
+  const result = await (
+    await usersCollection()
+  ).updateOne({ _id: userId }, { $set: { avatar: value, updated_at: new Date() } });
+  if (result.matchedCount !== 1) {
     return { ok: false, error: 'Your picture was not saved — your account may lack permission.' };
   }
 

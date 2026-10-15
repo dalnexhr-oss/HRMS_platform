@@ -31,7 +31,7 @@ function daysOf(periodMonth: string): number[] {
 }
 
 async function exportPayrollXlsx(periodMonth: string): Promise<ExportResult> {
-  const gate = await requireStaff('Exporting payroll');
+  const gate = await requireStaff('Exporting payroll', 'payroll');
   if (!gate.ok) {
     return gate;
   }
@@ -55,7 +55,7 @@ async function exportPayrollXlsx(periodMonth: string): Promise<ExportResult> {
 
 /** Today's punch log as a branded .xlsx — replaces the old client-side CSV. */
 async function exportPunchLogXlsx(date: string): Promise<ExportResult> {
-  const gate = await requireStaff('Exporting the punch log');
+  const gate = await requireStaff('Exporting the punch log', 'dashboard');
   if (!gate.ok) {
     return gate;
   }
@@ -72,7 +72,7 @@ async function exportPunchLogXlsx(date: string): Promise<ExportResult> {
 }
 
 async function exportRegisterXlsx(periodMonth: string): Promise<ExportResult> {
-  const gate = await requireStaff('Exporting the register');
+  const gate = await requireStaff('Exporting the register', 'monthly-register');
   if (!gate.ok) {
     return gate;
   }
@@ -90,7 +90,7 @@ async function exportRegisterXlsx(periodMonth: string): Promise<ExportResult> {
 
 /** Per-employee monthly attendance sheets for the pay period, to hand out with payroll. */
 async function exportAttendanceTemplateXlsx(periodMonth: string): Promise<ExportResult> {
-  const gate = await requireStaff('Exporting the attendance template');
+  const gate = await requireStaff('Exporting the attendance template', 'monthly-register');
   if (!gate.ok) {
     return gate;
   }
@@ -170,7 +170,7 @@ async function exportRegisterImportTemplateXlsx(periodMonth?: string): Promise<E
 }
 
 async function exportReimbursementsXlsx(): Promise<ExportResult> {
-  const gate = await requireStaff('Exporting reimbursement claims');
+  const gate = await requireStaff('Exporting reimbursement claims', 'reimbursements');
   if (!gate.ok) {
     return gate;
   }
@@ -195,6 +195,7 @@ async function exportLeaveSalaryXlsx(year: number): Promise<ExportResult> {
   const gate = await requireRoles(
     ['super_admin', 'admin', 'hr'],
     'Exporting the leave-salary working',
+    'leave-salary',
   );
   if (!gate.ok) {
     return gate;
@@ -217,7 +218,7 @@ async function exportLeaveSalaryXlsx(year: number): Promise<ExportResult> {
 // statutory
 
 async function exportPfEcr(periodMonth: string): Promise<ExportResult> {
-  const gate = await requireStaff('Exporting the PF ECR');
+  const gate = await requireStaff('Exporting the PF ECR', 'payroll');
   if (!gate.ok) {
     return gate;
   }
@@ -242,7 +243,7 @@ async function exportPfEcr(periodMonth: string): Promise<ExportResult> {
 }
 
 async function exportEsic(periodMonth: string): Promise<ExportResult> {
-  const gate = await requireStaff('Exporting the ESIC return');
+  const gate = await requireStaff('Exporting the ESIC return', 'payroll');
   if (!gate.ok) {
     return gate;
   }
@@ -256,7 +257,7 @@ async function exportEsic(periodMonth: string): Promise<ExportResult> {
 }
 
 async function exportPt(periodMonth: string): Promise<ExportResult> {
-  const gate = await requireStaff('Exporting the PT summary');
+  const gate = await requireStaff('Exporting the PT summary', 'professional-tax');
   if (!gate.ok) {
     return gate;
   }

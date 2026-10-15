@@ -25,7 +25,11 @@ function validYear(y: number): boolean {
  * Idempotent: safe to run multiple times for the same calendar year.
  */
 async function provisionLeaveYear(year: number): Promise<ActionResult & { created?: number }> {
-  const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Provisioning leave balances');
+  const gate = await requireRoles(
+    ['super_admin', 'admin', 'hr'],
+    'Provisioning leave balances',
+    'leave-salary',
+  );
   if (!gate.ok) {
     return gate;
   }
@@ -66,7 +70,11 @@ async function adjustLeaveBalance(input: {
   delta: number;
   reason: string;
 }): Promise<ActionResult> {
-  const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Adjusting a leave balance');
+  const gate = await requireRoles(
+    ['super_admin', 'admin', 'hr'],
+    'Adjusting a leave balance',
+    'leave-salary',
+  );
   if (!gate.ok) {
     return gate;
   }

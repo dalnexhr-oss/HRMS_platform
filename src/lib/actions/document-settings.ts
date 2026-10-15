@@ -42,7 +42,7 @@ async function saveSetting(key: string, label: string, value: unknown): Promise<
 async function saveDocumentTypes(
   input: Array<{ key?: string; label: string; stage: string; required: boolean; active: boolean }>,
 ): Promise<ActionResult> {
-  const gate = await requireRoles(documentRoles, 'Changing document types');
+  const gate = await requireRoles(documentRoles, 'Changing document types', 'documents');
   if (!gate.ok) {
     return gate;
   }

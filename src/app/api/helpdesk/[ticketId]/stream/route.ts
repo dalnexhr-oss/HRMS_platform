@@ -15,7 +15,8 @@ const pollMs = 2_000;
 // Keep idle connections open through proxies.
 const heartbeatMs = 25_000;
 
-async function stream(req: Request, { params }: { params: Promise<{ ticketId: string }> }) {
+async function stream(req: Request, { params }: { params: Promise<{ ticketId: string }> })
+ {
   const { ticketId } = await params;
 
   const scope = await currentScope();

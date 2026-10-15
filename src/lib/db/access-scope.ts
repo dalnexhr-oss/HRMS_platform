@@ -2,20 +2,21 @@
 import 'server-only';
 import { getSessionUser } from '@/lib/auth/session';
 import type { AppRole } from '@/types/database';
+import type { TabAccess } from '@/lib/portal-access';
 
+// The caller's identity and role flags, used to filter queries and enforce policy.
+//  The scope is derived from the session and is never trusted from the client. The system scope is used for
+// background jobs and cron tasks, which have no session.
 interface Scope {
+  tabAccess?: TabAccess;
   userId: string;
-  // employees._id for this account, or null for staff with no employee record.
+
   employeeId: string | null;
   role: AppRole;
-  // Portal write permissions tier (super_admin, admin, hr).
   isStaff: boolean;
-  // Administrative tier (admin, hr, super_admin).
   isAdminHr: boolean;
   isSuperAdmin: boolean;
-  // Portal read permissions tier.
   isPortal: boolean;
-  // True only for internal jobs and maintenance tasks.
   isSystem: boolean;
 }
 
@@ -31,9 +32,15 @@ const systemScope: Scope = {
   isSystem: true,
 };
 
-function scopeForRole(userId: string, role: AppRole, employeeId: string | null): Scope {
+function scopeForRole(
+  userId: string,
+  role: AppRole,
+  employeeId: string | null,
+  tabAccess: TabAccess = {},
+): Scope {
   const isStaff = role === 'super_admin' || role === 'admin' || role === 'hr';
   return {
+    tabAccess,
     userId,
     employeeId,
     role,
@@ -53,7 +60,7 @@ async function currentScope(): Promise<Scope | null> {
   if (!user) {
     return null;
   }
-  return scopeForRole(user._id, user.role, user.employee_id);
+  return scopeForRole(user._id, user.role, user.employee_id, user.tab_access ?? {});
 }
 
 export { systemScope, scopeForRole, currentScope };

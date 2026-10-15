@@ -4,11 +4,23 @@
  */
 import 'server-only';
 import { db } from '@/lib/db/mongodb-connection';
+import { transactionSession } from '@/lib/db/transaction-context';
+import { mayAccessCollection } from '@/lib/db/collection-access';
 import { policyFor } from '@/lib/db/collection-permissions';
 import { currentScope, systemScope } from '@/lib/db/access-scope';
 import type { CollectionPolicy } from '@/lib/db/collection-permissions';
 import type { Scope } from '@/lib/db/access-scope';
-import type { AggregateOptions, ClientSession, CountDocumentsOptions, Document, Filter, FindOptions, OptionalUnlessRequiredId, UpdateFilter, UpdateOptions } from 'mongodb';
+import type {
+  AggregateOptions,
+  ClientSession,
+  CountDocumentsOptions,
+  Document,
+  Filter,
+  FindOptions,
+  OptionalUnlessRequiredId,
+  UpdateFilter,
+  UpdateOptions,
+} from 'mongodb';
 
 // Thrown when a write is refused. Carries a message safe to show a user.
 class ScopeError extends Error {
@@ -69,11 +81,17 @@ class ScopedCollection<T extends Document> {
 
   // The policy's read filter, or a match-nothing filter when denied.
   private readFilter(): Document {
+    if (!mayAccessCollection(this.scope, this.name)) {
+      return matchNothing;
+    }
     return this.policy.read(this.scope) ?? matchNothing;
   }
 
   // The policy's write filter. Throws rather than silently matching nothing.
   private writeFilter(): Document {
+    if (!mayAccessCollection(this.scope, this.name, true)) {
+      throw new ScopeError('You do not have access to this section.');
+    }
     const filter = this.policy.write(this.scope);
     if (filter === null) {
       throw new ScopeError('You do not have permission to change this.');
@@ -91,6 +109,12 @@ class ScopedCollection<T extends Document> {
     const refusal = this.policy.check(this.scope, fields);
     if (refusal) {
       throw new ScopeError(refusal);
+    }
+  }
+
+  private writeFilterForInsert(): void {
+    if (!mayAccessCollection(this.scope, this.name, true)) {
+      throw new ScopeError('You do not have access to this section.');
     }
   }
 
@@ -145,6 +169,7 @@ class ScopedCollection<T extends Document> {
   // writes
 
   async insertOne(doc: OptionalUnlessRequiredId<T>): Promise<string> {
+    this.writeFilterForInsert();
     const refusal = this.policy.insert(this.scope, doc as Document);
     if (refusal) {
       throw new ScopeError(refusal);
@@ -155,6 +180,7 @@ class ScopedCollection<T extends Document> {
   }
 
   async insertMany(docs: Array<OptionalUnlessRequiredId<T>>): Promise<number> {
+    this.writeFilterForInsert();
     for (const doc of docs) {
       const refusal = this.policy.insert(this.scope, doc as Document);
       if (refusal) {
@@ -201,6 +227,7 @@ class ScopedCollection<T extends Document> {
   // Upserts require both write and insert permission. Merge the policy into the conflict key with
   // upsertFilter so MongoDB can infer inserted fields correctly.
   async upsertOne(query: Filter<T>, update: UpdateFilter<T>, insertShape: Document): Promise<void> {
+    this.writeFilterForInsert();
     const refusal = this.policy.insert(this.scope, insertShape);
     if (refusal) {
       throw new ScopeError(refusal);
@@ -311,6 +338,9 @@ class NotSignedInError extends Error {
 // their own policies in addition to the base collection's filter. Denied or unlisted collections
 // return a filter matching nothing.
 function readFilterFor(collection: string, scope: Scope, viaParent?: string): Document {
+  if (!mayAccessCollection(scope, collection)) {
+    return matchNothing;
+  }
   const policy = policyFor(collection);
   if (!policy) {
     return matchNothing;
@@ -337,7 +367,7 @@ function build<T extends Document>(
         'before querying it — collections are denied by default.',
     );
   }
-  return new ScopedCollection<T>(name, policy, scope, session);
+  return new ScopedCollection<T>(name, policy, scope, session ?? transactionSession());
 }
 
 // A collection scoped to the signed-in caller. Throws NotSignedInError when there is no session, so

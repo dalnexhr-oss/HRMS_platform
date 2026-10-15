@@ -68,7 +68,7 @@ async function createTicket(formData: FormData) {
  * the ticket and included in the employee's notification.
  */
 async function setTicketStatus(id: string, status: TicketStatus, note?: string) {
-  const gate = await requireStaff('Updating a ticket');
+  const gate = await requireStaff('Updating a ticket', 'helpdesk');
   if (!gate.ok) {
     return gate;
   }

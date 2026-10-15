@@ -13,7 +13,7 @@ type DeleteResult = { ok: true; warning?: string } | { ok: false; error: string 
 
 /** Remove an inactive employee and linked logins while retaining referenced historical records. */
 async function deleteEmployee(code: string): Promise<DeleteResult> {
-  const gate = await requireStaff('Deleting an employee');
+  const gate = await requireStaff('Deleting an employee', 'employees');
   if (!gate.ok) {
     return gate;
   }

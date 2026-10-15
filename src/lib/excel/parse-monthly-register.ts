@@ -232,7 +232,7 @@ function isKnownStatus(s: string): s is KnownStatus {
 }
 
 /** employees.code convention: 1 -> 'DN001'. */
-function codeForEmplId(id: number): string {
+function employeeCode(id: number): string {
   return `DN${String(id).padStart(3, '0')}`;
 }
 
@@ -540,7 +540,7 @@ async function parseRegisterWorkbook(buf: ArrayBuffer | Buffer): Promise<ParsedR
 
     employees.push({
       emplId,
-      code: codeForEmplId(emplId),
+      code: employeeCode(emplId),
       days,
       counts,
       workingDays: asNumber(ws.getCell(r, colWorkingDays).value),
@@ -564,7 +564,7 @@ export {
   minutesToClock,
   normalizeStatus,
   isKnownStatus,
-  codeForEmplId,
+  employeeCode,
   parseRegisterWorkbook,
 };
 export type { ParsedDay, ParsedEmployee, ParsedRegister, KnownStatus };

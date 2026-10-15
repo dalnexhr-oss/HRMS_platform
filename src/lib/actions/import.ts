@@ -2,14 +2,14 @@
 
 // Preview and commit monthly register imports using the caller's staff scope. Return database
 // failures to the caller.
-import { revalidatePath } from 'next/cache';
+import { runAction, revalidatePath } from '@/lib/db/action';
 import { createClient } from '@/lib/db/server-client';
 import { getSession } from '@/lib/server-auth';
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { getEmployeeCodeMap } from '@/lib/queries/employees';
 import { autoCloseDay, getAutoPunchOutMinutes } from '@/lib/attendance-rules';
 import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/guards';
-import { parseRegisterWorkbook, codeForEmplId, isKnownStatus, minutesToClock } from '@/lib/excel/parse-monthly-register';
+import { parseRegisterWorkbook, employeeCode, isKnownStatus,minutesToClock} from '@/lib/excel/parse-monthly-register';
 import type { ParsedRegister } from '@/lib/excel/parse-monthly-register';
 import type { AppRole } from '@/types/database';
 
@@ -114,7 +114,7 @@ function buildResolver(codeMap: Record<string, string>) {
   return function resolve(
     emplId: number,
   ): { id: string; code: string } | { ambiguous: string[] } | null {
-    const exact = codeForEmplId(emplId);
+    const exact = employeeCode(emplId);
     if (codeMap[exact]) {
       return { id: codeMap[exact], code: exact };
     }
@@ -211,7 +211,7 @@ function planImport(
       usable++;
     }
 
-    if (hit.code !== codeForEmplId(emp.emplId)) {
+    if (hit.code !== employeeCode(emp.emplId)) {
       warnings.push(
         `Empl. ID ${emp.emplId} matched employee ${hit.code} on a trailing-digit fallback.`,
       );
@@ -233,7 +233,7 @@ function planImport(
 async function previewImport(formData: FormData): Promise<PreviewResult> {
   try {
     // Authorize before parsing an uploaded workbook or returning employee matches in the preview.
-    const gate = await requireStaff('Previewing the register');
+    const gate = await requireStaff('Previewing the register', 'data-import');
     if (!gate.ok) {
       return { ok: false, error: gate.error };
     }
@@ -309,7 +309,7 @@ function explainWriteError(message: string, code?: string): string {
   return code ? `${message} (${code})` : message;
 }
 
-async function commitImport(formData: FormData): Promise<CommitResult> {
+async function commitImportWrite(formData: FormData): Promise<CommitResult> {
   // 1. Verify database is connected before saving imported records.
   if (!isMongoConfigured()) {
     return { ok: false, error: 'The database is not configured, so nothing can be imported.' };
@@ -443,3 +443,7 @@ export type {
   CommitResult,
   UpsertRow,
 };
+
+async function commitImport(...args: Parameters<typeof commitImportWrite>) {
+  return runAction(() => commitImportWrite(...args));
+}

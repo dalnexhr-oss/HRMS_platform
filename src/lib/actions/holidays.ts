@@ -20,7 +20,7 @@ async function addHoliday(formData: FormData) {
     return { ok: false, error: 'Please enter a holiday name.' };
   }
 
-  const gate = await requireStaff('Adding a holiday');
+  const gate = await requireStaff('Adding a holiday', 'holidays');
   if (!gate.ok) {
     return gate;
   }
@@ -52,7 +52,7 @@ type ImportHolidaysResult =
 // Import company-wide holidays from Google's India calendar. Skip existing dates to preserve HR
 // edits and branch-specific holidays on repeat imports.
 async function importHolidaysFromGoogle(year: number): Promise<ImportHolidaysResult> {
-  const gate = await requireStaff('Importing holidays');
+  const gate = await requireStaff('Importing holidays', 'holidays');
   if (!gate.ok) {
     return gate;
   }
@@ -116,7 +116,7 @@ async function importHolidaysFromGoogle(year: number): Promise<ImportHolidaysRes
 
 /** Delete a holiday by id. */
 async function deleteHoliday(id: string) {
-  const gate = await requireStaff('Deleting a holiday');
+  const gate = await requireStaff('Deleting a holiday', 'holidays');
   if (!gate.ok) {
     return gate;
   }

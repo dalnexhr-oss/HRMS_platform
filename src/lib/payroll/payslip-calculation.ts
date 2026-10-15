@@ -1,8 +1,10 @@
 // Payroll rules operate on integer paise and plain attendance data. Database adapters
 // load configuration and convert Decimal128 values before calling these functions.
 import { scalePaiseAmount as scaleAmount, roundToRupee } from '@/lib/currency-conversion';
+import { attendancePaySummary } from '@/lib/attendance-pay';
 
 interface PayrollAttendanceDay {
+  workDate: string;
   status: string;
   workedMinutes: number;
 }
@@ -45,27 +47,11 @@ interface PayslipComputation {
   net_payable: number;
 }
 
-const fullDayStatuses = ['P', 'T', 'S', 'LM'];
-const paidDayOffStatuses = ['CO', 'OH', 'WO'];
-
 function calculatePayslip(input: PayslipInput): PayslipComputation {
   const [year, month] = input.periodMonth.split('-').map(Number);
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
   const fullDayMinutes = input.fullDayMinutes > 0 ? input.fullDayMinutes : 555;
-  let workingDays = 0;
-  let paidDaysOff = 0;
-  let workedMinutes = 0;
-  for (const day of input.attendance) {
-    if (fullDayStatuses.includes(day.status)) {
-      workingDays += 1;
-    } else if (day.status === 'HD') {
-      workingDays += 0.5;
-    } else if (paidDayOffStatuses.includes(day.status)) {
-      paidDaysOff += 1;
-    }
-    workedMinutes += day.workedMinutes;
-  }
-  const payableDays = workingDays + paidDaysOff;
+  const { workingDays, payableDays, workedMinutes } = attendancePaySummary(input.attendance);
   const targetMinutes = Math.round(workingDays * fullDayMinutes);
   const perDayRate = scaleAmount(input.grossPaise, 1 / daysInMonth);
   const basicEarned = scaleAmount(input.basicPaise, payableDays / daysInMonth);

@@ -15,6 +15,8 @@ import { todayIST } from '@/lib/display-formatting';
 import { noticeRetentionDays } from '@/lib/notice-retention';
 import { lastNightSweepNotice } from '@/lib/automatic-punch-out-notice';
 import { isMongoDuplicateKey } from '@/lib/db/query-errors';
+import { withTransaction } from '@/lib/db/mongodb-connection';
+import { reservePayrollPeriod } from '@/lib/db/write-reservations';
 import type { BaseDoc } from '@/lib/db/collection-registry';
 import type { PayrollRunSeal } from '@/lib/payroll-month';
 import type { SweepClosure } from '@/lib/automatic-punch-out-notice';
@@ -287,17 +289,22 @@ async function autoCloseMonth(): Promise<JobResult> {
     'attendance-auto-close-month',
     { job: 'auto_close_month', runKey: prev },
     `already closed ${prev}`,
-    async () => {
-      const runs = scopedFor<BaseDoc>(collections.payrollRuns, systemScope);
-      // Only a draft closes automatically. A run already in review, locked or
-      // paid has been handled by a person, and must not be reopened or
-      // re-stamped.
-      const affected = await runs.updateMany(
-        { period_month: prev, status: 'draft', month_closed_at: null },
-        { $set: { month_closed_at: new Date(), updated_at: new Date() } },
-      );
-      return { affected };
-    },
+    () =>
+      withTransaction(
+        async () => {
+          await reservePayrollPeriod(prev);
+          const runs = scopedFor<BaseDoc>(collections.payrollRuns, systemScope);
+          // Only a draft closes automatically. A run already in review, locked or
+          // paid has been handled by a person, and must not be reopened or
+          // re-stamped.
+          const affected = await runs.updateMany(
+            { period_month: prev, status: 'draft', month_closed_at: null },
+            { $set: { month_closed_at: new Date(), updated_at: new Date() } },
+          );
+          return { affected };
+        },
+        { required: true },
+      ),
   );
 }
 

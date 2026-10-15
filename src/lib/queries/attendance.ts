@@ -2,9 +2,11 @@ import 'server-only';
 import { currentPeriodMonth, monthRange } from '@/lib/business-dates';
 import { createClient } from '@/lib/db/server-client';
 import { fail, iso } from '@/lib/queries/shared';
-import { trimTime, minutesToHHMM } from '@/lib/display-formatting';
+import { trimTime, minutesToHHMM, todayIST } from '@/lib/display-formatting';
 import { scoped } from '@/lib/db/scoped-repository';
 import { collections } from '@/lib/db/collection-registry';
+import { attendancePaySummary, resolvePayableAttendance } from '@/lib/attendance-pay';
+import { policyFromSettings } from '@/lib/weekly-off-policy';
 import type { RegisterEmployee, DayCell } from '@/types/domain';
 import type { UserDoc, EmployeeDoc } from '@/lib/db/collection-registry';
 
@@ -32,9 +34,9 @@ async function getRegister(
 
   let employeeQuery = queryClient
     .from('employees')
-    .select('id, code, full_name, gender, date_of_joining, branches(name)')
-    // Someone serving notice still punches and is still paid.
-    .in('status', ['active', 'on_notice'])
+    .select(
+      'id, code, full_name, gender, date_of_joining, last_working_day, branch_id, status, branches(name)',
+    )
     .order('code');
   if (branchId) {
     employeeQuery = employeeQuery.eq('branch_id', branchId);
@@ -53,20 +55,41 @@ async function getRegister(
     .select('employee_id, work_date, status, punch_in, punch_out, worked_minutes')
     .gte('work_date', start)
     .lte('work_date', end)
-    .order('work_date');
+    .order('updated_at')
+    .order('id');
   if (daysError) {
     fail('getRegister: could not load attendance', daysError);
   }
 
-  // Target hours use the payslip rule: each worked day owes one full day's minutes.
-  const { data: fullDaySetting } = await queryClient
+  const { data: settingRows, error: settingsError } = await queryClient
     .from('settings')
-    .select('value')
-    .eq('key', 'full_day_minutes')
-    .maybeSingle<{ value: unknown }>();
-  const configuredFullDay = Number(fullDaySetting?.value);
+    .select('key, value')
+    .in('key', ['full_day_minutes', 'week_off_weekdays', 'working_saturdays']);
+  if (settingsError) {
+    fail('getRegister: could not load pay rules', settingsError);
+  }
+  const settings = new Map((settingRows ?? []).map((row) => [String(row.key), row.value]));
+  const configuredFullDay = Number(settings.get('full_day_minutes'));
   const fullDayMinutes =
     Number.isFinite(configuredFullDay) && configuredFullDay > 0 ? configuredFullDay : 555;
+  const { data: holidays, error: holidayError } = await queryClient
+    .from('holidays')
+    .select('holiday_date, branch_id')
+    .gte('holiday_date', start)
+    .lte('holiday_date', end);
+  if (holidayError) {
+    fail('getRegister: could not load holidays', holidayError);
+  }
+  const calendar = {
+    policy: policyFromSettings(
+      settings.get('week_off_weekdays'),
+      settings.get('working_saturdays'),
+    ),
+    holidays: (holidays ?? []).map((holiday) => ({
+      date: String(holiday.holiday_date),
+      branchId: holiday.branch_id as string | null,
+    })),
+  };
 
   const byEmployee = new Map<string, any[]>();
   for (const d of days ?? []) {
@@ -78,43 +101,73 @@ async function getRegister(
     }
   }
 
-  return employees.map((e: any) => {
-    const rows = byEmployee.get(e.id) ?? [];
-    const cells: DayCell[] = rows.map((d: any) => ({
-      day: Number(d.work_date.slice(8, 10)),
-      status: d.status,
-      in: trimTime(d.punch_in),
-      out: trimTime(d.punch_out),
-      hours: d.worked_minutes ? minutesToHHMM(d.worked_minutes) : null,
-      // Week-offs come from the resolved status, not a hardcoded calendar.
-      isWeekOff: d.status === 'WO',
-    }));
-    const workedMinutes = rows.reduce((a: number, d: any) => a + (d.worked_minutes ?? 0), 0);
-    const count = (s: string) => rows.filter((d: any) => d.status === s).length;
-    // Mirrors v_monthly_attendance_summary / fn_compute_payslip: field days (S/T)
-    // count as worked, half-days as 0.5, and paid leave is payable but not worked.
-    const working = count('P') + count('LM') + count('S') + count('T') + 0.5 * count('HD');
-    return {
-      id: e.id,
-      code: e.code,
-      name: e.full_name,
-      branch: e.branches?.name ?? '',
-      gender: e.gender,
-      doj: e.date_of_joining,
-      summary: {
-        P: count('P'),
-        LM: count('LM'),
-        HD: count('HD'),
-        L: count('L'),
-        WO: count('WO'),
-        working,
-        payable: working + count('L'),
-      },
-      workedMinutes,
-      targetMinutes: Math.round(working * fullDayMinutes),
-      days: cells,
-    };
-  });
+  return employees
+    .filter((employee) => {
+      const joined = String(employee.date_of_joining ?? '').slice(0, 10);
+      const left = employee.last_working_day
+        ? String(employee.last_working_day).slice(0, 10)
+        : null;
+      return joined <= end && (byEmployee.has(employee.id) || !left || left >= start);
+    })
+    .map((e: any) => {
+      const resolved = resolvePayableAttendance(
+        periodMonth,
+        (byEmployee.get(e.id) ?? []).map((day) => ({
+          workDate: String(day.work_date),
+          status: String(day.status),
+          workedMinutes: Number(day.worked_minutes ?? 0),
+        })),
+        {
+          branchId: e.branch_id ?? null,
+          dateOfJoining: e.date_of_joining ?? null,
+          lastWorkingDay: e.last_working_day ?? null,
+        },
+        calendar,
+        todayIST(),
+      );
+      const rows = resolved.map((day) => {
+        const original = (byEmployee.get(e.id) ?? [])
+          .filter((row) => row.work_date === day.workDate)
+          .at(-1);
+        return {
+          ...original,
+          work_date: day.workDate,
+          status: day.status,
+          worked_minutes: day.workedMinutes,
+        };
+      });
+      const cells: DayCell[] = rows.map((d: any) => ({
+        day: Number(d.work_date.slice(8, 10)),
+        status: d.status,
+        in: trimTime(d.punch_in),
+        out: trimTime(d.punch_out),
+        hours: d.worked_minutes ? minutesToHHMM(d.worked_minutes) : null,
+        // Week-offs come from the resolved status, not a hardcoded calendar.
+        isWeekOff: d.status === 'WO',
+      }));
+      const { workingDays: working, payableDays, workedMinutes } = attendancePaySummary(resolved);
+      const count = (s: string) => rows.filter((d: any) => d.status === s).length;
+      return {
+        id: e.id,
+        code: e.code,
+        name: e.full_name,
+        branch: e.branches?.name ?? '',
+        gender: e.gender,
+        doj: e.date_of_joining,
+        summary: {
+          P: count('P'),
+          LM: count('LM'),
+          HD: count('HD'),
+          L: count('L'),
+          WO: count('WO'),
+          working,
+          payable: payableDays,
+        },
+        workedMinutes,
+        targetMinutes: Math.round(working * fullDayMinutes),
+        days: cells,
+      };
+    });
 }
 
 // register reconciliation

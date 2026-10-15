@@ -7,7 +7,7 @@ import { requireRoles, wroteNothing } from '@/lib/actions/guards';
 // Upsert a setting without coercing its value. Staff authorization protects payroll, scheduling,
 // and reimbursement settings.
 async function updateSetting(key: string, value: unknown) {
-  const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Changing a setting');
+  const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Changing a setting', 'settings');
   if (!gate.ok) {
     return gate;
   }

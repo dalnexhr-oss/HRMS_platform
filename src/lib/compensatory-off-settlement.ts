@@ -1,13 +1,10 @@
 // Internal comp-off settlement helpers. Keep these outside use-server modules; reviewRequest
 // authorizes the caller before invoking them.
-import { revalidatePath } from 'next/cache';
+import { revalidatePath } from '@/lib/db/action';
 import { createClient } from '@/lib/db/server-client';
 import { requireOpenPayrollMonth } from '@/lib/actions/guards';
 
-// Stamp the approved day CO before marking its credit used. The adapter cannot share a transaction
-// here. If the second write fails, the credit stays applied and cannot be spent again; reversing
-// the writes could consume a credit without recording the day off. Return follow-up failures as
-// warnings after the decision has saved.
+// The caller enlists the credit and attendance writes in the same approval transaction.
 async function settleApprovedCompOff(
   requestId: string,
   client?: Awaited<ReturnType<typeof createClient>>,
@@ -24,8 +21,7 @@ async function settleApprovedCompOff(
       return `Could not load the comp-off credit: ${error.message}`;
     }
     if (!credit) {
-      // not a comp-off-backed request
-      return null;
+      throw new Error('This comp-off request has no reserved credit. Nothing was approved.');
     }
 
     const takeDate = credit.used_date;
@@ -67,13 +63,14 @@ async function settleApprovedCompOff(
 
     // Only an 'applied' credit may become 'used' — a credit that is already
     // 'used' must not be re-consumed.
-    const { error: useErr } = await queryClient
+    const { data: used, error: useErr } = await queryClient
       .from('comp_offs')
       .update({ status: 'used' })
       .eq('id', credit.id)
-      .eq('status', 'applied');
-    if (useErr) {
-      return `Approved, but the comp-off credit was not closed: ${useErr.message}`;
+      .eq('status', 'applied')
+      .select('id');
+    if (useErr || !used?.length) {
+      throw new Error(useErr?.message ?? 'The comp-off credit changed. Retry the approval.');
     }
 
     revalidatePath('/monthly-register');
@@ -81,7 +78,7 @@ async function settleApprovedCompOff(
     revalidatePath('/employee', 'layout');
     return null;
   } catch (e) {
-    return e instanceof Error ? e.message : 'The comp off could not be settled.';
+    throw e;
   }
 }
 
@@ -102,8 +99,8 @@ async function releaseCompOff(
       .update({ status: 'available', used_date: null, request_id: null })
       .eq('request_id', requestId)
       .eq('status', 'applied');
-  } catch {
-    // Best-effort: a stranded 'applied' credit is recoverable by staff.
+  } catch (error) {
+    throw error;
   }
 }
 

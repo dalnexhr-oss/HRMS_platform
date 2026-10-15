@@ -1,8 +1,8 @@
 // Run scheduled jobs with system privileges. Requests require the CRON_SECRET bearer token; an
 // unset secret disables the endpoint. Each job uses cron_run_log to prevent duplicate work.
-//
 // Example cron entry:
-// 0 2 * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://your-host/api/cron
+// * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://your-host/api/cron
+
 import { NextResponse } from 'next/server';
 import { ApiError, apiErrorCodes } from '@/lib/api/errors';
 import { apiRoute } from '@/lib/api/route-handler';

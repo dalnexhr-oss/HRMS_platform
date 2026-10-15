@@ -1,6 +1,10 @@
 /** Shared Server Action guards for database availability, staff roles, and successful writes. */
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { getSession } from '@/lib/server-auth';
+import { currentScope } from '@/lib/db/access-scope';
+import { canAccessTab } from '@/lib/portal-access';
+import { transactionSession } from '@/lib/db/transaction-context';
+import { reserveAttendanceMonth } from '@/lib/db/write-reservations';
 import { monthSealReason, periodMonthFor } from '@/lib/payroll-month';
 import type { PayrollRunSeal } from '@/lib/payroll-month';
 import type { createClient } from '@/lib/db/server-client';
@@ -17,7 +21,7 @@ type StaffGate =
   | { ok: false; error: string };
 
 /** Validates an administrative staff session (super_admin, admin, hr) with an active DB connection. */
-async function requireStaff(action = 'This action'): Promise<StaffGate> {
+async function requireStaff(action = 'This action', tab?: string): Promise<StaffGate> {
   if (!isMongoConfigured()) {
     return {
       ok: false,
@@ -34,6 +38,10 @@ async function requireStaff(action = 'This action'): Promise<StaffGate> {
       error: `${action} needs a super admin, admin or HR account — yours is "${profile.role}".`,
     };
   }
+  const access = tab ? await requireTabAccess(tab) : null;
+  if (access) {
+    return { ok: false, error: access };
+  }
   return { ok: true, profileId: profile.id, employeeId: profile.employee_id, role: profile.role };
 }
 
@@ -45,6 +53,7 @@ async function requireStaff(action = 'This action'): Promise<StaffGate> {
 async function requireRoles(
   roles: readonly AppRole[],
   action = 'This action',
+  tab?: string,
 ): Promise<{ ok: true; profileId: string; role: AppRole } | { ok: false; error: string }> {
   if (!isMongoConfigured()) {
     return {
@@ -62,7 +71,18 @@ async function requireRoles(
       error: `${action} needs a ${roles.join(' or ')} account — yours is "${profile.role}".`,
     };
   }
+  const access = tab ? await requireTabAccess(tab) : null;
+  if (access) {
+    return { ok: false, error: access };
+  }
   return { ok: true, profileId: profile.id, role: profile.role };
+}
+
+async function requireTabAccess(tab: string): Promise<string | null> {
+  const scope = await currentScope();
+  return scope && scope.isStaff && canAccessTab(scope.role, tab, scope.tabAccess ?? {})
+    ? null
+    : 'You do not have access to this section.';
 }
 
 /**
@@ -88,6 +108,9 @@ async function requireOpenPayrollMonth(
   queryClient: DbClient,
   workDate: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (transactionSession()) {
+    await reserveAttendanceMonth(workDate);
+  }
   const periodMonth = periodMonthFor(workDate);
   const { data, error } = await queryClient
     .from('payroll_runs')
@@ -116,6 +139,14 @@ function wroteNothing(data: unknown[] | null): boolean {
   return !data || data.length === 0;
 }
 
-export { writeRoles, requireStaff, requireRoles, requireDb, requireOpenPayrollMonth, wroteNothing };
+export {
+  writeRoles,
+  requireStaff,
+  requireRoles,
+  requireDb,
+  requireOpenPayrollMonth,
+  requireTabAccess,
+  wroteNothing,
+};
 
 export type { DbClient, StaffGate };

@@ -3,15 +3,20 @@
 // Exit stages: initiated → clearance → settlement → completed. Disable the login only at completion
 // so the employee retains access during clearance and settlement.
 import { queryErrorCodes } from '@/lib/db/query-errors';
-import { revalidatePath } from 'next/cache';
+import { runAction, revalidatePath } from '@/lib/db/action';
 import { todayIST } from '@/lib/display-formatting';
 import { isCalendarDate } from '@/lib/calendar-dates';
-import { toMoney } from '@/lib/db/decimal-conversions';
+import { prepareSettlement, transitionSettlement } from '@/lib/db/final-settlement';
+import { toPaise, toMoney } from '@/lib/db/decimal-conversions';
 import { notifyEmployee } from '@/lib/notification-delivery';
 import { createClient } from '@/lib/db/server-client';
 import { deactivateEmployee } from '@/lib/actions/employees';
 import { requireRoles, wroteNothing } from '@/lib/actions/guards';
-import { getClearanceItems as readClearanceItems, getExitInterview as readExitInterview, getKtItems as readKtItems } from '@/lib/queries/exits';
+import {
+  getClearanceItems as readClearanceItems,
+  getExitInterview as readExitInterview,
+  getKtItems as readKtItems,
+} from '@/lib/queries/exits';
 import type { ExitInterviewRow } from '@/lib/queries/exits';
 import type { AppRole } from '@/types/database';
 
@@ -37,7 +42,7 @@ async function initiateExit(input: {
   lastWorkingDay: string;
   reason?: string;
 }): Promise<ActionResult> {
-  const gate = await requireRoles(exitRoles, 'Starting an exit');
+  const gate = await requireRoles(exitRoles, 'Starting an exit', 'exits');
   if (!gate.ok) {
     return gate;
   }
@@ -224,7 +229,7 @@ const interviewQuestions: readonly string[] = [
  * Questions are stored per-instance as individual rows to preserve the exact questionnaire snapshot.
  */
 async function ensureExitInterview(exitCaseId: string): Promise<ActionResult> {
-  const gate = await requireRoles(exitRoles, 'Opening the exit interview');
+  const gate = await requireRoles(exitRoles, 'Opening the exit interview', 'exits');
   if (!gate.ok) {
     return gate;
   }
@@ -264,7 +269,7 @@ async function ensureExitInterview(exitCaseId: string): Promise<ActionResult> {
 async function saveExitInterview(
   answers: Array<{ id: string; answer: string }>,
 ): Promise<ActionResult> {
-  const gate = await requireRoles(exitRoles, 'Saving the exit interview');
+  const gate = await requireRoles(exitRoles, 'Saving the exit interview', 'exits');
   if (!gate.ok) {
     return gate;
   }
@@ -313,7 +318,7 @@ async function addKtItem(input: {
   handoverTo?: string | null;
   notes?: string;
 }): Promise<ActionResult> {
-  const gate = await requireRoles(exitRoles, 'Adding a handover item');
+  const gate = await requireRoles(exitRoles, 'Adding a handover item', 'exits');
   if (!gate.ok) {
     return gate;
   }
@@ -351,7 +356,7 @@ async function addKtItem(input: {
 
 /** Updates handover item status ('pending' | 'in_progress' | 'done'). */
 async function setKtStatus(id: string, status: string): Promise<ActionResult> {
-  const gate = await requireRoles(exitRoles, 'Updating a handover item');
+  const gate = await requireRoles(exitRoles, 'Updating a handover item', 'exits');
   if (!gate.ok) {
     return gate;
   }
@@ -378,7 +383,7 @@ async function setKtStatus(id: string, status: string): Promise<ActionResult> {
 
 /** Remove a handover item. */
 async function deleteKtItem(id: string): Promise<ActionResult> {
-  const gate = await requireRoles(exitRoles, 'Deleting a handover item');
+  const gate = await requireRoles(exitRoles, 'Deleting a handover item', 'exits');
   if (!gate.ok) {
     return gate;
   }
@@ -407,7 +412,7 @@ async function fetchKtItems(exitCaseId: string) {
 
 /** Re-scan the asset/item registers for this exit (HR hits this after returns). */
 async function refreshExitClearance(exitCaseId: string): Promise<ActionResult> {
-  const gate = await requireRoles(exitRoles, 'Refreshing clearance');
+  const gate = await requireRoles(exitRoles, 'Refreshing clearance', 'exits');
   if (!gate.ok) {
     return gate;
   }
@@ -432,7 +437,7 @@ async function refreshExitClearance(exitCaseId: string): Promise<ActionResult> {
 
 /** Tick off one clearance line. */
 async function setClearanceItemCleared(id: string, cleared: boolean): Promise<ActionResult> {
-  const gate = await requireRoles(exitRoles, 'Clearing an exit item');
+  const gate = await requireRoles(exitRoles, 'Clearing an exit item', 'exits');
   if (!gate.ok) {
     return gate;
   }
@@ -463,7 +468,7 @@ async function setExitStage(
   exitCaseId: string,
   stage: 'initiated' | 'clearance' | 'settlement' | 'completed',
 ): Promise<ActionResult> {
-  const gate = await requireRoles(exitRoles, 'Changing the exit stage');
+  const gate = await requireRoles(exitRoles, 'Changing the exit stage', 'exits');
   if (!gate.ok) {
     return gate;
   }
@@ -569,73 +574,20 @@ async function setExitStage(
  * Populates initial settlement figures from outstanding reimbursements, approved leave encashment,
  * and unreturned asset values. Stored values may be manually adjusted prior to finalizing settlement.
  */
-async function prepareFullAndFinal(exitCaseId: string): Promise<ActionResult> {
-  const gate = await requireRoles(exitRoles, 'Preparing the settlement');
+async function prepareFullAndFinalWrite(exitCaseId: string): Promise<ActionResult> {
+  const gate = await requireRoles(exitRoles, 'Preparing the settlement', 'exits');
   if (!gate.ok) {
     return gate;
   }
 
-  const queryClient = await createClient();
-  const { data: kase } = await queryClient
-    .from('exit_cases')
-    .select('id, employee_id')
-    .eq('id', exitCaseId)
-    .maybeSingle<{ id: string; employee_id: string }>();
-  if (!kase) {
-    return { ok: false, error: 'That exit case no longer exists.' };
-  }
-
-  // Approved but not yet paid reimbursements follow the employee out.
-  const { data: claims } = await queryClient
-    .from('reimbursement_claims')
-    .select('amount, status')
-    .eq('employee_id', kase.employee_id)
-    .in('status', ['approved', 'finance_review']);
-  const pendingReimbursements = (claims ?? []).reduce(
-    (sum: number, c: any) => sum + (Number(c.amount) || 0),
-    0,
-  );
-
-  const { data: enc } = await queryClient
-    .from('leave_encashment')
-    .select('amount, status')
-    .eq('employee_id', kase.employee_id)
-    .in('status', ['approved', 'paid']);
-  const leaveEncashment = (enc ?? []).reduce(
-    (sum: number, e: any) => sum + (Number(e.amount) || 0),
-    0,
-  );
-
-  const round2 = (n: number) => Math.round(n * 100) / 100;
-  const netPayable = round2(pendingReimbursements + leaveEncashment);
-
-  const { error } = await queryClient.from('full_and_final').upsert(
-    {
-      exit_case_id: exitCaseId,
-      // Every figure here is a `decimal` column, so each goes in as
-      // Decimal128 — an int32 0 fails the validator just as a double does.
-      salary_payable: toMoney(0),
-      leave_encashment: toMoney(round2(leaveEncashment)),
-      pending_reimbursements: toMoney(round2(pendingReimbursements)),
-      asset_recovery: toMoney(0),
-      other_deductions: toMoney(0),
-      net_payable: toMoney(netPayable),
-      status: 'draft',
-      prepared_by: gate.profileId,
-      updated_at: new Date(),
-    },
-    { onConflict: 'exit_case_id' },
-  );
-  if (error) {
-    return { ok: false, error: error.message };
-  }
+  await prepareSettlement(exitCaseId, gate.profileId);
 
   revalidatePath('/exits');
   return { ok: true };
 }
 
 /** Override the derived settlement figures, recomputing the net. */
-async function updateFullAndFinal(
+async function updateFullAndFinalWrite(
   exitCaseId: string,
   fields: {
     salaryPayable: number;
@@ -645,7 +597,7 @@ async function updateFullAndFinal(
     otherDeductions: number;
   },
 ): Promise<ActionResult> {
-  const gate = await requireRoles(exitRoles, 'Updating the settlement');
+  const gate = await requireRoles(exitRoles, 'Updating the settlement', 'exits');
   if (!gate.ok) {
     return gate;
   }
@@ -662,6 +614,23 @@ async function updateFullAndFinal(
   const net = Math.round((salary + leave + reimb - recovery - deductions) * 100) / 100;
 
   const queryClient = await createClient();
+  const snapshot = await queryClient
+    .from('full_and_final')
+    .select('leave_encashment, pending_reimbursements')
+    .eq('exit_case_id', exitCaseId)
+    .eq('status', 'draft')
+    .maybeSingle();
+  if (
+    !snapshot.data ||
+    toPaise(snapshot.data.leave_encashment) !== toPaise(leave) ||
+    toPaise(snapshot.data.pending_reimbursements) !== toPaise(reimb)
+  ) {
+    return {
+      ok: false,
+      error:
+        'Claim and encashment totals must match the reserved payment items. Prepare the draft again to refresh them.',
+    };
+  }
   const { data, error } = await queryClient
     .from('full_and_final')
     .update({
@@ -688,35 +657,16 @@ async function updateFullAndFinal(
 }
 
 /** Approve, then pay, the settlement. */
-async function setFullAndFinalStatus(
+async function setFullAndFinalStatusWrite(
   exitCaseId: string,
   status: 'approved' | 'paid',
 ): Promise<ActionResult> {
-  const gate = await requireRoles(exitRoles, 'Updating the settlement');
+  const gate = await requireRoles(exitRoles, 'Updating the settlement', 'exits');
   if (!gate.ok) {
     return gate;
   }
 
-  const from = status === 'approved' ? 'draft' : 'approved';
-  const queryClient = await createClient();
-  const patch: Record<string, unknown> = { status, updated_at: new Date() };
-  if (status === 'approved') {
-    patch.approved_by = gate.profileId;
-    patch.approved_at = new Date();
-  }
-
-  const { data, error } = await queryClient
-    .from('full_and_final')
-    .update(patch)
-    .eq('exit_case_id', exitCaseId)
-    .eq('status', from)
-    .select('id');
-  if (error) {
-    return { ok: false, error: error.message };
-  }
-  if (wroteNothing(data)) {
-    return { ok: false, error: `Only a ${from} settlement can be marked ${status}.` };
-  }
+  await transitionSettlement(exitCaseId, status, gate.profileId);
 
   revalidatePath('/exits');
   return { ok: true };
@@ -741,3 +691,15 @@ export {
 };
 
 export type { ExitInterviewRow, ActionResult };
+
+async function prepareFullAndFinal(...args: Parameters<typeof prepareFullAndFinalWrite>) {
+  return runAction(() => prepareFullAndFinalWrite(...args));
+}
+
+async function updateFullAndFinal(...args: Parameters<typeof updateFullAndFinalWrite>) {
+  return runAction(() => updateFullAndFinalWrite(...args));
+}
+
+async function setFullAndFinalStatus(...args: Parameters<typeof setFullAndFinalStatusWrite>) {
+  return runAction(() => setFullAndFinalStatusWrite(...args));
+}

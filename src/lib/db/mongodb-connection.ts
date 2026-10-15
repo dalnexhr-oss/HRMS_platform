@@ -1,5 +1,6 @@
 // Reuse a MongoClient connection pool across requests and development hot reloads.
 import { MongoClient } from 'mongodb';
+import { transactionContext } from '@/lib/db/transaction-context';
 import type { Db, ClientSession } from 'mongodb';
 
 const uri = process.env.MONGO_URI ?? process.env.MONGODB_URI;
@@ -76,6 +77,10 @@ async function withTransaction<T>(
   fn: (session: ClientSession | undefined) => Promise<T>,
   options: { required?: boolean } = {},
 ): Promise<T> {
+  const existing = transactionContext.getStore();
+  if (existing) {
+    return fn(existing.session);
+  }
   if (!(await supportsTransactions())) {
     if (options.required) {
       throw new Error(
@@ -100,10 +105,26 @@ async function withTransaction<T>(
   const session = (await client()).startSession();
   try {
     // withTransaction automatically retries transient transaction and commit errors.
-    return await session.withTransaction(() => fn(session), {
-      readConcern: { level: 'snapshot' },
-      writeConcern: { w: 'majority' },
-    });
+    let effects: Array<() => void | Promise<void>> = [];
+    const result = await session.withTransaction(
+      () => {
+        const context = { session, afterCommit: [] as Array<() => void | Promise<void>> };
+        effects = context.afterCommit;
+        return transactionContext.run(context, () => fn(session));
+      },
+      {
+        readConcern: { level: 'snapshot' },
+        writeConcern: { w: 'majority' },
+      },
+    );
+    for (const effect of effects) {
+      try {
+        await effect();
+      } catch (error) {
+        console.error('A post-commit update failed:', error);
+      }
+    }
+    return result;
   } finally {
     await session.endSession();
   }

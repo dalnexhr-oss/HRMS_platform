@@ -5,15 +5,26 @@
  * uploads unverified until staff review them.
  */
 
-import { revalidatePath } from 'next/cache';
+import { runAction, revalidatePath } from '@/lib/db/action';
+import { commitDocumentReplacement } from '@/lib/db/document-replacement';
+import { reserveWrite } from '@/lib/db/write-reservations';
 import { randomUUID } from 'node:crypto';
 import { createClient, createServiceClient } from '@/lib/db/server-client';
 import { getSession } from '@/lib/server-auth';
 import { requireDb, requireRoles, wroteNothing } from '@/lib/actions/guards';
 import { uploadFile, signedUrl, resolveUploadType } from '@/lib/file-storage';
 import { notifyApprovers, notifyEmployee } from '@/lib/notification-delivery';
-import { maxBytes, recordUploadedDocument, resolveTargetEmployee, uploadBucket, verifyRoles } from '@/lib/documents/upload';
-import { getEmployeeDocuments as readEmployeeDocuments, getEmployeeDocumentHistory as readEmployeeDocumentHistory } from '@/lib/queries/documents';
+import {
+  maxBytes,
+  recordUploadedDocument,
+  resolveTargetEmployee,
+  uploadBucket,
+  verifyRoles,
+} from '@/lib/documents/upload';
+import {
+  getEmployeeDocuments as readEmployeeDocuments,
+  getEmployeeDocumentHistory as readEmployeeDocumentHistory,
+} from '@/lib/queries/documents';
 import type { StorageBucket } from '@/lib/file-storage';
 
 interface ActionResult {
@@ -195,43 +206,33 @@ async function uploadSignedDocument(documentId: string, formData: FormData): Pro
     return { ok: false, error: up.error ?? 'The signed letter could not be uploaded.' };
   }
 
-  const service = createServiceClient();
   const signedId = randomUUID();
-  const { data: inserted, error: insertError } = await service
-    .from('employee_documents')
-    .insert({
-      id: signedId,
-      employee_id: employeeId,
-      category: letter.category ?? 'other',
-      title: letter.title ?? file.name,
-      storage_path: up.path,
-      uploaded_by: profile.id,
-      bucket: uploadBucket,
-      doc_group: letter.doc_group ?? letter.id,
-      version: Number(letter.version ?? 1) + 1,
-      replaces_id: letter.id,
-      superseded_at: null,
-      signature: 'signed',
-      verified_by: null,
-      verified_at: null,
-    })
-    .select('id');
-  if (insertError || wroteNothing(inserted)) {
-    return { ok: false, error: insertError?.message ?? 'The signed letter was not filed.' };
-  }
-
-  const { data: closed, error: closeError } = await service
-    .from('employee_documents')
-    .update({ superseded_at: new Date(), replaced_by_id: signedId })
-    .eq('id', letter.id)
-    .eq('employee_id', employeeId)
-    .eq('signature', 'requested')
-    .is('superseded_at', null)
-    .select('id');
-  if (closeError || wroteNothing(closed)) {
-    // Someone else answered first; withdraw this copy so the letter has one signed version.
-    await service.from('employee_documents').delete().eq('id', signedId);
-    return { ok: false, error: 'A signed copy of this letter has already been uploaded.' };
+  try {
+    await commitDocumentReplacement(
+      letter.id,
+      {
+        id: signedId,
+        employee_id: employeeId,
+        category: letter.category ?? 'other',
+        title: letter.title ?? file.name,
+        storage_path: up.path,
+        uploaded_by: profile.id,
+        bucket: uploadBucket,
+        doc_group: letter.doc_group ?? letter.id,
+        version: Number(letter.version ?? 1) + 1,
+        replaces_id: letter.id,
+        superseded_at: null,
+        signature: 'signed',
+        verified_by: null,
+        verified_at: null,
+      },
+      true,
+    );
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'The signed letter was not filed.',
+    };
   }
 
   await notifyApprovers(
@@ -258,7 +259,7 @@ async function replaceEmployeeDocument(
   previousId: string,
   formData: FormData,
 ): Promise<ActionResult> {
-  const gate = await requireRoles(verifyRoles, 'Replacing a document');
+  const gate = await requireRoles(verifyRoles, 'Replacing a document', 'documents');
   if (!gate.ok) {
     return gate;
   }
@@ -336,9 +337,8 @@ async function replaceEmployeeDocument(
   }
 
   const nextId = randomUUID();
-  const { data: inserted, error: insErr } = await queryClient
-    .from('employee_documents')
-    .insert({
+  try {
+    await commitDocumentReplacement(previous.id, {
       id: nextId,
       employee_id: previous.employee_id,
       category,
@@ -346,41 +346,19 @@ async function replaceEmployeeDocument(
       storage_path: up.path,
       uploaded_by: gate.profileId,
       bucket: uploadBucket,
-      // Rows predating versioning carry no group; the chain starts at the row
-      // being replaced, which is exactly what mapDocument() already reports.
       doc_group: previous.doc_group ?? previous.id,
       version: Number(previous.version ?? 1) + 1,
       replaces_id: previous.id,
       superseded_at: null,
-      // Explicitly unverified — see the note above.
       verified_by: null,
       verified_at: null,
       verify_remark: note || null,
-      // HR correcting a letter before it is signed: the new version is what the employee signs.
       signature: previous.signature === 'requested' ? 'requested' : null,
-    })
-    .select('id');
-  if (insErr) {
-    return { ok: false, error: insErr.message };
-  }
-  if (wroteNothing(inserted)) {
+    });
+  } catch (error) {
     return {
       ok: false,
-      error: 'The replacement was not filed — your account may not have permission.',
-    };
-  }
-
-  const { error: supErr } = await queryClient
-    .from('employee_documents')
-    .update({ superseded_at: new Date(), replaced_by_id: nextId })
-    .eq('id', previous.id)
-    .is('superseded_at', null);
-  if (supErr) {
-    return {
-      ok: false,
-      error:
-        `The replacement was filed, but the previous version could not be closed off (${supErr.message}). ` +
-        'Both now show as current — replace again or ask an administrator to tidy it.',
+      error: error instanceof Error ? error.message : 'The replacement was not filed.',
     };
   }
 
@@ -407,7 +385,7 @@ async function verifyEmployeeDocument(
   verified: boolean,
   remark?: string,
 ): Promise<ActionResult> {
-  const gate = await requireRoles(verifyRoles, 'Verifying a document');
+  const gate = await requireRoles(verifyRoles, 'Verifying a document', 'documents');
   if (!gate.ok) {
     return gate;
   }
@@ -466,13 +444,22 @@ async function verifyEmployeeDocument(
  * Delete a document as staff. If it is the current version, restore the preceding version so the
  * remaining chain stays visible.
  */
-async function deleteEmployeeDocument(id: string): Promise<ActionResult> {
-  const gate = await requireRoles(verifyRoles, 'Deleting a document');
+async function deleteEmployeeDocumentWrite(id: string): Promise<ActionResult> {
+  const gate = await requireRoles(verifyRoles, 'Deleting a document', 'documents');
   if (!gate.ok) {
     return gate;
   }
 
   const queryClient = await createClient();
+  const target = await queryClient
+    .from('employee_documents')
+    .select('doc_group')
+    .eq('id', id)
+    .maybeSingle();
+  if (!target.data) {
+    return { ok: false, error: 'That document no longer exists.' };
+  }
+  await reserveWrite(`document:${target.data.doc_group ?? id}`);
   const { data, error } = await queryClient
     .from('employee_documents')
     .delete()
@@ -487,13 +474,19 @@ async function deleteEmployeeDocument(id: string): Promise<ActionResult> {
 
   const removed = data![0] as { replaces_id: string | null; superseded_at: Date | null };
   if (!removed.superseded_at && removed.replaces_id) {
-    // Best-effort: the delete already succeeded, and reporting failure now
-    // would suggest the row is still there. A predecessor left superseded is
-    // visible in the employee's history and can be replaced again.
-    await queryClient
+    // Restore the predecessor in the same transaction; failed restoration also undoes deletion.
+    const restored = await queryClient
       .from('employee_documents')
       .update({ superseded_at: null, replaced_by_id: null })
-      .eq('id', removed.replaces_id);
+      .eq('id', removed.replaces_id)
+      .eq('replaced_by_id', id)
+      .select('id');
+    if (restored.error || !restored.data?.length) {
+      throw new Error(
+        restored.error?.message ??
+          'The previous version could not be restored. Nothing was deleted.',
+      );
+    }
   }
 
   // The storage object is deliberately left in place: the bucket is private and
@@ -507,7 +500,7 @@ async function deleteEmployeeDocument(id: string): Promise<ActionResult> {
 
 /** Client-callable history for one employee (queries/documents.ts is server-only). */
 async function fetchEmployeeDocumentHistory(employeeId: string) {
-  const gate = await requireRoles(verifyRoles, 'Viewing an employee’s documents');
+  const gate = await requireRoles(verifyRoles, 'Viewing an employee’s documents', 'documents');
   if (!gate.ok) {
     return [];
   }
@@ -559,3 +552,7 @@ export {
   fetchEmployeeDocuments,
 };
 export type { StorageBucket, ActionResult };
+
+async function deleteEmployeeDocument(...args: Parameters<typeof deleteEmployeeDocumentWrite>) {
+  return runAction(() => deleteEmployeeDocumentWrite(...args));
+}

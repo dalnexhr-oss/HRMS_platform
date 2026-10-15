@@ -1,12 +1,13 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { runAction, revalidatePath } from '@/lib/db/action';
 import { createClient } from '@/lib/db/server-client';
 import { getSession } from '@/lib/server-auth';
 import { getItemAssignments } from '@/lib/queries/items';
 import { notifyEmployee } from '@/lib/notification-delivery';
 import { requireRoles, wroteNothing } from './guards';
 import { todayIST } from '@/lib/display-formatting';
+import { reserveWrite } from '@/lib/db/write-reservations';
 import type { ItemAssignmentRow } from '@/lib/queries/items';
 import type { AppRole } from '@/types/database';
 
@@ -39,7 +40,7 @@ function itemFields(formData: FormData) {
 }
 
 async function createItem(formData: FormData) {
-  const gate = await requireRoles(itemAdminRoles, 'Adding an item');
+  const gate = await requireRoles(itemAdminRoles, 'Adding an item', 'inventory-management');
   if (!gate.ok) {
     return gate;
   }
@@ -61,8 +62,8 @@ async function createItem(formData: FormData) {
   return { ok: true };
 }
 
-async function updateItem(formData: FormData) {
-  const gate = await requireRoles(itemAdminRoles, 'Updating an item');
+async function updateItemWrite(formData: FormData) {
+  const gate = await requireRoles(itemAdminRoles, 'Updating an item', 'inventory-management');
   if (!gate.ok) {
     return gate;
   }
@@ -78,6 +79,23 @@ async function updateItem(formData: FormData) {
   }
 
   const queryClient = await createClient();
+  await reserveWrite(`inventory:${id}`);
+  const current = await queryClient
+    .from('v_items')
+    .select('quantity_assigned')
+    .eq('id', id)
+    .maybeSingle();
+  if (
+    current.error ||
+    !current.data ||
+    fields.total_quantity < Number(current.data.quantity_assigned)
+  ) {
+    return {
+      ok: false,
+      error:
+        current.error?.message ?? 'Total stock cannot be less than the quantity already assigned.',
+    };
+  }
   const { data, error } = await queryClient.from('items').update(fields).eq('id', id).select('id');
   if (error) {
     return { ok: false, error: error.message };
@@ -92,13 +110,14 @@ async function updateItem(formData: FormData) {
   return { ok: true };
 }
 
-async function deleteItem(id: string) {
-  const gate = await requireRoles(itemAdminRoles, 'Deleting an item');
+async function deleteItemWrite(id: string) {
+  const gate = await requireRoles(itemAdminRoles, 'Deleting an item', 'inventory-management');
   if (!gate.ok) {
     return gate;
   }
 
   const queryClient = await createClient();
+  await reserveWrite(`inventory:${id}`);
   const { data, error } = await queryClient.from('items').delete().eq('id', id).select('id');
   if (error) {
     return { ok: false, error: error.message };
@@ -113,8 +132,8 @@ async function deleteItem(id: string) {
   return { ok: true };
 }
 
-async function assignItem(formData: FormData) {
-  const gate = await requireRoles(itemAdminRoles, 'Assigning an item');
+async function assignItemWrite(formData: FormData) {
+  const gate = await requireRoles(itemAdminRoles, 'Assigning an item', 'inventory-management');
   if (!gate.ok) {
     return gate;
   }
@@ -148,6 +167,7 @@ async function assignItem(formData: FormData) {
   }
 
   const queryClient = await createClient();
+  await reserveWrite(`inventory:${itemId}`);
 
   // How much is still available? Read the derived remaining from v_items.
   const { data: item, error: itemErr } = await queryClient
@@ -216,13 +236,22 @@ async function assignItem(formData: FormData) {
   return { ok: true };
 }
 
-async function returnAssignment(id: string) {
-  const gate = await requireRoles(itemAdminRoles, 'Returning an item');
+async function returnAssignmentWrite(id: string) {
+  const gate = await requireRoles(itemAdminRoles, 'Returning an item', 'inventory-management');
   if (!gate.ok) {
     return gate;
   }
 
   const queryClient = await createClient();
+  const target = await queryClient
+    .from('item_assignments')
+    .select('item_id')
+    .eq('id', id)
+    .maybeSingle();
+  if (!target.data) {
+    return { ok: false, error: 'That assignment no longer exists.' };
+  }
+  await reserveWrite(`inventory:${target.data.item_id}`);
   const { data, error } = await queryClient
     .from('item_assignments')
     .update({ returned: true, returned_date: todayIST() })
@@ -252,13 +281,22 @@ async function returnAssignment(id: string) {
   return { ok: true };
 }
 
-async function deleteAssignment(id: string) {
-  const gate = await requireRoles(itemAdminRoles, 'Deleting an assignment');
+async function deleteAssignmentWrite(id: string) {
+  const gate = await requireRoles(itemAdminRoles, 'Deleting an assignment', 'inventory-management');
   if (!gate.ok) {
     return gate;
   }
 
   const queryClient = await createClient();
+  const target = await queryClient
+    .from('item_assignments')
+    .select('item_id')
+    .eq('id', id)
+    .maybeSingle();
+  if (!target.data) {
+    return { ok: false, error: 'That assignment no longer exists.' };
+  }
+  await reserveWrite(`inventory:${target.data.item_id}`);
   const { data, error } = await queryClient
     .from('item_assignments')
     .delete()
@@ -305,3 +343,23 @@ export {
   deleteAssignment,
   fetchItemAssignments,
 };
+
+async function assignItem(...args: Parameters<typeof assignItemWrite>) {
+  return runAction(() => assignItemWrite(...args));
+}
+
+async function updateItem(...args: Parameters<typeof updateItemWrite>) {
+  return runAction(() => updateItemWrite(...args));
+}
+
+async function deleteItem(...args: Parameters<typeof deleteItemWrite>) {
+  return runAction(() => deleteItemWrite(...args));
+}
+
+async function returnAssignment(...args: Parameters<typeof returnAssignmentWrite>) {
+  return runAction(() => returnAssignmentWrite(...args));
+}
+
+async function deleteAssignment(...args: Parameters<typeof deleteAssignmentWrite>) {
+  return runAction(() => deleteAssignmentWrite(...args));
+}

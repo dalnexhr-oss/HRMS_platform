@@ -26,7 +26,7 @@ async function startOnboarding(
   employeeId: string,
   templateId?: string,
 ): Promise<ActionResult & { created?: number }> {
-  const gate = await requireRoles(onboardingRoles, 'Starting onboarding');
+  const gate = await requireRoles(onboardingRoles, 'Starting onboarding', 'onboarding');
   if (!gate.ok) {
     return gate;
   }
@@ -125,7 +125,7 @@ async function setOnboardingTaskStatus(
   id: string,
   status: (typeof taskStatuses)[number],
 ): Promise<ActionResult> {
-  const gate = await requireRoles(onboardingRoles, 'Updating an onboarding step');
+  const gate = await requireRoles(onboardingRoles, 'Updating an onboarding step', 'onboarding');
   if (!gate.ok) {
     return gate;
   }
@@ -167,7 +167,7 @@ async function addOnboardingTask(input: {
   assigneeRole?: string;
   dueDate?: string;
 }): Promise<ActionResult> {
-  const gate = await requireRoles(onboardingRoles, 'Adding an onboarding step');
+  const gate = await requireRoles(onboardingRoles, 'Adding an onboarding step', 'onboarding');
   if (!gate.ok) {
     return gate;
   }
@@ -209,7 +209,7 @@ async function addOnboardingTask(input: {
 
 /** Remove a step. Used for steps added by mistake or made irrelevant by the role. */
 async function deleteOnboardingTask(id: string): Promise<ActionResult> {
-  const gate = await requireRoles(onboardingRoles, 'Removing an onboarding step');
+  const gate = await requireRoles(onboardingRoles, 'Removing an onboarding step', 'onboarding');
   if (!gate.ok) {
     return gate;
   }
@@ -248,7 +248,7 @@ async function saveOnboardingTemplate(input: {
   active: boolean;
   items: Array<{ title: string; assigneeRole: string | null }>;
 }): Promise<ActionResult> {
-  const gate = await requireRoles(onboardingRoles, 'Changing an onboarding template');
+  const gate = await requireRoles(onboardingRoles, 'Changing an onboarding template', 'onboarding');
   if (!gate.ok) {
     return gate;
   }
@@ -353,7 +353,7 @@ function templateSaveError(error: { code?: string; message: string }, name: stri
 
 /** Delete a template and its steps. Checklists already started from it are unaffected. */
 async function deleteOnboardingTemplate(id: string): Promise<ActionResult> {
-  const gate = await requireRoles(onboardingRoles, 'Deleting an onboarding template');
+  const gate = await requireRoles(onboardingRoles, 'Deleting an onboarding template', 'onboarding');
   if (!gate.ok) {
     return gate;
   }

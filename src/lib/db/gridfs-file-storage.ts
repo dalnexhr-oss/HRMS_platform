@@ -6,6 +6,7 @@ import { pipeline } from 'node:stream/promises';
 import { GridFSBucket } from 'mongodb';
 import { db } from '@/lib/db/mongodb-connection';
 import { currentScope } from '@/lib/db/access-scope';
+import { mayAccessCollection } from '@/lib/db/collection-access';
 import type { GridFSFile, ObjectId } from 'mongodb';
 import type { Scope } from '@/lib/db/access-scope';
 
@@ -56,6 +57,15 @@ async function requireScope(): Promise<Scope> {
 // own path prefix.
 function assertMayRead(scope: Scope, bucket: StorageBucket, path: string): void {
   if (scope.isStaff) {
+    const collection =
+      bucket === 'reimbursement-receipts'
+        ? 'reimbursement_claims'
+        : bucket === 'notice-attachments'
+          ? 'notices'
+          : 'employee_documents';
+    if (!mayAccessCollection(scope, collection)) {
+      throw new StorageAccessError();
+    }
     return;
   }
   if (!employeeScoped.has(bucket)) {
@@ -72,6 +82,15 @@ function assertMayRead(scope: Scope, bucket: StorageBucket, path: string): void 
 // require HR/admin.
 function assertMayWrite(scope: Scope, bucket: StorageBucket, path: string): void {
   if (scope.isStaff) {
+    const collection =
+      bucket === 'reimbursement-receipts'
+        ? 'reimbursement_claims'
+        : bucket === 'notice-attachments'
+          ? 'notices'
+          : 'employee_documents';
+    if (!mayAccessCollection(scope, collection, true)) {
+      throw new StorageAccessError();
+    }
     return;
   }
   if (bucket === 'generated-documents' || bucket === 'notice-attachments') {

@@ -176,7 +176,10 @@ const policies: Partial<Record<string, CollectionPolicy>> = {
           },
     // Employees may only modify their own requests while in 'pending' status.
     write: ownEmployeeInState('employee_id', ['pending']),
-    insert: insertStaffOrOwn('employee_id', { status: 'pending' }),
+    insert: (scope, doc) =>
+      doc.type === 'leave' && doc.leave_kind !== 'LWP'
+        ? 'Only leave without pay is supported.'
+        : insertStaffOrOwn('employee_id', { status: 'pending' })(scope, doc),
     // Routed decisions use a guarded atomic transition in requests/routing.ts. Ordinary employee
     // writes only withdraw a pending owned request; they cannot replace its recipients or approve it.
     check: (s, fields) =>

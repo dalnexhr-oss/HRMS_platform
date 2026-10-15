@@ -42,7 +42,7 @@ async function targetRole(
 async function fetchUserTabAccess(
   userId: string,
 ): Promise<{ ok: true; access: TabAccess } | { ok: false; error: string }> {
-  const gate = await requireRoles(accessAdminRoles, 'Viewing tab access');
+  const gate = await requireRoles(accessAdminRoles, 'Viewing tab access', 'users');
   if (!gate.ok) {
     return { ok: false, error: gate.error };
   }
@@ -68,7 +68,7 @@ async function setUserTabAccess(
   slug: string,
   allowed: boolean,
 ): Promise<ActionResult> {
-  const gate = await requireRoles(accessAdminRoles, 'Changing tab access');
+  const gate = await requireRoles(accessAdminRoles, 'Changing tab access', 'users');
   if (!gate.ok) {
     return gate;
   }
@@ -119,7 +119,7 @@ async function setUserTabAccess(
 
 /** Restore one account to every tab its role is statically entitled to. */
 async function resetUserTabAccess(userId: string): Promise<ActionResult> {
-  const gate = await requireRoles(accessAdminRoles, 'Resetting tab access');
+  const gate = await requireRoles(accessAdminRoles, 'Resetting tab access', 'users');
   if (!gate.ok) {
     return gate;
   }

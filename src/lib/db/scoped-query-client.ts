@@ -3,10 +3,17 @@
  * Collection access is checked through scoped-repository.ts using the query's access scope.
  */
 import 'server-only';
-import { NotSignedInError, ScopeError, readFilterFor, scoped, scopedFor } from '@/lib/db/scoped-repository';
+import {
+  NotSignedInError,
+  ScopeError,
+  readFilterFor,
+  scoped,
+  scopedFor,
+} from '@/lib/db/scoped-repository';
 import { isMongoDuplicateKey, queryErrorCodes } from '@/lib/db/query-errors';
 import { currentScope, systemScope } from '@/lib/db/access-scope';
 import { db } from '@/lib/db/mongodb-connection';
+import { transactionSession } from '@/lib/db/transaction-context';
 import { columnDefaults, now, today } from '@/lib/db/document-defaults';
 import { isView, runView } from '@/lib/db/aggregation-views';
 import { relationshipFor } from '@/lib/db/collection-relationships';
@@ -18,6 +25,11 @@ import type { DefaultValue } from '@/lib/db/document-defaults';
 import type { QueryError, QueryResult } from '@/types/query';
 
 function toQueryError(e: unknown): QueryError {
+  // Preserve driver error labels for whole-transaction retries. No transaction may commit after
+  // a query failure was converted into an ignorable result object.
+  if (transactionSession()) {
+    throw e;
+  }
   if (e instanceof ScopeError) {
     return { message: e.message, code: queryErrorCodes.permissionDenied };
   }

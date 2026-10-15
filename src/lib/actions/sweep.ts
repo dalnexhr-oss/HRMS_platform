@@ -25,7 +25,7 @@ interface OpenDay {
 // Close every open day on `dateISO` ('YYYY-MM-DD'). Defaults to today in the business timezone
 // (Asia/Kolkata) — the sweep is a same-evening job.
 async function runNightSweep(dateISO?: string): Promise<SweepResult> {
-  const gate = await requireStaff('Running the night sweep');
+  const gate = await requireStaff('Running the night sweep', 'dashboard');
   if (!gate.ok) {
     return gate;
   }

@@ -39,7 +39,7 @@ const defaultGeofenceRadiusM = 150;
  * them restores the company-wide fallback.
  */
 async function updateBranchLocation(id: string, formData: FormData): Promise<ActionResult> {
-  const gate = await requireRoles(branchAdminRoles, 'Setting a branch office location');
+  const gate = await requireRoles(branchAdminRoles, 'Setting a branch office location', 'settings');
   if (!gate.ok) {
     return gate;
   }
@@ -122,7 +122,7 @@ async function updateBranchLocation(id: string, formData: FormData): Promise<Act
 
 // Rename a branch and/or move it to another state. Admin/HR, like /settings itself.
 async function updateBranch(id: string, formData: FormData): Promise<ActionResult> {
-  const gate = await requireRoles(branchAdminRoles, 'Updating a branch');
+  const gate = await requireRoles(branchAdminRoles, 'Updating a branch', 'settings');
   if (!gate.ok) {
     return gate;
   }
@@ -180,7 +180,7 @@ async function updateBranch(id: string, formData: FormData): Promise<ActionResul
 
 /** Delete a branch only when no employees reference it. */
 async function deleteBranch(id: string): Promise<ActionResult> {
-  const gate = await requireRoles(branchAdminRoles, 'Deleting a branch');
+  const gate = await requireRoles(branchAdminRoles, 'Deleting a branch', 'settings');
   if (!gate.ok) {
     return gate;
   }

@@ -2,6 +2,8 @@ import 'server-only';
 import { getSession } from '@/lib/server-auth';
 import { collections, usersCollection } from '@/lib/db/collection-registry';
 import { db } from '@/lib/db/mongodb-connection';
+import { transactionSession } from '@/lib/db/transaction-context';
+import { requireTabAccess } from '@/lib/actions/guards';
 import { scoped } from '@/lib/db/scoped-repository';
 import { notifyProfiles } from '@/lib/notification-delivery';
 import { isStaffRole } from '@/lib/user-roles';
@@ -19,7 +21,10 @@ async function getRequestRecipients(): Promise<RequestRecipient[]> {
   const accounts = await users
     .find(
       { disabled: { $ne: true } },
-      { projection: { _id: 1, email: 1, full_name: 1, employee_id: 1, role: 1 } },
+      {
+        session: transactionSession(),
+        projection: { _id: 1, email: 1, full_name: 1, employee_id: 1, role: 1 },
+      },
     )
     .toArray();
   const employeeIds = accounts.flatMap((account) =>
@@ -29,7 +34,10 @@ async function getRequestRecipients(): Promise<RequestRecipient[]> {
     .collection<EmployeeDoc>(collections.employees)
     .find(
       { _id: { $in: employeeIds }, deleted_at: null, status: { $in: ['active', 'on_notice'] } },
-      { projection: { _id: 1, code: 1, full_name: 1, department_name: 1 } },
+      {
+        session: transactionSession(),
+        projection: { _id: 1, code: 1, full_name: 1, department_name: 1 },
+      },
     )
     .toArray();
   const byId = new Map(employees.map((employee) => [employee._id, employee]));
@@ -71,7 +79,10 @@ async function resolveRecipient(id: string, requesterEmployeeId: string): Promis
   const users = await usersCollection();
   const account = await users.findOne(
     { _id: id, disabled: { $ne: true } },
-    { projection: { _id: 1, full_name: 1, email: 1, employee_id: 1, role: 1 } },
+    {
+      session: transactionSession(),
+      projection: { _id: 1, full_name: 1, email: 1, employee_id: 1, role: 1 },
+    },
   );
   if (!account) {
     throw new Error('That recipient is unavailable. Choose an active company account.');
@@ -87,7 +98,7 @@ async function resolveRecipient(id: string, requesterEmployeeId: string): Promis
           deleted_at: null,
           status: { $in: ['active', 'on_notice'] },
         },
-        { projection: { full_name: 1 } },
+        { session: transactionSession(), projection: { full_name: 1 } },
       )
     : null;
   if (
@@ -116,10 +127,11 @@ async function prepareRequestRouting(formData: FormData, employeeId: string) {
   if (ccIds.length > 20) {
     throw new Error('Choose at most 20 CC recipients.');
   }
-  const [approver, ...cc] = await Promise.all([
-    resolveRecipient(approverId, employeeId),
-    ...ccIds.filter((id) => id !== approverId).map((id) => resolveRecipient(id, employeeId)),
-  ]);
+  const approver = await resolveRecipient(approverId, employeeId);
+  const cc: RequestPerson[] = [];
+  for (const id of ccIds.filter((candidate) => candidate !== approverId)) {
+    cc.push(await resolveRecipient(id, employeeId));
+  }
   const database = await db();
   const employee = await database.collection<EmployeeDoc>(collections.employees).findOne(
     {
@@ -127,7 +139,7 @@ async function prepareRequestRouting(formData: FormData, employeeId: string) {
       deleted_at: null,
       status: { $in: ['active', 'on_notice'] },
     },
-    { projection: { full_name: 1, code: 1, branch_name: 1 } },
+    { session: transactionSession(), projection: { full_name: 1, code: 1, branch_name: 1 } },
   );
   if (!employee) {
     throw new Error('Only an active employee can submit a request.');
@@ -158,7 +170,10 @@ async function unavailableApprovers(ids: string[]): Promise<Set<string>> {
   }
   const users = await usersCollection();
   const active = await users
-    .find({ _id: { $in: wanted }, disabled: { $ne: true } }, { projection: { _id: 1 } })
+    .find(
+      { _id: { $in: wanted }, disabled: { $ne: true } },
+      { session: transactionSession(), projection: { _id: 1 } },
+    )
     .toArray();
   const activeIds = new Set(active.map((user) => user._id));
   return new Set(wanted.filter((id) => !activeIds.has(id)));
@@ -181,6 +196,12 @@ async function reviewRoutedRequest(
   if (decision === 'rejected' && nextApproverId) {
     throw new Error('A rejected request cannot be forwarded for approval.');
   }
+  if (isStaffRole(profile.role)) {
+    const denied = await requireTabAccess('approvals');
+    if (denied) {
+      throw new Error(denied);
+    }
+  }
   const requests = await scoped<RequestDoc>(collections.requests);
   const request = await requests.findOne({ _id: id });
   if (!request) {
@@ -191,6 +212,11 @@ async function reviewRoutedRequest(
   }
   if (request.status !== 'pending') {
     throw new Error('This request has already been reviewed or cancelled.');
+  }
+  if (decision === 'approved' && request.type === 'leave' && request.leave_kind !== 'LWP') {
+    throw new Error(
+      'Paid-leave requests cannot be approved or forwarded. Submit leave without pay.',
+    );
   }
   const route = request.approval_route;
   if (!route) {
@@ -212,7 +238,7 @@ async function reviewRoutedRequest(
         .collection<EmployeeDoc>(collections.employees)
         .findOne(
           { _id: request.employee_id },
-          { projection: { full_name: 1, code: 1, branch_name: 1 } },
+          { session: transactionSession(), projection: { full_name: 1, code: 1, branch_name: 1 } },
         );
       const updated = await database.collection<RequestDoc>(collections.requests).findOneAndUpdate(
         { _id: id, status: 'pending', approval_route: null },
@@ -230,7 +256,7 @@ async function reviewRoutedRequest(
             },
           },
         },
-        { returnDocument: 'after' },
+        { returnDocument: 'after', session: transactionSession() },
       );
       if (!updated) {
         throw new Error('This request changed or was cancelled. Refresh before reviewing it.');
@@ -295,7 +321,7 @@ async function reviewRoutedRequest(
         },
       },
     },
-    { returnDocument: 'after' },
+    { returnDocument: 'after', session: transactionSession() },
   );
   if (!updated) {
     throw new Error('This request changed or was cancelled. Refresh before reviewing it.');

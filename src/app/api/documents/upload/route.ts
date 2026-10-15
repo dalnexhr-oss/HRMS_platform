@@ -19,10 +19,7 @@ function bad(error: string, status = 400) {
   return NextResponse.json({ ok: false, error, code: codeForStatus(status) }, { status });
 }
 
-/**
- * Enforce the size limit while reading. Content-Length is optional and supplied by the client, so
- * it cannot replace a byte count.
- */
+// The request body is a stream, so we can enforce the maximum size as it arrives. If the limit is exceeded, the stream errors and the GridFS write is aborted.
 function capped(body: ReadableStream<Uint8Array>, limit: number): ReadableStream<Uint8Array> {
   let seen = 0;
   return body.pipeThrough(

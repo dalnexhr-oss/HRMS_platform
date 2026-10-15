@@ -59,7 +59,7 @@ async function savePtSlab(formData: FormData): Promise<ActionResult> {
     return { ok: false, error: 'Enter the monthly tax amount for this slab.' };
   }
 
-  const gate = await requireRoles(slabRoles, 'Changing professional tax slabs');
+  const gate = await requireRoles(slabRoles, 'Changing professional tax slabs', 'professional-tax');
   if (!gate.ok) {
     return gate;
   }
@@ -94,7 +94,11 @@ async function savePtSlab(formData: FormData): Promise<ActionResult> {
 
 /** Delete a slab by id. */
 async function deletePtSlab(id: string): Promise<ActionResult> {
-  const gate = await requireRoles(slabRoles, 'Deleting a professional tax slab');
+  const gate = await requireRoles(
+    slabRoles,
+    'Deleting a professional tax slab',
+    'professional-tax',
+  );
   if (!gate.ok) {
     return gate;
   }

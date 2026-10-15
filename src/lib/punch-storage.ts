@@ -1,5 +1,6 @@
 import 'server-only';
 import { db, withTransaction } from '@/lib/db/mongodb-connection';
+import { reserveAttendanceMonth } from '@/lib/db/write-reservations';
 import { monthSealReason, periodMonthFor } from '@/lib/payroll-month';
 import { localParts, dayFloorUtc, summarizePunches } from '@/lib/punch-day';
 import { autoCloseDay, clockToMinutes, minutesToClock } from '@/lib/attendance-rules';
@@ -46,8 +47,7 @@ async function readDayEvents(
 async function punchWriteReason(
   employeeId: string,
   date: string,
-  session?: ClientSession,
-): Promise<string | null> {
+  session?: ClientSession): Promise<string | null> {await reserveAttendanceMonth(date, session);
   const database = await db();
   const employee = await database
     .collection<StoredDoc>('employees')
@@ -102,6 +102,7 @@ async function closePunchDay(
       if (monthSealReason(periodMonth, run)) {
         return false;
       }
+      await reserveAttendanceMonth(day.work_date, session);
       const events = await readDayEvents(day.employee_id, day.work_date, session);
       const summary = summarizePunches(events);
       // Legacy/imported days have no raw events; retain the existing first-in fallback for them.

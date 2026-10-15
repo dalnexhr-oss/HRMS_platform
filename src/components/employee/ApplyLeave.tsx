@@ -1,13 +1,14 @@
 'use client';
 
+import Link from 'next/link';
 import { useActionState, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createRequest, cancelRequest } from '@/lib/actions/requests';
 import { applyCompOff } from '@/lib/actions/comp-off';
 import { todayIST } from '@/lib/display-formatting';
-import Link from 'next/link';
 import { RequestRecipients } from '@/components/requests/RequestRecipients';
 import { RequestRoutingSummary } from '@/components/requests/RequestRoutingSummary';
+import { requestLeaveKinds } from '@/lib/requests/leave-policy';
 import type { LeaveBalanceRow } from '@/lib/queries/leave';
 import type { RequestView } from '@/lib/queries/requests';
 import type { RequestType } from '@/types/database';
@@ -35,7 +36,7 @@ const leaveKindLabel: Record<LeaveBalanceRow['type'], string> = {
 /** Options available when Request Type is 'leave'. Comp off reservations route through applyCompOff. */
 const leaveKindOptions = [
   { value: 'CO', label: 'Comp off' },
-  { value: 'LWP', label: 'Leave without pay' },
+  ...requestLeaveKinds.map((value) => ({ value, label: 'Leave without pay' })),
 ] as const;
 
 type LeaveKindChoice = (typeof leaveKindOptions)[number]['value'];

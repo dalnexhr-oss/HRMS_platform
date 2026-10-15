@@ -1,7 +1,7 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
-import { inclusiveDays, leaveDayCount, stampDutyOnRegister, stampLeaveOnRegister, unstampApprovedDays } from '@/lib/requests/leave-attendance';
+import { runAction, revalidatePath } from '@/lib/db/action';
+import { inclusiveDays, leaveDayCount, stampDutyOnRegister, stampLeaveOnRegister, unstampApprovedDays} from '@/lib/requests/leave-attendance';
 import { todayIST } from '@/lib/display-formatting';
 import { createClient, createServiceClient } from '@/lib/db/server-client';
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
@@ -11,7 +11,9 @@ import { releaseCompOff, settleApprovedCompOff } from '@/lib/compensatory-off-se
 import { toDecimal } from '@/lib/db/decimal-conversions';
 import { notifyApprovers, notifyEmployee } from '@/lib/notification-delivery';
 import { requestOverlapProblem, requestStartProblem } from '@/lib/requests/date-rules';
-import { notifyRequestParticipants, prepareRequestRouting, reviewRoutedRequest } from '@/lib/requests/routing';
+import { requestLeaveKinds } from '@/lib/requests/leave-policy';
+import { reserveWrite, reserveAttendanceMonth } from '@/lib/db/write-reservations';
+import {notifyRequestParticipants,prepareRequestRouting, reviewRoutedRequest} from '@/lib/requests/routing';
 import type { LeaveType, RequestType } from '@/types/database';
 import type { RequestRouteDoc } from '@/lib/db/collection-registry';
 
@@ -26,7 +28,7 @@ interface ActionResult {
 
 const requestTypes: readonly RequestType[] = ['leave', 'site_visit', 'outdoor_duty', 'wfh'];
 // Supported leave category identifiers for balance deductions.
-const leaveTypes: readonly LeaveType[] = ['PL', 'LWP', 'CL', 'SL'];
+const leaveTypes: readonly LeaveType[] = requestLeaveKinds;
 
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -128,7 +130,7 @@ async function decideApprovalStep(
  * Decide a pending request. Select the updated row to distinguish a saved decision from an
  * already-reviewed or policy-blocked request.
  */
-async function reviewRequest(
+async function reviewRequestWrite(
   id: string,
   decision: 'approved' | 'rejected',
   /** Approver decision reason, stored on request and displayed to employee. */
@@ -188,7 +190,7 @@ async function reviewRequest(
   if (routed.kind === 'final') {
     reviewed = routed.request;
   } else {
-    const gate = await requireStaff(`Marking a request ${decision}`);
+    const gate = await requireStaff(`Marking a request ${decision}`, 'approvals');
     if (!gate.ok) {
       return gate;
     }
@@ -248,8 +250,14 @@ async function reviewRequest(
     };
   }
 
-  // The decision is committed before side effects. Report follow-up failures as warnings; the
-  // pending-status guard prevents applying a transition twice.
+  // The decision and all financial/register effects share the enclosing transaction.
+  if (decision === 'approved' && reviewed.type === 'leave' && reviewed.leave_kind !== 'LWP') {
+    return {
+      ok: false,
+      error:
+        'Paid-leave requests cannot be approved. Ask the employee to submit leave without pay.',
+    };
+  }
   let warning: string | null = null;
 
   // Comp-off: approving spends the credit and stamps the day 'CO'; rejecting
@@ -259,67 +267,6 @@ async function reviewRequest(
       warning = await settleApprovedCompOff(id, queryClient);
     } else {
       await releaseCompOff(id, queryClient);
-    }
-  }
-
-  // Leave: approving a paid leave (PL/CL/SL — not LWP) draws it down from the
-  // employee's yearly balance. Rejecting deducts nothing (the balance is only
-  // spent on approval).
-  if (
-    reviewed.type === 'leave' &&
-    decision === 'approved' &&
-    reviewed.leave_kind &&
-    reviewed.leave_kind !== 'LWP'
-  ) {
-    const year = Number(reviewed.start_date.slice(0, 4));
-    // Deduct only if the balance still matches the value read. Retry concurrent changes to
-    // preserve each deduction.
-    let deducted = false;
-    for (let attempt = 0; attempt < 3 && !deducted; attempt++) {
-      const { data: bal, error: balReadErr } = await queryClient
-        .from('leave_balances')
-        .select('id, balance')
-        .eq('employee_id', reviewed.employee_id)
-        .eq('year', year)
-        .eq('type', reviewed.leave_kind)
-        .maybeSingle<{ id: string; balance: number }>();
-      if (balReadErr) {
-        warning = `Approved, but the ${reviewed.leave_kind} balance could not be read: ${balReadErr.message}`;
-        break;
-      }
-      if (!bal) {
-        // No balance row for this kind/year. The approval still stands
-        // (refusing it would strand HR mid-flow), but say so loudly.
-        warning =
-          `Approved, but ${reviewed.leave_kind} has no balance on record for ${year}, so nothing was deducted. ` +
-          `Provision the leave year from the Leave salary page so entitlements are tracked.`;
-        break;
-      }
-      const next = Number(bal.balance) - Number(reviewed.days ?? 0);
-      const { data: casRows, error: balErr } = await queryClient
-        .from('leave_balances')
-        .update({ balance: toDecimal(next) })
-        .eq('id', bal.id)
-        // Compare against the stored value exactly; rounding or converting it can break the
-        // conditional update.
-        .eq('balance', bal.balance)
-        .select('id');
-      if (balErr) {
-        warning = `Approved, but the ${reviewed.leave_kind} balance could not be updated: ${balErr.message}`;
-        break;
-      }
-      if (casRows && casRows.length > 0) {
-        deducted = true;
-        if (next < 0) {
-          // Approving past zero is allowed (HR sometimes must), but it is never
-          // silent — an overdrawn balance is a payroll problem later.
-          warning =
-            `Approved, but this takes ${reviewed.leave_kind} to ${next} day(s) — the balance is now overdrawn. ` +
-            `Correct it from the Leave salary page, or convert the excess to LWP.`;
-        }
-      } else if (attempt === 2) {
-        warning = `Approved, but the ${reviewed.leave_kind} balance was contended and could not be updated. Adjust it from the Leave salary page.`;
-      }
     }
   }
 
@@ -349,6 +296,10 @@ async function reviewRequest(
     if (stampWarning) {
       warning = warning ? `${warning} ${stampWarning}` : stampWarning;
     }
+  }
+
+  if (warning) {
+    throw new Error(warning);
   }
 
   // Tell the employee the outcome. Look the owner up rather than trusting the
@@ -397,7 +348,7 @@ async function reviewRequest(
  * Create a request for the signed-in employee. Derive employee_id from the session; the collection
  * policy also enforces ownership.
  */
-async function createRequest(formData: FormData): Promise<ActionResult> {
+async function createRequestWrite(formData: FormData): Promise<ActionResult> {
   // validate the form before touching auth or the network
   const type = String(formData.get('type') ?? '').trim() as RequestType;
   if (!requestTypes.includes(type)) {
@@ -409,7 +360,10 @@ async function createRequest(formData: FormData): Promise<ActionResult> {
   if (type === 'leave') {
     const raw = String(formData.get('leave_kind') ?? '').trim() as LeaveType;
     if (!leaveTypes.includes(raw)) {
-      return { ok: false, error: 'Pick a leave type (Paid leave / Leave without pay).' };
+      return {
+        ok: false,
+        error: 'Only leave without pay is supported. Use comp off for an earned credit.',
+      };
     }
     leaveKind = raw;
   }
@@ -433,25 +387,6 @@ async function createRequest(formData: FormData): Promise<ActionResult> {
     return { ok: false, error: 'The end date cannot be before the start date.' };
   }
 
-  // Leave is costed against the week-off/holiday calendar (and the sandwich
-  // policy); other request types keep the plain calendar span.
-  const days =
-    type === 'leave'
-      ? await leaveDayCount(startRaw, endRaw, start, end)
-      : inclusiveDays(start, end);
-
-  if (type === 'leave' && days <= 0) {
-    return {
-      ok: false,
-      error:
-        'Those dates are all week-offs or holidays, so there is no working day to take leave on.',
-    };
-  }
-  // Validate day count within bounds before persistence.
-  if (days > 999) {
-    return { ok: false, error: 'That range is too long to submit as a single request.' };
-  }
-
   const reason = String(formData.get('reason') ?? '').trim() || null;
 
   // a write with no database is a failure, not a success
@@ -473,8 +408,28 @@ async function createRequest(formData: FormData): Promise<ActionResult> {
     };
   }
 
+  // Leave is costed against the week-off/holiday calendar (and the sandwich
+  // policy); other request types keep the plain calendar span.
+  const days =
+    type === 'leave'
+      ? await leaveDayCount(startRaw, endRaw, employeeId)
+      : inclusiveDays(start, end);
+
+  if (type === 'leave' && days <= 0) {
+    return {
+      ok: false,
+      error:
+        'Those dates are all week-offs or holidays, so there is no working day to take leave on.',
+    };
+  }
+  // Validate day count within bounds before persistence.
+  if (days > 999) {
+    return { ok: false, error: 'That range is too long to submit as a single request.' };
+  }
+
   const queryClient = await createClient();
   let routing: Awaited<ReturnType<typeof prepareRequestRouting>>;
+  await reserveWrite(`requests:${employeeId}`);
   try {
     routing = await prepareRequestRouting(formData, employeeId);
   } catch (error) {
@@ -581,6 +536,7 @@ async function cancelApprovedRequest(
 
   const warnings: string[] = [];
   if (request.type === 'comp_off') {
+    await reserveAttendanceMonth(startDate);
     // Approval spent the credit and stamped the day CO; give both back.
     await queryClient
       .from('comp_offs')
@@ -610,6 +566,10 @@ async function cancelApprovedRequest(
     if (unstampWarning) {
       warnings.push(unstampWarning);
     }
+  }
+
+  if (warnings.length > 0) {
+    throw new Error(warnings.join(' '));
   }
 
   // Paid leave was drawn down on approval; put the days back.
@@ -642,6 +602,9 @@ async function cancelApprovedRequest(
     }
   }
 
+  if (warnings.length > 0) {
+    throw new Error(warnings.join(' '));
+  }
   const row = cancelled[0] as { approval_route?: RequestRouteDoc; employee_name?: string };
   if (row.approval_route) {
     await notifyRequestParticipants(
@@ -665,7 +628,7 @@ async function cancelApprovedRequest(
  * Withdraw an owned request: a pending one at any time, or an approved one that has not started.
  * Check the returned row so wrong-owner, reviewed, and policy-blocked updates cannot report success.
  */
-async function cancelRequest(id: string): Promise<ActionResult> {
+async function cancelRequestWrite(id: string): Promise<ActionResult> {
   if (!isMongoConfigured()) {
     return {
       ok: false,
@@ -726,3 +689,15 @@ async function cancelRequest(id: string): Promise<ActionResult> {
 
 export { reviewRequest, createRequest, cancelRequest };
 export type { ActionResult };
+
+async function reviewRequest(...args: Parameters<typeof reviewRequestWrite>) {
+  return runAction(() => reviewRequestWrite(...args));
+}
+
+async function cancelRequest(...args: Parameters<typeof cancelRequestWrite>) {
+  return runAction(() => cancelRequestWrite(...args));
+}
+
+async function createRequest(...args: Parameters<typeof createRequestWrite>) {
+  return runAction(() => createRequestWrite(...args));
+}

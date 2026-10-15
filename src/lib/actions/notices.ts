@@ -99,7 +99,7 @@ async function createNotice(formData: FormData) {
     return pdf;
   }
 
-  const gate = await requireStaff('Publishing a notice');
+  const gate = await requireStaff('Publishing a notice', 'notices');
   if (!gate.ok) {
     return gate;
   }
@@ -180,7 +180,7 @@ async function updateNotice(id: string, formData: FormData) {
     return pdf;
   }
 
-  const gate = await requireStaff('Editing a notice');
+  const gate = await requireStaff('Editing a notice', 'notices');
   if (!gate.ok) {
     return gate;
   }
@@ -222,7 +222,10 @@ async function updateNotice(id: string, formData: FormData) {
  * (and notifies everyone); unpublishing clears it back to a draft.
  */
 async function setNoticePublished(id: string, published: boolean) {
-  const gate = await requireStaff(published ? 'Publishing a notice' : 'Unpublishing a notice');
+  const gate = await requireStaff(
+    published ? 'Publishing a notice' : 'Unpublishing a notice',
+    'notices',
+  );
   if (!gate.ok) {
     return gate;
   }
@@ -299,7 +302,7 @@ async function getNoticePdfUrl(id: string): Promise<{ ok: boolean; url?: string;
 
 /** Delete a notice by id. */
 async function deleteNotice(id: string) {
-  const gate = await requireStaff('Deleting a notice');
+  const gate = await requireStaff('Deleting a notice', 'notices');
   if (!gate.ok) {
     return gate;
   }

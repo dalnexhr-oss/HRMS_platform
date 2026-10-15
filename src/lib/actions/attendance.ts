@@ -2,12 +2,14 @@
 
 // Save manual attendance corrections with the reason and actor, then record the change in
 // activity_log. Failed writes must return an error.
-import { revalidatePath } from 'next/cache';
+import { runAction, revalidatePath } from '@/lib/db/action';
 import { createClient } from '@/lib/db/server-client';
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { getSession } from '@/lib/server-auth';
 import { hhmmToMinutes, todayIST } from '@/lib/display-formatting';
 import { isWorkedStatus } from '@/lib/attendance-status';
+import { isCalendarDate } from '@/lib/calendar-dates';
+import { consumeManualCompOff } from '@/lib/db/manual-comp-off';
 import { requireStaff, requireOpenPayrollMonth } from '@/lib/actions/guards';
 import type { AppRole, AttendanceStatus } from '@/types/database';
 
@@ -63,13 +65,12 @@ function str(v: FormDataEntryValue | null): string {
 }
 
 const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const dateRe = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Correct one employee's attendance and record an audit entry. Limit callers to writeRoles; the
  * collection policy enforces the same restriction.
  */
-async function correctAttendance(formData: FormData): Promise<CorrectionState> {
+async function correctAttendanceWrite(formData: FormData): Promise<CorrectionState> {
   // inputs
   const employeeId = str(formData.get('employee_id'));
   const workDate = str(formData.get('work_date'));
@@ -102,7 +103,7 @@ async function correctAttendance(formData: FormData): Promise<CorrectionState> {
   if (!uuidRe.test(employeeId)) {
     return { ok: false, error: 'This row has no database id, so the correction cannot be saved.' };
   }
-  if (!dateRe.test(workDate)) {
+  if (!isCalendarDate(workDate)) {
     return { ok: false, error: `Invalid work date: ${workDate || '(missing)'}` };
   }
   if (!isAllowedStatus(status)) {
@@ -154,6 +155,11 @@ async function correctAttendance(formData: FormData): Promise<CorrectionState> {
   }
 
   const queryClient = await createClient();
+
+  const access = await requireStaff('Correcting attendance', 'monthly-register');
+  if (!access.ok) {
+    return access;
+  }
 
   // Name the employee in the audit message, and prove the id is real.
   const { data: employee, error: employeeError } = await queryClient
@@ -221,44 +227,8 @@ async function correctAttendance(formData: FormData): Promise<CorrectionState> {
     };
   }
 
-  // comp-off availment
-  // When manually recording a comp-off ('CO'), deduct oldest available credit (FIFO).
-  // Non-fatal warning if deduction fails so the attendance correction itself is preserved.
-  let compOffWarning: string | null = null;
   if (status === 'CO') {
-    // Idempotence: re-saving the same day must not spend a second credit.
-    const { data: already } = await queryClient
-      .from('comp_offs')
-      .select('id')
-      .eq('employee_id', employeeId)
-      .eq('used_date', workDate)
-      .in('status', ['applied', 'used'])
-      .limit(1);
-    if (!already || already.length === 0) {
-      const fifo = await queryClient
-        .from('comp_offs')
-        .select('id')
-        .eq('employee_id', employeeId)
-        .eq('status', 'available')
-        .eq('is_applicable', true)
-        .order('expires_on', { ascending: true, nullsFirst: false })
-        .order('earned_date', { ascending: true })
-        .limit(1)
-        .maybeSingle<{ id: string }>();
-      if (fifo.data?.id) {
-        const { error: spendErr } = await queryClient
-          .from('comp_offs')
-          .update({ status: 'used', used_date: workDate })
-          .eq('id', fifo.data.id)
-          .eq('status', 'available');
-        if (spendErr) {
-          compOffWarning = `The day was stamped CO, but the comp-off credit could not be closed: ${spendErr.message}`;
-        }
-      } else if (!fifo.error) {
-        compOffWarning =
-          'The day was stamped CO, but this employee has no usable comp-off credit to deduct — the balance was not reduced.';
-      }
-    }
+    await consumeManualCompOff(employeeId, workDate);
   }
 
   // audit log
@@ -280,9 +250,7 @@ async function correctAttendance(formData: FormData): Promise<CorrectionState> {
     },
   });
 
-  // The attendance row is already committed — these are two separate writes
-  // with no transaction around them. Surface the audit failure as a WARNING on a
-  // success — the correction itself is saved, and screens must show it as such.
+  // Cache invalidation runs only after the attendance, credit and audit writes commit.
   revalidatePath('/monthly-register');
   if (status === 'CO') {
     // the employee's balance moved
@@ -290,7 +258,6 @@ async function correctAttendance(formData: FormData): Promise<CorrectionState> {
     revalidatePath('/employee', 'layout');
   }
   const warnings = [
-    compOffWarning,
     logError ? `Attendance was updated, but the audit-log entry failed: ${logError.message}` : null,
   ].filter(Boolean);
   if (warnings.length > 0) {
@@ -371,7 +338,7 @@ interface BulkTarget {
  * whole batch if any month is closed. A worked status takes one pair of punch timings for every
  * selected day; any other status clears punches and hours.
  */
-async function correctAttendanceBulk(input: {
+async function correctAttendanceBulkWrite(input: {
   targets: BulkTarget[];
   status: string;
   reason: string;
@@ -418,12 +385,12 @@ async function correctAttendanceBulk(input: {
   }
 
   for (const t of targets) {
-    if (!uuidRe.test(t.employeeId) || !dateRe.test(t.workDate)) {
+    if (!uuidRe.test(t.employeeId) || !isCalendarDate(t.workDate)) {
       return { ok: false, error: 'One of the selected cells is invalid, so nothing was changed.' };
     }
   }
 
-  const gate = await requireStaff('Bulk-correcting attendance');
+  const gate = await requireStaff('Bulk-correcting attendance', 'monthly-register');
   if (!gate.ok) {
     return gate;
   }
@@ -436,6 +403,12 @@ async function correctAttendanceBulk(input: {
     const open = await requireOpenPayrollMonth(queryClient, `${month}-01`);
     if (!open.ok) {
       return open;
+    }
+  }
+
+  if (status === 'CO') {
+    for (const target of targets) {
+      await consumeManualCompOff(target.employeeId, target.workDate);
     }
   }
 
@@ -498,3 +471,11 @@ async function correctAttendanceBulk(input: {
 
 export { correctAttendance, correctAttendanceBulk };
 export { type CorrectionState, type BulkTarget };
+
+async function correctAttendance(...args: Parameters<typeof correctAttendanceWrite>) {
+  return runAction(() => correctAttendanceWrite(...args));
+}
+
+async function correctAttendanceBulk(...args: Parameters<typeof correctAttendanceBulkWrite>) {
+  return runAction(() => correctAttendanceBulkWrite(...args));
+}

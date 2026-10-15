@@ -269,7 +269,7 @@ function parseSalary(
  * though this operation only reads.
  */
 async function fetchEmployeeForEdit(code: string): Promise<EmployeeEditRow | null> {
-  const gate = await requireStaff('Loading an employee for editing');
+  const gate = await requireStaff('Loading an employee for editing', 'employees');
   if (!gate.ok) {
     return null;
   }
@@ -413,7 +413,7 @@ async function provisionCurrentLeaveYear(
 }
 
 async function createEmployee(formData: FormData) {
-  const gate = await requireStaff('Adding an employee');
+  const gate = await requireStaff('Adding an employee', 'employees');
   if (!gate.ok) {
     return gate;
   }
@@ -569,7 +569,7 @@ async function createEmployee(formData: FormData) {
  * `original_code` field. Same validation as create.
  */
 async function updateEmployee(formData: FormData) {
-  const gate = await requireStaff('Updating an employee');
+  const gate = await requireStaff('Updating an employee', 'employees');
   if (!gate.ok) {
     return gate;
   }
@@ -689,7 +689,7 @@ async function updateEmployee(formData: FormData) {
 
 /** Deactivate an employee (status -> 'inactive'). Keyed by code. */
 async function deactivateEmployee(code: string) {
-  const gate = await requireStaff('Deactivating an employee');
+  const gate = await requireStaff('Deactivating an employee', 'employees');
   if (!gate.ok) {
     return gate;
   }
@@ -731,7 +731,7 @@ async function deactivateEmployee(code: string) {
 
 /** Bring a deactivated employee back onto the active roster. */
 async function reactivateEmployee(code: string) {
-  const gate = await requireStaff('Reactivating an employee');
+  const gate = await requireStaff('Reactivating an employee', 'employees');
   if (!gate.ok) {
     return gate;
   }

@@ -117,7 +117,7 @@ async function employeeLabels(
 async function listUsers(): Promise<
   { ok: true; users: ManagedUser[] } | { ok: false; error: string }
 > {
-  const gate = await requireRoles(userAdminRoles, 'Viewing user accounts');
+  const gate = await requireRoles(userAdminRoles, 'Viewing user accounts', 'users');
   if (!gate.ok) {
     return { ok: false, error: gate.error };
   }
@@ -170,7 +170,7 @@ async function listUsers(): Promise<
  * from "My account", and an admin can trigger a reset email.
  */
 async function createUser(formData: FormData): Promise<ActionResult> {
-  const gate = await requireRoles(userAdminRoles, 'Adding a user');
+  const gate = await requireRoles(userAdminRoles, 'Adding a user', 'users');
   if (!gate.ok) {
     return gate;
   }
@@ -266,7 +266,7 @@ async function updateUserPunchAccess(
   userId: string,
   punchAccess: PunchAccess,
 ): Promise<ActionResult> {
-  const gate = await requireRoles(userAdminRoles, 'Changing punch access');
+  const gate = await requireRoles(userAdminRoles, 'Changing punch access', 'users');
   if (!gate.ok) {
     return gate;
   }
@@ -308,7 +308,7 @@ async function updateUserRole(
   role: AppRole,
   employeeId: string | null,
 ): Promise<ActionResult> {
-  const gate = await requireRoles(userAdminRoles, 'Changing a user’s role');
+  const gate = await requireRoles(userAdminRoles, 'Changing a user’s role', 'users');
   if (!gate.ok) {
     return gate;
   }
@@ -384,7 +384,7 @@ async function updateUserRole(
  * - Prevents self-deletion, deleting superior roles, or deleting the last admin account.
  */
 async function deleteUser(userId: string): Promise<ActionResult> {
-  const gate = await requireRoles(userAdminRoles, 'Deleting a user');
+  const gate = await requireRoles(userAdminRoles, 'Deleting a user', 'users');
   if (!gate.ok) {
     return gate;
   }
@@ -414,7 +414,7 @@ async function deleteUser(userId: string): Promise<ActionResult> {
  * checks disabled on every request.
  */
 async function setUserDisabled(userId: string, disabled: boolean): Promise<ActionResult> {
-  const gate = await requireRoles(userAdminRoles, 'Changing sign-in access');
+  const gate = await requireRoles(userAdminRoles, 'Changing sign-in access', 'users');
   if (!gate.ok) {
     return gate;
   }
@@ -458,7 +458,7 @@ async function setUserDisabled(userId: string, disabled: boolean): Promise<Actio
 
 /** Admin-triggered password reset email (the user then sets their own). */
 async function sendPasswordReset(email: string): Promise<ActionResult> {
-  const gate = await requireRoles(userAdminRoles, 'Sending a password reset');
+  const gate = await requireRoles(userAdminRoles, 'Sending a password reset', 'users');
   if (!gate.ok) {
     return gate;
   }
@@ -532,7 +532,7 @@ async function sendPasswordReset(email: string): Promise<ActionResult> {
 
 /** Set a new password for an account directly (admin/HR, e.g. no email access). */
 async function setUserPassword(userId: string, password: string): Promise<ActionResult> {
-  const gate = await requireRoles(userAdminRoles, 'Setting a password');
+  const gate = await requireRoles(userAdminRoles, 'Setting a password', 'users');
   if (!gate.ok) {
     return gate;
   }

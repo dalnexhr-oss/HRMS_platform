@@ -2,11 +2,9 @@ import 'server-only';
 import { createClient } from '@/lib/db/server-client';
 import { defaultWeekOffPolicy, policyFromSettings } from '@/lib/weekly-off-policy';
 import { fail } from '@/lib/queries/shared';
-import { scoped } from '@/lib/db/scoped-repository';
-import { collections } from '@/lib/db/collection-registry';
+import { getSessionUser } from '@/lib/auth/session';
 import type { WeekOffPolicy } from '@/lib/weekly-off-policy';
 import type { TabAccess } from '@/lib/portal-access';
-import type { UserDoc } from '@/lib/db/collection-registry';
 
 // week-off policy
 /**
@@ -63,8 +61,10 @@ async function getMyTabAccess(userId: string | null): Promise<TabAccess> {
   }
   // Read tab-access overrides from the session's user document to avoid a separate query on every
   // portal request.
-  const users = await scoped<UserDoc>(collections.users);
-  const user = await users.findOne({ _id: userId }, { projection: { tab_access: 1 } });
+  const user = await getSessionUser();
+  if (user?._id !== userId) {
+    return {};
+  }
   return (user?.tab_access as TabAccess) ?? {};
 }
 

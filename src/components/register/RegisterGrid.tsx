@@ -365,7 +365,10 @@ function RegisterGrid({
                     <span className="entry-details">{e.code}</span>
                   </div>
                   <div className="register-row-footer">
-                    <span className="entry-details" data-tooltip-content="Worked hours / target hours">
+                    <span
+                      className="entry-details"
+                      data-tooltip-content="Worked hours / target hours"
+                    >
                       {formatHrs(e.workedMinutes)} / {formatHrs(e.targetMinutes)} hrs
                     </span>
                     <button
@@ -410,8 +413,7 @@ function RegisterGrid({
                       </span>
                       {/* if late mark is more than 3 times, than it is counted as a half day */}
                       <span>
-                        payable{' '}
-                        <b>{e.summary.working + e.summary.WO + e.summary.HD - e.summary.L}</b>
+                        payable <b>{e.summary.payable}</b>
                       </span>
                     </div>
                     <div className={`worked-hours-bar${short ? ' has-hours-shortfall' : ''}`}>

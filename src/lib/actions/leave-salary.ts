@@ -61,7 +61,11 @@ async function saveLeaveSalaryWorking(input: {
   calendarDaysP1Override?: number | null;
   calendarDaysP2Override?: number | null;
 }): Promise<ActionResult> {
-  const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Saving a leave-salary working');
+  const gate = await requireRoles(
+    ['super_admin', 'admin', 'hr'],
+    'Saving a leave-salary working',
+    'leave-salary',
+  );
   if (!gate.ok) {
     return gate;
   }
@@ -184,6 +188,7 @@ async function finalizeLeaveSalary(id: string): Promise<ActionResult> {
   const gate = await requireRoles(
     ['super_admin', 'admin', 'hr'],
     'Finalizing a leave-salary working',
+    'leave-salary',
   );
   if (!gate.ok) {
     return gate;
@@ -282,6 +287,7 @@ async function reopenLeaveSalary(id: string): Promise<ActionResult> {
   const gate = await requireRoles(
     ['super_admin', 'admin', 'hr'],
     'Reopening a leave-salary working',
+    'leave-salary',
   );
   if (!gate.ok) {
     return gate;
@@ -313,7 +319,11 @@ async function reopenLeaveSalary(id: string): Promise<ActionResult> {
 
 /** Mark a finalized working paid: stamp who/when, tell the employee. */
 async function markLeaveSalaryPaid(id: string): Promise<ActionResult> {
-  const gate = await requireRoles(['super_admin', 'admin', 'hr'], 'Marking a leave salary paid');
+  const gate = await requireRoles(
+    ['super_admin', 'admin', 'hr'],
+    'Marking a leave salary paid',
+    'leave-salary',
+  );
   if (!gate.ok) {
     return gate;
   }

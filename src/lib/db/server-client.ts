@@ -1,9 +1,10 @@
 // Create policy-scoped clients for requests and system clients for internal jobs.
 import 'server-only';
-import { createQueryClient, createSystemQueryClient } from '@/lib/db/scoped-query-client';
+import { createQueryClient } from '@/lib/db/scoped-query-client';
 import { isMongoConfigured } from '@/lib/db/mongodb-connection';
 import { registerDbFunctions } from '@/lib/db/domain-function-handlers';
 import { registerPayrollFunctions } from '@/lib/db/payroll-processing';
+import { transactionSession } from '@/lib/db/transaction-context';
 import type { QueryClient } from '@/lib/db/scoped-query-client';
 import type { ClientSession } from 'mongodb';
 
@@ -16,18 +17,18 @@ async function createClient(session?: ClientSession): Promise<QueryClient> {
   if (!isMongoConfigured()) {
     throw new Error('MONGO_URI is not set. Add it to .env.local and restart.');
   }
-  return createQueryClient(false, session);
+  return createQueryClient(false, session ?? transactionSession());
 }
 
 // Server-only client for privileged background jobs.
-function createServiceClient(): QueryClient {
+function createServiceClient(session?: ClientSession): QueryClient {
   if (!isMongoConfigured()) {
     throw new Error(
       'createServiceClient: MONGO_URI is not set, so privileged operations ' +
         '(night sweep, payroll compute) are unavailable.',
     );
   }
-  return createSystemQueryClient();
+  return createQueryClient(true, session ?? transactionSession());
 }
 
 // Returns true when the underlying database connection is configured and available for service operations.

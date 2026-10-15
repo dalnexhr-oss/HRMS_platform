@@ -1,285 +1,179 @@
-// Called after the request action authorizes the caller. Follow-up writes use the
-// same scoped client (or the narrowly authorized service client) supplied by that action.
 import 'server-only';
 import { createClient } from '@/lib/db/server-client';
-import { queryErrorCodes } from '@/lib/db/query-errors';
-import { getWeekOffPolicy } from '@/lib/queries/settings';
-import { getHolidays } from '@/lib/queries/holidays';
-import { countLeaveDays, isScheduledWeekOff } from '@/lib/weekly-off-policy';
+import { countLeaveDays, isScheduledWeekOff, policyFromSettings } from '@/lib/weekly-off-policy';
+import { reserveAttendanceMonth } from '@/lib/db/write-reservations';
 
-/** Inclusive whole-day count between two ISO dates ('16th'..'16th' === 1 day). */
+type DbClient = Awaited<ReturnType<typeof createClient>>;
+
 function inclusiveDays(start: Date, end: Date): number {
-  const msPerDay = 86_400_000;
-  return Math.round((end.getTime() - start.getTime()) / msPerDay) + 1;
+  return Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
 }
 
-/**
- * Load holiday and week-off rules for countLeaveDays. Other request types use the calendar span. If
- * policy reads fail, leave requests also fall back to the calendar span.
- */
-async function leaveDayCount(
-  startISO: string,
-  endISO: string,
-  start: Date,
-  end: Date,
-): Promise<number> {
-  try {
-    const [policy, holidays, sandwich] = await Promise.all([
-      getWeekOffPolicy(),
-      getHolidays(),
-      getSandwichPolicy(),
-    ]);
-    const holidaySet = new Set(holidays.map((h) => h.date));
-    const days = countLeaveDays(startISO, endISO, { policy, holidays: holidaySet, sandwich });
-    // A span of only non-working days costs nothing to take, but a zero-day
-    // request is not a thing the rest of the system can reason about — reject it
-    // in the caller rather than storing 0.
-    return days;
-  } catch {
-    return inclusiveDays(start, end);
-  }
-}
-
-/** The configurable sandwich-leave toggle, from the settings collection. */
-async function getSandwichPolicy(): Promise<boolean> {
-  try {
-    const queryClient = await createClient();
-    const { data } = await queryClient
-      .from('settings')
-      .select('value')
-      .eq('key', 'leave_sandwich_policy')
-      .maybeSingle<{ value: unknown }>();
-    return data?.value === true || data?.value === 'true';
-  } catch {
-    return false;
-  }
-}
-
-/** Every 'YYYY-MM-DD' in an inclusive span (small spans only — capped upstream). */
 function enumerateDays(startISO: string, endISO: string): string[] {
   const out: string[] = [];
   const cursor = new Date(`${startISO}T00:00:00Z`);
   const end = new Date(`${endISO}T00:00:00Z`);
-  if (Number.isNaN(cursor.getTime()) || Number.isNaN(end.getTime())) {
-    return out;
-  }
-  while (cursor.getTime() <= end.getTime() && out.length < 1000) {
+  while (cursor <= end && out.length < 1000) {
     out.push(cursor.toISOString().slice(0, 10));
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
   return out;
 }
 
-// Register stamps for approved off-site work. A site visit is Site; outdoor duty and work from
-// home are Travel, matching the labels on the approvals screen.
+async function leaveCalendar(client: DbClient, employeeId: string) {
+  const employee = await client
+    .from('employees')
+    .select('branch_id')
+    .eq('id', employeeId)
+    .maybeSingle();
+  if (employee.error || !employee.data) {
+    throw new Error(employee.error?.message ?? 'The employee no longer exists.');
+  }
+  const settings = await client
+    .from('settings')
+    .select('key, value')
+    .in('key', [
+      'week_off_weekdays',
+      'working_saturdays',
+      'leave_sandwich_policy',
+      'full_day_minutes',
+    ]);
+  if (settings.error) {
+    throw new Error(settings.error.message);
+  }
+  const values = new Map((settings.data ?? []).map((row) => [String(row.key), row.value]));
+  const holidays = await client.from('holidays').select('holiday_date, branch_id');
+  if (holidays.error) {
+    throw new Error(holidays.error.message);
+  }
+  return {
+    policy: policyFromSettings(values.get('week_off_weekdays'), values.get('working_saturdays')),
+    holidays: new Set(
+      (holidays.data ?? [])
+        .filter(
+          (holiday) => holiday.branch_id == null || holiday.branch_id === employee.data!.branch_id,
+        )
+        .map((holiday) => String(holiday.holiday_date)),
+    ),
+    sandwich:
+      values.get('leave_sandwich_policy') === true ||
+      values.get('leave_sandwich_policy') === 'true',
+    fullDayMinutes:
+      Number(values.get('full_day_minutes')) > 0 ? Number(values.get('full_day_minutes')) : 555,
+  };
+}
+
+async function leaveDayCount(
+  startISO: string,
+  endISO: string,
+  employeeId: string,
+): Promise<number> {
+  const calendar = await leaveCalendar(await createClient(), employeeId);
+  return countLeaveDays(startISO, endISO, calendar);
+}
+
 const dutyStamps: Record<string, 'S' | 'T'> = { site_visit: 'S', outdoor_duty: 'T', wfh: 'T' };
 
-/** Stamp approved leave as L. See stampApprovedDays for which days are written. */
-function stampLeaveOnRegister(
-  queryClient: Awaited<ReturnType<typeof createClient>>,
-  employeeId: string,
-  startISO: string,
-  endISO: string,
-): Promise<string | null> {
-  return stampApprovedDays(queryClient, employeeId, startISO, endISO, { status: 'L' });
+function stampLeaveOnRegister(client: DbClient, employeeId: string, start: string, end: string) {
+  return stampApprovedDays(client, employeeId, start, end, 'L');
 }
 
-/**
- * Stamp an approved site visit, outdoor duty or work-from-home request as a worked day. The day is
- * credited a full day's minutes because no punch is expected; if the employee does punch, their
- * punches replace the credit.
- */
-async function stampDutyOnRegister(
-  queryClient: Awaited<ReturnType<typeof createClient>>,
+function stampDutyOnRegister(
+  client: DbClient,
   employeeId: string,
-  requestType: string,
-  startISO: string,
-  endISO: string,
-): Promise<string | null> {
-  const status = dutyStamps[requestType];
-  if (!status) {
-    return null;
-  }
-  let fullDayMinutes = 555;
-  const { data } = await queryClient
-    .from('settings')
-    .select('value')
-    .eq('key', 'full_day_minutes')
-    .maybeSingle<{ value: unknown }>();
-  const configured = Number(data?.value);
-  if (Number.isFinite(configured) && configured > 0) {
-    fullDayMinutes = configured;
-  }
-  return stampApprovedDays(queryClient, employeeId, startISO, endISO, {
-    status,
-    worked_minutes: fullDayMinutes,
-  });
+  type: string,
+  start: string,
+  end: string,
+) {
+  return stampApprovedDays(client, employeeId, start, end, dutyStamps[type]);
 }
 
-/**
- * Undo the stamps an approval made, when the request is cancelled afterwards. Only days that still
- * carry the approval's stamp and have no punches are removed, so a day the employee worked or HR
- * corrected is left as it is. Returns a note for the caller when a closed month was skipped.
- */
-async function unstampApprovedDays(
-  queryClient: Awaited<ReturnType<typeof createClient>>,
-  employeeId: string,
-  requestType: string,
-  startISO: string,
-  endISO: string,
-): Promise<string | null> {
-  const status = requestType === 'leave' ? 'L' : dutyStamps[requestType];
-  if (!status) {
-    return null;
+async function reserveMonths(days: string[]): Promise<void> {
+  for (const month of [...new Set(days.map((day) => day.slice(0, 7)))].sort()) {
+    await reserveAttendanceMonth(`${month}-01`);
   }
-  const skipped: string[] = [];
-  for (const month of new Set(enumerateDays(startISO, endISO).map((day) => day.slice(0, 7)))) {
-    const gate = await requireOpenPayrollMonthShim(queryClient, `${month}-01`);
-    if (!gate.ok) {
-      skipped.push(month);
-      continue;
-    }
-    const { error } = await queryClient
-      .from('attendance_days')
-      .delete()
-      .eq('employee_id', employeeId)
-      .eq('status', status)
-      .is('punch_in', null)
-      .neq('is_corrected', true)
-      .gte('work_date', startISO > `${month}-01` ? startISO : `${month}-01`)
-      .lte('work_date', endISO < `${month}-31` ? endISO : `${month}-31`);
-    if (error) {
-      return `Cancelled, but the register could not be cleared: ${error.message}. Remove the ${status} day(s) from the register.`;
-    }
-  }
-  return skipped.length > 0
-    ? `Cancelled, but payroll for ${skipped.join(', ')} is closed, so those days stay on the register.`
-    : null;
 }
 
-/**
- * Stamp approved days only where attendance is missing or AB. Preserve recorded presence and
- * existing off-day stamps, and skip unrecorded holidays and week-offs. Return locked-month skips as
- * warnings because the approval has already saved.
- */
+/** Errors abort the approval transaction. Existing presence and explicit off-days stay intact. */
 async function stampApprovedDays(
-  queryClient: Awaited<ReturnType<typeof createClient>>,
+  client: DbClient,
   employeeId: string,
-  startISO: string,
-  endISO: string,
-  stamp: { status: 'L' | 'S' | 'T'; worked_minutes?: number },
-): Promise<string | null> {
-  const days = enumerateDays(startISO, endISO);
-  if (days.length === 0) {
+  start: string,
+  end: string,
+  status?: 'L' | 'S' | 'T',
+): Promise<null> {
+  if (!status) {
     return null;
   }
-
-  let policy: Awaited<ReturnType<typeof getWeekOffPolicy>>;
-  let holidaySet: Set<string>;
-  try {
-    const [p, holidays] = await Promise.all([getWeekOffPolicy(), getHolidays()]);
-    policy = p;
-    holidaySet = new Set(holidays.map((h) => h.date));
-  } catch (e) {
-    return `Approved, but the register could not be stamped (week-off policy unreadable: ${
-      e instanceof Error ? e.message : String(e)
-    }). Mark the day(s) ${stamp.status} from the register.`;
-  }
-
-  const { data: existing, error: readErr } = await queryClient
+  const days = enumerateDays(start, end);
+  await reserveMonths(days);
+  const calendar = await leaveCalendar(client, employeeId);
+  const existing = await client
     .from('attendance_days')
     .select('work_date, status')
     .eq('employee_id', employeeId)
-    .gte('work_date', days[0])
-    .lte('work_date', days[days.length - 1]);
-  if (readErr) {
-    return `Approved, but the register could not be read to stamp the days: ${readErr.message}. Mark the day(s) ${stamp.status} from the register.`;
+    .gte('work_date', start)
+    .lte('work_date', end);
+  if (existing.error) {
+    throw new Error(existing.error.message);
   }
-  const statusByDate = new Map<string, string>();
-  for (const row of (existing ?? []) as Array<{ work_date: string; status: string }>) {
-    statusByDate.set(row.work_date, row.status);
-  }
-
-  // Check each involved month's payroll state once, not per day.
-  const lockedMonths = new Set<string>();
-  for (const month of new Set(days.map((d) => d.slice(0, 7)))) {
-    const gate = await requireOpenPayrollMonthShim(queryClient, `${month}-01`);
-    if (!gate.ok) {
-      lockedMonths.add(month);
-    }
-  }
-
-  const toUpdate: string[] = []; // existing 'AB' rows
-  const toInsert: string[] = []; // no row at all
-  const skippedLocked: string[] = [];
+  const byDate = new Map(
+    (existing.data ?? []).map((row) => [String(row.work_date), String(row.status)]),
+  );
+  const stamp = { status, worked_minutes: status === 'L' ? 0 : calendar.fullDayMinutes };
   for (const day of days) {
-    if (lockedMonths.has(day.slice(0, 7))) {
-      skippedLocked.push(day);
+    if (calendar.holidays.has(day) || isScheduledWeekOff(day, calendar.policy)) {
       continue;
     }
-    const status = statusByDate.get(day);
-    if (status === 'AB') {
-      toUpdate.push(day);
-    } else if (status == null && !isScheduledWeekOff(day, policy) && !holidaySet.has(day)) {
-      toInsert.push(day);
+    const current = byDate.get(day);
+    if (current === 'AB') {
+      const result = await client
+        .from('attendance_days')
+        .update(stamp)
+        .eq('employee_id', employeeId)
+        .eq('work_date', day)
+        .eq('status', 'AB')
+        .select('id');
+      if (result.error || !result.data?.length) {
+        throw new Error(result.error?.message ?? 'Attendance changed. Retry the approval.');
+      }
+    } else if (current === undefined) {
+      const result = await client
+        .from('attendance_days')
+        .insert({ employee_id: employeeId, work_date: day, ...stamp });
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
     }
   }
-
-  const problems: string[] = [];
-  if (toUpdate.length > 0) {
-    const { error } = await queryClient
-      .from('attendance_days')
-      .update(stamp)
-      .eq('employee_id', employeeId)
-      .eq('status', 'AB')
-      .in('work_date', toUpdate);
-    if (error) {
-      problems.push(`could not restamp AB day(s): ${error.message}`);
-    }
-  }
-  if (toInsert.length > 0) {
-    const { error } = await queryClient
-      .from('attendance_days')
-      .insert(
-        toInsert.map((workDate) => ({ employee_id: employeeId, work_date: workDate, ...stamp })),
-      );
-    // Ignore duplicate key conflicts if stamped concurrently.
-    if (error && error.code !== queryErrorCodes.duplicateKey) {
-      problems.push(`could not add ${stamp.status} day(s): ${error.message}`);
-    }
-  }
-  if (skippedLocked.length > 0) {
-    problems.push(
-      `payroll for ${[...lockedMonths].join(', ')} is closed, so ${skippedLocked.length} day(s) were not stamped`,
-    );
-  }
-  return problems.length > 0
-    ? `Approved, but the register was only partially stamped: ${problems.join('; ')}.`
-    : null;
+  return null;
 }
 
-/** Local month gate — mirrors requireOpenPayrollMonth but never throws. */
-async function requireOpenPayrollMonthShim(
-  queryClient: Awaited<ReturnType<typeof createClient>>,
-  periodMonth: string,
-): Promise<{ ok: boolean }> {
-  const { data, error } = await queryClient
-    .from('payroll_runs')
-    .select('status, month_closed_at')
-    .eq('period_month', periodMonth)
-    // month_closed_at is a BSON date; only its presence is tested below.
-    .maybeSingle<{ status: string; month_closed_at: Date | null }>();
-  if (error) {
-    // fail closed — don't stamp a month we can't check
-    return { ok: false };
+async function unstampApprovedDays(
+  client: DbClient,
+  employeeId: string,
+  type: string,
+  start: string,
+  end: string,
+): Promise<null> {
+  const status = type === 'leave' ? 'L' : dutyStamps[type];
+  if (!status) {
+    return null;
   }
-  if (data?.status === 'locked' || data?.status === 'paid') {
-    return { ok: false };
+  await reserveMonths(enumerateDays(start, end));
+  const result = await client
+    .from('attendance_days')
+    .delete()
+    .eq('employee_id', employeeId)
+    .eq('status', status)
+    .is('punch_in', null)
+    .neq('is_corrected', true)
+    .gte('work_date', start)
+    .lte('work_date', end);
+  if (result.error) {
+    throw new Error(result.error.message);
   }
-  if (data?.month_closed_at) {
-    return { ok: false };
-  }
-  return { ok: true };
+  return null;
 }
 
 export {

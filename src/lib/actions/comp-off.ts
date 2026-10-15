@@ -3,7 +3,8 @@
 // Comp-off lifecycle: staff grant credit for work on a day off; employees apply against available
 // credit; approval stamps the taken day CO and marks the credit used.
 import { queryErrorCodes } from '@/lib/db/query-errors';
-import { revalidatePath } from 'next/cache';
+import { runAction, revalidatePath } from '@/lib/db/action';
+import { reserveWrite } from '@/lib/db/write-reservations';
 import { createClient } from '@/lib/db/server-client';
 import { getSession } from '@/lib/server-auth';
 import { getWeekOffPolicy } from '@/lib/queries/settings';
@@ -28,7 +29,7 @@ const offDayStatuses = ['WO', 'OH'] as const;
 // Grant a comp-off credit for an off day the employee worked. The unique (employee_id, earned_date)
 // constraint makes a double-grant a no-op error rather than a duplicate credit.
 async function grantCompOff(employeeId: string, earnedDate: string): Promise<ActionResult> {
-  const gate = await requireStaff('Granting a comp off');
+  const gate = await requireStaff('Granting a comp off', 'dashboard');
   if (!gate.ok) {
     return gate;
   }
@@ -110,7 +111,7 @@ async function grantCompOff(employeeId: string, earnedDate: string): Promise<Act
  * Raises a request(type='comp_off') and marks the credit 'applied' so it cannot
  * be spent twice while the request is pending.
  */
-async function applyCompOff(formData: FormData): Promise<ActionResult> {
+async function applyCompOffWrite(formData: FormData): Promise<ActionResult> {
   const requestedId = String(formData.get('comp_off_id') ?? '').trim();
   const takeDate = String(formData.get('take_date') ?? '').trim();
   const reason = String(formData.get('reason') ?? '').trim() || null;
@@ -150,6 +151,7 @@ async function applyCompOff(formData: FormData): Promise<ActionResult> {
     };
   }
 
+  await reserveWrite(`requests:${employeeId}`);
   // Checked before the credit is claimed, so a refused application leaves it available.
   const overlapProblem = await requestOverlapProblem(queryClient, employeeId, takeDate, takeDate);
   if (overlapProblem) {
@@ -226,11 +228,16 @@ async function applyCompOff(formData: FormData): Promise<ActionResult> {
     return { ok: false, error: reqErr?.message ?? 'The comp-off request was not filed.' };
   }
 
-  // Link the credit to the request so approval can close the loop.
-  await queryClient
+  // The request, credit reservation and linkage commit together.
+  const linked = await queryClient
     .from('comp_offs')
     .update({ request_id: req![0].id, used_date: takeDate })
-    .eq('id', compOffId);
+    .eq('id', compOffId)
+    .eq('status', 'applied')
+    .select('id');
+  if (linked.error || !linked.data?.length) {
+    throw new Error(linked.error?.message ?? 'The comp-off credit changed. Nothing was submitted.');
+  }
 
   await notifyRequestParticipants(
     req![0].id,
@@ -250,7 +257,7 @@ async function applyCompOff(formData: FormData): Promise<ActionResult> {
  * When marked non-applicable, credit remains recorded but cannot be claimed by employee.
  */
 async function setCompOffApplicability(id: string, applicable: boolean): Promise<ActionResult> {
-  const gate = await requireStaff('Updating a comp off');
+  const gate = await requireStaff('Updating a comp off', 'dashboard');
   if (!gate.ok) {
     return gate;
   }
@@ -302,3 +309,7 @@ async function setCompOffApplicability(id: string, applicable: boolean): Promise
 
 export { grantCompOff, applyCompOff, setCompOffApplicability };
 export type { ActionResult };
+
+async function applyCompOff(...args: Parameters<typeof applyCompOffWrite>) {
+  return runAction(() => applyCompOffWrite(...args));
+}

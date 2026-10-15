@@ -7,8 +7,9 @@
 // a holiday with no attendance row is counted as WO / OH for an employee who worked that month.
 import 'server-only';
 import { randomUUID } from 'node:crypto';
-import { isScheduledWeekOff, policyFromSettings } from '@/lib/weekly-off-policy';
-import { isWorkedStatus } from '@/lib/attendance-status';
+import { policyFromSettings } from '@/lib/weekly-off-policy';
+import { resolvePayableAttendance } from '@/lib/attendance-pay';
+import { reserveOpenRun, reservePayrollPeriod } from '@/lib/db/write-reservations';
 import { todayIST } from '@/lib/display-formatting';
 import { collections } from '@/lib/db/collection-registry';
 import { scopedFor } from '@/lib/db/scoped-repository';
@@ -17,6 +18,7 @@ import { withTransaction } from '@/lib/db/mongodb-connection';
 import { fromPaise, toPaise } from '@/lib/db/decimal-conversions';
 import { calculatePayslip } from '@/lib/payroll/payslip-calculation';
 import { registerFunction } from '@/lib/db/scoped-query-client';
+import { requireTabAccess } from '@/lib/actions/guards';
 import type { PayslipComputation, PayrollAttendanceDay } from '@/lib/payroll/payslip-calculation';
 import type { WeekOffPolicy } from '@/lib/weekly-off-policy';
 import type { ClientSession, Document } from 'mongodb';
@@ -50,56 +52,6 @@ async function loadPayrollCalendar(
       branchId: (holiday.branch_id as string | null) ?? null,
     })),
   };
-}
-
-/**
- * Paid days off that have no attendance row. Week-offs and holidays are only stamped by hand or by
- * the Excel import, so a month built from punches has none; without these an employee present on
- * every working day would be paid for the working days alone.
- *
- * Counted only for an employee who worked at least one day that month, only between their joining
- * date and last working day, and never for a day that has not happened yet.
- */
-function unrecordedPaidDaysOff(
-  periodMonth: string,
-  recorded: Array<{ work_date: string; status: string }>,
-  employee: {
-    branchId: string | null;
-    dateOfJoining: string | null;
-    lastWorkingDay: string | null;
-  },
-  calendar: PayrollCalendar,
-): PayrollAttendanceDay[] {
-  if (!recorded.some((day) => isWorkedStatus(day.status))) {
-    return [];
-  }
-  const recordedDates = new Set(recorded.map((day) => day.work_date));
-  const holidayDates = new Set(
-    calendar.holidays
-      .filter((holiday) => holiday.branchId === null || holiday.branchId === employee.branchId)
-      .map((holiday) => holiday.date),
-  );
-  const [year, month] = periodMonth.split('-').map(Number);
-  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  const today = todayIST();
-  const out: PayrollAttendanceDay[] = [];
-  for (let day = 1; day <= daysInMonth; day++) {
-    const date = `${periodMonth.slice(0, 8)}${String(day).padStart(2, '0')}`;
-    if (
-      recordedDates.has(date) ||
-      date > today ||
-      (employee.dateOfJoining !== null && date < employee.dateOfJoining) ||
-      (employee.lastWorkingDay !== null && date > employee.lastWorkingDay)
-    ) {
-      continue;
-    }
-    if (holidayDates.has(date)) {
-      out.push({ status: 'OH', workedMinutes: 0 });
-    } else if (isScheduledWeekOff(date, calendar.policy)) {
-      out.push({ status: 'WO', workedMinutes: 0 });
-    }
-  }
-  return out;
 }
 
 // 'YYYY-MM-DD' from a stored date-only value, or null when it is unset.
@@ -221,16 +173,20 @@ async function computePayslipInTransaction(
   // Calendar days are strings, so a month is a prefix — no date arithmetic and
   // no timezone to get wrong.
   const prefix = periodMonth.slice(0, 7);
-  const days = await attendance.find({
-    employee_id: employeeId,
-    work_date: { $regex: `^${prefix}-` },
-  });
+  const days = await attendance.find(
+    {
+      employee_id: employeeId,
+      work_date: { $regex: `^${prefix}-` },
+    },
+    { sort: { updated_at: 1, _id: 1 } },
+  );
   const calendar = sharedCalendar ?? (await loadPayrollCalendar(periodMonth, session));
-  const paidDaysOff = unrecordedPaidDaysOff(
+  const payableAttendance = resolvePayableAttendance(
     periodMonth,
     days.map((day) => ({
-      work_date: String(day.work_date).slice(0, 10),
-      status: day.status as string,
+      workDate: String(day.work_date).slice(0, 10),
+      status: String(day.status),
+      workedMinutes: Number(day.worked_minutes ?? 0),
     })),
     {
       branchId: (e.branch_id as string | null) ?? null,
@@ -238,6 +194,7 @@ async function computePayslipInTransaction(
       lastWorkingDay: dateOnly(e.last_working_day),
     },
     calendar,
+    todayIST(),
   );
 
   const grossPaise = toPaise(e.gross_monthly as never);
@@ -256,13 +213,7 @@ async function computePayslipInTransaction(
     fullDayMinutes: fullDayMin,
     esicCapPaise,
     professionalTaxPaise: pt,
-    attendance: [
-      ...days.map((day) => ({
-        status: day.status as string,
-        workedMinutes: Number(day.worked_minutes ?? 0),
-      })),
-      ...paidDaysOff,
-    ],
+    attendance: payableAttendance,
     advancePaise: toPaise((adj?.advance_recovery as never) ?? 0),
     lossPaise: toPaise((adj?.loss_damage as never) ?? 0),
     lastMonthBalancePaise: toPaise((adj?.last_month_balance as never) ?? 0),
@@ -270,6 +221,11 @@ async function computePayslipInTransaction(
     otherDeductionsPaise: toPaise((adj?.other_deductions as never) ?? 0),
     bonusPaise: toPaise((adj?.bonus as never) ?? 0),
   });
+  if (result.net_payable < 0) {
+    throw new Error(
+      'Net pay cannot be negative. Review attendance and deductions before recomputing or locking payroll.',
+    );
+  }
   const {
     payable_days: payableDays,
     worked_minutes: workedMinutes,
@@ -343,6 +299,7 @@ type RunStatus = 'draft' | 'in_review' | 'locked' | 'paid';
 
 interface PayrollRunDoc {
   _id: string;
+  period_month: string;
   status: RunStatus;
   calculation_revision?: number;
   drafts_computed_at?: Date | null;
@@ -358,18 +315,6 @@ function runs(session?: ClientSession) {
 async function runStatus(runId: string, session?: ClientSession): Promise<RunStatus | null> {
   const run = await runs(session).findOne({ _id: runId });
   return run?.status ?? null;
-}
-
-// Writing the run first makes calculations and locking contend on the same document. The
-// transaction retains that reservation until all of its payslip changes commit or roll back.
-async function reserveOpenRun(runId: string, session?: ClientSession): Promise<void> {
-  const matched = await runs(session).updateOne(
-    { _id: runId, status: { $in: ['draft', 'in_review'] } },
-    { $inc: { calculation_revision: 1 } },
-  );
-  if (!matched) {
-    throw new Error('Payroll run is locked, paid, or missing. No payroll changes were saved.');
-  }
 }
 
 /**
@@ -529,6 +474,11 @@ async function lockRun(runId: string): Promise<void> {
 async function markRunPaid(runId: string): Promise<void> {
   await withTransaction(
     async (session) => {
+      const run = await runs(session).findOne({ _id: runId });
+      if (!run) {
+        throw new Error('That payroll run no longer exists.');
+      }
+      await reservePayrollPeriod(String(run.period_month), session);
       const status = await runStatus(runId, session);
       if (status !== 'locked') {
         throw new Error(
@@ -564,19 +514,35 @@ function registerPayrollFunctions(): void {
   }
   registered = true;
   registerFunction('fn_compute_payslip', async (a) => {
+    const denied = await requireTabAccess('payroll');
+    if (denied) {
+      throw new Error(denied);
+    }
     const { p_employee_id, p_run_id } = a as { p_employee_id: string; p_run_id: string };
     await computePayslip(p_employee_id, p_run_id);
     return null;
   });
   registerFunction('fn_compute_run', async (a) => {
+    const denied = await requireTabAccess('payroll');
+    if (denied) {
+      throw new Error(denied);
+    }
     await computeRun((a as { p_run_id: string }).p_run_id);
     return null;
   });
   registerFunction('fn_lock_run', async (a) => {
+    const denied = await requireTabAccess('payroll');
+    if (denied) {
+      throw new Error(denied);
+    }
     await lockRun((a as { p_run_id: string }).p_run_id);
     return null;
   });
   registerFunction('fn_mark_run_paid', async (a) => {
+    const denied = await requireTabAccess('payroll');
+    if (denied) {
+      throw new Error(denied);
+    }
     await markRunPaid((a as { p_run_id: string }).p_run_id);
     return null;
   });
@@ -585,6 +551,7 @@ function registerPayrollFunctions(): void {
 export {
   professionalTax,
   computePayslip,
+  computePayslipInTransaction,
   computeRun,
   savePayslipAdjustments,
   lockRun,

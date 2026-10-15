@@ -1,6 +1,7 @@
 // Dispatch notifications with system scope. Normal users cannot insert notifications for others.
 // Log delivery failures without failing the business action.
 import { createServiceClient, isServiceRoleConfigured } from '@/lib/db/server-client';
+import { deferUntilCommit } from '@/lib/db/transaction-context';
 import type { AppRole } from '@/types/database';
 
 type NotificationKind =
@@ -39,6 +40,9 @@ function warn(context: string, detail: unknown): void {
 
 /** Insert one row per recipient. Duplicates/empty lists are no-ops. */
 async function dispatch(recipientIds: string[], input: NotifyInput): Promise<void> {
+  if (deferUntilCommit(() => dispatch(recipientIds, input))) {
+    return;
+  }
   const unique = [...new Set(recipientIds.filter(Boolean))];
   if (unique.length === 0) {
     return;
@@ -77,6 +81,9 @@ async function notifyProfiles(profileIds: string[], input: NotifyInput): Promise
  * "your claim was approved" style messages.
  */
 async function notifyEmployee(employeeId: string | null, input: NotifyInput): Promise<void> {
+  if (deferUntilCommit(() => notifyEmployee(employeeId, input))) {
+    return;
+  }
   if (!employeeId) {
     return;
   }
@@ -104,6 +111,9 @@ async function notifyEmployee(employeeId: string | null, input: NotifyInput): Pr
 
 /** Notify everyone who can approve things — mirrors guards.ts writeRoles. */
 async function notifyApprovers(input: NotifyInput, exceptProfileId?: string): Promise<void> {
+  if (deferUntilCommit(() => notifyApprovers(input, exceptProfileId))) {
+    return;
+  }
   if (!isServiceRoleConfigured()) {
     warn(input.kind, 'MONGO_URI is not set, so notifications are disabled.');
     return;

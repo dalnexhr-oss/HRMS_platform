@@ -87,7 +87,7 @@ async function clearPolicyNag(
 
 /** Staff creates a company policy (published immediately unless left as draft). */
 async function createPolicy(formData: FormData) {
-  const gate = await requireStaff('Creating a policy');
+  const gate = await requireStaff('Creating a policy', 'company-policies');
   if (!gate.ok) {
     return gate;
   }
@@ -143,7 +143,7 @@ async function createPolicy(formData: FormData) {
 
 /** Staff toggles a policy's published state. */
 async function setPolicyPublished(policyId: string, published: boolean) {
-  const gate = await requireStaff('Publishing a policy');
+  const gate = await requireStaff('Publishing a policy', 'company-policies');
   if (!gate.ok) {
     return gate;
   }
@@ -190,7 +190,7 @@ async function setPolicyPublished(policyId: string, published: boolean) {
 
 /** Edit an existing policy's content. Staff-only. Leaves published state alone. */
 async function updatePolicy(id: string, formData: FormData) {
-  const gate = await requireStaff('Editing a policy');
+  const gate = await requireStaff('Editing a policy', 'company-policies');
   if (!gate.ok) {
     return gate;
   }
@@ -233,7 +233,7 @@ async function updatePolicy(id: string, formData: FormData) {
 
 /** Delete a policy. Its acknowledgements cascade away (FK on delete cascade). */
 async function deletePolicy(id: string) {
-  const gate = await requireStaff('Deleting a policy');
+  const gate = await requireStaff('Deleting a policy', 'company-policies');
   if (!gate.ok) {
     return gate;
   }
