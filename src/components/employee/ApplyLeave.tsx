@@ -402,7 +402,7 @@ function NewRequestForm({
             border: '1px solid var(--border-strong)',
             borderRadius: 8,
             font: 'inherit',
-            background: '#fff',
+            background: 'var(--surface-solid)',
             resize: 'vertical',
           }}
         />

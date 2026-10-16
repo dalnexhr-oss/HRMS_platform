@@ -234,7 +234,7 @@ function NotificationBell({
             width: 340,
             maxHeight: 420,
             overflowY: 'auto',
-            background: '#fff',
+            background: 'var(--surface-solid)',
             border: '1px solid var(--border-strong)',
             borderRadius: 10,
             boxShadow: '0 8px 28px rgba(0,0,0,.12)',
@@ -316,7 +316,9 @@ function NotificationBell({
                 alignItems: 'flex-start',
                 padding: '10px 12px',
                 borderBottom: '1px solid var(--border-subtle)',
-                background: n.readAt ? '#fff' : 'var(--attendance-present-background, #f6faf7)',
+                background: n.readAt
+                  ? 'var(--surface-solid)'
+                  : 'var(--attendance-present-background, #f6faf7)',
                 textDecoration: 'none',
                 color: 'inherit',
                 width: '100%',
