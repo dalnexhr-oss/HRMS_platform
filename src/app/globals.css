@@ -586,8 +586,10 @@ a {
     transform: none;
   }
 }
+/* Both portals fill the shared shell, including on large desktop displays. */
 .content-container {
-  max-width: 1260px;
+  width: 100%;
+  min-width: 0;
   margin: 0 auto;
 }
 
