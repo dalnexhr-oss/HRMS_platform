@@ -57,7 +57,7 @@
   padding: 7px 10px;
   border: 1px solid var(--border-surface);
   border-radius: 9px;
-  background: linear-gradient(180deg, #ffffff, #e9eef6);
+  background: var(--control-background);
   color: var(--text-secondary);
   box-shadow: var(--shadow-raised-small);
   font: 600 11px/1.5 var(--font-body);
@@ -241,9 +241,9 @@
 .inventoryStatus:global(.status-badge) {
   gap: 6px;
   padding: 4px 8px;
-  background: #f1f3f5;
-  border-color: #d8dbe0;
-  color: #4b5058;
+  background: var(--inventory-status-background, #f1f3f5);
+  border-color: var(--inventory-status-border, #d8dbe0);
+  color: var(--inventory-status-text, #4b5058);
   box-shadow: none;
   font: 600 11px/1.4 var(--font-body);
   white-space: nowrap;

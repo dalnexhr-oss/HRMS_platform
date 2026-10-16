@@ -6,7 +6,7 @@
   padding: 4px;
   border: 1px solid var(--border-surface);
   border-radius: 12px;
-  background: linear-gradient(180deg, #ffffff, #f4f7fb);
+  background: var(--suggestions-background);
   box-shadow: var(--shadow-elevated);
   font: 400 13px/1.45 var(--font-body);
   color: var(--text-primary);

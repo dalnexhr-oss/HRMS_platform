@@ -1,7 +1,6 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 
-
 // PromptDialog is a modal dialog that prompts the user for text input.
 //  It is rendered by the usePrompt hook.
 interface PromptOptions {
@@ -125,7 +124,7 @@ function PromptDialog({
                 borderRadius: 8,
                 font: 'inherit',
                 fontSize: 14,
-                background: '#fff',
+                background: 'var(--surface-solid)',
               }}
             />
             {error && (
