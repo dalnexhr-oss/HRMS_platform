@@ -1,0 +1,313 @@
+/* Shared controls retain their original light appearance. */
+:root {
+  color-scheme: light;
+  --control-background: linear-gradient(180deg, #ffffff, #e9eef6);
+  --suggestions-background: linear-gradient(180deg, #ffffff, #f4f7fb);
+  --tooltip-arrow-background: #e9eef6;
+}
+
+/* Screen-only tokens keep printed registers, payslips and documents on white paper. */
+@media screen {
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+    --page-background: #000000;
+    --page-background-muted: #0b0b0b;
+    --surface-translucent: rgba(20, 20, 20, 0.92);
+    --surface-inset: #1b1b1b;
+    --surface-solid: #121212;
+    --surface-card: #121212;
+    --surface-glass: linear-gradient(155deg, rgba(25, 25, 25, 0.98), rgba(18, 18, 18, 0.96));
+    --surface-header: linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent);
+    --text-primary: #f0f2f5;
+    --text-secondary: #c2c7cf;
+    --text-muted: #9ba3af;
+    --border-subtle: rgba(255, 255, 255, 0.09);
+    --border-strong: rgba(255, 255, 255, 0.21);
+    --border-surface: rgba(255, 255, 255, 0.13);
+    --sidebar-background: #121212;
+    --sidebar-background-dark: #0b0b0b;
+    --brand: #67cbdc;
+    --brand-soft: #123139;
+    --brand-deep: #a4e8f3;
+    --brand-lift: #86e0ec;
+    --brass: #e7c48b;
+    --brass-soft: #302514;
+    --attendance-present: #7fdaa2;
+    --attendance-present-background: #11271b;
+    --attendance-present-border: #285a3e;
+    --attendance-late: #f3c778;
+    --attendance-late-background: #2d230f;
+    --attendance-late-border: #665127;
+    --attendance-half-day: #ffb580;
+    --attendance-half-day-background: #301f12;
+    --attendance-half-day-border: #664027;
+    --attendance-leave: #b3c6ff;
+    --attendance-leave-background: #1b2236;
+    --attendance-leave-border: #39476b;
+    --attendance-weekly-off: #b5bcc7;
+    --attendance-weekly-off-background: #202226;
+    --attendance-weekly-off-border: #434851;
+    --attendance-holiday: #d5b0ff;
+    --attendance-holiday-background: #291a3b;
+    --attendance-holiday-border: #583b77;
+    --attendance-absent: #ffaaa4;
+    --attendance-absent-background: #331918;
+    --attendance-absent-border: #70403c;
+    --attendance-outdoor-duty: #7dd3ed;
+    --attendance-outdoor-duty-background: #132b33;
+    --attendance-outdoor-duty-border: #2b5563;
+    --status-success: var(--attendance-present);
+    --status-warning: var(--attendance-late);
+    --status-error: var(--attendance-absent);
+    --shadow-highlight: rgba(255, 255, 255, 0.04);
+    --shadow-shade: rgba(0, 0, 0, 0.5);
+    --shadow-raised-small: 0 2px 6px rgba(0, 0, 0, 0.35);
+    --shadow-raised: 0 5px 16px rgba(0, 0, 0, 0.45);
+    --shadow-inset: inset 0 1px 4px rgba(0, 0, 0, 0.55);
+    --shadow-inset-deep: inset 0 2px 8px rgba(0, 0, 0, 0.6);
+    --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.28);
+    --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.5);
+    --shadow-popover: 0 16px 40px rgba(0, 0, 0, 0.65);
+    --focus-ring: 0 0 0 3px rgba(103, 203, 220, 0.25);
+    --control-background: linear-gradient(180deg, #242424, #191919);
+    --suggestions-background: linear-gradient(180deg, #222222, #181818);
+    --tooltip-arrow-background: #191919;
+    --status-badge-background: var(--surface-inset);
+    --inventory-status-background: var(--surface-inset);
+    --inventory-status-border: var(--border-strong);
+    --inventory-status-text: var(--text-secondary);
+  }
+
+  :root[data-theme='dark'] .sidebar,
+  :root[data-theme='dark'] .sidebar.is-light {
+    background: var(--surface-solid);
+    border-color: var(--border-surface);
+    box-shadow: var(--shadow-card);
+  }
+
+  :root[data-theme='dark'] .sidebar-brand {
+    background: var(--surface-solid);
+    border-bottom-color: var(--border-subtle);
+  }
+
+  /* Recolor only the lettering; the blue symbol and transparent background stay intact. */
+  :root[data-theme='dark'] .brand-logo-dark-wordmark {
+    display: block;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: left center;
+    filter: brightness(0) invert(1);
+    clip-path: inset(0 0 0 23%);
+    pointer-events: none;
+  }
+
+  :root[data-theme='dark'] .brand-logo-text {
+    color: #ffffff;
+  }
+
+  :root[data-theme='dark'] .app-header {
+    background: rgba(18, 18, 18, 0.94);
+  }
+
+  :root[data-theme='dark'] .card {
+    box-shadow: var(--shadow-card);
+  }
+
+  :root[data-theme='dark'] .button,
+  :root[data-theme='dark'] .month-navigation,
+  :root[data-theme='dark'] .leave-salary-year,
+  :root[data-theme='dark'] .navigation-toggle {
+    background: var(--control-background);
+  }
+
+  :root[data-theme='dark'] .button.quiet {
+    background: var(--surface-solid);
+  }
+
+  :root[data-theme='dark'] .button.quiet:hover,
+  :root[data-theme='dark'] tbody tr:hover,
+  :root[data-theme='dark'] .table-column-menu-item:hover,
+  :root[data-theme='dark'] .table-column-menu-option:hover {
+    background: var(--surface-inset);
+  }
+
+  :root[data-theme='dark'] .button.primary,
+  :root[data-theme='dark'] .chat-row.is-own-message .chat-bubble,
+  :root[data-theme='dark'] .weekly-off-label,
+  :root[data-theme='dark'] .holiday-upcoming-badge,
+  :root[data-theme='dark'] .tv-dashboard-employee-avatar,
+  :root[data-theme='dark'] .avatar {
+    background: linear-gradient(180deg, #0e7a8f, #086375);
+    color: #ffffff;
+  }
+
+  :root[data-theme='dark'] .button.primary:hover {
+    background: linear-gradient(180deg, #0e788c, #085969);
+  }
+
+  :root[data-theme='dark'] .button.danger {
+    background: linear-gradient(180deg, #b72f29, #90221d);
+  }
+
+  :root[data-theme='dark'] .button.danger:hover {
+    background: linear-gradient(180deg, #c5352e, #a12620);
+  }
+
+  :root[data-theme='dark'] .form-field input,
+  :root[data-theme='dark'] .form-field select,
+  :root[data-theme='dark'] .form-field textarea,
+  :root[data-theme='dark'] .search-field,
+  :root[data-theme='dark'] .table-column-menu-search,
+  :root[data-theme='dark'] .table-column-date-range input,
+  :root[data-theme='dark'] .chat-composer textarea,
+  :root[data-theme='dark'] .chat-status,
+  :root[data-theme='dark'] .payroll-adjustments input,
+  :root[data-theme='dark'] .import-month-choices select {
+    background: var(--surface-inset);
+  }
+
+  :root[data-theme='dark'] .form-field input:disabled,
+  :root[data-theme='dark'] .form-field select:disabled {
+    background: var(--page-background-muted);
+  }
+
+  :root[data-theme='dark'] input::placeholder,
+  :root[data-theme='dark'] textarea::placeholder {
+    color: var(--text-muted);
+    opacity: 1;
+  }
+
+  :root[data-theme='dark'] .form-field .recipient-tags input:not([type='hidden']),
+  :root[data-theme='dark'] .search-field input {
+    background: transparent;
+  }
+
+  :root[data-theme='dark'] .drawer,
+  :root[data-theme='dark'] .drawer.is-solid,
+  :root[data-theme='dark'] .drawer.is-solid .drawer-footer,
+  :root[data-theme='dark'] .drawer .drawer-footer,
+  :root[data-theme='dark'] .modal-card .modal-footer,
+  :root[data-theme='dark'] .attendance-register,
+  :root[data-theme='dark'] .recipient-tags,
+  :root[data-theme='dark'] .recipient-options,
+  :root[data-theme='dark'] .recipient-options button,
+  :root[data-theme='dark'] .chat-composer,
+  :root[data-theme='dark'] .chat-bubble,
+  :root[data-theme='dark'] .employee-card,
+  :root[data-theme='dark'] .holiday-date,
+  :root[data-theme='dark'] .punch-row:hover,
+  :root[data-theme='dark'] .punch-kind.out {
+    background: var(--surface-solid);
+  }
+
+  :root[data-theme='dark'] .recipient-options button:hover,
+  :root[data-theme='dark'] .recipient-options button[aria-selected='true'] {
+    background: var(--brand-soft);
+  }
+
+  :root[data-theme='dark'] .exits-answer,
+  :root[data-theme='dark'] .policy-body-input,
+  :root[data-theme='dark'] .notices-body-input,
+  :root[data-theme='dark'] .helpdesk-message {
+    background: var(--surface-inset);
+    color: var(--text-primary);
+  }
+
+  :root[data-theme='dark'] .drawer.is-active,
+  :root[data-theme='dark'] .modal-card,
+  :root[data-theme='dark'] .notification-message {
+    box-shadow: var(--shadow-popover);
+  }
+
+  :root[data-theme='dark'] .chat-bubble,
+  :root[data-theme='dark'] .status-badge {
+    box-shadow: none;
+  }
+
+  :root[data-theme='dark'] .table-column-date-preset {
+    background: var(--surface-inset);
+  }
+
+  :root[data-theme='dark'] .table-column-date-preset.is-active {
+    background: var(--brand-soft);
+  }
+
+  :root[data-theme='dark'] .sticky-table-header th {
+    background: var(--surface-inset);
+  }
+
+  :root[data-theme='dark'] .notification-message.error,
+  :root[data-theme='dark'] .error-message,
+  :root[data-theme='dark'] .modal-card .modal-icon {
+    background: var(--attendance-absent-background);
+  }
+
+  :root[data-theme='dark'] .notification-message.success,
+  :root[data-theme='dark'] .hint {
+    background: var(--attendance-present-background);
+    box-shadow: none;
+  }
+
+  :root[data-theme='dark'] .policy .entry-category {
+    background: var(--brand-soft);
+  }
+
+  :root[data-theme='dark'] .holiday-upcoming {
+    background: var(--brand-soft);
+  }
+
+  :root[data-theme='dark'] .portal-loading {
+    --portal-loading-base: #262626;
+    --portal-loading-sheen: var(--brand-soft);
+    --portal-loading-edge: var(--border-surface);
+  }
+
+  :root[data-theme='dark'] .empty-state .empty-state-icon {
+    background: var(--brand-soft);
+  }
+
+  :root[data-theme='dark'] .chat {
+    background: var(--page-background-muted);
+  }
+
+  :root[data-theme='dark'] .import-upload-form input[type='file']::file-selector-button {
+    background: var(--control-background);
+  }
+
+  :root[data-theme='dark'] .data-import-page .import-warning,
+  :root[data-theme='dark'] .data-import-page .import-warning-title,
+  :root[data-theme='dark'] .data-import-page .import-result-warning {
+    background: var(--attendance-late-background);
+    border-color: var(--attendance-late-border);
+    color: var(--attendance-late);
+  }
+
+  :root[data-theme='dark'] .celebration-row .celebration-icon {
+    background: var(--brass-soft);
+    border-color: var(--border-strong);
+  }
+
+  :root[data-theme='dark'] .loading-placeholder {
+    background-image: linear-gradient(90deg, #262626 25%, var(--brand-soft) 45%, #262626 65%);
+  }
+
+  :root[data-theme='dark'] .dialog-backdrop,
+  :root[data-theme='dark'] .modal,
+  :root[data-theme='dark'] .navigation-backdrop {
+    background: rgba(0, 0, 0, 0.6);
+  }
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    :root[data-theme='dark'] .app-header,
+    :root[data-theme='dark'] .modal-card,
+    :root[data-theme='dark'] .notification-message,
+    :root[data-theme='dark'] .avatar-popover,
+    :root[data-theme='dark'] .table-column-menu,
+    :root[data-theme='dark'] .sidebar {
+      background: var(--surface-solid) !important;
+    }
+  }
+}

@@ -2,8 +2,11 @@
  * The root layout for the application.
  */
 import './globals.css';
+import '@/components/theme/theme.css';
 import { NetworkStatus } from '@/components/shell/NetworkStatus';
 import { TooltipLayer } from '@/components/ui/TooltipLayer';
+import { ThemeController } from '@/components/theme/ThemeController';
+import { themeInitScript } from '@/lib/theme';
 import type { Metadata, Viewport } from 'next';
 
 const metadata: Metadata = {
@@ -23,8 +26,9 @@ const viewport: Viewport = {
 
 function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script id="theme-init" dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
@@ -33,6 +37,7 @@ function RootLayout({ children }: { children: React.ReactNode }) {
         />
       </head>
       <body>
+        <ThemeController />
         {children}
         <NetworkStatus />
         <TooltipLayer />
