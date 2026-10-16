@@ -1,6 +1,7 @@
 import { getSession } from '@/lib/server-auth';
 import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm';
 import { AvatarMenu } from '@/components/shell/AvatarMenu';
+import { AppearanceSection } from '@/components/theme/ThemeSelector';
 
 // Employee account settings. Staff use /account.
 async function EmployeeAccountPage() {
@@ -37,6 +38,8 @@ async function EmployeeAccountPage() {
           </div>
         </div>
       </div>
+
+      <AppearanceSection />
 
       <div className="card">
         <div className="card-header">

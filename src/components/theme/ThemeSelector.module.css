@@ -1,0 +1,258 @@
+.selector {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.description {
+  margin: 6px 0 18px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  max-width: 780px;
+}
+
+.option {
+  position: relative;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.optionSurface {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface-solid);
+}
+
+.option:hover .optionSurface {
+  border-color: var(--brand);
+}
+
+.input:checked + .optionSurface {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 1px var(--brand);
+}
+
+.input:focus-visible + .optionSurface {
+  outline: 2px solid var(--brand);
+  outline-offset: 4px;
+}
+
+.optionLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.radio {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--text-muted);
+  border-radius: 50%;
+}
+
+.input:checked + .optionSurface .radio {
+  border-color: var(--brand);
+}
+
+.input:checked + .optionSurface .radio::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand);
+}
+
+.optionDescription {
+  margin: 5px 0 2px 24px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* Static miniature dashboard layouts, independent of the active application theme. */
+.preview {
+  position: relative;
+  display: block;
+  height: 116px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+}
+
+.previewLayout {
+  --preview-canvas: #ffffff;
+  --preview-surface: #f1f4f8;
+  --preview-border: #e1e7ef;
+  --preview-line: #c8d3df;
+  --preview-sidebar: #2786be;
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 22% 1fr;
+  gap: 8px;
+  padding: 8px;
+  background: var(--preview-canvas);
+}
+
+.previewLayout[data-preview-theme='dark'] {
+  --preview-canvas: #000000;
+  --preview-surface: #171717;
+  --preview-border: #303030;
+  --preview-line: #555555;
+  --preview-sidebar: #121212;
+}
+
+.preview[data-preview='system'] .previewLayout:last-child {
+  clip-path: polygon(65% 0, 100% 0, 100% 100%, 35% 100%);
+}
+
+.previewSidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 9px 5px;
+  border-radius: 4px;
+  background: var(--preview-sidebar);
+}
+
+.previewSidebar > span {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.previewSidebar > span:first-child {
+  height: 8px;
+  margin-bottom: 5px;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.previewMain {
+  display: grid;
+  grid-template-rows: 19px 24px 1fr;
+  gap: 8px;
+  min-width: 0;
+}
+
+.previewHeader,
+.previewTable {
+  display: flex;
+  padding: 6px;
+  border: 1px solid var(--preview-border);
+  border-radius: 4px;
+  background: var(--preview-surface);
+}
+
+.previewHeader {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.previewHeader > span:first-child {
+  width: 40%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--preview-line);
+}
+
+.previewHeader > span:last-child {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #0e7a8f;
+}
+
+.previewMetrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.previewMetrics > span {
+  border: 1px solid var(--preview-border);
+  border-radius: 4px;
+  background: var(--preview-surface);
+}
+
+.previewTable {
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 5px;
+}
+
+.previewTable > span {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--preview-line);
+}
+
+.previewTable > span:last-child {
+  width: 70%;
+}
+
+@media (max-width: 640px) {
+  .options {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .optionSurface {
+    display: grid;
+    grid-template-columns: 116px 1fr;
+    align-content: center;
+    column-gap: 14px;
+  }
+
+  .preview {
+    grid-row: span 2;
+    height: 90px;
+  }
+
+  .previewMain {
+    grid-template-rows: 15px 18px 1fr;
+    gap: 5px;
+  }
+
+  .optionLabel {
+    align-self: end;
+    margin-top: 0;
+  }
+
+  .optionDescription {
+    align-self: start;
+  }
+}

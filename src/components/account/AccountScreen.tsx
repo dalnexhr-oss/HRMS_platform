@@ -1,5 +1,6 @@
 import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm';
 import { AvatarMenu } from '@/components/shell/AvatarMenu';
+import { AppearanceSection } from '@/components/theme/ThemeSelector';
 import type { SessionContext } from '@/lib/server-auth';
 
 function AccountScreen({ profile, email }: Pick<SessionContext, 'profile' | 'email'>) {
@@ -34,6 +35,8 @@ function AccountScreen({ profile, email }: Pick<SessionContext, 'profile' | 'ema
           </div>
         </div>
       </div>
+
+      <AppearanceSection />
 
       <div className="card">
         <div className="card-header">
