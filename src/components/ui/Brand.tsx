@@ -28,14 +28,25 @@ function Brand({
       prefetch={false}
       onClick={onClick}
     >
-      <Image
-        src="/logo.png"
-        alt={label}
-        width={intrinsicW}
-        height={intrinsicH}
-        className="brand-logo-image"
-        priority={priority}
-      />
+      <span className="brand-logo-artwork">
+        <Image
+          src="/logo.png"
+          alt={label}
+          width={intrinsicW}
+          height={intrinsicH}
+          className="brand-logo-image"
+          priority={priority}
+        />
+        <Image
+          src="/logo.png"
+          alt=""
+          aria-hidden="true"
+          width={intrinsicW}
+          height={intrinsicH}
+          className="brand-logo-dark-wordmark"
+          priority={priority}
+        />
+      </span>
       <span className="brand-logo-text" aria-hidden="true">
         HRMS<span>.</span>
       </span>

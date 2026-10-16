@@ -1632,6 +1632,15 @@ tbody tr:hover {
   vertical-align: middle;
   line-height: 1;
 }
+.brand-logo-artwork {
+  position: relative;
+  display: inline-flex;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.brand-logo-dark-wordmark {
+  display: none;
+}
 .brand-logo-image {
   display: block;
   height: 26px;
@@ -1650,6 +1659,9 @@ tbody tr:hover {
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
+}
+.sidebar-brand .brand-logo-artwork {
+  flex-shrink: 0;
 }
 .sidebar-brand .brand-logo-image {
   display: block;
