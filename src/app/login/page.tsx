@@ -19,7 +19,7 @@ async function LoginPage({
   const nextPath = safeRedirectPath(Array.isArray(next) ? next[0] : next) ?? undefined;
 
   return (
-    <div className="login-layout">
+    <div className="login-layout login-layout--illustrated">
       <div className="login-card card">
         <div className="login-brand">
           <Brand priority />

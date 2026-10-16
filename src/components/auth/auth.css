@@ -1,11 +1,17 @@
 /* login */
-/* White here too, to match the app shell — the card carries itself on its shadow alone. */
+/* White canvas shared by the authentication pages. */
 .login-layout {
   min-height: 100vh;
   display: grid;
   place-items: center;
   padding: 24px;
   background: var(--page-background);
+}
+.login-layout--illustrated {
+  background-image: url('/images/login-workforce.webp');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
 }
 .login-card {
   width: 100%;
@@ -122,6 +128,10 @@
 
 /* Phones proper. */
 @media (max-width: 640px) {
+  .login-layout--illustrated {
+    background-position: center bottom;
+    background-size: auto 320px;
+  }
   /* 16px is the threshold below which iOS Safari zooms the page on focus and never zooms back — the single most disorienting mobile form bug there is. Every text control gets it, not just .form-field input. */
   .login-form input {
     font-size: 16px;
